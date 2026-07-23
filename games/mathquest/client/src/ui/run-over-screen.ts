@@ -4,12 +4,23 @@
  * "Rulare nouă" (New run) button that posts `new-run`. A retained `@engine/ui` tree built ONCE
  * (`createRunOverScreen`), mirroring `combat-screen.ts`'s banner (built-once, text rebound per
  * `refresh`).
+ *
+ * M4c (corpus/todos/2026-07-23-mathquest-M4c-persistent-mastery.md) adds a mastery readout — one
+ * line per topic (RO name + `correct/attempts` + tier) from `run.mastery` — the natural place for
+ * it: the run is OVER (won or lost), so this is the moment to show what was actually learned. Also
+ * RO-ifies the summary line via `STRINGS.runSummary`, fixing the pre-M4c EN literal that used to
+ * live inline here.
  */
 import { button, label, panel } from "@engine/ui";
 import type { ContainerNode } from "@engine/ui";
-import type { RunView } from "@mathquest/sim-core";
+import type { MathTopic, RunView } from "@mathquest/sim-core";
 import { MATE_PAL } from "../render/mate-palette";
 import { STRINGS } from "../strings";
+
+/** The 4 M2 topics, in the SAME fixed order `STRINGS.topicName`/`run.mastery.topics` use —
+ * mirrors `run/mastery.ts`'s own `ALL_TOPICS` (kept local since this is client code, not
+ * sim-core). */
+const TOPICS: readonly MathTopic[] = ["addition", "subtraction", "multiplication", "comparison"];
 
 /** Actions the screen's button invokes — wired once at creation. */
 export interface RunOverScreenActions {
@@ -27,10 +38,14 @@ export interface RunOverScreen {
 export function createRunOverScreen(actions: RunOverScreenActions): RunOverScreen {
   const bannerLbl = label("", { color: MATE_PAL.gold, scale: 3 });
   const summaryLbl = label("", { color: MATE_PAL.cream });
+  // M4c: one label per topic, built ONCE (the topic set is fixed) — text rebound per refresh, same
+  // build-once-tree/per-frame-rebind shape as every other label on this screen.
+  const masteryLbls = TOPICS.map(() => label("", { color: MATE_PAL.steel }));
   const newRunBtn = button(STRINGS.newRun, { onActivate: () => actions.newRun() });
   const root = panel({ direction: "column", gap: 16, align: "center", padding: 24 }, [
     bannerLbl,
     summaryLbl,
+    ...masteryLbls,
     newRunBtn,
   ]);
 
@@ -46,11 +61,22 @@ export function createRunOverScreen(actions: RunOverScreenActions): RunOverScree
       changed = true;
     }
 
-    const nextSummary = `${run.visitedIds.length} nodes visited — Warrior HP: ${run.warriorHp}/${run.warriorMaxHp}`;
+    const nextSummary = STRINGS.runSummary(run.visitedIds.length, run.warriorHp, run.warriorMaxHp);
     if (summaryLbl.text !== nextSummary) {
       summaryLbl.text = nextSummary;
       changed = true;
     }
+
+    // M4c: mastery survives death — the SAME store shows on a run_lost as a run_won (folded in by
+    // sim-bootstrap.ts's resolveCombatIfOver on every fight end, win or loss).
+    TOPICS.forEach((topic, i) => {
+      const lbl = masteryLbls[i]!;
+      const next = STRINGS.masteryLine(topic, run.mastery.topics[topic]);
+      if (lbl.text !== next) {
+        lbl.text = next;
+        changed = true;
+      }
+    });
 
     const result = changed || firstRefresh;
     firstRefresh = false;

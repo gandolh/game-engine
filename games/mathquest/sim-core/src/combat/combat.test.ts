@@ -3,7 +3,8 @@ import { createRng } from "@engine/core";
 import { createCombat, type Combat, type CombatOpts } from "./combat";
 import { ATTACK_DAMAGE, WARRIOR_MAX_HP } from "./constants";
 import { ENEMY_ARCHETYPES } from "../run/enemies";
-import type { AnswerResponse, CombatSnapshot, Grade, ProblemView } from "./types";
+import type { AnswerResponse, CombatSnapshot, Grade, MathTopic, ProblemView } from "./types";
+import type { TopicMastery } from "../run/mastery";
 import { xpForSolve } from "../run/progression";
 
 /** Default fight: grade 1, full HP, vs the "combat" archetype (24 hp, intent 5-8) — the M1/M2
@@ -278,7 +279,10 @@ describe("createCombat — combat loop (M3: extracted factory, M1/M2 behavior pr
     // Two non-lethal attacks each drew a return hit (5-8 each) before the 3rd, lethal one — so
     // warriorHp is reduced, never negative, and matches the snapshot's own warrior.hp exactly.
     // xpEarned (M4a): 3 correct attacks at grade 1 -> xpForSolve(1) * 3 = 3.
-    expect(combat.result()).toEqual({ outcome: "won", warriorHp: snap.warrior.hp, xpEarned: 3 });
+    // M4c: `result()` also carries `topicOutcomes` (dedicated coverage below, in the "M4c
+    // topicOutcomes" describe block) — `toMatchObject` here keeps checking these THREE fields
+    // exactly without also having to hand-compute the per-topic breakdown for this test's script.
+    expect(combat.result()).toMatchObject({ outcome: "won", warriorHp: snap.warrior.hp, xpEarned: 3 });
     expect(snap.warrior.hp).toBeLessThan(WARRIOR_MAX_HP);
     expect(snap.warrior.hp).toBeGreaterThan(0);
   });
@@ -297,7 +301,7 @@ describe("createCombat — combat loop (M3: extracted factory, M1/M2 behavior pr
     expect(snap.warrior.hp).toBe(0);
     expect(guard).toBeLessThan(40);
     // Always wrong (M4a): no correct solves -> xpEarned stays 0.
-    expect(combat.result()).toEqual({ outcome: "lost", warriorHp: 0, xpEarned: 0 });
+    expect(combat.result()).toMatchObject({ outcome: "lost", warriorHp: 0, xpEarned: 0 }); // M4c: see topicOutcomes describe block
   });
 
   it("chooseAction/submitAnswer/acknowledgeTeach are no-ops once the fight is over", () => {
@@ -440,7 +444,7 @@ describe("createCombat — M4b useLifeline('hint')", () => {
       withHint.submitAnswer(correctResponseFor(withHint.snapshot().problem!));
     }
     expect(withHint.snapshot().phase).toBe("won");
-    expect(withHint.result()).toEqual({ outcome: "won", warriorHp: withHint.snapshot().warrior.hp, xpEarned: 3 });
+    expect(withHint.result()).toMatchObject({ outcome: "won", warriorHp: withHint.snapshot().warrior.hp, xpEarned: 3 }); // M4c: see topicOutcomes describe block
   });
 
   it("hint reveals the SAME text the problem's own `teach` would show on a wrong answer", () => {
@@ -556,14 +560,14 @@ describe("createCombat — M4b useLifeline('skip')", () => {
       skipped.useLifeline("skip");
     }
     expect(skipped.snapshot().phase).toBe("won");
-    expect(skipped.result()).toEqual({ outcome: "won", warriorHp: skipped.snapshot().warrior.hp, xpEarned: 0 });
+    expect(skipped.result()).toMatchObject({ outcome: "won", warriorHp: skipped.snapshot().warrior.hp, xpEarned: 0 }); // M4c: see topicOutcomes describe block
 
     const solved = makeCombat(5);
     for (let i = 0; i < 3; i++) {
       solved.chooseAction("attack");
       solved.submitAnswer(correctResponseFor(solved.snapshot().problem!));
     }
-    expect(solved.result()).toEqual({ outcome: "won", warriorHp: solved.snapshot().warrior.hp, xpEarned: 3 * xpForSolve(1) });
+    expect(solved.result()).toMatchObject({ outcome: "won", warriorHp: solved.snapshot().warrior.hp, xpEarned: 3 * xpForSolve(1) }); // M4c: see topicOutcomes describe block
   });
 
   it("a skip-Attack that drops the enemy to 0 ends the fight WON with no further enemy turn", () => {
@@ -579,7 +583,7 @@ describe("createCombat — M4b useLifeline('skip')", () => {
     expect(snap.phase).toBe("won");
     expect(snap.enemy.hp).toBe(0);
     expect(snap.warrior.hp).toBe(hpBeforeLast); // no enemy turn after the killing skip
-    expect(combat.result()).toEqual({ outcome: "won", warriorHp: hpBeforeLast, xpEarned: 0 });
+    expect(combat.result()).toMatchObject({ outcome: "won", warriorHp: hpBeforeLast, xpEarned: 0 }); // M4c: see topicOutcomes describe block
   });
 
   it("skip is a no-op (returns false) while no action is pending (await_action)", () => {
@@ -674,5 +678,146 @@ describe("createCombat — M4b zero-behaviour-change guarantee (M4a parity)", ()
     const a = run();
     const b = run();
     expect(a).toEqual(b);
+  });
+});
+
+// =================================================================================================
+// M4c — persistent per-topic mastery (corpus/todos/2026-07-23-mathquest-M4c-persistent-mastery.md)
+// =================================================================================================
+
+function zeroTopicOutcomes(): Record<MathTopic, TopicMastery> {
+  return {
+    addition: { correct: 0, attempts: 0 },
+    subtraction: { correct: 0, attempts: 0 },
+    multiplication: { correct: 0, attempts: 0 },
+    comparison: { correct: 0, attempts: 0 },
+  };
+}
+
+describe("createCombat — M4c topicOutcomes (CombatResult)", () => {
+  it("a fresh combat's result() is null, so topicOutcomes isn't observable until the fight ends", () => {
+    const combat = makeCombat(1);
+    expect(combat.result()).toBeNull();
+  });
+
+  it(
+    "accumulates attempts/correct per topic over the WHOLE fight; a skip adds nothing; a " +
+      "wrong-then-requeued-then-correct solve of the SAME problem counts 2 attempts / 1 correct",
+    () => {
+      const combat = makeCombat(9);
+      const expected = zeroTopicOutcomes();
+      function record(topic: MathTopic, correct: boolean): void {
+        const prev = expected[topic];
+        expected[topic] = { correct: prev.correct + (correct ? 1 : 0), attempts: prev.attempts + 1 };
+      }
+
+      // Turn 1: answer WRONG, then the SAME requeued problem answered CORRECTLY next turn.
+      combat.chooseAction("attack");
+      let view = combat.snapshot().problem!;
+      const topic1 = view.topic;
+      combat.submitAnswer(wrongResponse(correctResponseFor(view)));
+      record(topic1, false);
+      expect(combat.snapshot().phase).toBe("teach");
+      combat.acknowledgeTeach();
+
+      combat.chooseAction("attack");
+      view = combat.snapshot().problem!;
+      expect(view.topic).toBe(topic1); // the re-queue is the SAME problem, not a fresh draw
+      combat.submitAnswer(correctResponseFor(view));
+      record(topic1, true);
+
+      // A "skip" (M4b) never calls submitAnswer -> must add NO attempt at all.
+      if (combat.result() === null) {
+        combat.chooseAction("attack");
+        if (combat.result() === null) combat.useLifeline("skip");
+      }
+
+      // Finish the fight (always correct from here) so `result()` becomes observable, tallying
+      // every genuine `submitAnswer` along the way.
+      let guard = 0;
+      while (combat.result() === null && guard++ < 40) {
+        const snap = combat.snapshot();
+        if (snap.phase === "await_action") {
+          combat.chooseAction("attack");
+        } else if (snap.phase === "await_answer") {
+          const p = combat.snapshot().problem!;
+          combat.submitAnswer(correctResponseFor(p));
+          record(p.topic, true);
+        } else if (snap.phase === "teach") {
+          combat.acknowledgeTeach();
+        }
+      }
+      expect(guard).toBeLessThan(40);
+      expect(combat.result()!.topicOutcomes).toEqual(expected);
+
+      // Sanity: the skip's turn contributed NEITHER an attempt nor a correct anywhere (the total
+      // attempts recorded must equal exactly the number of submitAnswer calls tallied above, never
+      // one more for the skipped turn).
+      const totalAttempts = Object.values(expected).reduce((s, t) => s + t.attempts, 0);
+      const totalCorrect = Object.values(expected).reduce((s, t) => s + t.correct, 0);
+      expect(combat.result()!.xpEarned).toBeLessThanOrEqual(totalCorrect * 4); // grade<=4, so xpForSolve<=4 per correct
+      expect(totalAttempts).toBeGreaterThanOrEqual(totalCorrect);
+    },
+  );
+
+  it("a fight where EVERY solve is correct has topicOutcomes.correct === topicOutcomes.attempts, per topic", () => {
+    const combat = makeCombat(1);
+    let guard = 0;
+    while (combat.result() === null && guard++ < 40) {
+      const snap = combat.snapshot();
+      if (snap.phase === "await_action") combat.chooseAction("attack");
+      else if (snap.phase === "await_answer") combat.submitAnswer(correctResponseFor(combat.snapshot().problem!));
+      else if (snap.phase === "teach") combat.acknowledgeTeach();
+    }
+    expect(guard).toBeLessThan(40);
+    const outcomes = combat.result()!.topicOutcomes;
+    for (const topic of Object.keys(outcomes) as MathTopic[]) {
+      expect(outcomes[topic].correct).toBe(outcomes[topic].attempts);
+    }
+    const totalAttempts = Object.values(outcomes).reduce((s, t) => s + t.attempts, 0);
+    expect(totalAttempts).toBeGreaterThan(0); // real solves actually happened
+  });
+
+  it("a fight where EVERY solve is wrong (guaranteed loss) still tallies attempts with 0 correct", () => {
+    const combat = makeCombat(10);
+    let guard = 0;
+    while (combat.result() === null && guard++ < 40) {
+      const snap = combat.snapshot();
+      if (snap.phase === "await_action") combat.chooseAction("attack");
+      else if (snap.phase === "await_answer") combat.submitAnswer(wrongResponse(correctResponseFor(combat.snapshot().problem!)));
+      else if (snap.phase === "teach") combat.acknowledgeTeach();
+    }
+    expect(guard).toBeLessThan(40);
+    const result = combat.result()!;
+    expect(result.outcome).toBe("lost");
+    const outcomes = result.topicOutcomes;
+    const totalAttempts = Object.values(outcomes).reduce((s, t) => s + t.attempts, 0);
+    const totalCorrect = Object.values(outcomes).reduce((s, t) => s + t.correct, 0);
+    expect(totalAttempts).toBeGreaterThan(0); // a loss still records solves — mastery survives death
+    expect(totalCorrect).toBe(0);
+  });
+
+  it("hint/fifty never add an attempt on their own (only the eventual submitAnswer does)", () => {
+    const combat = makeCombat(1);
+    combat.chooseAction("attack");
+    combat.useLifeline("hint");
+    combat.useLifeline("fifty"); // no-op unless this problem happens to be a choice — either way, fine
+    // Zero submitAnswer calls yet -> the fight can't have ended, so result() is still null; drain
+    // to completion with all-correct answers and confirm the total attempt count equals exactly the
+    // number of submitAnswer calls this loop makes (never inflated by the hint/fifty calls above).
+    let submitCount = 0;
+    let guard = 0;
+    while (combat.result() === null && guard++ < 40) {
+      const snap = combat.snapshot();
+      if (snap.phase === "await_action") combat.chooseAction("attack");
+      else if (snap.phase === "await_answer") {
+        combat.submitAnswer(correctResponseFor(combat.snapshot().problem!));
+        submitCount += 1;
+      } else if (snap.phase === "teach") combat.acknowledgeTeach();
+    }
+    expect(guard).toBeLessThan(40);
+    const outcomes = combat.result()!.topicOutcomes;
+    const totalAttempts = Object.values(outcomes).reduce((s, t) => s + t.attempts, 0);
+    expect(totalAttempts).toBe(submitCount);
   });
 });

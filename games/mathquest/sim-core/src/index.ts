@@ -85,3 +85,20 @@ export {
   type LifelineKind,
   type LifelineCharges,
 } from "./run/lifelines";
+
+export {
+  BLUEPRINTS,
+  ELITE_UNLOCK_TIER,
+  EMPTY_MASTERY_STORE,
+  MASTERY_STORAGE_KEY,
+  MASTERY_STORE_VERSION,
+  MASTERY_TIER_THRESHOLDS,
+  blueprintItemsFor,
+  foldTopicOutcomes,
+  masteryPct,
+  masteryTier,
+  overallMasteryTier,
+  parseMasteryStore,
+  type MasteryStore,
+  type TopicMastery,
+} from "./run/mastery";

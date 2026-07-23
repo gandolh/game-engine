@@ -38,6 +38,7 @@
  * Public shape: `createMapScreen(): { render, nodeAtScreen, panBy, reachableOrder }`.
  */
 import { drawText, measureText, type UISurface } from "@engine/ui";
+import { overallMasteryTier } from "@mathquest/sim-core";
 import type { MapNode, NodeType, RunMap, RunView } from "@mathquest/sim-core";
 import { MATE_PAL } from "../render/mate-palette";
 import { STRINGS } from "../strings";
@@ -746,6 +747,10 @@ function drawChrome(surface: UISurface, run: RunView, viewW: number): void {
   surface.rect(0, 0, viewW, CHROME_TOP, MATE_PAL.ink, 1); // solid top HUD strip
   surface.rect(0, CHROME_TOP, viewW, 2, MATE_PAL.gold, 1);
   drawText(surface, STRINGS.mapTitle, 24, 8, { color: MATE_PAL.gold, scale: 2 });
+  // M4c: a compact overall-mastery readout, right-aligned on the title row — small, doesn't touch
+  // the terrain/camera code or the HP/level/xp/stats row below it.
+  const masteryText = STRINGS.masteryHudLabel(overallMasteryTier(run.mastery));
+  drawText(surface, masteryText, viewW - measureText(masteryText) - 24, 8, { color: MATE_PAL.cyan });
   drawText(surface, STRINGS.warriorHpLabel, 24, HP_BAR_Y + 6, { color: MATE_PAL.cream });
   surface.rect(HP_BAR_X, HP_BAR_Y + 6, HP_BAR_W, HP_BAR_H, MATE_PAL.navy);
   const pct = run.warriorMaxHp > 0 ? clamp(run.warriorHp / run.warriorMaxHp, 0, 1) : 0;

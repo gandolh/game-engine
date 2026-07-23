@@ -6,7 +6,7 @@
 import { describe, it, expect } from "vitest";
 import { createRng } from "@engine/core";
 import type { ButtonNode, LabelNode, UINode } from "@engine/ui";
-import { generateMap, STARTING_LIFELINES, type RunView } from "@mathquest/sim-core";
+import { EMPTY_MASTERY_STORE, generateMap, STARTING_LIFELINES, type RunView } from "@mathquest/sim-core";
 import { createRunOverScreen, type RunOverScreenActions } from "./run-over-screen";
 
 function walk(node: UINode, out: UINode[] = []): UINode[] {
@@ -44,6 +44,11 @@ function testRun(over: Partial<RunView> = {}): RunView {
     inventory: [],
     // M4b addition (corpus/todos/2026-07-23-mathquest-M4b-lifelines.md) — a fresh run's default kit.
     lifelines: { ...STARTING_LIFELINES },
+    // M4c addition (corpus/todos/2026-07-23-mathquest-M4c-persistent-mastery.md) — a fresh
+    // player's default (mastery survives death, so a real run would NOT reset this to empty on
+    // every refresh — but a bare fixture with nothing else specified starts from empty, same as a
+    // fresh install).
+    mastery: EMPTY_MASTERY_STORE,
     ...over,
   };
 }
@@ -81,5 +86,38 @@ describe("createRunOverScreen", () => {
     expect(screen.refresh("run_won", run)).toBe(true);
     expect(screen.refresh("run_won", run)).toBe(false);
     expect(screen.refresh("run_lost", run)).toBe(true);
+  });
+
+  // M4c: mastery readout (corpus/todos/2026-07-23-mathquest-M4c-persistent-mastery.md).
+  it("shows one line per topic with its correct/attempts and tier — e.g. Adunare: 12/15 · Nivel 2", () => {
+    const actions: RunOverScreenActions = { newRun: () => {} };
+    const screen = createRunOverScreen(actions);
+    const run = testRun({
+      mastery: {
+        ...EMPTY_MASTERY_STORE,
+        topics: { ...EMPTY_MASTERY_STORE.topics, addition: { correct: 12, attempts: 15 } },
+      },
+    });
+    screen.refresh("run_won", run);
+    const text = labels(screen.root).map((l) => l.text);
+    expect(text.some((t) => t.includes("Adunare") && t.includes("12/15") && t.includes("Nivel 1"))).toBe(true);
+  });
+
+  it("the mastery readout is IDENTICAL on run_lost as run_won for the SAME store (mastery survives death)", () => {
+    const actions: RunOverScreenActions = { newRun: () => {} };
+    const wonScreen = createRunOverScreen(actions);
+    const lostScreen = createRunOverScreen(actions);
+    const run = testRun({
+      mastery: {
+        ...EMPTY_MASTERY_STORE,
+        topics: { ...EMPTY_MASTERY_STORE.topics, comparison: { correct: 20, attempts: 25 } },
+      },
+    });
+    wonScreen.refresh("run_won", run);
+    lostScreen.refresh("run_lost", run);
+    const masteryLine = (root: typeof wonScreen.root): string | undefined =>
+      labels(root).map((l) => l.text).find((t) => t.includes("Comparare"));
+    expect(masteryLine(wonScreen.root)).toBe(masteryLine(lostScreen.root));
+    expect(masteryLine(wonScreen.root)).toContain("20/25");
   });
 });

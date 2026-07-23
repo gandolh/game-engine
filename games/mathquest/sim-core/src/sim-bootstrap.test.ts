@@ -19,8 +19,35 @@ import { ENEMY_ARCHETYPES } from "./run/enemies";
 import { xpToNext, ZERO_STATS } from "./run/progression";
 import { foldItemBonus } from "./run/loot";
 import { STARTING_LIFELINES } from "./run/lifelines";
+import {
+  BLUEPRINTS,
+  ELITE_UNLOCK_TIER,
+  EMPTY_MASTERY_STORE,
+  overallMasteryTier,
+  type MasteryStore,
+} from "./run/mastery";
 import type { AnswerResponse, ProblemView } from "./combat/types";
 import type { RunMap } from "./run/map";
+
+// --- M4c helpers (corpus/todos/2026-07-23-mathquest-M4c-persistent-mastery.md) -----------------
+
+/** A store whose overall tier sum meets `ELITE_UNLOCK_TIER` — used by tests that need the elite
+ * gate OPEN (e.g. the pre-M4c "hard branch" test, which used to find an elite for FREE with a
+ * fresh/empty store; post-M4c a fresh store has overall 0 < ELITE_UNLOCK_TIER, so NO seed's map
+ * has an elite anymore unless a high-enough mastery store is passed in). One topic at tier 2 (15
+ * correct) sums to exactly `ELITE_UNLOCK_TIER` (2). */
+function highMasteryStore(): MasteryStore {
+  return {
+    version: 1,
+    topics: {
+      addition: { correct: 15, attempts: 15 },
+      subtraction: { correct: 0, attempts: 0 },
+      multiplication: { correct: 0, attempts: 0 },
+      comparison: { correct: 0, attempts: 0 },
+    },
+    blueprints: [],
+  };
+}
 
 // --- shared helpers (mirror combat/combat.test.ts's — kept local since this file drives the
 // RUN's GameSnapshot, not a bare CombatSnapshot) --------------------------------------------
@@ -400,13 +427,16 @@ describe("bootstrapMathquestSim — losing a fight ends the run", () => {
 
 describe("bootstrapMathquestSim — the hard branch is actually harder", () => {
   it("an elite node's fight uses the elite archetype at a higher grade than its row's plain combat sibling", () => {
+    // M4c: a fresh/empty mastery store now GATES the elite off (overall 0 < ELITE_UNLOCK_TIER) —
+    // pass a high-mastery store so the elite gate is open, matching this test's pre-M4c intent
+    // (finding SOME seed with an elite reachable at row 0) rather than the new empty-store default.
     // Search for a seed whose branching row IS row 0 (the elite sits at a start id, so we can
     // choose it directly without first winning our way there).
     let sim: BootedMathquestSim | undefined;
     let eliteId = -1;
     let siblingGrade = -1;
     for (let seed = 1; seed <= 200; seed++) {
-      const candidate = bootstrapMathquestSim({ seed });
+      const candidate = bootstrapMathquestSim({ seed, mastery: highMasteryStore() });
       const map = candidate.getSnapshot().run.map;
       const row0 = map.nodes.filter((n) => n.row === 0);
       const elite = row0.find((n) => n.type === "elite");
@@ -1029,5 +1059,173 @@ describe("bootstrapMathquestSim — M4b determinism guard", () => {
     const b = run();
     expect(a.length).toBeGreaterThan(1);
     expect(a).toEqual(b);
+  });
+});
+
+// =================================================================================================
+// M4c — persistent per-topic mastery (corpus/todos/2026-07-23-mathquest-M4c-persistent-mastery.md)
+// =================================================================================================
+
+function totalAttempts(mastery: MasteryStore): number {
+  return Object.values(mastery.topics).reduce((s, t) => s + t.attempts, 0);
+}
+function totalCorrect(mastery: MasteryStore): number {
+  return Object.values(mastery.topics).reduce((s, t) => s + t.correct, 0);
+}
+
+describe("bootstrapMathquestSim — M4c mastery defaults + accrual", () => {
+  it("a fresh run with no mastery option starts with EMPTY_MASTERY_STORE on run.mastery", () => {
+    const sim = bootstrapMathquestSim({ seed: 1 });
+    expect(sim.getSnapshot().run.mastery).toEqual(EMPTY_MASTERY_STORE);
+  });
+
+  it("boots with a PASSED-IN mastery store verbatim", () => {
+    const mastery = highMasteryStore();
+    const sim = bootstrapMathquestSim({ seed: 1, mastery });
+    expect(sim.getSnapshot().run.mastery).toEqual(mastery);
+  });
+
+  it("a win's per-topic solves fold into run.mastery, visible in the very next snapshot", () => {
+    const sim = bootstrapMathquestSim({ seed: 1 });
+    const nodeId = findCombatNodeId(sim);
+    if (nodeId === undefined) throw new Error("seed 1 has no combat node");
+    scriptExactWin(sim, nodeId, 2); // 2 shields + 3 attacks = 5 correct solves, all landed
+    const after = sim.getSnapshot().run.mastery;
+    expect(totalAttempts(after)).toBe(5);
+    expect(totalCorrect(after)).toBe(5);
+  });
+});
+
+describe("bootstrapMathquestSim — M4c the elite gate is wired to the persistent store", () => {
+  it("a fresh (EMPTY_MASTERY_STORE) run generates NO elite node anywhere, across many seeds", () => {
+    for (let seed = 1; seed <= 30; seed++) {
+      const sim = bootstrapMathquestSim({ seed });
+      expect(sim.getSnapshot().run.map.nodes.some((n) => n.type === "elite")).toBe(false);
+    }
+  });
+
+  it("a tier-2+ mastery store DOES let an elite appear for some seed (the gate is genuinely open)", () => {
+    let found = false;
+    for (let seed = 1; seed <= 30 && !found; seed++) {
+      const sim = bootstrapMathquestSim({ seed, mastery: highMasteryStore() });
+      if (sim.getSnapshot().run.map.nodes.some((n) => n.type === "elite")) found = true;
+    }
+    expect(found).toBe(true);
+  });
+
+  it("newRun() recomputes eliteUnlocked from the CURRENT persisted store (not a stale snapshot from boot)", () => {
+    // Boot EMPTY (gate closed) -> lose -> newRun(): still closed (mastery never earned anything).
+    const closedSim = bootstrapMathquestSim({ seed: 1 });
+    closedSim.chooseNode(closedSim.getSnapshot().run.reachableIds[0]!);
+    driveCombatToLoss(closedSim);
+    closedSim.newRun();
+    expect(overallMasteryTier(closedSim.getSnapshot().run.mastery)).toBeLessThan(ELITE_UNLOCK_TIER);
+    for (let seed = 1; seed <= 10; seed++) {
+      // Re-verify via a FRESH boot at the same (still-closed) mastery level for a wider seed
+      // sweep — the closedSim itself only has ONE post-newRun map to inspect.
+      const sim = bootstrapMathquestSim({ seed, mastery: closedSim.getSnapshot().run.mastery });
+      expect(sim.getSnapshot().run.map.nodes.some((n) => n.type === "elite")).toBe(false);
+    }
+  });
+});
+
+describe("bootstrapMathquestSim — M4c blueprint loot", () => {
+  it("an already-unlocked blueprint's item can appear among loot offers", () => {
+    let found = false;
+    for (let seed = 1; seed <= 200 && !found; seed++) {
+      const mastery: MasteryStore = { ...EMPTY_MASTERY_STORE, blueprints: [BLUEPRINTS.multiplication.id] };
+      const sim = bootstrapMathquestSim({ seed, mastery });
+      const nodeId = findCombatNodeId(sim);
+      if (nodeId === undefined) continue;
+      scriptExactWin(sim, nodeId, 0); // below the first xp threshold -> straight to loot
+      const snap = sim.getSnapshot();
+      if (snap.mode !== "loot") continue;
+      if (snap.offers.some((o) => o.id === BLUEPRINTS.multiplication.item.id)) found = true;
+    }
+    expect(found).toBe(true);
+  });
+
+  it("with NO blueprints unlocked, loot offers never include a blueprint item (nothing to widen the pool with)", () => {
+    for (let seed = 1; seed <= 30; seed++) {
+      const sim = bootstrapMathquestSim({ seed }); // EMPTY_MASTERY_STORE -> blueprints: []
+      const nodeId = findCombatNodeId(sim);
+      if (nodeId === undefined) continue;
+      scriptExactWin(sim, nodeId, 0);
+      const snap = sim.getSnapshot();
+      if (snap.mode !== "loot") continue;
+      const blueprintIds = new Set(Object.values(BLUEPRINTS).map((b) => b.item.id));
+      for (const offer of snap.offers) expect(blueprintIds.has(offer.id)).toBe(false);
+    }
+  });
+});
+
+describe("bootstrapMathquestSim — M4c persistence across death", () => {
+  it("a LOSS still folds topicOutcomes into run.mastery (mastery is honest — it survives death)", () => {
+    const sim = bootstrapMathquestSim({ seed: 1 });
+    sim.chooseNode(sim.getSnapshot().run.reachableIds[0]!);
+    driveCombatToLoss(sim); // always attack, always wrong
+    const lostSnap = sim.getSnapshot();
+    expect(lostSnap.mode).toBe("run_lost");
+    expect(totalAttempts(lostSnap.run.mastery)).toBeGreaterThan(0); // the loss's wrong solves WERE recorded
+    expect(totalCorrect(lostSnap.run.mastery)).toBe(0); // every one of them was wrong
+  });
+
+  it("newRun() KEEPS mastery unchanged while resetting xp/level/stats/inventory/lifelines", () => {
+    const sim = bootstrapMathquestSim({ seed: 1 });
+    sim.chooseNode(sim.getSnapshot().run.reachableIds[0]!);
+    driveCombatToLoss(sim);
+    const lostSnap = sim.getSnapshot();
+    expect(lostSnap.mode).toBe("run_lost");
+
+    sim.newRun();
+    const after = sim.getSnapshot();
+    expect(after.mode).toBe("map");
+    expect(after.run.mastery).toEqual(lostSnap.run.mastery); // UNCHANGED by newRun — the one field that survives
+    expect(after.run.level).toBe(1);
+    expect(after.run.xp).toBe(0);
+    expect(after.run.stats).toEqual(ZERO_STATS);
+    expect(after.run.inventory).toEqual([]);
+    expect(after.run.lifelines).toEqual(STARTING_LIFELINES);
+  });
+
+  it("mastery also survives a WIN-then-newRun (not just a loss)", () => {
+    const sim = bootstrapMathquestSim({ seed: 1 });
+    const nodeId = findCombatNodeId(sim);
+    if (nodeId === undefined) throw new Error("seed 1 has no combat node");
+    scriptExactWin(sim, nodeId, 0); // straight to loot
+    const wonSnap = sim.getSnapshot();
+    expect(totalAttempts(wonSnap.run.mastery)).toBeGreaterThan(0);
+    sim.chooseLoot(-1);
+    expect(sim.getSnapshot().run.mastery).toEqual(wonSnap.run.mastery); // loot pickup never touches mastery
+  });
+});
+
+describe("bootstrapMathquestSim — M4c determinism guard", () => {
+  it("the SAME (seed, mastery, command script) -> an IDENTICAL snapshot sequence (map, loot, mastery all included)", () => {
+    const mastery = highMasteryStore();
+    function run(): GameSnapshot[] {
+      const sim = bootstrapMathquestSim({ seed: 3, mastery });
+      const snapshots: GameSnapshot[] = [sim.getSnapshot()];
+      const nodeId = findCombatNodeId(sim);
+      if (nodeId !== undefined) {
+        scriptExactWin(sim, nodeId, 1);
+        snapshots.push(sim.getSnapshot());
+      }
+      return snapshots;
+    }
+    const a = run();
+    const b = run();
+    expect(a.length).toBeGreaterThan(1);
+    expect(a).toEqual(b);
+  });
+
+  it("a DIFFERENT mastery store (same seed, same script) can produce a DIFFERENT map (mastery is a genuine fork input)", () => {
+    function run(mastery: MasteryStore): GameSnapshot {
+      const sim = bootstrapMathquestSim({ seed: 1, mastery });
+      return sim.getSnapshot();
+    }
+    const empty = run(EMPTY_MASTERY_STORE);
+    const high = run(highMasteryStore());
+    expect(empty.run.map).not.toEqual(high.run.map); // the elite slot differs
   });
 });

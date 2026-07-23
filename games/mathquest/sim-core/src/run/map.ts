@@ -9,6 +9,15 @@
  * node's outgoing edges, …) so the same seed always produces the exact same map. The caller
  * (`sim-bootstrap.ts`) is responsible for handing in a fresh fork per map generated
  * (`rng.fork("map")` for the first run, `rng.fork(`run:${n}`)` for every `newRun()` after).
+ *
+ * M4c (corpus/todos/2026-07-23-mathquest-M4c-persistent-mastery.md) adds an OPTIONAL
+ * `opts.eliteUnlocked` (default `true`, so every pre-M4c call site/test stays byte-identical):
+ * when `false`, the branch row's would-be `"elite"` column is emitted as a normal `"combat"` node
+ * at the row's BASE grade instead — no hard fork at all, but the map stays exactly as valid a
+ * connected DAG either way. This is a fork INPUT change, not a fork SEQUENCE change: the
+ * `elite-col:${row}` fork is still consumed at the same point regardless of `eliteUnlocked`, only
+ * its result is ignored when the gate is closed — see `sim-bootstrap.ts` for how the persistent
+ * `MasteryStore` decides `eliteUnlocked`.
  */
 import type { Rng } from "@engine/core";
 import type { Grade } from "../combat/types";
@@ -75,7 +84,8 @@ function shuffledRange(length: number, rng: Rng): number[] {
  * r; the boss is reachable from every start id); ≥1 branching row with a differing-grade/type
  * `"elite"` fork; ≥1 `"rest"` node in a middle row; escalating grades; boss grade 4.
  */
-export function generateMap(rng: Rng): RunMap {
+export function generateMap(rng: Rng, opts?: { readonly eliteUnlocked?: boolean }): RunMap {
+  const eliteUnlocked = opts?.eliteUnlocked ?? true;
   // --- Row sizes: 6 rows of 2 nodes, 0-2 of them bumped to 3 — keeps the non-boss node count in
   // the brief's ≈10-14 band (12 + 0..2) while still varying the shape across seeds.
   const sizeRng = rng.fork("sizes");
@@ -116,10 +126,13 @@ export function generateMap(rng: Rng): RunMap {
       let grade: Grade = base;
       if (col === restCol) {
         type = "rest";
-      } else if (col === eliteCol) {
+      } else if (col === eliteCol && eliteUnlocked) {
         type = "elite";
         grade = clampGrade(base + 1);
       }
+      // else (M4c, eliteUnlocked===false, col===eliteCol): stays plain "combat" at the row's base
+      // grade — the `elite-col:${row}` fork above was still consumed (fork sequence unchanged),
+      // its result just isn't ACTED on while the gate is closed.
       nodes.push({ id, type, row, col, grade, next: [] }); // `next` filled in below
     }
     rowIds.push(ids);

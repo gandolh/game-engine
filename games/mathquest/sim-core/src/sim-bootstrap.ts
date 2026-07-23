@@ -36,6 +36,17 @@
  * adds NO new fork here — `useLifeline` forwards straight to `Combat.useLifeline`, which forks
  * `"fifty"` on the fight's OWN rng (never a driver-level fork), so the driver-level fork order
  * (`map`/`run:${n}`/`node:${id}`/`levelup`/`loot`) is completely unchanged.
+ *
+ * M4c (corpus/todos/2026-07-23-mathquest-M4c-persistent-mastery.md) adds the game's FIRST
+ * cross-run persistence: a per-topic `MasteryStore` (`run/mastery.ts`), ferried in via
+ * `MathquestSimOptions.mastery` (default `EMPTY_MASTERY_STORE`) and echoed out on every
+ * `RunView.mastery`. Adds NO new fork either — mastery only changes fork INPUTS
+ * (`generateMap`'s `eliteUnlocked`, `rollLoot`'s `extraPool`), never the fork sequence. Unlike
+ * every other run-scoped field, `masteryStore` is NOT reset by `newRun()` — it is the one piece of
+ * state that survives death (see `resolveCombatIfOver`, which folds it on EVERY fight end, win or
+ * loss). **This module never touches `localStorage`/DOM** — the sim runs in a Web Worker, which
+ * has no such access; persistence is owned entirely by the main thread (`client/src/main.ts`),
+ * which reads/writes `localStorage` and only ever hands this module a plain `MasteryStore` value.
  */
 import { World, Scheduler, createRng, type Rng, type System, type SimContext } from "@engine/core";
 import { createCombat, type Combat } from "./combat/combat";
@@ -46,6 +57,14 @@ import { generateMap, type MapNode, type NodeType, type RunMap } from "./run/map
 import { REST_HEAL } from "./run/constants";
 import { rollLoot, toItemView, foldItemBonus, type Item, type ItemView, type LootTier } from "./run/loot";
 import { STARTING_LIFELINES, type LifelineCharges, type LifelineKind } from "./run/lifelines";
+import {
+  blueprintItemsFor,
+  foldTopicOutcomes,
+  overallMasteryTier,
+  ELITE_UNLOCK_TIER,
+  EMPTY_MASTERY_STORE,
+  type MasteryStore,
+} from "./run/mastery";
 import {
   describeUpgrade,
   offerUpgrades,
@@ -78,6 +97,8 @@ export type { EnemyArchetype, EnemyKind } from "./run/enemies";
 export type { MapNode, NodeType, RunMap } from "./run/map";
 export type { Item, ItemView, LootTier } from "./run/loot";
 export type { LifelineCharges, LifelineKind } from "./run/lifelines";
+export type { MasteryStore, TopicMastery } from "./run/mastery";
+export { MASTERY_STORAGE_KEY, parseMasteryStore, EMPTY_MASTERY_STORE } from "./run/mastery";
 export type { StatBonuses, UpgradeKind, UpgradeOffer } from "./run/progression";
 
 /**
@@ -94,6 +115,10 @@ export interface MathquestEntity {
 export interface MathquestSimOptions {
   /** Seed for the sim's root `Rng` — all future randomness must fork from this (never `Math.random()`). */
   seed: number;
+  /** M4c: the persistent per-topic mastery store, ferried in by the main thread (read from
+   * `localStorage`, see `run/mastery.ts`'s module doc) — the sim itself never touches storage.
+   * Defaults to `EMPTY_MASTERY_STORE` so every pre-M4c call site/test stays byte-identical. */
+  mastery?: MasteryStore;
 }
 
 /** The run's current top-level mode (M3 brief, Part A3/A4; M4a adds `"level_up"`/`"loot"`, both
@@ -128,6 +153,10 @@ export interface RunView {
   /** M4b: remaining lifeline charges per kind — starts at `STARTING_LIFELINES` (1 of each),
    * topped up by lifeline loot, resets on `newRun()`. */
   readonly lifelines: LifelineCharges;
+  /** M4c: the persistent per-topic mastery store — the ONE field on `RunView` that does NOT reset
+   * on `newRun()` (mastery survives death). The main thread writes this back to `localStorage`
+   * whenever it changes (`client/src/main.ts`); the sim/worker never does so itself. */
+  readonly mastery: MasteryStore;
 }
 
 /** The top-level sim/render boundary snapshot (M3 brief, Part A4; M4a adds `"level_up"`/`"loot"`)
@@ -216,8 +245,13 @@ export function bootstrapMathquestSim(opts: MathquestSimOptions): BootedMathques
   const scheduler = new Scheduler();
   scheduler.stage("TICK").add(new NoopSystem());
 
+  // M4c: the persistent store, seeded from the caller (default EMPTY_MASTERY_STORE); NOT reset by
+  // newRun() — see the module doc. Read by BOTH generateMap calls below (the elite gate) and every
+  // rollLoot call (the blueprint-widened pool); written by resolveCombatIfOver on every fight end.
+  let masteryStore: MasteryStore = opts.mastery ?? EMPTY_MASTERY_STORE;
+
   let runCount = 0;
-  let map: RunMap = generateMap(rng.fork("map"));
+  let map: RunMap = generateMap(rng.fork("map"), { eliteUnlocked: overallMasteryTier(masteryStore) >= ELITE_UNLOCK_TIER });
   let currentId: number | null = null;
   let reachableIds: readonly number[] = map.startIds;
   let visitedIds: readonly number[] = [];
@@ -307,7 +341,10 @@ export function bootstrapMathquestSim(opts: MathquestSimOptions): BootedMathques
     }
     if (pendingWinNode !== null && !winLootResolved) {
       mode = "loot";
-      lootOffers = rollLoot(rng.fork("loot"), tierForNodeType(pendingWinNode.type));
+      // M4c: unlocked blueprint items (`masteryStore.blueprints`) widen the BETTER pool — see
+      // run/loot.ts's module doc. `blueprintItemsFor` returns `[]` for an empty store, so this is
+      // byte-identical to pre-M4c when nothing has been unlocked yet.
+      lootOffers = rollLoot(rng.fork("loot"), tierForNodeType(pendingWinNode.type), blueprintItemsFor(masteryStore.blueprints));
       return;
     }
     if (pendingWinNode !== null) {
@@ -329,6 +366,10 @@ export function bootstrapMathquestSim(opts: MathquestSimOptions): BootedMathques
     const node = nodeById(currentId);
     combat = null;
     currentId = null;
+
+    // M4c: fold this fight's per-topic outcomes into the persistent store BEFORE the win/loss
+    // branch below — mastery is honest and survives death (a LOSS still counts its solves).
+    masteryStore = foldTopicOutcomes(masteryStore, result.topicOutcomes);
 
     if (result.outcome === "lost") {
       mode = "run_lost";
@@ -417,7 +458,10 @@ export function bootstrapMathquestSim(opts: MathquestSimOptions): BootedMathques
   function newRun(): void {
     if (mode !== "run_won" && mode !== "run_lost") return; // ignore off-mode commands
     runCount += 1;
-    map = generateMap(rng.fork(`run:${runCount}`));
+    // M4c: eliteUnlocked is recomputed from the CURRENT (persisted) masteryStore — never reset by
+    // newRun() (see the module doc); masteryStore itself is untouched below, unlike every other
+    // run-scoped field.
+    map = generateMap(rng.fork(`run:${runCount}`), { eliteUnlocked: overallMasteryTier(masteryStore) >= ELITE_UNLOCK_TIER });
     currentId = null;
     reachableIds = map.startIds;
     visitedIds = [];
@@ -451,6 +495,7 @@ export function bootstrapMathquestSim(opts: MathquestSimOptions): BootedMathques
       stats,
       inventory: inventory.map(toItemView),
       lifelines: { ...lifelines },
+      mastery: masteryStore,
     };
     switch (mode) {
       case "combat":

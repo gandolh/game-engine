@@ -30,6 +30,15 @@
  * `hintText`/`fiftyDisabled` reset to `null` whenever a NEW problem is set (`chooseAction`), so a
  * fight that never calls `useLifeline` stays byte-identical to M4a: `disabledChoices` is always
  * `[]`, `hint` is always `null`, and the `"fifty"` fork is never consumed.
+ *
+ * M4c (corpus/todos/2026-07-23-mathquest-M4c-persistent-mastery.md) adds `CombatResult.topicOutcomes`
+ * — a per-topic `{correct, attempts}` tally accumulated over the WHOLE fight, so `sim-bootstrap.ts`
+ * can fold it into the persistent `MasteryStore` on fight end (win OR loss). `submitAnswer` is the
+ * ONLY place a solve's correctness is known, so it is the ONLY place this accumulator is touched: a
+ * `hint`/`fifty` never calls it (the eventual `submitAnswer` records the attempt), and a `skip`
+ * (M4b's `useLifeline("skip")`) explicitly bypasses `submitAnswer` — it was never SOLVED, so it adds
+ * no attempt either. No new fork, no new snapshot field — `topicOutcomes` is exposed ONLY on
+ * `CombatResult` (via `result()`), never on `CombatSnapshot`.
  */
 import type { Rng } from "@engine/core";
 import { ATTACK_DAMAGE, HEAL_AMOUNT, SHIELD_BLOCK } from "./constants";
@@ -43,13 +52,27 @@ import type {
   EnemyResult,
   EnemyView,
   Grade,
+  MathTopic,
   PlayerResult,
   Problem,
   ProblemView,
 } from "./types";
 import type { EnemyArchetype } from "../run/enemies";
 import type { LifelineKind } from "../run/lifelines";
+import type { TopicMastery } from "../run/mastery";
 import { xpForSolve, ZERO_STATS, type StatBonuses } from "../run/progression";
+
+/** A fresh, all-zero per-topic accumulator — the fight's `topicOutcomes` starting point (mirrors
+ * `run/mastery.ts`'s own zero-record shape; kept local so `combat.ts` doesn't need a value import
+ * from `run/mastery.ts`, just the `TopicMastery` type). */
+function zeroTopicOutcomes(): Record<MathTopic, TopicMastery> {
+  return {
+    addition: { correct: 0, attempts: 0 },
+    subtraction: { correct: 0, attempts: 0 },
+    multiplication: { correct: 0, attempts: 0 },
+    comparison: { correct: 0, attempts: 0 },
+  };
+}
 
 /** Options the run hands `createCombat` for ONE fight (M3 brief, Part A0; M4a adds `mods`). */
 export interface CombatOpts {
@@ -77,6 +100,11 @@ export interface CombatResult {
   /** Sum of `xpForSolve(grade)` per CORRECT `submitAnswer` this fight (M4a) — a wrong answer
    * earns 0, regardless of action. */
   readonly xpEarned: number;
+  /** M4c: per-topic `{correct, attempts}` over the WHOLE fight — `sim-bootstrap.ts` folds this
+   * into the persistent `MasteryStore` on EVERY fight end (win or loss). A skip adds no attempt;
+   * a wrong-then-requeued-then-correct solve of the SAME problem counts as 2 attempts / 1 correct
+   * for that problem's topic (see the module doc). */
+  readonly topicOutcomes: Record<MathTopic, TopicMastery>;
 }
 
 /** One fight, created fresh per map node. Same command surface as the M1/M2 sim (renamed
@@ -137,6 +165,9 @@ interface CombatState {
   /** M4b: the non-answer choice index(es) a "fifty" lifeline disabled for the CURRENT pending
    * choice problem; `null` until used, reset to `null` whenever a NEW problem is set. */
   fiftyDisabled: number[] | null;
+  /** M4c: running per-topic `{correct, attempts}` tally over the WHOLE fight — see the module doc
+   * + `CombatResult.topicOutcomes`. Only `submitAnswer` ever writes to this. */
+  topicOutcomes: Record<MathTopic, TopicMastery>;
 }
 
 /** Narrows a `Problem` (which carries the answer) down to its boundary-safe `ProblemView` — the
@@ -175,6 +206,7 @@ export function createCombat(opts: CombatOpts): Combat {
     xpEarned: 0,
     hintText: null,
     fiftyDisabled: null,
+    topicOutcomes: zeroTopicOutcomes(),
   };
 
   /** Pop the re-queue's FRONT, or generate a fresh problem for the fight's fixed `grade`. */
@@ -250,6 +282,16 @@ export function createCombat(opts: CombatOpts): Combat {
       problem.kind === "typed"
         ? response.kind === "typed" && response.value === problem.answer
         : response.kind === "choice" && response.index === problem.answerIndex;
+
+    // M4c: record this solve's outcome for its topic — BEFORE clearing pendingAction/pendingProblem
+    // below. A wrong answer still counts as an ATTEMPT (just not a correct one); a later requeue
+    // of this SAME problem (on a subsequent turn) is a SEPARATE `submitAnswer` call, so it adds its
+    // own attempt too — exactly the "2 attempts / 1 correct" shape the module doc describes.
+    const priorOutcome = state.topicOutcomes[problem.topic];
+    state.topicOutcomes = {
+      ...state.topicOutcomes,
+      [problem.topic]: { correct: priorOutcome.correct + (correct ? 1 : 0), attempts: priorOutcome.attempts + 1 },
+    };
 
     state.pendingAction = null;
 
@@ -363,7 +405,12 @@ export function createCombat(opts: CombatOpts): Combat {
 
   function result(): CombatResult | null {
     if (state.phase === "won" || state.phase === "lost") {
-      return { outcome: state.phase, warriorHp: state.warriorHp, xpEarned: state.xpEarned };
+      return {
+        outcome: state.phase,
+        warriorHp: state.warriorHp,
+        xpEarned: state.xpEarned,
+        topicOutcomes: state.topicOutcomes,
+      };
     }
     return null;
   }

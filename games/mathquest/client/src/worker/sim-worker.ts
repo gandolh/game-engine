@@ -12,6 +12,11 @@
  * M4b (corpus/todos/2026-07-23-mathquest-M4b-lifelines.md) adds `use-lifeline`, forwarded 1:1 to
  * `sim.useLifeline`.
  *
+ * M4c (corpus/todos/2026-07-23-mathquest-M4c-persistent-mastery.md) adds `mastery` to the `init`
+ * message: the main thread reads it from `localStorage` (this worker has NO such access) and
+ * forwards it straight into `bootstrapMathquestSim`. This worker never reads/writes storage
+ * itself — it only ferries the store in on `init` and back out on every `GameSnapshot.run.mastery`.
+ *
  * Drives `bootstrapMathquestSim()` at a fixed 20 Hz base cadence and posts a snapshot after each
  * paced tick (cheap — keeps the view fresh) AND immediately after every command, so the client
  * sees the run's resolution the instant it happens rather than waiting for the next tick.
@@ -20,11 +25,14 @@
  * load-bearing — root CLAUDE.md).
  */
 import { bootstrapMathquestSim } from "@mathquest/sim-core/sim-bootstrap";
-import type { AnswerResponse, CombatAction, GameSnapshot, LifelineKind } from "@mathquest/sim-core/sim-bootstrap";
+import type { AnswerResponse, CombatAction, GameSnapshot, LifelineKind, MasteryStore } from "@mathquest/sim-core/sim-bootstrap";
 
 export interface WorkerInitMessage {
   type: "init";
   seed: number;
+  /** M4c: the persistent mastery store, read from `localStorage` by the main thread (this worker
+   * has no such access) — see the module doc. */
+  mastery: MasteryStore;
 }
 
 /** M3: choose a map node (a fight, or a rest) — replaces M1/M2's implicit single fight. */
@@ -113,7 +121,7 @@ self.onmessage = (event: MessageEvent<WorkerInbound>) => {
   const msg = event.data;
   switch (msg.type) {
     case "init": {
-      sim = bootstrapMathquestSim({ seed: msg.seed });
+      sim = bootstrapMathquestSim({ seed: msg.seed, mastery: msg.mastery });
       self.postMessage({ type: "ready" } satisfies WorkerOutbound);
       postSnapshot();
       startLoop();

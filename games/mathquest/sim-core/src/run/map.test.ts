@@ -163,3 +163,85 @@ describe("generateMap — difficulty", () => {
     }
   });
 });
+
+// =================================================================================================
+// M4c — the elite (hard-branch) gate (corpus/todos/2026-07-23-mathquest-M4c-persistent-mastery.md)
+// =================================================================================================
+
+describe("generateMap — M4c eliteUnlocked gate", () => {
+  it("defaults to true: a bare generateMap(rng) call (no opts) always has an elite, unchanged from pre-M4c", () => {
+    for (let seed = 1; seed <= 15; seed++) {
+      const map = generateMap(createRng(seed).fork("map"));
+      expect(map.nodes.some((n) => n.type === "elite")).toBe(true);
+    }
+  });
+
+  it("eliteUnlocked:false -> NO elite node anywhere on the map", () => {
+    for (let seed = 1; seed <= 15; seed++) {
+      const map = generateMap(createRng(seed).fork("map"), { eliteUnlocked: false });
+      expect(map.nodes.some((n) => n.type === "elite")).toBe(false);
+    }
+  });
+
+  it("eliteUnlocked:false — the would-be elite column becomes a plain 'combat' node at the row's BASE grade (no +1 bump)", () => {
+    for (let seed = 1; seed <= 15; seed++) {
+      const unlocked = generateMap(createRng(seed).fork("map"), { eliteUnlocked: true });
+      const gated = generateMap(createRng(seed).fork("map"), { eliteUnlocked: false });
+      const eliteNode = unlocked.nodes.find((n) => n.type === "elite")!;
+      const gatedSameSlot = gated.nodes.find((n) => n.row === eliteNode.row && n.col === eliteNode.col)!;
+      expect(gatedSameSlot.type).toBe("combat");
+      // Every OTHER node in the row is unaffected — only the elite slot itself changed.
+      const rowBase = unlocked.nodes.filter((n) => n.row === eliteNode.row && n.type !== "elite");
+      for (const n of rowBase) {
+        const gatedSibling = gated.nodes.find((g) => g.row === n.row && g.col === n.col)!;
+        expect(gatedSibling.type).toBe(n.type);
+        expect(gatedSibling.grade).toBe(n.grade);
+      }
+      // Usually strictly less (no +1 bump while gated); equal only when the branch row's base
+      // grade is ALREADY 4 (the elite's own +1 clamps back down to 4 too — see `clampGrade`).
+      expect(gatedSameSlot.grade).toBeLessThanOrEqual(eliteNode.grade);
+    }
+  });
+
+  it("eliteUnlocked:false still yields a fully valid, connected DAG (never soft-locks a run)", () => {
+    for (let seed = 1; seed <= 15; seed++) {
+      const map = generateMap(createRng(seed).fork("map"), { eliteUnlocked: false });
+      for (const node of map.nodes) {
+        if (node.type === "boss") expect(node.next.length).toBe(0);
+        else expect(node.next.length).toBeGreaterThanOrEqual(1);
+      }
+      for (const startId of map.startIds) {
+        expect(reachableFrom(map, startId).has(map.bossId)).toBe(true);
+      }
+    }
+  });
+
+  it("is a fork-INPUT change, not a fork-SEQUENCE change: eliteUnlocked:true and :false consume the SAME rng draws (identical maps outside the gated slot)", () => {
+    for (let seed = 1; seed <= 10; seed++) {
+      const unlocked = generateMap(createRng(seed).fork("map"), { eliteUnlocked: true });
+      const gated = generateMap(createRng(seed).fork("map"), { eliteUnlocked: false });
+      // Every node's row/col/next is identical between the two; only elite-slot type/grade differ.
+      expect(unlocked.nodes.length).toBe(gated.nodes.length);
+      for (let i = 0; i < unlocked.nodes.length; i++) {
+        const u = unlocked.nodes[i]!;
+        const g = gated.nodes[i]!;
+        expect(g.id).toBe(u.id);
+        expect(g.row).toBe(u.row);
+        expect(g.col).toBe(u.col);
+        expect(g.next).toEqual(u.next);
+        if (u.type !== "elite") {
+          expect(g.type).toBe(u.type);
+          expect(g.grade).toBe(u.grade);
+        }
+      }
+    }
+  });
+
+  it("same (seed, eliteUnlocked) -> byte-identical map (determinism holds with the new option too)", () => {
+    for (const eliteUnlocked of [true, false]) {
+      const a = generateMap(createRng(4).fork("map"), { eliteUnlocked });
+      const b = generateMap(createRng(4).fork("map"), { eliteUnlocked });
+      expect(a).toEqual(b);
+    }
+  });
+});

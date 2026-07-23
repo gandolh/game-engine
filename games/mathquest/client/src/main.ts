@@ -25,6 +25,15 @@
  * Sim/render boundary (root CLAUDE.md): this file only ever READS `GameSnapshot`s off the worker
  * and POSTS commands to it — it never mutates sim state directly. All run/combat logic +
  * randomness live in `@mathquest/sim-core`, behind the worker.
+ *
+ * M4c (corpus/todos/2026-07-23-mathquest-M4c-persistent-mastery.md) makes THIS FILE the persistence
+ * owner: **the sim runs in a Web Worker, which has NO access to `localStorage`** — see
+ * `run/mastery.ts`'s module doc for the full architecture. On boot, `loadMastery()` reads
+ * `localStorage[MASTERY_STORAGE_KEY]` (wrapped in try/catch — private-mode/blocked storage must
+ * degrade to `EMPTY_MASTERY_STORE`, never throw) and posts it in `init`. On every snapshot,
+ * `persistMasteryIfChanged()` writes it back only when it actually changed (cheap: the store is
+ * tiny, but a per-tick unconditional write would still be wasteful). The sim/worker itself never
+ * touches `localStorage`/DOM.
  */
 import "./style.css";
 import { Camera2D, createRenderer, type RendererLike } from "@engine/core";
@@ -39,7 +48,8 @@ import {
   type InputDispatcher,
   type A11yMirror,
 } from "@engine/ui";
-import type { AnswerResponse, GameSnapshot } from "@mathquest/sim-core";
+import { EMPTY_MASTERY_STORE, MASTERY_STORAGE_KEY, parseMasteryStore } from "@mathquest/sim-core";
+import type { AnswerResponse, GameSnapshot, MasteryStore } from "@mathquest/sim-core";
 import { MATE_PAL } from "./render/mate-palette";
 import { MATE_THEME } from "./render/mate-theme";
 import { createCombatScreen, type CombatScreenActions } from "./ui/combat-screen";
@@ -65,6 +75,29 @@ if (!(canvasRaw instanceof HTMLCanvasElement)) {
 const canvas: HTMLCanvasElement = canvasRaw;
 const a11yMount = document.getElementById("ui-a11y-mirror");
 
+/** M4c: the ONLY place this file reads `localStorage` — `parseMasteryStore` itself already
+ * tolerates null/corrupt/wrong-version JSON, but the `localStorage.getItem` call itself can throw
+ * (private-mode browsers, storage disabled by policy), so THAT call is what's wrapped here. */
+function loadMastery(): MasteryStore {
+  try {
+    return parseMasteryStore(localStorage.getItem(MASTERY_STORAGE_KEY));
+  } catch {
+    return EMPTY_MASTERY_STORE;
+  }
+}
+
+/** M4c: the ONLY place this file writes `localStorage` — mirrors `loadMastery`'s try/catch (a
+ * quota-exceeded or private-mode write can throw too); a failed write just means this session's
+ * progress won't persist, never a crash. Takes the ALREADY-serialized string (the caller computed
+ * it once to decide whether anything changed) rather than re-stringifying here. */
+function saveMastery(serialized: string): void {
+  try {
+    localStorage.setItem(MASTERY_STORAGE_KEY, serialized);
+  } catch {
+    // Storage unavailable/full — degrade silently, same as `loadMastery`.
+  }
+}
+
 // Palette-sourced page chrome (CSS can't import MATE_PAL — keeps every colour on the palette
 // contract, root CLAUDE.md).
 document.body.style.background = MATE_PAL.black;
@@ -82,9 +115,20 @@ async function main(): Promise<void> {
   const post = (msg: WorkerInbound): void => worker.postMessage(msg);
 
   let latest: GameSnapshot | null = null;
+  // M4c: the LAST mastery payload actually written, so a snapshot whose mastery hasn't changed
+  // since the last write never re-serializes/re-writes it (the sim posts a snapshot after every
+  // command AND on every paced tick — most of those don't touch mastery at all).
+  let lastPersistedMastery = JSON.stringify(EMPTY_MASTERY_STORE);
   worker.addEventListener("message", (event: MessageEvent<WorkerOutbound>) => {
     const msg = event.data;
-    if (msg.type === "snapshot") latest = msg.snapshot;
+    if (msg.type === "snapshot") {
+      latest = msg.snapshot;
+      const serialized = JSON.stringify(msg.snapshot.run.mastery);
+      if (serialized !== lastPersistedMastery) {
+        lastPersistedMastery = serialized;
+        saveMastery(serialized);
+      }
+    }
   });
 
   // --- Typed-answer buffer (host-side; the sim never sees a partial answer) --------------------
@@ -341,8 +385,9 @@ async function main(): Promise<void> {
     }
   });
 
-  // Boot the run.
-  post({ type: "init", seed: SEED });
+  // Boot the run. M4c: the persistent mastery store is read from localStorage HERE (main thread
+  // only — the worker has no such access) and ferried in on `init`.
+  post({ type: "init", seed: SEED, mastery: loadMastery() });
 
   // --- Render loop ----------------------------------------------------------------------------
   function frame(): void {

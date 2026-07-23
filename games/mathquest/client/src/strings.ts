@@ -7,7 +7,18 @@
  * curriculum content, not UI chrome). All Romanian diacritics render (the @engine/ui font carries
  * them, incl. comma-below ș/ț).
  */
-import type { CombatAction, EnemyResult, Grade, LifelineKind, NodeType, PlayerResult, StatBonuses } from "@mathquest/sim-core";
+import { masteryTier } from "@mathquest/sim-core";
+import type {
+  CombatAction,
+  EnemyResult,
+  Grade,
+  LifelineKind,
+  MathTopic,
+  NodeType,
+  PlayerResult,
+  StatBonuses,
+  TopicMastery,
+} from "@mathquest/sim-core";
 
 export const STRINGS = {
   title: "MateQuest — Cetatea Cifrelor",
@@ -116,6 +127,12 @@ export const STRINGS = {
   runLost: "Ai pierdut",
   newRun: "Rulare nouă",
 
+  /** RO run-summary line (M4c — replaces the previous EN-literal string that used to live inline
+   * in `ui/run-over-screen.ts`). */
+  runSummary(nodes: number, hp: number, maxHp: number): string {
+    return `${nodes} noduri vizitate — PS Războinic: ${hp}/${maxHp}`;
+  },
+
   // --- M4a: level-up screen ---------------------------------------------------------------------
 
   levelUpTitle: "Ai avansat!",
@@ -175,5 +192,25 @@ export const STRINGS = {
   lifelineSummary(lifeline: { readonly kind: LifelineKind; readonly charges: number } | undefined): string {
     if (lifeline === undefined) return "";
     return `+${lifeline.charges} ${STRINGS.lifelineName[lifeline.kind]}`;
+  },
+
+  // --- M4c: persistent per-topic mastery -----------------------------------------------------------
+
+  topicName: {
+    addition: "Adunare",
+    subtraction: "Scădere",
+    multiplication: "Înmulțire",
+    comparison: "Comparare",
+  } satisfies Record<MathTopic, string>,
+
+  /** One line per topic for the run-over screen's mastery readout, e.g. "Adunare: 12/15 · Nivel 2". */
+  masteryLine(topic: MathTopic, m: TopicMastery): string {
+    return `${STRINGS.topicName[topic]}: ${m.correct}/${m.attempts} · Nivel ${masteryTier(m.correct)}`;
+  },
+
+  /** The map HUD's compact overall-mastery readout, e.g. "Măiestrie: 5/12" (`sum` is
+   * `overallMasteryTier(store)`, out of a fixed max of 12 — 4 topics × tier 3). */
+  masteryHudLabel(sum: number): string {
+    return `Măiestrie: ${sum}/12`;
   },
 } as const;

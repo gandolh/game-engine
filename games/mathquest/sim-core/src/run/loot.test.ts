@@ -121,3 +121,54 @@ describe("foldItemBonus", () => {
     expect(foldItemBonus(stats, {})).toEqual(stats);
   });
 });
+
+// =================================================================================================
+// M4c — blueprint-widened loot (corpus/todos/2026-07-23-mathquest-M4c-persistent-mastery.md)
+// =================================================================================================
+
+describe("rollLoot — M4c extraPool", () => {
+  const BLUEPRINT_ITEM: Item = { id: "test-blueprint-item", name: "Testă de test", bonus: { atk: 99 } };
+
+  it("defaults to [] and stays byte-identical to a bare rollLoot(rng, tier) call", () => {
+    for (const tier of TIERS) {
+      const a = rollLoot(createRng(11).fork(`z:${tier}`), tier);
+      const b = rollLoot(createRng(11).fork(`z:${tier}`), tier, []);
+      expect(a).toEqual(b);
+    }
+  });
+
+  it("a non-empty extraPool CAN be offered (widens the better pool, doesn't just get ignored)", () => {
+    // The extra item is drawn deterministically for SOME seed once the better pool is favored
+    // heavily enough (boss tier) — search a small seed range for one that offers it.
+    let found = false;
+    for (let seed = 1; seed <= 200 && !found; seed++) {
+      const items = rollLoot(createRng(seed), "boss", [BLUEPRINT_ITEM]);
+      if (items.some((i) => i.id === BLUEPRINT_ITEM.id)) found = true;
+    }
+    expect(found).toBe(true);
+  });
+
+  it("still returns exactly 3 DISTINCT items with an enlarged pool", () => {
+    for (let seed = 1; seed <= 20; seed++) {
+      const items = rollLoot(createRng(seed), "boss", [BLUEPRINT_ITEM]);
+      expect(items.length).toBe(3);
+      expect(new Set(items.map((i) => i.id)).size).toBe(3);
+    }
+  });
+
+  it("is deterministic: same (seed, tier, extraPool) -> identical offers", () => {
+    const a = rollLoot(createRng(3).fork("ep"), "elite", [BLUEPRINT_ITEM]);
+    const b = rollLoot(createRng(3).fork("ep"), "elite", [BLUEPRINT_ITEM]);
+    expect(a).toEqual(b);
+  });
+
+  it("multiple extra items can all appear across enough draws (not just the first)", () => {
+    const extra2: Item = { id: "test-blueprint-item-2", name: "Testă de test 2", bonus: { block: 99 } };
+    const seenIds = new Set<string>();
+    for (let seed = 1; seed <= 300; seed++) {
+      for (const item of rollLoot(createRng(seed), "boss", [BLUEPRINT_ITEM, extra2])) seenIds.add(item.id);
+    }
+    expect(seenIds.has(BLUEPRINT_ITEM.id)).toBe(true);
+    expect(seenIds.has(extra2.id)).toBe(true);
+  });
+});

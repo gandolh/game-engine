@@ -11,6 +11,13 @@
  * `Item`/`ItemView` — a pure-lifeline item carries `bonus: {}` and a `lifeline` field instead
  * (three such items added to the pools below). `lifeline` is display-relevant (the loot card
  * shows it), so `toItemView` copies it through verbatim — it is not a secret like `Problem.answer`.
+ *
+ * M4c (corpus/todos/2026-07-23-mathquest-M4c-persistent-mastery.md) adds an OPTIONAL `extraPool`
+ * parameter to `rollLoot` (default `[]`, so every pre-M4c call site/test stays byte-identical):
+ * blueprint items unlocked by the persistent `MasteryStore` (`run/mastery.ts`'s
+ * `blueprintItemsFor`) join the BETTER pool for the draw, so higher mastery -> better future loot.
+ * This is a fork INPUT change (a bigger pool to draw from), not a fork SEQUENCE change — the same
+ * `rng.nextFloat()`-then-`rng.pick()` shape runs regardless of `extraPool`'s size.
  */
 import type { Rng } from "@engine/core";
 import type { LifelineKind } from "./lifelines";
@@ -82,14 +89,17 @@ const BETTER_POOL_CHANCE: Record<LootTier, number> = {
  * combined 7-item pool always has enough room; `guard` is just a defensive cap, never expected to
  * bind. Consumes ONLY `rng` — no forking of its own (the caller already forked a per-roll child,
  * mirroring `run/map.ts`'s leaf draws that call `rng.int`/`rng.pick` directly). */
-export function rollLoot(rng: Rng, tier: LootTier): Item[] {
+export function rollLoot(rng: Rng, tier: LootTier, extraPool: readonly Item[] = []): Item[] {
   const betterChance = BETTER_POOL_CHANCE[tier];
+  // M4c: unlocked blueprint items widen the BETTER pool only — `BETTER_POOL` itself (the default,
+  // extraPool===[]) is reused verbatim (no new array) so pre-M4c behavior is byte-identical.
+  const betterPool: readonly Item[] = extraPool.length > 0 ? [...BETTER_POOL, ...extraPool] : BETTER_POOL;
   const chosen: Item[] = [];
   const chosenIds = new Set<string>();
   let guard = 0;
   while (chosen.length < 3 && guard < 200) {
     guard += 1;
-    const pool = rng.nextFloat() < betterChance ? BETTER_POOL : COMMON_POOL;
+    const pool = rng.nextFloat() < betterChance ? betterPool : COMMON_POOL;
     const candidate = rng.pick(pool);
     if (chosenIds.has(candidate.id)) continue;
     chosenIds.add(candidate.id);
