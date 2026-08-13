@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { RendererLike, UIQuad } from "@engine/core/render";
-import { UISurface, computeLayout } from "@engine/ui";
+import { UISurface, computeLayout, renderTree } from "@engine/ui";
 import { createSlateBillboard } from "./slate-billboard";
 import type { SlateEntry } from "./slate-billboard";
 import type { LabelNode, UINode } from "@engine/ui";
@@ -82,14 +82,16 @@ describe("createSlateBillboard", () => {
     expect(() => slate.wheel(10)).not.toThrow();
   });
 
-  it("drawIcons emits a coloured stock-bar fill rect for a visible row", () => {
+  it("emits a coloured stock-bar fill rect for a visible row (via the overlay custom node)", () => {
     const slate = createSlateBillboard();
     slate.refresh([offer({ remaining: 1, quantity: 10 })]); // 10% remaining -> red
+    computeLayout(slate.root, 0, 0);
 
     const rec = new RecordingRenderer();
     const surface = new UISurface(rec as unknown as RendererLike);
     surface.begin();
-    slate.drawIcons(surface);
+    // The crop-icon + stock-bar pass is now the `iconsOverlay` node's draw, invoked by renderTree.
+    renderTree(surface, slate.root);
     surface.end();
 
     // At least one solid-colour (non-atlas) quad should have been pushed for the bar fill.

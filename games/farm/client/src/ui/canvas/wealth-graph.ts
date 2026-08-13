@@ -32,8 +32,8 @@
  * this factory only tracks the button + open-state-changed signal.
  */
 import { EDG } from "@engine/core";
-import { button, panel } from "@engine/ui";
-import type { ContainerNode } from "@engine/ui";
+import { button, custom, panel } from "@engine/ui";
+import type { ContainerNode, CustomNode, Rect } from "@engine/ui";
 import type { UISurface } from "@engine/ui/render";
 import { drawText, measureText } from "@engine/ui/text";
 import type { SnapshotWealthSeries } from "@farm/sim-core/snapshot";
@@ -59,26 +59,36 @@ const DOT_STEP = 2;
 /** Side length (px) of each line-approximating dot / crossing marker. */
 const DOT_SIZE = 1.5;
 
-/** The wealth graph's pure-draw API: no retained widget tree, just `render()` each frame. */
+/** Default chart size (px). Baked into the custom node's layout; the host positions it by
+ *  `computeLayout(root, x, y)` (its anchor above the Wealth toggle is bespoke, so it stays host-side). */
+const GRAPH_W = 220;
+const GRAPH_H = 60;
+
+/**
+ * The wealth graph, folded into the layout system as a {@link custom} escape-hatch node (engine-ui
+ * backlog item 1): the chart is still raw drawing — `UISurface` has no line primitive — but it now
+ * flows through the standard `computeLayout` → `renderTree` path like every other panel instead of a
+ * bespoke `render(surface, x, y, w, h, …)` post-pass. The host sets the series each frame, then lays
+ * the node out at the desired anchor and renders it.
+ */
 export interface WealthGraph {
-  /**
-   * Draw the chart into `w`×`h` screen px anchored at `(x, y)`, using `series` (the raw
-   * per-farmer gold-history rows straight from the snapshot). Call inside the host's
-   * `surface.begin()/end()` block, once per frame the panel is visible.
-   */
-  render(surface: UISurface, x: number, y: number, w: number, h: number, series: SnapshotWealthSeries[]): void;
+  /** The custom-draw node (size baked in). `computeLayout(root, x, y)` then `renderTree(surface, root)`. */
+  readonly root: CustomNode;
+  /** Bind the series to draw on the next `renderTree`. Call once per frame before layout/render. */
+  setSeries(series: SnapshotWealthSeries[]): void;
 }
 
-/** Build the wealth graph drawer. Stateless — series/bounds are recomputed each `render()` call. */
+/** Build the wealth graph node. Stateless draw — series/bounds are recomputed each frame. */
 export function createWealthGraph(): WealthGraph {
-  function render(
-    surface: UISurface,
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-    series: SnapshotWealthSeries[],
-  ): void {
+  let series: SnapshotWealthSeries[] = [];
+
+  const root = custom((surface, rect) => drawChart(surface, rect, series), {
+    width: GRAPH_W,
+    height: GRAPH_H,
+  });
+
+  function drawChart(surface: UISurface, rect: Rect, series: SnapshotWealthSeries[]): void {
+    const { x, y, width: w, height: h } = rect;
     // Backing panel.
     surface.rect(x, y, w, h, EDG.black);
 
@@ -167,7 +177,12 @@ export function createWealthGraph(): WealthGraph {
     }
   }
 
-  return { render };
+  return {
+    root,
+    setSeries(next: SnapshotWealthSeries[]): void {
+      series = next;
+    },
+  };
 }
 
 /** Draw a straight segment from (x0,y0) to (x1,y1) as a chain of small dots (no line primitive). */

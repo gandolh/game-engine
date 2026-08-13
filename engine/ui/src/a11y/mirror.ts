@@ -202,11 +202,12 @@ export function createA11yMirror(mount: HTMLElement, opts: A11yMirrorOptions = {
       const el = doc.createElement("p");
       return { el };
     }
-    if (node.kind === "icon") {
+    if (node.kind === "icon" || node.kind === "custom") {
       // Purely decorative on its own — a button's icon never stands in for the button's
       // accessible name (see `ButtonNode.icon` / `patchButton`, which always uses `label`).
-      // Standalone icon leaves (used outside a button) get an inert, hidden placeholder so the
-      // DOM walk stays structurally in sync with the visual tree without announcing anything.
+      // Standalone icon leaves (used outside a button) and custom-draw leaves (charts/minimaps/
+      // ghosts — visual only) get an inert, hidden placeholder so the DOM walk stays structurally
+      // in sync with the visual tree without announcing anything.
       const el = doc.createElement("span");
       el.setAttribute("aria-hidden", "true");
       return { el };
@@ -424,7 +425,7 @@ export function createA11yMirror(mount: HTMLElement, opts: A11yMirrorOptions = {
     else if (node.kind === "slider") patchSlider(entry, node);
     else if (node.kind === "checkbox") patchCheckbox(entry, node);
     else if (node.kind === "label") patchLabel(entry, node);
-    else if (node.kind === "icon") { /* decorative — nothing to patch, see makeElement */ }
+    else if (node.kind === "icon" || node.kind === "custom") { /* decorative — nothing to patch, see makeElement */ }
     else patchRegion(entry, node);
 
     // Append (or move) to the correct ordinal position under the parent.

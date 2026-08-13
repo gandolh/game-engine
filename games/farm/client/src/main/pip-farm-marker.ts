@@ -15,7 +15,7 @@
  */
 import { EDG } from "@engine/core";
 import type { Camera2D } from "@engine/core";
-import { drawText, measureText, type UISurface } from "@engine/ui";
+import { custom, drawText, measureText, type CustomNode, type UISurface } from "@engine/ui";
 import { getRegion } from "@farm/sim-core/world/regions";
 import { TILE } from "./config";
 import { worldToCanvasCss } from "./screen-to-tile";
@@ -128,4 +128,35 @@ export function drawPipFarmMarker(
     0.85,
   );
   drawText(surface, MARKER_LABEL, labelX, labelY + LABEL_PAD_Y, { color: EDG.cream });
+}
+
+/** The Pip's-farm marker, folded into the `@engine/ui` widget tree as a {@link custom} escape-hatch
+ *  node (engine-ui backlog item 1): the marker is still absolute screen-space raw drawing (its
+ *  position comes from the live camera, not a laid-out rect — so the node's own rect is vestigial,
+ *  zero-sized), but it now flows through the standard `computeLayout` → `renderTree` path like every
+ *  other panel instead of a bespoke `drawPipFarmMarker(...)` post-pass in the render loop. */
+export interface PipFarmMarker {
+  /** The custom-draw node. `setFrame(...)` each frame, then `computeLayout(root, 0, 0)` +
+   *  `renderTree(surface, root)`. */
+  readonly root: CustomNode;
+  /** Bind this frame's camera/zoom/time for the next `renderTree` draw. */
+  setFrame(camera: Camera2D, canvas: HTMLCanvasElement, zoom: number, nowMs: number): void;
+}
+
+/** Build the Pip's-farm marker node. The draw reads the frame bound by the most recent
+ *  {@link PipFarmMarker.setFrame}; before the first `setFrame` it is a no-op. */
+export function createPipFarmMarker(): PipFarmMarker {
+  let frame: { camera: Camera2D; canvas: HTMLCanvasElement; zoom: number; nowMs: number } | null =
+    null;
+  const root = custom((surface) => {
+    if (frame !== null) {
+      drawPipFarmMarker(surface, frame.camera, frame.canvas, frame.zoom, frame.nowMs);
+    }
+  });
+  return {
+    root,
+    setFrame(camera, canvas, zoom, nowMs): void {
+      frame = { camera, canvas, zoom, nowMs };
+    },
+  };
 }

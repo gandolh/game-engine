@@ -14,7 +14,7 @@
  * persistence) ⇒ in-memory only, same defaults and API.
  */
 
-export type PanelId = "observer" | "slate" | "events" | "relations" | "wealth";
+export type PanelId = "observer" | "slate" | "events" | "relations" | "wealth" | "column";
 
 export interface PanelPrefs {
   isOpen(id: PanelId): boolean;
@@ -25,7 +25,7 @@ export interface PanelPrefs {
 
 const STORAGE_KEY = "farm.ui.panels.v1";
 
-const PANEL_IDS: readonly PanelId[] = ["observer", "slate", "events", "relations", "wealth"];
+const PANEL_IDS: readonly PanelId[] = ["observer", "slate", "events", "relations", "wealth", "column"];
 
 type PanelMap = Partial<Record<PanelId, boolean>>;
 

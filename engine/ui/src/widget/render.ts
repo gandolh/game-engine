@@ -64,6 +64,11 @@ function drawNode(surface: UISurface, node: UINode, theme: Theme, alpha: number)
     case "checkbox":
       drawCheckbox(surface, node, theme, a);
       break;
+    case "custom":
+      // Escape hatch: hand the computed rect + inherited alpha to the caller's draw callback,
+      // in tree order (so it layers correctly against siblings) and under the subtree's opacity.
+      node.draw(surface, node.rect, a);
+      break;
   }
 }
 

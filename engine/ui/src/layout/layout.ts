@@ -1,5 +1,4 @@
 import { layoutText } from "../text/layout";
-import { measureText } from "../text/layout";
 import { ICON_SIZE } from "../icon/icons";
 import type { Theme } from "../theme/theme";
 import { DEFAULT_THEME } from "../theme/theme";
@@ -64,8 +63,14 @@ function paddingOf(node: UINode, theme: Theme): Padding {
  */
 function textSize(text: string, scale: number, maxWidth?: number): Intrinsic {
   if (maxWidth === undefined) {
+    // `layoutText` splits on explicit `\n`; its `width` is the WIDEST resulting line and its
+    // `height` covers every line. A multi-line label/button (e.g. an observer farmer row, or the
+    // wrapped weather forecast) must be measured by that per-line width — NOT `measureText`, which
+    // ignores `\n` and counts the whole string as one line, inflating a 6-line row to ~6× its true
+    // width and dragging the whole panel wider (the "Farmers panel exceeds width" report). Height
+    // already used `layoutText`; this makes width agree.
     const l = layoutText(text, { scale });
-    return { width: measureText(text, { scale }), height: l.height };
+    return { width: l.width, height: l.height };
   }
   // Wrapped: `TextLayout.width` is already the widest resulting LINE, so the box takes the
   // wrapped width (never more than maxWidth) and grows in height instead.
@@ -99,6 +104,10 @@ function measureNode(node: UINode, theme: Theme, cache: Map<number, Intrinsic>):
       width: t.width + pad.left + pad.right,
       height: t.height + pad.top + pad.bottom,
     };
+  } else if (node.kind === "custom") {
+    // A custom-draw leaf has no intrinsic content size — it is sized entirely by `layout.width`/
+    // `height` (applied by the fixed-size override below) or by a parent `grow`/`align:"stretch"`.
+    size = { width: 0, height: 0 };
   } else if (node.kind === "slider") {
     // A slider has no intrinsic *width* (a value range is dimensionless) — fall back to a sensible
     // default unless pinned via `width`/`grow`. Its intrinsic height is the default track height.
@@ -126,7 +135,10 @@ function measureNode(node: UINode, theme: Theme, cache: Map<number, Intrinsic>):
     let cross = 0;
     let count = 0;
     for (const child of node.children) {
+      // Always measure (fills the cache for `arrange`), but overlay children are OUT of flow — they
+      // contribute nothing to the parent's intrinsic size (see `LayoutProps.overlay`).
       const c = measureNode(child, theme, cache);
+      if (child.layout.overlay) continue;
       const cMain = dir === "row" ? c.width : c.height;
       const cCross = dir === "row" ? c.height : c.width;
       main += cMain;
@@ -176,11 +188,15 @@ function arrange(
   const mainAvail = dir === "row" ? innerW : innerH;
   const crossAvail = dir === "row" ? innerH : innerW;
 
-  // Sum intrinsic main sizes + total grow weight.
+  // Split flow (normal) children from overlay children. Overlay children are placed separately
+  // (filling the inner box) and never enter the main-axis packing / gap accounting.
+  const flow = node.children.filter((c) => !c.layout.overlay);
+
+  // Sum intrinsic main sizes + total grow weight (flow children only).
   let usedMain = 0;
   let totalGrow = 0;
-  const n = node.children.length;
-  for (const child of node.children) {
+  const n = flow.length;
+  for (const child of flow) {
     const ci = cache.get(child.id)!;
     usedMain += dir === "row" ? ci.width : ci.height;
     totalGrow += child.layout.grow ?? 0;
@@ -190,7 +206,7 @@ function arrange(
 
   let cursor = dir === "row" ? innerX : innerY;
   for (let i = 0; i < n; i += 1) {
-    const child = node.children[i]!;
+    const child = flow[i]!;
     const ci = cache.get(child.id)!;
     const grow = child.layout.grow ?? 0;
 
@@ -227,6 +243,17 @@ function arrange(
 
     arrange(child, cx, cy, cw, ch, theme, cache);
     cursor += childMain + gap;
+  }
+
+  // Overlay children: out of flow — fill the parent's inner content box (honouring any pinned
+  // width/height), so they can paint over the flow siblings without shifting them. Arranged after
+  // the flow pass; `renderTree` paints children in array order, so an overlay declared LAST draws
+  // on top.
+  for (const child of node.children) {
+    if (!child.layout.overlay) continue;
+    const ow = child.layout.width ?? innerW;
+    const oh = child.layout.height ?? innerH;
+    arrange(child, innerX, innerY, ow, oh, theme, cache);
   }
 }
 

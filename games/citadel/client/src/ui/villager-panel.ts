@@ -84,7 +84,12 @@ export function createVillagerPanel(): VillagerPanel {
   const cargoLbl = label("");
   const hintLbl = label("[Esc to release]", { muted: true });
 
-  const root = panel({ direction: "column", gap: 6, width: 200 }, [
+  // Width sized for the WIDEST headline: `jobLbl` is scale 2 (18px advance/glyph in the authored
+  // UNSCII body font), and "Job: Woodcutter" (15 glyphs ≈ 268px) plus the panel's own padding
+  // overran the old `width: 200` — containers don't clip, so it spilled past the panel background.
+  // 288 fits the longest job at scale 2 with margin; every other (scale-1) row fits easily.
+  // (engine-ui backlog item 3, 2026-07-22: re-check fixed widths against the wider bitmap font.)
+  const root = panel({ direction: "column", gap: 6, width: 288 }, [
     header,
     jobLbl,
     fsmLbl,

@@ -146,9 +146,10 @@ function worldToCss(
   camera: Camera2D,
   canvas: HTMLCanvasElement,
 ): { cx: number; cy: number } {
-  const dpr = Math.min(typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1, 2);
-  const scaleX = (camera.worldUnitsX / canvas.clientWidth) * dpr;
-  const scaleY = (camera.worldUnitsY / canvas.clientHeight) * dpr;
+  // World → CSS-logical px (no dpr — see `screen-to-tile.ts`: the renderer's backing dpr cancels
+  // against the display down-scale, so world-anchored effects land on the sprite at every dpr).
+  const scaleX = camera.worldUnitsX / canvas.clientWidth;
+  const scaleY = camera.worldUnitsY / canvas.clientHeight;
   const cx = (wx - (camera.centerX - camera.worldUnitsX / 2)) / scaleX;
   const cy = (wy - (camera.centerY - camera.worldUnitsY / 2)) / scaleY;
   return { cx, cy };

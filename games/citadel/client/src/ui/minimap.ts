@@ -2,12 +2,13 @@
  * Citadel minimap — a top-right overview of the whole tile world, drawn
  * IN-CANVAS through the engine UI surface (NOT a separate Canvas2D overlay).
  *
- * The host emits the whole minimap each frame as raw `UISurface` quads inside
- * its existing `surface.begin()/end()` block — there is no `@engine/ui` widget
- * kind for it (the minimap is a custom canvas-like surface, not a widget
- * composition; the `renderTree` walk has no escape hatch for custom draws). So
- * we draw raw: many `surface.rect(...)` calls, all in screen px offset by the
- * host-chosen top-right origin.
+ * The minimap paints many raw `surface.rect(...)` quads (it is a custom canvas-like surface, not a
+ * widget composition). It folds into the widget tree via the {@link custom} escape-hatch node
+ * ({@link CitadelMinimap.node}): the host lays that node out at its top-right origin and
+ * `renderTree` invokes the same raw-quad {@link CitadelMinimap.draw} using the node's rect as the
+ * origin — so the minimap flows through `computeLayout` → `renderTree` like every other panel.
+ * Clicks stay separate (a custom node is non-interactive): the host routes presses to
+ * {@link CitadelMinimap.trySeek} with the same origin it laid the node out at.
  *
  * Everything is projected in the SAME 2:1 dimetric **iso world-px** space the
  * game renders in (NOT axis-aligned tile space), via the world's `tileToIso`,
@@ -32,6 +33,8 @@
  * Colours come from the EDG palette (the palette guard scans this .ts file).
  */
 import { CITADEL_PAL as EDG } from "../render/citadel-palette";
+import { custom } from "@engine/ui";
+import type { CustomNode } from "@engine/ui";
 import type { UISurface } from "@engine/ui/render";
 import type { TerrainGrid, BuildingSnapshot, VillagerSnapshot, RaiderSnapshot } from "@citadel/sim-core";
 import { TerrainType } from "@citadel/sim-core";
@@ -91,6 +94,16 @@ export class CitadelMinimap {
   /** Precomputed terrain quads in FACE-LOCAL px (offset by origin each frame). */
   private readonly terrainQuads: readonly FaceQuad[];
 
+  /** The minimap folded into the `@engine/ui` widget tree as a {@link custom} escape-hatch node
+   *  (engine-ui backlog item 1): a `faceSize`-square leaf whose draw emits the same raw quads as
+   *  {@link draw}, using its laid-out `rect` as the origin — so the minimap flows through the host's
+   *  `computeLayout` → `renderTree` path like every other panel instead of a bespoke `draw(...)`
+   *  post-pass. Interactivity stays separate: the host still routes clicks to {@link trySeek} (a
+   *  custom node is non-interactive), passing the SAME top-right origin it lays this node out at. */
+  private readonly customNode: CustomNode;
+  /** The live frame bound by {@link setFrame}, painted by the custom node on the next `renderTree`. */
+  private frame: MinimapFrame | null = null;
+
   /**
    * @param terrain   the static terrain grid — baked once into face-local quads.
    * @param onSeek    invoked with continuous tile coords when the user clicks the
@@ -134,6 +147,26 @@ export class CitadelMinimap {
       }
     }
     this.terrainQuads = quads;
+
+    // Fold into the widget tree: a face-sized custom node that draws the live frame at its
+    // laid-out rect origin. Created last so `faceSize`/terrain are ready when it first draws.
+    this.customNode = custom(
+      (surface, rect) => {
+        if (this.frame !== null) this.draw(surface, rect.x, rect.y, this.frame);
+      },
+      { width: faceSize, height: faceSize },
+    );
+  }
+
+  /** The widget-tree node for this minimap. `setFrame(...)` each frame, then
+   *  `computeLayout(node, originX, originY)` + `renderTree(surface, node)`. */
+  node(): CustomNode {
+    return this.customNode;
+  }
+
+  /** Bind this frame's snapshot + camera transform for the next `renderTree` draw. */
+  setFrame(frame: MinimapFrame): void {
+    this.frame = frame;
   }
 
   /** Iso world-px → minimap-face-local px (uniform fit + centring). */

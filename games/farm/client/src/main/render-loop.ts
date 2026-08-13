@@ -1,4 +1,4 @@
-import { Keyboard, ParticleSystem, Profiler, RainField, expSmooth } from "@engine/core";
+import { Keyboard, ParticleSystem, Profiler, RainField, expSmooth, MAX_ZOOM } from "@engine/core";
 import { EDG } from "@engine/core";
 import type { WeatherKind, RendererLike, Camera2D } from "@engine/core";
 import { computeLayout, renderTree } from "@engine/ui";
@@ -13,7 +13,7 @@ import { washFor, nightnessFor } from "../render/day-night";
 import { makeLightOverlay } from "../render/lights";
 import { seasonForDay } from "@farm/sim-core/protocols/weather";
 import { HOTBAR_SIZE } from "@farm/sim-core/systems/player-control";
-import { TILE, PROFILE_ENABLED } from "./config";
+import { TILE, DEFAULT_ZOOM, PROFILE_ENABLED } from "./config";
 import {
   focusedFarmerId,
   panOffset,
@@ -32,7 +32,7 @@ import {
   applyFocusAndPan,
 } from "./camera";
 import { screenToTile, worldToCanvasCss } from "./screen-to-tile";
-import { drawPipFarmMarker } from "./pip-farm-marker";
+import { createPipFarmMarker } from "./pip-farm-marker";
 import { pushWaterDecor } from "../render/water-decor";
 import { pushFishSchools } from "../render/fish-decor";
 import { frameDataUrl } from "./sprite-icon";
@@ -125,7 +125,7 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
   const {
     overlay, worldClock, clockRoot, hotbar, hotbarRoot, tooltip, rightColumn, rightColumnRoot,
     leaderboard, leaderboardRoot, playback, playbackRoot, helpRoot, relationshipMatrix,
-    relationshipRoot, wealthGraph, wealthToggle, wealthRoot, gameOverPanel, gameOverRoot, inventory,
+    wealthToggle, gameOverPanel, gameOverRoot, inventory,
     inspectPanel, inspectRoot, noticeBoard, noticeBoardRoot, standingsPost, standingsPostRoot,
   } = panels;
 
@@ -134,6 +134,10 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
   // Diegetic HUD summon: J toggles the notice-board + standings-post from their world anchors to a
   // screen-centred readout (todo decision #7 — in-world home + summon-on-demand).
   let hudSummoned = false;
+
+  // Pip's-farm marker — folded into the widget tree as a custom escape-hatch node (built once;
+  // per-frame it takes the live camera/zoom/time via setFrame, then lays out + renders like a panel).
+  const pipMarker = createPipFarmMarker();
 
   // The panels expose leaderboard/game-over open state via a wrapper the builder attached.
   const leaderboardCtl = leaderboard as typeof leaderboard & {
@@ -166,8 +170,6 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
   // unchanged (its screen anchor depends on canvas dimensions).
   let rcLaidOutW = -1;
   let hbLaidOutSize = "";
-  let wealthLaidOutSize = "";
-  let matrixLaidOutSize = "";
   // Keys typed BEFORE the first game frame (home-screen seed input, loading screen) accumulate
   // in Keyboard.justPressed — nothing calls endFrame() until this loop runs — and would fire
   // hotkeys (E/J/Tab + the panel toggles) spuriously on frame 1, write-through persisting bogus
@@ -743,6 +745,8 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
           observer: obs,
           slate: client.slate,
           events: client.events,
+          relationships: client.relationships,
+          wealthSeries: client.wealthSeries,
         });
         if (rcChanged || rcLaidOutW !== canvas.clientWidth) {
           computeLayout(rightColumn.root, 0, 0);
@@ -752,52 +756,13 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
           rightColumnRoot.mirror?.update(rightColumn.root);
         }
         renderTree(surface, rightColumn.root);
-        rightColumn.drawIcons(surface);
+        // (Slate crop icons + stock-bar fills now paint via an overlay custom node inside the tree,
+        // so `renderTree` above already drew them — no separate icon pass here.)
       }
 
-      // Relationship matrix — pinned bottom-left, above the hotbar row. The size-key sentinel
-      // forces the FIRST-frame layout (a default-closed matrix's refresh() returns false, which
-      // would leave its root at the zero rect — an unclickable Relations button) and re-anchors
-      // on canvas resize.
-      const matrixChanged = relationshipMatrix.refresh(client.relationships);
-      const matrixSizeKey = `${canvas.clientWidth}x${canvas.clientHeight}`;
-      const matrixRelayout = matrixChanged || matrixLaidOutSize !== matrixSizeKey;
-      if (matrixRelayout) {
-        computeLayout(relationshipMatrix.root, 0, 0);
-        const ry = Math.max(0, canvas.clientHeight - relationshipMatrix.root.rect.height - 80);
-        computeLayout(relationshipMatrix.root, 8, ry);
-        matrixLaidOutSize = matrixSizeKey;
-        relationshipRoot.mirror?.update(relationshipMatrix.root);
-      }
-      renderTree(surface, relationshipMatrix.root);
-
-      // Wealth toggle button — pinned bottom-left, next to the relationship matrix root (whose
-      // width changes as IT collapses/expands, so re-anchor here on matrixChanged too, not just
-      // the wealth toggle's own state / a canvas resize).
-      const wealthChanged = wealthToggle.refresh();
-      const wealthSizeKey = `${canvas.clientWidth}x${canvas.clientHeight}`;
-      const wealthResized = wealthLaidOutSize !== wealthSizeKey;
-      if (matrixRelayout || wealthChanged || wealthResized) {
-        computeLayout(wealthToggle.root, 0, 0);
-        const wx = 8 + relationshipMatrix.root.rect.width + 8;
-        const wy = Math.max(0, canvas.clientHeight - wealthToggle.root.rect.height - 80);
-        computeLayout(wealthToggle.root, wx, wy);
-        wealthLaidOutSize = wealthSizeKey;
-        wealthRoot.mirror?.update(wealthToggle.root);
-      }
-      renderTree(surface, wealthToggle.root);
-
-      // Wealth graph — stateless pure-draw, anchored ABOVE the Wealth button so it never overlaps
-      // the matrix/button row below; gated on the toggle's open state (brief 117: collapsible
-      // panels default closed). When the OPEN matrix pushes the strip toward the canvas centre
-      // (narrow windows), the graph's x range can reach the playback bar — clamp its bottom edge
-      // above the bar's top (last-laid-out rect; a zero first-frame rect is skipped).
-      if (wealthToggle.isOpen()) {
-        const wx = wealthToggle.root.rect.x;
-        const playbackTop = playback.root.rect.height > 0 ? playback.root.rect.y : Number.POSITIVE_INFINITY;
-        const graphBottom = Math.min(wealthToggle.root.rect.y, playbackTop);
-        wealthGraph.render(surface, wx, graphBottom - 60 - 6, 220, 60, client.wealthSeries);
-      }
+      // (Relationship matrix + wealth graph/toggle are DOCKED inside the right column now — they
+      // refresh + render + a11y-mirror through rightColumn above, so there is no separate bottom-left
+      // pass here. The R/G hotkeys below still drive their own collapse toggles.)
 
       // Hotbar — bottom-centre.
       if (hotbar.refresh(client.playerHotbar)) {
@@ -814,8 +779,8 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
         hbLaidOutSize = `${canvas.clientWidth}x${canvas.clientHeight}`;
       }
       renderTree(surface, hotbar.root);
-      hotbar.drawIcons(surface);
-      hotbar.drawGhost(surface);
+      // (Slot icons, selected border, and drag ghost paint via the hotbar's overlay custom node,
+      // already drawn by renderTree above — no separate icon/ghost pass here.)
       applyToolCursor();
 
       // Playback controls — bottom-right (owner only; the a11y root is inert while hidden).
@@ -853,8 +818,8 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
           inventory.rootHandle.mirror?.update(invRoot);
         }
         renderTree(surface, invRoot);
-        inventory.drawIcons(surface);
-        inventory.drawGhost(surface);
+        // (Slot icons, selected borders, and drag ghost paint via the inventory's overlay custom
+        // node, already drawn by renderTree above — no separate icon/ghost pass here.)
       }
 
       // Hover tooltip — anchored near the cursor, drawn late so it sits over other panels.
@@ -877,7 +842,11 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
         const obsData = client.observer;
         const followed = focusedFarmerId !== null ? farmerPositions.get(focusedFarmerId) : undefined;
         const farmerRow = obsData?.farmers.find((f) => f.id === focusedFarmerId);
-        if (_camera !== null && followed !== undefined && farmerRow !== undefined) {
+        // The floating inspect card only reads well when the subject sprite is large, so show it
+        // ONLY near the max zoom-in (within 5% of MAX_ZOOM); at any wider zoom it's hidden. Below
+        // that threshold the farmer detail still lives in the (openable) Farmers panel.
+        const nearMaxZoom = zoom >= MAX_ZOOM * 0.95;
+        if (_camera !== null && followed !== undefined && farmerRow !== undefined && nearMaxZoom) {
           inspectCtl.setVisible(true);
           const changed = inspectPanel.refresh({
             name: farmerRow.name,
@@ -889,12 +858,20 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
             region: farmerRow.region,
             currentIntention: farmerRow.currentIntention,
           });
-          // Anchor above the farmer's head: measure, then place centred over the world point, offset
-          // up by the card height + a gap so it floats above the sprite (and tracks it as it moves).
+          // Scale the card with the camera zoom so it stays proportional to its subject sprite —
+          // a fixed screen-size card dwarfs a tiny zoomed-out farmer and reads as detached (the
+          // "inspect card too big / offset" report). `k = 1` at the default zoom; clamped to a
+          // legibility floor and a not-gigantic ceiling.
+          const k = Math.max(0.6, Math.min(1.2, 0.85 * (zoom / DEFAULT_ZOOM)));
+          inspectPanel.setScale(k);
+          // Anchor above the farmer's head: measure, then place centred over the subject. The
+          // vertical gap is expressed in WORLD units (converted through the SAME worldToCanvasCss
+          // as the anchor), so the card hugs the sprite's head at every zoom instead of floating a
+          // fixed pixel gap that detaches when zoomed out.
           computeLayout(inspectPanel.root, 0, 0);
-          const anchor = worldToCanvasCss(_camera, canvas, followed.x, followed.y);
-          const ax = anchor.x - inspectPanel.root.rect.width / 2;
-          const ay = anchor.y - inspectPanel.root.rect.height - TILE * 1.2;
+          const headAnchor = worldToCanvasCss(_camera, canvas, followed.x, followed.y - TILE * 1.3);
+          const ax = headAnchor.x - inspectPanel.root.rect.width / 2;
+          const ay = headAnchor.y - inspectPanel.root.rect.height;
           computeLayout(inspectPanel.root, ax, ay);
           if (changed) inspectRoot.mirror?.update(inspectPanel.root);
           renderTree(surface, inspectPanel.root);
@@ -948,10 +925,13 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
 
       // Pip's-farm marker — a screen-space pin above Pip's home plot, shown only once the camera
       // is zoomed out enough that the 21 farms are otherwise indistinguishable (todo
-      // pip-farm-zoom-out-highlight). World-anchored like the diegetic HUD above; raw quads, not a
-      // panel, so it draws every frame regardless of any panel's refresh() gating.
+      // pip-farm-zoom-out-highlight). Now folded into the widget tree as a custom node: it still
+      // draws in absolute screen-space from the live camera (the node rect is vestigial), but flows
+      // through renderTree like every other panel instead of a bespoke post-pass.
       if (_camera !== null) {
-        drawPipFarmMarker(surface, _camera, canvas, zoom, nowMs);
+        pipMarker.setFrame(_camera, canvas, zoom, nowMs);
+        computeLayout(pipMarker.root, 0, 0);
+        renderTree(surface, pipMarker.root);
       }
 
       // Help modal — centred, top-most non-terminal overlay.

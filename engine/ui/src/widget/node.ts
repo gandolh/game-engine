@@ -23,6 +23,7 @@ import type { ButtonState } from "../theme/theme";
 
 import type { LayoutProps } from "../layout/props";
 import type { IconRamp } from "../icon/draw";
+import type { UISurface } from "../render/ui-surface";
 
 /** Computed screen-space rectangle (px, top-left origin), filled in by `computeLayout`. */
 export interface Rect {
@@ -32,7 +33,15 @@ export interface Rect {
   height: number;
 }
 
-export type UINodeKind = "panel" | "box" | "label" | "button" | "slider" | "checkbox" | "icon";
+export type UINodeKind =
+  | "panel"
+  | "box"
+  | "label"
+  | "button"
+  | "slider"
+  | "checkbox"
+  | "icon"
+  | "custom";
 
 interface BaseNode {
   /** Stable per-node id (unique within a process run). Used for keying/hit-test/a11y. */
@@ -226,7 +235,35 @@ export interface CheckboxNode extends BaseNode {
   toggle(): boolean;
 }
 
-export type UINode = ContainerNode | LabelNode | ButtonNode | SliderNode | CheckboxNode | IconNode;
+/**
+ * A **custom-draw** leaf — the escape hatch for content the widget vocabulary can't express
+ * (charts, minimaps, sprite-icon grids, drag ghosts). It participates in layout like any node
+ * (sized by `layout.width`/`height`, or stretched/grown by its parent), then during `renderTree`
+ * invokes {@link CustomNode.draw} with its COMPUTED `rect` and the inherited alpha — folding raw
+ * quad/sprite drawing back INTO the tree (correct sibling z-order + opacity fade) instead of a
+ * separate pass keyed off a `rect` read back after `computeLayout`. Non-interactive: it carries no
+ * activation handle, so input hit-testing and the a11y mirror skip it (it's decoration).
+ */
+export interface CustomNode extends BaseNode {
+  readonly kind: "custom";
+  children: [];
+  /**
+   * Paint this node. Invoked during `renderTree` with the node's laid-out `rect` and the
+   * multiplied-down subtree `alpha` (so a faded ancestor fades this too). The surface frame is
+   * already open — draw via `surface.rect`/`surface.sprite`/`surface.push`. MUST NOT mutate the
+   * tree or run layout; it is a pure paint of the given rect.
+   */
+  draw: (surface: UISurface, rect: Rect, alpha: number) => void;
+}
+
+export type UINode =
+  | ContainerNode
+  | LabelNode
+  | ButtonNode
+  | SliderNode
+  | CheckboxNode
+  | IconNode
+  | CustomNode;
 
 let nextId = 1;
 
@@ -303,6 +340,18 @@ export function button(
   if (opts.scale !== undefined) node.scale = opts.scale;
   if (opts.icon !== undefined) node.icon = opts.icon;
   return node;
+}
+
+/**
+ * Create a **custom-draw** leaf (the escape hatch). Size it via `layout` (`width`/`height`, a
+ * `grow`, or a parent's `align:"stretch"`); `draw` is invoked each frame with the computed rect +
+ * inherited alpha. See {@link CustomNode}.
+ */
+export function custom(
+  draw: (surface: UISurface, rect: Rect, alpha: number) => void,
+  layout: LayoutProps = {},
+): CustomNode {
+  return { id: freshId(), kind: "custom", layout, children: [], rect: emptyRect(), draw };
 }
 
 /** Create an **icon** (shade-mask leaf), tinted by `ramp` (see {@link IconRamp}). */
