@@ -27,22 +27,14 @@
  * 3D needs on top.
  *
  * FOLLOW-UP (flagged, not fixed here — not in this brief's lane): this is a
- * real but implicit browser contract, not an option `gl-context.ts` exposes
- * on purpose. A future brief should give `createGlContext` an explicit
- * `{ depth?: boolean }` (or similar) parameter so 3D's depth requirement
- * stops depending on getContext-call ordering.
+ * Depth is requested explicitly via `createGlContext(canvas, { depth: true })`.
+ * This replaced an earlier workaround that pre-warmed the canvas with its own
+ * `getContext` call: WebGL2 honours context attributes only on the FIRST
+ * `getContext` for a canvas, so that worked, but it was order-dependent and would
+ * have failed SILENTLY (no error, visibly wrong render) if anything ever created
+ * the context first.
  */
 import { createGlContext, type GlContext } from "../../render/webgl2/gl-context";
-
-const CONTEXT_ATTRIBUTES_3D: WebGLContextAttributes = {
-  alpha: false,
-  antialias: false, // pixel-art engine — never smooth, even in 3D.
-  depth: true, // the one attribute 3D needs that the 2D GlContext hardcodes off.
-  stencil: false,
-  premultipliedAlpha: true,
-  preserveDrawingBuffer: false,
-  powerPreference: "high-performance",
-};
 
 /**
  * WebGL2 device + depth-enabled GL state, ready for a `SceneRenderer3D`
@@ -80,13 +72,14 @@ export class GlDevice3d {
   }
 
   static create(canvas: HTMLCanvasElement): GlDevice3d {
-    // Pre-warm the canvas's WebGL2 context with depth enabled — MUST run
-    // before createGlContext's own getContext call (see module doc).
-    canvas.getContext("webgl2", CONTEXT_ATTRIBUTES_3D);
-
+    // Depth is requested EXPLICITLY through GlContextOptions. It used to be
+    // obtained by pre-warming the canvas with our own getContext call before
+    // createGlContext's — which worked (first call wins the attributes) but was
+    // order-dependent and would have failed SILENTLY if anything ever created the
+    // context first. An explicit option cannot be got wrong by accident.
     let glContext: GlContext;
     try {
-      glContext = createGlContext(canvas);
+      glContext = createGlContext(canvas, { depth: true });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       throw new Error(

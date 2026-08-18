@@ -24,15 +24,31 @@ export type Unsubscribe = () => void;
 const CONTEXT_ATTRIBUTES: WebGLContextAttributes = {
   alpha: false,
   antialias: false, // pixel-art engine — never smooth.
-  // Sprite ordering is CPU-sorted (compareSprite), not depth-tested. Do not
-  // silently introduce a depth buffer here; a later 3D brief (10/11) owns
-  // its own device with its own depth needs.
+  // Sprite ordering is CPU-sorted (compareSprite), not depth-tested, so 2D never
+  // wants a depth buffer. 3D does — pass `{ depth: true }` to `createGlContext`
+  // rather than creating the context behind this module's back (see GlContextOptions).
   depth: false,
   stencil: false,
   premultipliedAlpha: true,
   preserveDrawingBuffer: false,
   powerPreference: "high-performance",
 };
+
+/**
+ * Per-canvas context options.
+ *
+ * `depth` exists because 2D and 3D genuinely disagree: the 2D sprite path is
+ * CPU-sorted and wants no depth buffer, while `render3d` requires one. WebGL2
+ * only honours context attributes on the FIRST `getContext` call for a canvas —
+ * every later call returns the already-created context and silently ignores the
+ * new attributes. So a caller that needs depth must say so HERE, on the call that
+ * creates the context. Asking for it afterwards fails silently, with no error and
+ * a visibly wrong render, which is exactly the failure class this option removes.
+ */
+export interface GlContextOptions {
+  /** Allocate a depth buffer (3D needs this; 2D must not). Defaults to `false`. */
+  depth?: boolean;
+}
 
 /**
  * The device-pixel-ratio clamp used throughout the renderer stack (see
@@ -80,8 +96,12 @@ export class GlContext {
    * either doesn't support WebGL2 or has exhausted its context budget.
    * A later brief (09) turns this catch into the user-facing fallback screen.
    */
-  static create(canvas: HTMLCanvasElement): GlContext {
-    const gl = canvas.getContext("webgl2", CONTEXT_ATTRIBUTES) as WebGL2RenderingContext | null;
+  static create(canvas: HTMLCanvasElement, options?: GlContextOptions): GlContext {
+    const attributes: WebGLContextAttributes = {
+      ...CONTEXT_ATTRIBUTES,
+      depth: options?.depth ?? false,
+    };
+    const gl = canvas.getContext("webgl2", attributes) as WebGL2RenderingContext | null;
     if (!gl) {
       throw new Error("webgl2: context unavailable");
     }
@@ -171,8 +191,8 @@ export class GlContext {
  * `GpuContext.create` — there is no adapter/device negotiation step in
  * WebGL2, so no `Promise` is needed.
  */
-export function createGlContext(canvas: HTMLCanvasElement): GlContext {
-  return GlContext.create(canvas);
+export function createGlContext(canvas: HTMLCanvasElement, options?: GlContextOptions): GlContext {
+  return GlContext.create(canvas, options);
 }
 
 // ── Context-loss seam: what IS and ISN'T handled here ──────────────────────
