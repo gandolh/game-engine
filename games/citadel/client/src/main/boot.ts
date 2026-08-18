@@ -1,3 +1,5 @@
+import { showUnsupportedNotice } from "@engine/core";
+import { CITADEL_PAL as EDG } from "../render/citadel-palette";
 import { findCoreBox, CORE_BOX_W, CORE_BOX_H } from "@citadel/sim-core";
 import { MAX_ZOOM } from "@engine/core";
 import { loadFontAtlas, loadIconAtlas } from "@engine/ui";
@@ -94,12 +96,23 @@ function startGame(mode: GameMode): void {
 }
 
 /**
- * Boot: create the WebGPU renderer (bakes terrain), then start sim + loop.
- * Citadel is WebGPU-only at runtime — if WebGPU is unavailable this throws and
- * the surface stays blank (matches the FV pattern; no Canvas2D fallback).
+ * Boot: create the WebGL2 renderer (bakes terrain), then start sim + loop.
+ * WebGL2 is the engine's only backend. If it cannot start, the catch below shows a
+ * message rather than leaving a blank surface (which is what used to happen).
  */
 async function boot(): Promise<void> {
-  const created = await createCitadelRenderer(canvas, terrain);
+  // Citadel used to document this as "if WebGPU is unavailable this throws and the
+  // surface stays blank". It now shows a message instead.
+  let created: Awaited<ReturnType<typeof createCitadelRenderer>>;
+  try {
+    created = await createCitadelRenderer(canvas, terrain);
+  } catch (err) {
+    console.error("[citadel render] WebGL2 unavailable:", err);
+    showUnsupportedNotice(document.body, {
+      text: EDG.cream, background: EDG.ink, border: EDG.rust,
+    });
+    throw err;
+  }
   setRendererState(created);
 
   // engine-ui chunk 7: register the bitmap font atlas (once), build the in-canvas HUD,

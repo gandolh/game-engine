@@ -377,7 +377,7 @@ export class PlacementStateManager {
     terrain: TerrainGrid,
     buildings: readonly BuildingSnapshot[],
   ): void {
-    // Derive the tile under the cursor from the SAME transform the WebGPU
+    // Derive the tile under the cursor from the SAME transform the GPU
     // renderer uses (Camera2D + canvas backing-store size). `eventToDevicePx`
     // applies the renderer's dpr clamp; `screenToTile` inverts the GPU
     // world→screen transform. See render/citadel-renderer.ts.

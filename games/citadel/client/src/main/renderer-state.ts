@@ -3,7 +3,7 @@ import type { RenderWindowController } from "../render/citadel-renderer";
 import type { IsoProjection } from "../render/iso";
 
 // ---------------------------------------------------------------------------
-// Camera + renderer (Camera2D + engine WebGPU renderer; created async in boot.ts)
+// Camera + renderer (Camera2D + engine WebGL2 renderer; created async in boot.ts)
 // ---------------------------------------------------------------------------
 export let camera: Camera2D;
 export let renderer: RendererLike;

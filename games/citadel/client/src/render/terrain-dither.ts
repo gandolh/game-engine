@@ -26,7 +26,7 @@ import type { HeightSampler } from "./hillshade";
 
 /**
  * Build the decorate callback that paints the terrain grid into the baked
- * static layer (a texture on the WebGPU backend). Each cell is a
+ * static layer (a texture on the GPU backend). Each cell is a
  * TILE_SIZE×TILE_SIZE EDG-colored rect plus sub-tile dither.
  *
  * Tiles are always drawn in WORLD coordinates (`tx * TILE_SIZE`). For a windowed
@@ -124,7 +124,7 @@ export function ditherHash(tx: number, ty: number, type: number): number {
 // ---------------------------------------------------------------------------
 //
 // This is the engine's canonical noise, ported CPU-side VERBATIM from
-// `engine/core/src/render/webgpu/shaders/cloud.wgsl` (Book of Shaders ch.11/13,
+// `engine/core/src/render/webgl2/shaders/cloud.frag.glsl` (Book of Shaders ch.11/13,
 // already tuned + shipped): `hash21`, cubic-Hermite `valueNoise`, 3-octave
 // `fbm3`. It feeds the low-frequency tonal drift that makes the ground "breathe"
 // — sampled per cell (deterministic on tx,ty) and step()-quantized to a handful

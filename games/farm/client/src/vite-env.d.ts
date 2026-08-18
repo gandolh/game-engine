@@ -9,7 +9,7 @@ interface ImportMeta {
 }
 
 // WGSL shader sources imported with Vite's `?raw` suffix — pulled into the farm
-// client's type graph via `@engine/core`'s WebGPU renderer stack (parity with the
+// client's type graph via `@engine/core`'s WebGL2 renderer stack (parity with the
 // Citadel client, which declares the same module).
 declare module "*.wgsl?raw" {
   const src: string;

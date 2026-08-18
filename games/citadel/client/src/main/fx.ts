@@ -38,7 +38,7 @@ export const villagerInterp = new EntityInterpolator();
 export const raiderInterp = new EntityInterpolator(scaleTicks(RAIDER_MOVE_INTERVAL_TICKS, TICKS_PER_DAY));
 
 // Render-side juice (briefs 17 + 19). All off-sim:
-//  - particles: chimney smoke, rendered by the WebGPU particle pass via endFrame
+//  - particles: chimney smoke, rendered by the GPU particle pass via endFrame
 //  - fxRng: render-side RNG (seeded off a constant) for smoke jitter ONLY —
 //    never the sim RNG, never Math.random in sim-construable code.
 //  - appearAt: building-key → first-seen render-clock ms, for the placement ease.

@@ -47,7 +47,7 @@
  * fresh every frame via `render(...)`'s own arguments.
  */
 import "./style.css";
-import { Camera2D, createRenderer, type RendererLike } from "@engine/core";
+import { Camera2D, createRenderer, showUnsupportedNotice, type RendererLike } from "@engine/core";
 import {
   UISurface,
   loadFontAtlas,
@@ -137,7 +137,17 @@ document.body.style.color = MATE_PAL.cream;
 
 async function main(): Promise<void> {
   const camera = new Camera2D({ worldUnitsX: 960, worldUnitsY: 540, centerX: 480, centerY: 270 });
-  const renderer: RendererLike = await createRenderer(canvas, camera);
+  // Blank-canvas guard: show a message instead of failing silently.
+  let renderer: RendererLike;
+  try {
+    renderer = await createRenderer(canvas, camera);
+  } catch (err) {
+    console.error("[mathquest] WebGL2 unavailable:", err);
+    showUnsupportedNotice(document.body, {
+      text: MATE_PAL.cream, background: MATE_PAL.black, border: MATE_PAL.gold,
+    });
+    throw err;
+  }
   renderer.clearColor = MATE_PAL.black;
   renderer.addAtlas(await loadFontAtlas());
   const surface = new UISurface(renderer);

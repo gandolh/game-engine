@@ -198,7 +198,7 @@ export function loop(): void {
     }
   }
 
-  // --- WebGPU scene: terrain is the baked static layer; entities + ghost are
+  // --- GPU scene: terrain is the baked static layer; entities + ghost are
   // sprite-batch quads. beginFrame sizes the canvas backing store, so fit the
   // camera to it first.
   renderer.beginFrame();
@@ -349,7 +349,8 @@ export function loop(): void {
 
   // Brief 17 chimney smoke: emit rising grey puffs from bakery/smith/woodcutter
   // (render-side RNG jitter only), advance the pool, hand it to endFrame so the
-  // WebGPU particle pass draws it natively (the overlay callback is a no-op).
+  // The GPU particle pass draws it natively. (The endFrame overlay callback is no
+  // longer a no-op — it is honoured now — but Citadel does not pass one.)
   // Brief 25: gated — when off, skip emission (existing puffs still advance/age
   // out via particles.update so the pool drains cleanly).
   if (renderToggles.smoke) smoke.update(currentBuildings, nowMs);
@@ -568,7 +569,7 @@ export function loop(): void {
   }
 
   // Day/night + seasonal wash (GPU TintPass via endFrame), then particles +
-  // weather (both rendered natively by the WebGPU backend).
+  // weather (both rendered natively by the GPU backend).
   // Brief 25: gated — pass undefined wash/weather when their toggles are off.
   const wash = renderToggles.wash ? computeWash(season, dayFraction) : undefined;
   const weatherField = renderToggles.weather ? weather.field : undefined;

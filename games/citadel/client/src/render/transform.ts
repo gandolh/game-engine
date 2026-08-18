@@ -22,8 +22,8 @@ import type { IsoProjection } from "./iso";
 // ---------------------------------------------------------------------------
 
 /**
- * The pieces of Camera2D + canvas needed to reproduce the WebGPU renderer's
- * world→screen transform exactly. The GPU renderer (see webgpu/renderer.ts
+ * The pieces of Camera2D + canvas needed to reproduce the GPU renderer's
+ * world→screen transform exactly. The GPU renderer (see webgl2/renderer.ts
  * `endFrame`) computes, in DEVICE pixels:
  *   sx = canvasW / worldUnitsX
  *   left = centerX - worldUnitsX / 2

@@ -7,6 +7,7 @@ import {
   ParticleSystem,
   RainField,
   createNoiseGeneratorFromUrl,
+  showUnsupportedNotice,
 } from "@engine/core";
 import type { NoiseGenerator, RendererLike } from "@engine/core";
 import { loadFontAtlas, computeLayout, renderTree } from "@engine/ui";
@@ -62,9 +63,20 @@ async function setupRuntime(canvas: HTMLCanvasElement): Promise<Runtime> {
   const camera = new Camera2D(CAMERA_CONFIG);
   setCamera(camera);
 
-  const renderer = await createRenderer(canvas, camera, {
-    onBackend: (b) => console.info("[render] backend:", b),
-  });
+  // A renderer that cannot start must produce a MESSAGE, not a blank canvas — the
+  // pre-migration behaviour, where createRenderer rethrew and nothing caught it.
+  let renderer: RendererLike;
+  try {
+    renderer = await createRenderer(canvas, camera, {
+      onBackend: (b) => console.info("[render] backend:", b),
+    });
+  } catch (err) {
+    console.error("[render] WebGL2 unavailable:", err);
+    showUnsupportedNotice(document.body, {
+      text: EDG.cream, background: EDG.ink, border: EDG.rust,
+    });
+    throw err;
+  }
   for (const atlas of atlasMap.values()) {
     renderer.addAtlas(atlas);
   }

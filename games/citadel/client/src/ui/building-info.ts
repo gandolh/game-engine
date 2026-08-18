@@ -8,7 +8,7 @@
  *   - getProductionDetails: structured inputs/outputs/cycles tuple for richer panel layout.
  *   - isServiceBuilding / getServiceRadius / getServiceRect: coverage helpers.
  *
- * No DOM, no WebGPU, no Math.random / Date.now — safe to use in tests and workers.
+ * No DOM, no GPU context, no Math.random / Date.now — safe to use in tests and workers.
  * All numbers are derived from the live defs; nothing is hardcoded.
  */
 import {

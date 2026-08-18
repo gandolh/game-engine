@@ -8,7 +8,7 @@
  *    phase-offset per id so they don't bob in lockstep.
  *  - Chimney smoke (brief 17): small rising EDG-grey particles anchored to
  *    bakery / smith / woodcutter, emitted into the engine `ParticleSystem`
- *    (rendered natively by the WebGPU backend's particle pass). Capped.
+ *    (rendered natively by the GPU backend's particle pass). Capped.
  *  - Follow-cam (brief 19): pure "nearest villager within radius" pick + a
  *    "release if the followed id despawned" predicate. The camera glide
  *    (`expSmooth`) and the DOM HUD strip live in main.ts.

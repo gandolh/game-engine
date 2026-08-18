@@ -437,17 +437,14 @@ export function raiderQuad(r: RaiderSnapshot, clockMs?: number): QuadSpec {
 /** Ghost / drag-paint preview alpha (translucent over the world). */
 export const GHOST_ALPHA = Math.round(0xff * 0.45);
 
-/**
- * Map a ghost-preview cell to a translucent colored quad (green = valid,
- * red = invalid). Pure — used by `pushGhost` and the tests.
- *
- * NOTE: the ghost is drawn as a **sprite-batch quad**, not via the `endFrame`
- * overlay callback. The WebGPU renderer's `endFrame(overlay)` parameter is a
- * no-op (it only uses its overlay canvas for particles / weather / wash — see
- * webgpu/renderer.ts), so an OverlayFn would never render on the backend
- * Citadel actually uses at runtime. A translucent quad in the sprite-batch is
- * the path that works on WebGPU and keeps everything going through brief 20's
- * batch.
+/*
+ * Historical note (resolved 2026-08-18): this used to explain that the renderer's
+ * `endFrame(overlay)` parameter was silently ignored, so Citadel deliberately routed
+ * everything through the sprite-quad path instead of an overlay callback. That no-op
+ * was a BUG — it also meant Farm's night lighting never rendered — and the WebGL2
+ * backend honours the callback now (an offscreen 2D bake composited additively).
+ * Citadel keeps using the quad path regardless: it is the right shape for this content
+ * and going through brief 20's sprite batch is cheaper than a full-screen composite.
  */
 export function ghostQuad(tileX: number, tileY: number, w: number, h: number, valid: boolean): QuadSpec {
   return {
