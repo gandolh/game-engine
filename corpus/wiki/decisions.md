@@ -1,6 +1,6 @@
 ---
-summary: Locked tech choices that future briefs must not relitigate — stack, sim, ECS, renderer, assets, palette, concurrency, WASM, and the gameplay source-of-truth.
-updated: 2026-07-09
+summary: Locked tech choices that future briefs must not relitigate — stack, sim, ECS, renderer (WebGL2-only as of 2026-08-18, migration in flight), assets, palette, concurrency, WASM, and the gameplay source-of-truth.
+updated: 2026-08-18
 ---
 
 # Locked Decisions
@@ -29,7 +29,17 @@ Tech choices that are settled. Listed here so future briefs and reviews don't re
 
 ## Renderer
 
-- **WebGPU-first, with Canvas2D as the fallback backend.** *(Formally revisited 2026-07-09 — supersedes the earlier "Canvas2D, not WebGPU" entry, which had been falsified by the shipped code since the `@engine/ui` dual-backend work.)* Both games render through WebGPU in the browser; `Canvas2dRenderer` is kept as a real, tested second backend for the `node` test env and as a fallback. Engine render passes therefore come in pairs — a change to one backend that skips the other is a bug, not a partial migration.
+- **WebGL2 is the single render backend.** *(Decided 2026-08-18 by user directive — supersedes "WebGPU-first, with Canvas2D as the fallback backend" (2026-07-09), which itself superseded "Canvas2D, not WebGPU".)* **⚠️ ADOPTED, MIGRATION IN FLIGHT** — the code still ships WebGPU + Canvas2D as of this entry. Plan and live state: [todos/2026-08-18-webgl2-00-BUILD-ORDER.md](../todos/2026-08-18-webgl2-00-BUILD-ORDER.md) · [todos/2026-08-18-webgl2-BUILD-STATE.md](../todos/2026-08-18-webgl2-BUILD-STATE.md). Brief 13 rewrites this entry in the past tense once the migration lands; until then, **the code wins** — expect to find `render/webgpu/`, `render/canvas2d/`, and `render3d/webgpu/` still present.
+
+  **Why.** WebGPU compatibility. As of 2026-08 it ships in Chrome/Edge 113+, Safari 26 (macOS Tahoe 26 / iOS 26), and Firefox 141 (Windows) / 145 (macOS ARM64) — but **Firefox on Linux is still unshipped**, Android is in progress, and the no-hardware-acceleration tail (VMs, remote desktops, headless) has bitten this project twice already. Both 2D clients hard-forced `backend: "webgpu"`, so an unsupported browser got a **blank canvas**. WebGL2 is ~98% supported and universal on desktop since ~2017.
+
+  **Why not keep WebGPU as a fast path with WebGL2 as the fallback.** The "passes come in pairs" rule from the 2026-07-09 entry had *already* drifted with only two backends: `setCloudOptions` existed only on WebGPU, and `OverlayFn` was honoured on Canvas2D and silently ignored on WebGPU. Paying that parity tax across a larger surface, forever, buys a fast path for browsers that mostly already run WebGL2 fine. One backend retires the tax.
+
+  **Why Canvas2D's own justification didn't hold.** It was kept as "a real, tested second backend for the `node` test env" — but both backends were always tested against **stubs** (`canvas2d.test.ts` stubbed `getContext`, `webgpu/renderer.test.ts` stubbed `requestAdapter`). The stub, not the backend, is what makes `node`-env render tests work.
+
+  **What this gives up, stated plainly:** compute shaders and storage buffers (neither was in use — audited 2026-08-18: zero `@compute` across all 7 WGSL files, and exactly one storage buffer, the `scene3d` materials table, which becomes a `std140` UBO), and WebGPU's lower per-draw CPU overhead — acceptable because the engine runs far under frame budget on real hardware (~1.4–2.3 ms of a 16.6 ms render budget, see [performance-measurements.md](performance-measurements.md)).
+
+  **The replacement standing rule:** one backend, and **every colour in GLSL comes from a palette-role uniform** — no literals in shader source, enforced by `glsl-lint.test.ts`. This is the shader-side arm of the existing palette guard.
 
 ## Assets
 

@@ -4,6 +4,43 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-08-18] decision+plan | WebGL2-only render backend — 13-brief migration planned
+
+User asked what our options were for WebGPU browser compatibility, then chose the maximal one:
+**remove Canvas2D, remove WebGPU, switch everything to WebGL2** — all four games including Hollow's
+3D. Planned as 13 briefs in 5 waves; **no code written yet**.
+
+**Trigger.** WebGPU ships in Chrome/Edge 113+, Safari 26, and Firefox 141 (Win) / 145 (macOS ARM64),
+but **Firefox on Linux is still unshipped** as of 2026-08, Android is in progress, and the
+no-hardware-acceleration tail has bitten us twice (the SwiftShader perf red herring, Hollow's
+no-adapter sandbox). Both 2D clients hard-forced `backend: "webgpu"`, which makes `createRenderer`
+rethrow instead of falling back — so an unsupported browser got a **blank canvas**, a fact Citadel's
+`boot.ts` documented and nobody had acted on.
+
+**Feasibility audit (this is why the port is safe, not a leap).** Grepped `\bGPU[A-Z][A-Za-z]+`
+across `games/`, `tools/`, `engine/ui`: **zero hits** — the WebGPU surface is fully contained behind
+`RendererLike`, so this is engine-internal plus **4 client call sites**. Zero `@compute` shaders.
+**Exactly one** WebGL2-incompatible feature in the whole repo: `var<storage, read> materials` in
+`scene3d.wgsl`, which becomes a `std140` UBO (`FLOATS_PER_MATERIAL` is 4 = the std140 vec4 stride, so
+`packMaterials`' output uploads unchanged). Instancing maps directly (`draw(6, n)` →
+`drawArraysInstanced`, `@builtin(instance_index)` → `gl_InstanceID`). The 3D math layer
+(`mat4`/`camera3d`/`geometry`/`pick`, 674 LOC) is backend-agnostic and untouched.
+
+**Rejected alternative:** keep WebGPU as a fast path with WebGL2 as the fallback. The 2026-07-09
+"passes come in pairs" rule had already drifted with two backends (`setCloudOptions` WebGPU-only;
+`OverlayFn` honoured on Canvas2D, ignored on WebGPU). Both asymmetries are now scheduled for repair
+(briefs 05, 07) instead of being replicated across a bigger surface.
+
+**Also retired:** Canvas2D's stated justification — "a real, tested second backend for the `node` test
+env". Both backends were always tested against **stubs**, so the stub, not the backend, is what makes
+`node`-env render tests work.
+
+Plan: [todos/2026-08-18-webgl2-00-BUILD-ORDER.md](todos/2026-08-18-webgl2-00-BUILD-ORDER.md) ·
+tracker: [todos/2026-08-18-webgl2-BUILD-STATE.md](todos/2026-08-18-webgl2-BUILD-STATE.md).
+`decisions.md`'s Renderer entry is replaced and flagged **ADOPTED, MIGRATION IN FLIGHT** — brief 13
+rewrites it in the past tense once the code lands. Note a stale `webgpu-migration` branch exists from
+the *previous* migration; this one branches `webgl2-migration` from current `main`.
+
 ## [2026-07-23] polish | MateQuest — Triviador-style quiz problem window
 
 Follow-up to the battle scene (user asked to draw on Triviador/Conquiztador). Reworked the
