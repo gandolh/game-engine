@@ -21,6 +21,10 @@ export type { ViewUniform } from "./view-uniform";
 export { drawUIQuad } from "./ui-draw";
 export { resolveStaticRegion, staticBlitRect } from "./static-region";
 export type { StaticRegion, StaticBlit } from "./static-region";
-export { WebGl2Renderer, createWebGl2Renderer } from "./webgl2/renderer";
+// TYPE-ONLY on purpose: a value export would statically pull the WebGL2 passes — and
+// their `*.glsl?raw` imports — into every consumer of this barrel, including the Node
+// servers and headless tools, which crash on `.glsl`. Renderers are constructed
+// through `createRenderer`, which imports the module dynamically.
+export type { WebGl2Renderer } from "./webgl2/renderer";
 export { createRenderer } from "./create-renderer";
 export type { CreateRendererOptions } from "./create-renderer";

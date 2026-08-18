@@ -1,6 +1,5 @@
 import type { Camera2D } from "./camera";
 import type { RendererLike } from "./renderer";
-import { WebGl2Renderer } from "./webgl2/renderer";
 
 export interface CreateRendererOptions {
   /**
@@ -33,6 +32,13 @@ export async function createRenderer(
   camera: Camera2D,
   opts?: CreateRendererOptions,
 ): Promise<RendererLike> {
+  // DYNAMIC import, deliberately. The WebGL2 passes `import … from "*.glsl?raw"`,
+  // which only a bundler can resolve — Node/tsx throws ERR_UNKNOWN_FILE_EXTENSION on
+  // `.glsl`. A static import here (or a value export from the barrel) makes every
+  // Node consumer — the Farm/Citadel servers, run-sim, world-preview, citadel-sim,
+  // hollow-sim — crash on startup even though none of them ever renders. The WebGPU
+  // backend was loaded this same way for this same reason; keep it that way.
+  const { WebGl2Renderer } = await import("./webgl2/renderer");
   const renderer = WebGl2Renderer.create(canvas, camera);
   opts?.onBackend?.("webgl2");
   return renderer;
