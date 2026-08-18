@@ -267,7 +267,6 @@ export async function createCitadelRenderer(
   });
 
   const renderer = await createRenderer(canvas, camera, {
-    backend: "webgpu",
     onBackend: (b) => console.info("[citadel render] backend:", b),
   });
 

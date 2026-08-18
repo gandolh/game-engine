@@ -77,7 +77,7 @@ export class Overlay2D {
    *
    * Matches the overlay canvas's device-pixel size to the base (GPU) canvas using the
    * same DPR rule used throughout the renderer stack (see `GlContext.resize` /
-   * `Canvas2dRenderer.beginFrame`):
+   * `WebGl2Renderer.beginFrame`):
    *
    *   dpr = min(window.devicePixelRatio || 1, 2)
    *   canvas.width  = floor(baseCanvas.clientWidth  * dpr)
@@ -122,7 +122,7 @@ export class Overlay2D {
    * Applies the same world→screen transform the GPU sprite pass uses, so particles and
    * weather (authored in world pixels) are positioned identically on both surfaces.
    *
-   * The transform exactly mirrors `Canvas2dRenderer.endFrame`:
+   * The transform exactly mirrors `WebGl2Renderer.endFrame`:
    *
    *   ctx.setTransform(scaleX, 0, 0, scaleY, offsetX, offsetY)
    *

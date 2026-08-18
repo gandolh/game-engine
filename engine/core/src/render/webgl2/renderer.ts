@@ -1,0 +1,605 @@
+import type { Camera2D } from "../camera";
+import type { LoadedAtlasImage } from "../../assets/loader";
+import type { ParticleSystem } from "../particles";
+import type {
+  RendererLike, WashOptions, WeatherLike, DecorateFn, Sprite, OverlayFn, UIQuad, CloudOptions,
+} from "../renderer";
+import { drawUIQuad } from "../ui-draw";
+import type { StaticRegion } from "../static-region";
+import { EDG } from "../palette";
+import type { ViewUniform } from "../view-uniform";
+import { GlContext } from "./gl-context";
+import { GlAtlasStore } from "./gl-atlas-store";
+import { SpriteBatch } from "./sprite-batch";
+import type { GlSpriteInstance } from "./sprite-batch";
+import { ShadowBatch } from "./shadow-batch";
+import { Overlay2D } from "../overlay-2d";
+import { StaticLayerPass } from "./static-layer-pass";
+import { WaterPass } from "./water-pass";
+import type { VisibleRect } from "./static-layer-pass";
+import { ParticleBatch } from "./particle-batch";
+import { WeatherPass } from "./weather-pass";
+import { TintPass } from "./tint-pass";
+import { CloudShadowPass } from "./cloud-shadow-pass";
+import { OverlayLightPass } from "./overlay-light-pass";
+import type { OverlayLightView } from "./overlay-light-pass";
+import { RainField } from "../rain-field";
+import { compareSprite, spritesOverlap } from "../raster2d";
+
+const CULL_MARGIN = 32;
+const GHOST_ALPHA = 0.4;
+const GHOST_UI_LAYER = 80;
+
+interface ShadowRecord {
+  x: number; y: number; rx: number; ry: number; alpha: number;
+}
+
+/** One coalesced run of same-atlas instances in the sprite batch. */
+interface DrawGroup {
+  texture: WebGLTexture | null;
+  first: number;
+  count: number;
+}
+
+function hexToRgbaFloats(hex: string, alpha = 1): [number, number, number, number] {
+  let c = hex.trim();
+  if (c.startsWith("#")) c = c.slice(1);
+  if (c.length === 3) c = c[0]! + c[0]! + c[1]! + c[1]! + c[2]! + c[2]!;
+  const n = parseInt(c, 16);
+  return [
+    ((n >> 16) & 0xff) / 255,
+    ((n >> 8) & 0xff) / 255,
+    (n & 0xff) / 255,
+    alpha,
+  ];
+}
+
+function tintFloats(tintRgba: number | undefined, spriteAlpha: number): [number, number, number, number] {
+  const t = tintRgba !== undefined ? (tintRgba >>> 0) : 0xffffffff;
+  const r = ((t >>> 24) & 0xff) / 255;
+  const g = ((t >>> 16) & 0xff) / 255;
+  const b = ((t >>> 8) & 0xff) / 255;
+  return [r, g, b, spriteAlpha];
+}
+
+/**
+ * The engine's single render backend.
+ *
+ * Almost everything here is backend-neutral CPU work — viewport culling, z-sorting,
+ * per-atlas draw-group coalescing, the ghost/occluder redraw pass, and the UI
+ * draw-list. Only the last stretch of `endFrame` talks to GL. That split is why the
+ * WebGPU→WebGL2 migration was tractable: the expensive logic never knew which API
+ * it was feeding.
+ *
+ * **Draw order is load-bearing.** water → static → shadows → sprites (grouped by
+ * atlas) → GPU particles → GPU weather → additive overlay light → cloud → day/night
+ * wash, then the 2D overlay canvas on top (CPU effects fallback, then UI quads last
+ * in screen space). Reordering produces a plausible-looking but wrong frame — e.g.
+ * night glows darkened by the very wash they are meant to lift, or UI buried under
+ * the world.
+ */
+export class WebGl2Renderer implements RendererLike {
+  readonly camera: Camera2D;
+  clearColor: string;
+  pixelSnap: boolean;
+
+  private readonly _canvas: HTMLCanvasElement;
+  private readonly _glCtx: GlContext;
+  private readonly _store: GlAtlasStore;
+  private readonly _batch: SpriteBatch;
+  private readonly _shadowBatch: ShadowBatch;
+  private readonly _overlay: Overlay2D;
+  private readonly _staticPass: StaticLayerPass;
+  private readonly _waterPass: WaterPass;
+  private readonly _particleBatch: ParticleBatch;
+  private readonly _weatherPass: WeatherPass;
+  private readonly _tintPass: TintPass;
+  private readonly _cloudPass: CloudShadowPass;
+  private readonly _overlayLightPass: OverlayLightPass;
+
+  private _cloudOpts: CloudOptions | undefined = undefined;
+
+  useGpuEffects = true;
+
+  private readonly _atlases: Map<string, LoadedAtlasImage> = new Map();
+
+  private _queue: Sprite[] = [];
+  private _queueLen = 0;
+
+  private _shadowQueue: ShadowRecord[] = [];
+  private _shadowLen = 0;
+
+  // Screen-space UI draw-list, flushed via the Overlay2D layer in endFrame.
+  private _uiQueue: UIQuad[] = [];
+  private _uiLen = 0;
+  private _uiActive = false;
+
+  // Dev-only UI-flush profiling seam (see RendererLike.profileUi). Off by default;
+  // the host flips it when profiling so production frames pay nothing.
+  profileUi = false;
+  lastUiFlush = { ms: 0, quads: 0 };
+
+  private _occludableIdx: number[] = [];
+
+  private _groups: DrawGroup[] = [];
+  private _groupLen = 0;
+
+  private readonly _inst: GlSpriteInstance = {
+    x: 0, y: 0, w: 0, h: 0,
+    u0: 0, v0: 0, u1: 0, v1: 0,
+    rotation: 0, flipX: 0,
+    r: 1, g: 1, b: 1, a: 1,
+    swayPhase: 0, swayAmp: 0,
+  };
+
+  private _cullLeft = -Infinity;
+  private _cullRight = Infinity;
+  private _cullTop = -Infinity;
+  private _cullBottom = Infinity;
+
+  private _staticLayerW = 0;
+  private _staticLayerH = 0;
+
+  private constructor(
+    canvas: HTMLCanvasElement,
+    camera: Camera2D,
+    glCtx: GlContext,
+    store: GlAtlasStore,
+    batch: SpriteBatch,
+    shadowBatch: ShadowBatch,
+    overlay: Overlay2D,
+    staticPass: StaticLayerPass,
+    waterPass: WaterPass,
+    particleBatch: ParticleBatch,
+    weatherPass: WeatherPass,
+    tintPass: TintPass,
+    cloudPass: CloudShadowPass,
+    overlayLightPass: OverlayLightPass,
+  ) {
+    this.camera = camera;
+    this.clearColor = EDG.black;
+    this.pixelSnap = true;
+    this._canvas = canvas;
+    this._glCtx = glCtx;
+    this._store = store;
+    this._batch = batch;
+    this._shadowBatch = shadowBatch;
+    this._overlay = overlay;
+    this._staticPass = staticPass;
+    this._waterPass = waterPass;
+    this._particleBatch = particleBatch;
+    this._weatherPass = weatherPass;
+    this._tintPass = tintPass;
+    this._cloudPass = cloudPass;
+    this._overlayLightPass = overlayLightPass;
+  }
+
+  static create(canvas: HTMLCanvasElement, camera: Camera2D): WebGl2Renderer {
+    const glCtx = GlContext.create(canvas);
+    const { gl } = glCtx;
+
+    const store = new GlAtlasStore(gl);
+    const batch = new SpriteBatch(gl);
+    const shadowBatch = new ShadowBatch(gl);
+    const overlay = new Overlay2D(canvas);
+    const staticPass = new StaticLayerPass(glCtx);
+    const waterPass = new WaterPass(glCtx);
+    const particleBatch = new ParticleBatch(glCtx);
+    const weatherPass = new WeatherPass(glCtx);
+    const tintPass = new TintPass(gl);
+    const cloudPass = new CloudShadowPass(gl);
+    const overlayLightPass = new OverlayLightPass(gl);
+
+    return new WebGl2Renderer(
+      canvas, camera, glCtx, store, batch, shadowBatch, overlay, staticPass, waterPass,
+      particleBatch, weatherPass, tintPass, cloudPass, overlayLightPass,
+    );
+  }
+
+  addAtlas(atlas: LoadedAtlasImage): void {
+    this._atlases.set(atlas.manifest.id, atlas);
+    if (this._glCtx.isLost()) return;
+    this._store.add(atlas);
+  }
+
+  setAtlas(atlas: LoadedAtlasImage): void {
+    this.addAtlas(atlas);
+  }
+
+  getAtlas(id: string): LoadedAtlasImage | undefined {
+    return this._atlases.get(id);
+  }
+
+  bakeStaticLayer(
+    sprites: readonly Sprite[],
+    worldWidth: number,
+    worldHeight: number,
+    decorate?: DecorateFn,
+    region?: StaticRegion,
+  ): void {
+    if (this._atlases.size === 0) throw new Error("bakeStaticLayer: addAtlas must be called first");
+    if (this._glCtx.isLost()) return;
+    this._staticPass.bake(sprites, this._atlases, worldWidth, worldHeight, decorate, region);
+    // _staticLayerW/H stay the LOGICAL world extent (visible-rect clamp); the
+    // baked texture may be a smaller sub-region (the pass tracks that itself).
+    this._staticLayerW = Math.max(1, Math.ceil(worldWidth));
+    this._staticLayerH = Math.max(1, Math.ceil(worldHeight));
+  }
+
+  bakeWaterPattern(frame: string, atlasId: string, tileSize: number, pixelScale?: number): void {
+    if (this._atlases.size === 0) throw new Error("bakeWaterPattern: addAtlas must be called first");
+    if (this._glCtx.isLost()) return;
+    this._waterPass.bakePattern(this._atlases, frame, atlasId, tileSize, pixelScale);
+  }
+
+  setWaterScroll(offsetX: number, offsetY: number): void {
+    this._waterPass.setScroll(offsetX, offsetY);
+  }
+
+  setWaterSwell(alpha: number, offsetX: number, offsetY: number): void {
+    this._waterPass.setSwell(alpha, offsetX, offsetY);
+  }
+
+  setWaterDepthMask(
+    data: Uint8Array,
+    tilesX: number,
+    tilesY: number,
+    worldWidthPx: number,
+    worldHeightPx: number,
+    tilePxSize: number,
+  ): void {
+    if (this._glCtx.isLost()) return;
+    this._waterPass.setDepthMask(data, tilesX, tilesY, worldWidthPx, worldHeightPx, tilePxSize);
+  }
+
+  clearStaticLayer(): void {
+    this._staticPass.clear();
+    this._staticLayerW = 0;
+    this._staticLayerH = 0;
+  }
+
+  setCloudOptions(opts: CloudOptions): void {
+    this._cloudOpts = opts;
+  }
+
+  beginFrame(): void {
+    // GlContext.resize takes CSS pixels and applies min(devicePixelRatio, 2)
+    // INTERNALLY (unlike the old WebGPU context, whose caller pre-scaled). Passing
+    // device pixels here would double-scale every coordinate in every game.
+    this._glCtx.resize(this._canvas.clientWidth, this._canvas.clientHeight);
+
+    this._queueLen = 0;
+    this._shadowLen = 0;
+    // Reset the UI draw-list too: it's otherwise only cleared in beginUI(), so a
+    // consumer that stops calling beginUI would re-draw its last UI quads forever.
+    this._uiLen = 0;
+
+    const { camera } = this;
+    const halfX = camera.worldUnitsX / 2;
+    const halfY = camera.worldUnitsY / 2;
+    this._cullLeft = camera.centerX - halfX - CULL_MARGIN;
+    this._cullRight = camera.centerX + halfX + CULL_MARGIN;
+    this._cullTop = camera.centerY - halfY - CULL_MARGIN;
+    this._cullBottom = camera.centerY + halfY + CULL_MARGIN;
+  }
+
+  private _inView(x: number, y: number): boolean {
+    return (
+      x >= this._cullLeft &&
+      x <= this._cullRight &&
+      y >= this._cullTop &&
+      y <= this._cullBottom
+    );
+  }
+
+  push(sprite: Sprite): void {
+    const halfW = sprite.width / 2;
+    const halfH = sprite.height / 2;
+    if (
+      sprite.x + halfW < this._cullLeft ||
+      sprite.x - halfW > this._cullRight ||
+      sprite.y + halfH < this._cullTop ||
+      sprite.y - halfH > this._cullBottom
+    ) return;
+    this._queue[this._queueLen] = sprite;
+    this._queueLen += 1;
+  }
+
+  pushShadow(x: number, y: number, rx: number, ry: number, alpha: number): void {
+    if (!this._inView(x, y)) return;
+    let rec = this._shadowQueue[this._shadowLen];
+    if (rec === undefined) {
+      rec = { x, y, rx, ry, alpha };
+      this._shadowQueue[this._shadowLen] = rec;
+    } else {
+      rec.x = x; rec.y = y; rec.rx = rx; rec.ry = ry; rec.alpha = alpha;
+    }
+    this._shadowLen += 1;
+  }
+
+  beginUI(): void {
+    this._uiActive = true;
+    this._uiLen = 0;
+  }
+
+  pushUI(quad: UIQuad): void {
+    if (!this._uiActive) return;
+    this._uiQueue[this._uiLen] = quad;
+    this._uiLen += 1;
+  }
+
+  endUI(): void {
+    this._uiActive = false;
+  }
+
+  private _ghostCovered(queueIdx: number, g: Sprite): boolean {
+    for (let jj = queueIdx + 1; jj < this._queueLen; jj += 1) {
+      const o = this._queue[jj];
+      if (o === undefined) continue;
+      if (o.occludable || o.layer >= GHOST_UI_LAYER) continue;
+      if (spritesOverlap(g, o)) return true;
+    }
+    return false;
+  }
+
+  private _recordGroup(atlasId: string, first: number, count: number): void {
+    let rec = this._groups[this._groupLen];
+    if (rec === undefined) {
+      rec = { texture: null, first: 0, count: 0 };
+      this._groups[this._groupLen] = rec;
+    }
+    rec.texture = this._store.texture(atlasId);
+    rec.first = first;
+    rec.count = count;
+    this._groupLen += 1;
+  }
+
+  private _packSprite(
+    s: Sprite,
+    sx: number, sy: number, ox: number, oy: number,
+    alpha: number,
+  ): number {
+    const liftedY = s.z ? s.y - s.z : s.y;
+    const inst = this._inst;
+    inst.x = this.pixelSnap ? (Math.round(s.x * sx + ox) - ox) / sx : s.x;
+    inst.y = this.pixelSnap ? (Math.round(liftedY * sy + oy) - oy) / sy : liftedY;
+    inst.w = s.width;
+    inst.h = s.height;
+
+    const uv = this._store.uv(s.atlasId, s.frame);
+    inst.u0 = uv.u0; inst.v0 = uv.v0; inst.u1 = uv.u1; inst.v1 = uv.v1;
+    inst.rotation = s.rotation;
+    inst.flipX = s.flipX ? 1 : 0;
+
+    const [r, g, b, a] = tintFloats(s.tintRgba, alpha);
+    inst.r = r; inst.g = g; inst.b = b; inst.a = a;
+
+    inst.swayPhase = s.swayPhase ?? 0;
+    inst.swayAmp = s.swayAmp ?? 0;
+
+    return this._batch.add(inst);
+  }
+
+  endFrame(wash?: WashOptions, particles?: ParticleSystem, weather?: WeatherLike, overlay?: OverlayFn): void {
+    if (this._glCtx.isLost()) return;
+    if (this._atlases.size === 0) return;
+
+    const { camera } = this;
+    const canvas = this._canvas;
+    const canvasW = canvas.width;
+    const canvasH = canvas.height;
+
+    const sx = canvasW / camera.worldUnitsX;
+    const sy = canvasH / camera.worldUnitsY;
+    const left = camera.centerX - camera.worldUnitsX / 2;
+    const top = camera.centerY - camera.worldUnitsY / 2;
+    const ox = this.pixelSnap ? Math.round(-left * sx) : -left * sx;
+    const oy = this.pixelSnap ? Math.round(-top * sy) : -top * sy;
+
+    const nowSec = performance.now() / 1000;
+
+    // Clip-space view for the GL passes. scaleY is ALREADY NEGATIVE — the Y-flip is
+    // baked in here and must not be re-applied in a shader.
+    const view: ViewUniform = {
+      scaleX: sx * 2 / canvasW,
+      scaleY: -sy * 2 / canvasH,
+      offsetX: ox * 2 / canvasW - 1,
+      offsetY: 1 - oy * 2 / canvasH,
+      timeSec: nowSec,
+      windStrength: 1.0 + 0.15 * Math.sin(nowSec * 0.37),
+    };
+
+    // Screen-pixel view for the 2D overlay canvas: BOTH scales positive, no
+    // clip-space conversion. A canvas transform wants raw pixel scale. Not the
+    // same record as `view` — do not unify them.
+    const overlayView: ViewUniform = {
+      scaleX: sx,
+      scaleY: sy,
+      offsetX: ox,
+      offsetY: oy,
+      timeSec: 0,
+      windStrength: 1,
+    };
+
+    const visL = Math.max(0, left);
+    const visT = Math.max(0, top);
+    const visR = Math.min(this._staticLayerW, left + camera.worldUnitsX);
+    const visB = Math.min(this._staticLayerH, top + camera.worldUnitsY);
+    const visRect: VisibleRect = { visL, visT, visR, visB };
+
+    // Three view-passing conventions coexist across the passes (they were written in
+    // parallel). setView-once here; particle/weather take the view per draw call
+    // below; tint and overlay-light are screen-space and take neither.
+    this._batch.setView(view);
+    this._shadowBatch.setView(view);
+    this._staticPass.setView(view);
+    this._waterPass.setView(view);
+    this._cloudPass.setView(view);
+
+    if (this._queue.length !== this._queueLen) this._queue.length = this._queueLen;
+    this._queue.sort(compareSprite);
+
+    this._batch.begin();
+    this._groupLen = 0;
+    let occludableCount = 0;
+
+    let i = 0;
+    while (i < this._queueLen) {
+      const s = this._queue[i];
+      if (s === undefined) { i++; continue; }
+      const currentAtlas = s.atlasId;
+      const groupFirst = this._batch.count;
+
+      let j = i;
+      while (j < this._queueLen) {
+        const sp = this._queue[j];
+        if (sp === undefined || sp.atlasId !== currentAtlas) break;
+
+        if (sp.occludable) {
+          this._occludableIdx[occludableCount] = j;
+          occludableCount += 1;
+        }
+
+        this._packSprite(sp, sx, sy, ox, oy, sp.alpha);
+        j++;
+      }
+
+      const groupCount = this._batch.count - groupFirst;
+      if (groupCount > 0) {
+        this._recordGroup(currentAtlas, groupFirst, groupCount);
+      }
+
+      i = j;
+    }
+
+    // Ghost redraws are packed in occludableIdx (ascending queue-index) order, so
+    // consecutive covered ghosts sharing an atlas land contiguously in the batch
+    // and can share one draw group — mirrors the main-pass coalescing loop above.
+    let k = 0;
+    while (k < occludableCount) {
+      const gi = this._occludableIdx[k];
+      if (gi === undefined) { k += 1; continue; }
+      const g = this._queue[gi];
+      if (g === undefined) { k += 1; continue; }
+      if (!this._ghostCovered(gi, g)) { k += 1; continue; }
+
+      const currentAtlas = g.atlasId;
+      const groupFirst = this._batch.count;
+
+      let m = k;
+      while (m < occludableCount) {
+        const mi = this._occludableIdx[m];
+        if (mi === undefined) { m += 1; continue; }
+        const gm = this._queue[mi];
+        if (gm === undefined) { m += 1; continue; }
+        if (gm.atlasId !== currentAtlas) break;
+        if (!this._ghostCovered(mi, gm)) { m += 1; continue; }
+        this._packSprite(gm, sx, sy, ox, oy, GHOST_ALPHA);
+        m += 1;
+      }
+
+      const groupCount = this._batch.count - groupFirst;
+      if (groupCount > 0) this._recordGroup(currentAtlas, groupFirst, groupCount);
+      k = m;
+    }
+
+    this._batch.upload();
+
+    this._shadowBatch.begin();
+    if (this._shadowLen > 0) {
+      const [shR, shG, shB] = hexToRgbaFloats(EDG.black);
+      for (let si = 0; si < this._shadowLen; si += 1) {
+        const sh = this._shadowQueue[si];
+        if (sh === undefined) continue;
+        this._shadowBatch.add(sh.x, sh.y, sh.rx, sh.ry, shR, shG, shB, sh.alpha);
+      }
+    }
+    this._shadowBatch.upload();
+
+    const gl = this._glCtx.gl;
+    const [cr, cg, cb] = hexToRgbaFloats(this.clearColor);
+    gl.clearColor(cr, cg, cb, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+
+    const zoomedOut = sx < 1;
+    this._waterPass.draw(this._glCtx, view, visRect, zoomedOut);
+    this._staticPass.draw(this._glCtx, view, visRect);
+
+    this._shadowBatch.draw(gl);
+
+    for (let gIdx = 0; gIdx < this._groupLen; gIdx += 1) {
+      const grp = this._groups[gIdx];
+      if (grp === undefined || grp.texture === null) continue;
+      this._batch.drawRange(gl, grp.texture, grp.first, grp.count);
+    }
+
+    if (this.useGpuEffects) {
+      if (particles && particles.count > 0) {
+        this._particleBatch.draw(this._glCtx, view, particles);
+      }
+
+      if (weather instanceof RainField && weather.count > 0) {
+        this._weatherPass.draw(this._glCtx, view, weather);
+      }
+    }
+
+    // Additive overlay light (Farm's night glows). AFTER sprites and BEFORE the
+    // wash, so glows lift the darkened scene instead of being darkened by it. The
+    // WebGPU backend accepted this parameter and silently ignored it, which is why
+    // Farm's night lighting never rendered; a no-op here would restore that bug.
+    const overlayLightView: OverlayLightView = { sx, sy, ox, oy };
+    this._overlayLightPass.draw(overlay, overlayLightView, canvasW, canvasH);
+
+    if (this._cloudOpts !== undefined && this._cloudOpts.coverage > 0.001) {
+      this._cloudPass.draw(gl, this._cloudOpts);
+    }
+    // Consumed each frame: callers must re-set every frame to keep clouds on.
+    this._cloudOpts = undefined;
+
+    if (wash && wash.alpha > 0.001) {
+      this._tintPass.draw(wash.color, wash.alpha);
+    }
+
+    this._overlay.beginFrame();
+    const overlayCtx = this._overlay.ctx;
+
+    if (!this.useGpuEffects || (weather && !(weather instanceof RainField) && weather.count > 0)) {
+      this._overlay.applyWorldTransform(overlayView);
+      if (!this.useGpuEffects) {
+        if (particles && particles.count > 0) particles.draw(overlayCtx);
+        if (weather && weather.count > 0) weather.draw(overlayCtx);
+      } else if (weather && weather.count > 0) {
+        weather.draw(overlayCtx);
+      }
+    }
+
+    // Screen-space UI layer: drawn last, in identity (screen) transform on the
+    // Overlay2D canvas which sits one z-index above the GL canvas. Unaffected by
+    // the world camera. drawUIQuad applies DPR scaling internally.
+    const uiFlushT0 = this.profileUi ? performance.now() : 0;
+    if (this._uiLen > 0) {
+      this._overlay.resetTransform();
+      // Force nearest-neighbour: applyWorldTransform (the only per-frame place that sets
+      // this false) is skipped when no particles/weather are active, so a (re)sized backing
+      // store leaves smoothing at its default `true` → blurry scaled UI.
+      overlayCtx.imageSmoothingEnabled = false;
+      overlayCtx.globalCompositeOperation = "source-over";
+      const dpr = Math.min(
+        (typeof window !== "undefined" ? window.devicePixelRatio : 1) || 1,
+        2,
+      );
+      for (let ui = 0; ui < this._uiLen; ui += 1) {
+        drawUIQuad(overlayCtx, this._atlases, this._uiQueue[ui]!, dpr);
+      }
+      overlayCtx.globalAlpha = 1;
+    }
+    if (this.profileUi) {
+      this.lastUiFlush.ms = performance.now() - uiFlushT0;
+      this.lastUiFlush.quads = this._uiLen;
+    }
+  }
+}
+
+export function createWebGl2Renderer(canvas: HTMLCanvasElement, camera: Camera2D): RendererLike {
+  return WebGl2Renderer.create(canvas, camera);
+}

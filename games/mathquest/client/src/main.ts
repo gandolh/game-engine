@@ -137,7 +137,7 @@ document.body.style.color = MATE_PAL.cream;
 
 async function main(): Promise<void> {
   const camera = new Camera2D({ worldUnitsX: 960, worldUnitsY: 540, centerX: 480, centerY: 270 });
-  const renderer: RendererLike = await createRenderer(canvas, camera, { backend: "canvas2d" });
+  const renderer: RendererLike = await createRenderer(canvas, camera);
   renderer.clearColor = MATE_PAL.black;
   renderer.addAtlas(await loadFontAtlas());
   const surface = new UISurface(renderer);

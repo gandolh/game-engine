@@ -63,7 +63,6 @@ async function setupRuntime(canvas: HTMLCanvasElement): Promise<Runtime> {
   setCamera(camera);
 
   const renderer = await createRenderer(canvas, camera, {
-    backend: "webgpu",
     onBackend: (b) => console.info("[render] backend:", b),
   });
   for (const atlas of atlasMap.values()) {

@@ -578,7 +578,7 @@ export function loop(): void {
   // Coverage/mode are a PURE function of season/day + dayFraction; timeSec is the
   // render clock (the pass world-anchors the fBm, so it stays put under pan/zoom).
   if (renderToggles.clouds) {
-    renderer.setCloudOptions?.(cloudOptionsFor(season, day, dayFraction, timeSec));
+    renderer.setCloudOptions(cloudOptionsFor(season, day, dayFraction, timeSec));
   }
 
   renderer.endFrame(wash, particles, weatherField);

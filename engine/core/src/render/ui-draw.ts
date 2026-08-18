@@ -7,7 +7,7 @@ import type { UIQuad } from "./renderer";
 /**
  * Shared screen-space UI quad rasterizer used by every renderer backend.
  *
- * Both `Canvas2dRenderer` (directly) and `WebGpuRenderer` (via the `Overlay2D`
+ * The single backend (`WebGl2Renderer`, via the `Overlay2D`
  * screen-space canvas) drive their UI layer through this single helper so the two
  * backends paint identically. The supplied `ctx` MUST already be in identity
  * (screen) transform; this helper applies its own `dpr` scaling so the caller
