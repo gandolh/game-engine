@@ -85,17 +85,17 @@ export class WebGl2Renderer implements RendererLike {
 
   private readonly _canvas: HTMLCanvasElement;
   private readonly _glCtx: GlContext;
-  private readonly _store: GlAtlasStore;
-  private readonly _batch: SpriteBatch;
-  private readonly _shadowBatch: ShadowBatch;
+  private _store: GlAtlasStore;
+  private _batch: SpriteBatch;
+  private _shadowBatch: ShadowBatch;
   private readonly _overlay: Overlay2D;
-  private readonly _staticPass: StaticLayerPass;
-  private readonly _waterPass: WaterPass;
-  private readonly _particleBatch: ParticleBatch;
-  private readonly _weatherPass: WeatherPass;
-  private readonly _tintPass: TintPass;
-  private readonly _cloudPass: CloudShadowPass;
-  private readonly _overlayLightPass: OverlayLightPass;
+  private _staticPass: StaticLayerPass;
+  private _waterPass: WaterPass;
+  private _particleBatch: ParticleBatch;
+  private _weatherPass: WeatherPass;
+  private _tintPass: TintPass;
+  private _cloudPass: CloudShadowPass;
+  private _overlayLightPass: OverlayLightPass;
 
   private _cloudOpts: CloudOptions | undefined = undefined;
 
@@ -140,6 +140,41 @@ export class WebGl2Renderer implements RendererLike {
   private _staticLayerW = 0;
   private _staticLayerH = 0;
 
+  // ---- Retained CPU inputs for context-loss recovery -----------------------
+  // A lost WebGL2 context invalidates EVERY GPU object (textures, buffers,
+  // programs, VAOs) while the `gl` object itself stays usable. Nothing the GPU
+  // held can be read back, so recovery means replaying the CPU-side inputs.
+  // These fields are exactly what `_rebuildGpuState` needs to do that.
+  //
+  // `_atlases` (above) already retains every atlas, so textures re-upload for free.
+  private _bakeArgs: {
+    sprites: readonly Sprite[];
+    worldWidth: number;
+    worldHeight: number;
+    decorate?: DecorateFn;
+    region?: StaticRegion;
+  } | undefined = undefined;
+
+  private _waterPatternArgs: {
+    frame: string; atlasId: string; tileSize: number; pixelScale?: number;
+  } | undefined = undefined;
+
+  private _waterDepthMaskArgs: {
+    data: Uint8Array; tilesX: number; tilesY: number;
+    worldWidthPx: number; worldHeightPx: number; tilePxSize: number;
+  } | undefined = undefined;
+
+  private _waterScroll = { x: 0, y: 0 };
+  private _waterSwell = { alpha: 0, x: 0, y: 0 };
+
+  /** True between `webglcontextlost` and the end of the rebuild. Hosts may show
+   *  a "restoring" hint; frames are skipped while it holds. */
+  private _restoring = false;
+
+  /** Fires when the GL context is lost, and again once state has been rebuilt.
+   *  `lost === true` means rendering has stopped; `false` means it resumed. */
+  onContextStateChange: ((lost: boolean) => void) | undefined = undefined;
+
   private constructor(
     canvas: HTMLCanvasElement,
     camera: Camera2D,
@@ -172,6 +207,81 @@ export class WebGl2Renderer implements RendererLike {
     this._tintPass = tintPass;
     this._cloudPass = cloudPass;
     this._overlayLightPass = overlayLightPass;
+
+    // Context loss is routine on WebGL2 (tab backgrounding, GPU reset, driver
+    // hiccup, laptop GPU switch) — WebGPU never exposed this codebase to it. Without
+    // these two handlers a loss leaves a permanently black canvas with the sim still
+    // running underneath, which is a miserable bug to diagnose from the symptom.
+    glCtx.onContextLost(() => {
+      this._restoring = true;
+      this.onContextStateChange?.(true);
+    });
+    glCtx.onContextRestored(() => {
+      this._rebuildGpuState();
+      this._restoring = false;
+      this.onContextStateChange?.(false);
+    });
+  }
+
+  /**
+   * Re-create every GPU object after a context restore, then replay the retained
+   * CPU-side inputs.
+   *
+   * A restored context hands back the SAME `gl` object, but every texture, buffer,
+   * program and VAO it previously vended is gone and cannot be read back — so recovery
+   * is necessarily "rebuild, then replay", not "repair". That is why the bake calls and
+   * water state are retained on the way in.
+   *
+   * `Overlay2D` is deliberately NOT rebuilt: it is a 2D canvas, unaffected by GL context
+   * loss. Only GL-owned state is re-created here.
+   */
+  private _rebuildGpuState(): void {
+    const glCtx = this._glCtx;
+    const gl = glCtx.gl;
+
+    this._store = new GlAtlasStore(gl);
+    this._batch = new SpriteBatch(gl);
+    this._shadowBatch = new ShadowBatch(gl);
+    this._staticPass = new StaticLayerPass(glCtx);
+    this._waterPass = new WaterPass(glCtx);
+    this._particleBatch = new ParticleBatch(glCtx);
+    this._weatherPass = new WeatherPass(glCtx);
+    this._tintPass = new TintPass(gl);
+    this._cloudPass = new CloudShadowPass(gl);
+    this._overlayLightPass = new OverlayLightPass(gl);
+
+    // Draw groups cache WebGLTexture handles from the old, now-dead store.
+    this._groupLen = 0;
+    for (const grp of this._groups) grp.texture = null;
+
+    // Atlas textures re-upload from the retained LoadedAtlasImage objects.
+    for (const atlas of this._atlases.values()) this._store.add(atlas);
+
+    // Replay the baked layers and water state, in the order a caller would have.
+    const bake = this._bakeArgs;
+    if (bake) {
+      this._staticPass.bake(
+        bake.sprites, this._atlases, bake.worldWidth, bake.worldHeight, bake.decorate, bake.region,
+      );
+    }
+    const wp = this._waterPatternArgs;
+    if (wp) {
+      this._waterPass.bakePattern(this._atlases, wp.frame, wp.atlasId, wp.tileSize, wp.pixelScale);
+    }
+    const dm = this._waterDepthMaskArgs;
+    if (dm) {
+      this._waterPass.setDepthMask(
+        dm.data, dm.tilesX, dm.tilesY, dm.worldWidthPx, dm.worldHeightPx, dm.tilePxSize,
+      );
+    }
+    this._waterPass.setScroll(this._waterScroll.x, this._waterScroll.y);
+    this._waterPass.setSwell(this._waterSwell.alpha, this._waterSwell.x, this._waterSwell.y);
+  }
+
+  /** True while the GL context is lost / mid-rebuild. Frames are skipped; the sim is
+   *  unaffected. Hosts can use this to show a "restoring graphics" hint. */
+  get isRestoring(): boolean {
+    return this._restoring;
   }
 
   static create(canvas: HTMLCanvasElement, camera: Camera2D): WebGl2Renderer {
@@ -218,6 +328,8 @@ export class WebGl2Renderer implements RendererLike {
     region?: StaticRegion,
   ): void {
     if (this._atlases.size === 0) throw new Error("bakeStaticLayer: addAtlas must be called first");
+    // Retained so a context loss can replay it — see _rebuildGpuState.
+    this._bakeArgs = { sprites, worldWidth, worldHeight, ...(decorate ? { decorate } : {}), ...(region ? { region } : {}) };
     if (this._glCtx.isLost()) return;
     this._staticPass.bake(sprites, this._atlases, worldWidth, worldHeight, decorate, region);
     // _staticLayerW/H stay the LOGICAL world extent (visible-rect clamp); the
@@ -228,15 +340,18 @@ export class WebGl2Renderer implements RendererLike {
 
   bakeWaterPattern(frame: string, atlasId: string, tileSize: number, pixelScale?: number): void {
     if (this._atlases.size === 0) throw new Error("bakeWaterPattern: addAtlas must be called first");
+    this._waterPatternArgs = { frame, atlasId, tileSize, ...(pixelScale !== undefined ? { pixelScale } : {}) };
     if (this._glCtx.isLost()) return;
     this._waterPass.bakePattern(this._atlases, frame, atlasId, tileSize, pixelScale);
   }
 
   setWaterScroll(offsetX: number, offsetY: number): void {
+    this._waterScroll.x = offsetX; this._waterScroll.y = offsetY;
     this._waterPass.setScroll(offsetX, offsetY);
   }
 
   setWaterSwell(alpha: number, offsetX: number, offsetY: number): void {
+    this._waterSwell.alpha = alpha; this._waterSwell.x = offsetX; this._waterSwell.y = offsetY;
     this._waterPass.setSwell(alpha, offsetX, offsetY);
   }
 
@@ -248,11 +363,13 @@ export class WebGl2Renderer implements RendererLike {
     worldHeightPx: number,
     tilePxSize: number,
   ): void {
+    this._waterDepthMaskArgs = { data, tilesX, tilesY, worldWidthPx, worldHeightPx, tilePxSize };
     if (this._glCtx.isLost()) return;
     this._waterPass.setDepthMask(data, tilesX, tilesY, worldWidthPx, worldHeightPx, tilePxSize);
   }
 
   clearStaticLayer(): void {
+    this._bakeArgs = undefined;
     this._staticPass.clear();
     this._staticLayerW = 0;
     this._staticLayerH = 0;
@@ -381,7 +498,7 @@ export class WebGl2Renderer implements RendererLike {
   }
 
   endFrame(wash?: WashOptions, particles?: ParticleSystem, weather?: WeatherLike, overlay?: OverlayFn): void {
-    if (this._glCtx.isLost()) return;
+    if (this._glCtx.isLost() || this._restoring) return;
     if (this._atlases.size === 0) return;
 
     const { camera } = this;

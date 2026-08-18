@@ -13,7 +13,10 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * mock GL, and brief 09 verifies the composed result in a real browser.
  */
 
-const rec = vi.hoisted(() => ({ order: [] as string[] }));
+// `order` = per-frame DRAW sequence (order assertions). `life` = lifecycle events
+// (constructions, bakes, uploads) — kept separate so instrumenting recovery does not
+// pollute the strict draw-order assertions.
+const rec = vi.hoisted(() => ({ order: [] as string[], life: [] as string[], contexts: [] as any[] }));
 
 vi.mock("./gl-context", () => {
   class GlContext {
@@ -22,9 +25,25 @@ vi.mock("./gl-context", () => {
       clear: () => { rec.order.push("clear"); },
       COLOR_BUFFER_BIT: 0x4000,
     };
-    static create(): GlContext { return new GlContext(); }
+    lost = false;
+    lostHandlers: Array<() => void> = [];
+    restoredHandlers: Array<() => void> = [];
+    static create(): GlContext {
+      const c = new GlContext();
+      rec.contexts.push(c);
+      return c;
+    }
     resize(): void { rec.order.push("resize"); }
-    isLost(): boolean { return false; }
+    isLost(): boolean { return this.lost; }
+    onContextLost(h: () => void): () => void { this.lostHandlers.push(h); return () => {}; }
+    onContextRestored(h: () => void): () => void { this.restoredHandlers.push(h); return () => {}; }
+    /** Test helper: drive a full loss → restore cycle like the browser would. */
+    simulateLossAndRestore(): void {
+      this.lost = true;
+      for (const h of this.lostHandlers) h();
+      this.lost = false;
+      for (const h of this.restoredHandlers) h();
+    }
     dispose(): void {}
   }
   return { GlContext, createGlContext: () => GlContext.create() };
@@ -32,7 +51,7 @@ vi.mock("./gl-context", () => {
 
 vi.mock("./gl-atlas-store", () => ({
   GlAtlasStore: class {
-    add(): void {}
+    add(): void { rec.life.push("atlas.add"); }
     get(): undefined { return undefined; }
     uv(): { u0: number; v0: number; u1: number; v1: number; layer: number } {
       return { u0: 0, v0: 0, u1: 1, v1: 1, layer: 0 };
@@ -65,8 +84,9 @@ vi.mock("./shadow-batch", () => ({
 
 vi.mock("./static-layer-pass", () => ({
   StaticLayerPass: class {
+    constructor() { rec.life.push("staticPass.ctor"); }
     setView(): void { rec.order.push("static.setView"); }
-    bake(): void {}
+    bake(): void { rec.life.push("staticPass.bake"); }
     clear(): void {}
     draw(): void { rec.order.push("static"); }
   },
@@ -74,10 +94,11 @@ vi.mock("./static-layer-pass", () => ({
 
 vi.mock("./water-pass", () => ({
   WaterPass: class {
+    constructor() { rec.life.push("waterPass.ctor"); }
     setView(): void { rec.order.push("water.setView"); }
-    bakePattern(): void {}
+    bakePattern(): void { rec.life.push("waterPass.bakePattern"); }
     setDepthMask(): void {}
-    setScroll(): void {}
+    setScroll(): void { rec.life.push("waterPass.setScroll"); }
     setSwell(): void {}
     draw(): void { rec.order.push("water"); }
   },
@@ -188,7 +209,7 @@ function makeRain(count: number): WeatherLike {
 
 const particles = { count: 3, draw: () => { rec.order.push("particles.cpuDraw"); } } as unknown as ParticleSystem;
 
-beforeEach(() => { rec.order.length = 0; });
+beforeEach(() => { rec.order.length = 0; rec.life.length = 0; });
 
 describe("WebGl2Renderer draw order", () => {
   it("draws water → static → shadows → sprites → particles → weather → overlayLight → cloud → tint, then the overlay", () => {
@@ -389,5 +410,80 @@ describe("WebGl2Renderer guards", () => {
     const r = makeRenderer();
     r.beginFrame();
     expect(rec.order).toContain("resize");
+  });
+});
+
+describe("WebGl2Renderer context-loss recovery", () => {
+  function ctx(): any { return rec.contexts[rec.contexts.length - 1]; }
+
+  it("skips frames while the context is lost, instead of issuing dead GL calls", () => {
+    const r = makeRenderer();
+    const c = ctx();
+    c.lost = true;
+    r.beginFrame();
+    r.push(makeSprite());
+    r.endFrame();
+    expect(rec.order.filter((s) => s !== "resize")).toEqual([]);
+  });
+
+  it("re-creates the passes and re-uploads atlases on restore", () => {
+    const r = makeRenderer();
+    rec.life.length = 0;
+    ctx().simulateLossAndRestore();
+
+    // Passes rebuilt...
+    expect(rec.life).toContain("staticPass.ctor");
+    expect(rec.life).toContain("waterPass.ctor");
+    // ...and the retained atlas re-uploaded into the fresh store.
+    expect(rec.life).toContain("atlas.add");
+  });
+
+  it("replays the retained static-layer bake and water state after restore", () => {
+    const r = makeRenderer();
+    r.bakeStaticLayer([makeSprite()], 64, 64);
+    r.bakeWaterPattern("water", "a", 16);
+    r.setWaterScroll(3, 4);
+
+    rec.life.length = 0;
+    ctx().simulateLossAndRestore();
+
+    // This is the whole point: GPU state cannot be read back, so recovery must
+    // REPLAY the CPU inputs. Without this the world renders empty after a tab sleep.
+    expect(rec.life).toContain("staticPass.bake");
+    expect(rec.life).toContain("waterPass.bakePattern");
+    expect(rec.life).toContain("waterPass.setScroll");
+  });
+
+  it("does NOT replay a static bake that was explicitly cleared", () => {
+    const r = makeRenderer();
+    r.bakeStaticLayer([makeSprite()], 64, 64);
+    r.clearStaticLayer();
+
+    rec.life.length = 0;
+    ctx().simulateLossAndRestore();
+    expect(rec.life).not.toContain("staticPass.bake");
+  });
+
+  it("reports isRestoring and notifies via onContextStateChange", () => {
+    const r = makeRenderer();
+    const seen: boolean[] = [];
+    r.onContextStateChange = (lost) => seen.push(lost);
+    expect(r.isRestoring).toBe(false);
+    ctx().simulateLossAndRestore();
+    expect(seen).toEqual([true, false]);
+    expect(r.isRestoring).toBe(false);
+  });
+
+  it("renders again after a restore (the regression this prevents)", () => {
+    const r = makeRenderer();
+    ctx().simulateLossAndRestore();
+    rec.order.length = 0;
+    r.beginFrame();
+    r.push(makeSprite());
+    r.endFrame();
+    // A black-canvas-forever bug would show up here as no draws at all.
+    expect(rec.order).toContain("sprites");
+    expect(rec.order).toContain("water");
+    expect(rec.order).toContain("static");
   });
 });
