@@ -1,6 +1,6 @@
 # WebGL2 migration — BUILD STATE / RESUME (live tracker)
 
-status: **3D HALF DONE AND VERIFIED IN-BROWSER** (01, 02, 03, 07, 10, 11 committed). Awaiting 2D briefs 04, 05, 06 → then 08, 09, 12, 13.
+status: **WAVES 1–3 CODE COMPLETE, GATE GREEN** (01–07, 10, 11 committed; 3D verified in-browser, 2D NOT yet visually verified). Next: **08** (assembly), then 09, 12, 13.
 updated: 2026-08-18
 
 **Read this first to resume.** Design-of-record is
@@ -19,9 +19,9 @@ a blank canvas). Rationale and the rejected alternative are in the BUILD ORDER.
 | 01 | shared 2D vocabulary relocation | 1 | **DONE** | see git log | clean break, no compat alias; hit a pre-existing `Sprite` name collision (below) |
 | 02 | GL context + shader tooling | 1 | **DONE** | see git log | 8 new files, 33 tests incl. lint negative fixtures |
 | 03 | sprite + shadow batch | 2 | **DONE** | `59f6c2e` | 29 tests + real-browser screenshot; adds a `setView` call brief 08 MUST make |
-| 04 | static layer + water | 2 | TODO | — | |
-| 05 | tint + overlay-2d + UI quads | 2 | TODO | — | |
-| 06 | particles + weather | 2 | TODO | — | |
+| 04 | static layer + water | 2 | **DONE\*** | `41e58aa` | agent stopped before reporting; test-verified only, **not visually** |
+| 05 | tint + overlay-2d + UI quads | 2 | **DONE\*** | `a5ab72d` | agent stopped before reporting; test-verified only, **not visually** |
+| 06 | particles + weather | 2 | **DONE\*** | `ad123de` | agent stopped before reporting; test-verified only, **not visually** |
 | 07 | cloud shadow + haze | 2 | **DONE** | `ba39bcd` | 77 tests; 3 real-WebGL2 screenshots, quantization intact |
 | 10 | render3d device + buffers | 2 | **DONE** | `59f6c2e`+`(next)` | buffers.ts moved up (pure CPU packing); 68 render3d tests green at HEAD; depth-context caveat below |
 | 08 | WebGl2Renderer assembly | 3 | TODO | — | |
@@ -216,6 +216,40 @@ stale**: a WebGL2 browser without WebGPU — Firefox on Linux, *the exact case t
 — would have seen the demo refuse to start while the renderer underneath worked. Brief 11 flagged it
 instead of silently reaching outside its lane, which is the behaviour we want. Replaced with a
 try/catch around `createDevice3d`.
+
+## Wave-2 gate result (controller-verified 2026-08-18) — GREEN
+- `npx turbo run typecheck --force` → **19/19 packages, 0 cached**.
+- `npm run test -w @engine/core` → **56 files / 514 tests passed**.
+- `npm run test -w @engine/ui` → **9 files / 171 tests passed**.
+- Working tree clean; every new source path git-tracked (no silent ignores).
+
+**\* Briefs 04, 05, 06 carry a verification caveat.** Their executor agents were **stopped before
+filing reports**, so their handoffs were reconstructed by the controller from the code, and their work
+is **test-verified only — never seen rendering**. Brief 09 must therefore look specifically at:
+the water/static layer at the **zoomed-out (`sx < 1`) establishing view** (Farm's default, the
+most-seen frame), **rain and snow** plus the CPU fallback path, the **restored night glows**, and
+**`ui.flush` ≈ 5 ms at ~2,000 quads**. Do not treat green tests as parity for these three.
+
+## ⚠️ Integration note for brief 08 — THREE view-passing conventions coexist
+The six 2D passes did not converge on one shape, because they were written in parallel. Brief 08 must
+adapt to all three; **do not refactor the passes** to unify them mid-migration.
+1. **`setView(view)` once per frame, before drawing** — `SpriteBatch`, `ShadowBatch`,
+   `CloudShadowPass`, `WaterPass`, `StaticLayerPass`. Constructor takes a `GlContext` (or raw `gl`).
+   Omitting `setView` yields a valid draw that renders **nothing visible**.
+2. **`view` passed per draw call** — `ParticleBatch.draw(target, view, particles)` and
+   `WeatherPass.draw(target, view, weather)`.
+3. **No view at all (screen-space)** — `TintPass.draw(color, alpha)`, and `OverlayLightPass.draw(...)`
+   which takes its own `OverlayLightView { sx, sy, ox, oy }` (world-pixel scale, NOT clip space).
+
+Exports brief 08 needs: `VisibleRect` and `assertTextureWithinLimits` from
+`webgl2/static-layer-pass.ts`; `OverlayLightView` from `webgl2/overlay-light-pass.ts`.
+
+## Palette guard false positive, fixed (controller)
+The off-palette-colour regex flagged `#define MAX_MATERIALS 256` as a colour — `#def` matches its
+3-hex-digit branch, and the old lookahead rejected only further *hex* digits, so the following `i`
+passed. Newly reachable because the migration generates GLSL from TypeScript. Lookahead now rejects any
+**word** character; verified `#define`/`#version`/`#ifdef` no longer match while `#ff00aa`/`#abc`/
+`#123456` still do. **This was the only red in the wave-2 gate.**
 
 ## Decisions taken during the build
 _(append as they land — brief 13 folds these into the wiki)_
