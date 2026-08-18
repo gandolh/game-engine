@@ -63,8 +63,32 @@ With one backend that machinery is gone:
   misclassified in brief 01 — report it, do not leave a one-file directory.
 - `render/index.ts`: drop `Canvas2dRenderer` and `Canvas2dSprite` exports; export `WebGl2Renderer`.
 
+## The `RendererLike` interface changes (deferred here from briefs 05 and 07)
+
+You own `engine/core/src/render/renderer.ts` and `render/index.ts` this migration. Two parity
+asymmetries were deliberately held back to this brief, because both become safe only once
+`Canvas2dRenderer` is deleted (making either required earlier would break the workspace typecheck):
+
+1. **`setCloudOptions` becomes required.** Drop the `?` and rewrite its doc comment, which currently
+   names Canvas2D as the reason for optionality. Then update the three guarded call sites:
+   delete Farm's `RendererWithCloudOptions` interface + `hasCloudOptions` type-guard
+   (`games/farm/client/src/main/render-loop.ts` ~55–58) and call the method directly; simplify
+   Citadel's `renderer.setCloudOptions?.(…)` at `main/render-loop.ts` ~581 and
+   `render/showcase.ts` ~340 to plain calls.
+   Verify with: `grep -rn 'setCloudOptions?\.\|hasCloudOptions\|RendererWithCloudOptions' games engine`
+   → nothing.
+2. **`OverlayFn` becomes a documented, honoured parameter.** Brief 05 implemented the behaviour
+   (offscreen 2D bake → additive full-screen quad, drawn after sprites and before the wash). Your job
+   is the *type + docs*: it is no longer "Canvas2D honours it, WebGPU ignores it". Note in the comment
+   that Farm's night lighting (`makeLightOverlay`) is its live consumer and **was silently dead on
+   WebGPU** — so nobody re-introduces the no-op.
+
+Also: `DecorateFn` is passed to `bakeStaticLayer` and is honoured on both backends today — leave it
+alone.
+
 ## Out of scope
-- The client call sites and the unsupported-browser screen (brief 09).
+- The client call sites for `createRenderer` and the unsupported-browser screen (brief 09). Note the
+  `setCloudOptions` call-site cleanup above IS yours — it is an interface consequence, not a backend switch.
 - Deleting `webgpu/` (brief 12) — it stays compiling as the reference until 09 proves WebGL2 works
   in a real browser. **This is deliberate: do not delete the thing you are still comparing against.**
 - Any 3D work (10, 11).

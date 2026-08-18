@@ -77,6 +77,43 @@ a blank canvas). Rationale and the rejected alternative are in the BUILD ORDER.
   (`spritesOverlap`) and `wiki/performance.md` (the pixel-snap item) → `render/raster2d.ts`.
   `corpus/lint.sh` is green again.
 
+## 🔴 Live bug found while planning wave 2 (2026-08-18) — Farm's night lighting is dead
+
+Grepping for real `OverlayFn` callers (to decide brief 05's "implement or delete?" question) turned up
+a **shipped, user-visible bug that predates this migration**:
+
+- `games/farm/client/src/main/render-loop.ts` ~972 calls
+  `renderer.endFrame(wash, particles, rain, lightOverlay)`.
+- `lightOverlay` = `makeLightOverlay(nightness, view)` from `games/farm/client/src/render/lights.ts`
+  ~25 — Farm's **night lighting**: warm radial glows via `createRadialGradient`, composited with
+  `globalCompositeOperation = "lighter"`, gated on `nightness > NIGHT_GATE`, viewport-culled.
+- `WebGpuRenderer.endFrame` takes the parameter as **`_overlay` and never invokes it.**
+- Farm has been **WebGPU-forced**, so those glows have not rendered at all. Citadel's
+  `render/atmosphere.ts` ~16 documents the no-op explicitly and nobody connected it to Farm.
+
+**This is the third instance of this project's recurring failure mode** (after the Phase 2 dead economy
+and the 4.5 inert hazards): a feature that is wired, tested-adjacent, and completely inert at runtime.
+It was invisible because the parameter is *optional* — passing it costs nothing and silently does
+nothing.
+
+**Resolution:** brief 05 now implements `OverlayFn` properly rather than choosing between "implement or
+delete" — and implements it **additively**, not by the naive route. Drawing the callback straight onto
+the transparent `Overlay2D` canvas would look plausible but be wrong: that canvas is alpha-composited
+over the world, so an additive glow becomes a translucent haze instead of light *added* to the scene.
+Correct approach (the idiom `static-layer-pass.ts` already uses): run the callback into an offscreen 2D
+canvas under the world transform, upload as a texture, draw one full-screen quad with additive
+blending — **after** sprites, **before** the day/night wash, so glows lift the darkened scene. Brief
+05's acceptance now requires a Farm-at-night screenshot showing the restored glows.
+
+## Lane reassignment before wave 2 (controller, 2026-08-18)
+Briefs 05 and 07 as written would **both** have edited `render/renderer.ts` (the `RendererLike`
+interface) — a shared hub file, so they were not actually parallel-safe. Rather than serialize them,
+both interface changes moved to **brief 08**, which already owns that file and where they first become
+*safe*: making `setCloudOptions` required while `Canvas2dRenderer` still exists would break the
+workspace typecheck until that class is deleted. Brief 08 now also owns the three guarded
+`setCloudOptions` call sites in Farm/Citadel. Wave-2 agents are explicitly barred from
+`render/renderer.ts` and `render/index.ts`.
+
 ## Decisions taken during the build
 _(append as they land — brief 13 folds these into the wiki)_
 - **2026-08-18** — `MAX_MATERIALS` UBO size for `scene3d`: _pending brief 11._

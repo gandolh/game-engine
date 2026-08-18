@@ -19,26 +19,19 @@ Plus an optional **`vignette`** [0..1] folded into the same pass so it costs no 
 **quantization to keep the pixel-art read** — the whole point of the effect is that it does *not*
 look like a smooth gradient. A "correct" port that loses the quantization steps is a failed port.
 
-## This brief has a second, non-mechanical job
+## Scope note — the interface change moved to brief 08
 
-`setCloudOptions` is **optional on `RendererLike`** — it exists only on the WebGPU backend, and
-`renderer.ts`'s doc comment says so explicitly ("Canvas2D omits it, so callers should invoke it via
-optional-call"). Its three call sites all guard: `renderer.setCloudOptions?.(…)` in Citadel's
-[render-loop.ts](../../games/citadel/client/src/main/render-loop.ts) ~581 and
-[showcase.ts](../../games/citadel/client/src/render/showcase.ts) ~340, and Farm's
-`hasCloudOptions` type-guard in
-[farm/client/src/main/render-loop.ts](../../games/farm/client/src/main/render-loop.ts) ~55–58.
+`setCloudOptions` is **optional on `RendererLike`** only because Canvas2D lacked it. With one universal
+backend that optionality is dead weight, and it is going away — but **not in this brief.**
 
-With one universal backend the optionality is dead weight. **Make it required:**
-- `setCloudOptions(opts: CloudOptions): void` — drop the `?` in `RendererLike`, and rewrite the doc
-  comment (it currently names Canvas2D as the reason for optionality).
-- Delete Farm's `RendererWithCloudOptions` interface + `hasCloudOptions` type-guard and call the
-  method directly.
-- Simplify Citadel's two `?.()` calls to plain calls.
+Making it required while `Canvas2dRenderer` still exists would break the workspace typecheck until
+that class is deleted, so the change belongs with the deletion. **Brief 08 owns:** dropping the `?` in
+`RendererLike`, deleting Farm's `RendererWithCloudOptions` interface + `hasCloudOptions` type-guard
+(`games/farm/client/src/main/render-loop.ts` ~55–58), and simplifying Citadel's two `?.()` calls
+(`main/render-loop.ts` ~581, `render/showcase.ts` ~340).
 
-This is the first of the two parity asymmetries the migration exists to kill (the other is
-`OverlayFn`, brief 05). Because it edits three game files, **coordinate at the wave gate**: if
-another wave-2 brief is touching the same Citadel render-loop lines, the controller sequences them.
+**Your job is the pass port only. Do NOT edit `engine/core/src/render/renderer.ts`,
+`render/index.ts`, or any file under `games/`** — other agents are in those files this wave.
 
 ## Notes
 - Colour arrives as `CloudOptions.color` (a palette hex) and is resolved through `rgbOf` — keep it.
@@ -59,9 +52,6 @@ another wave-2 brief is touching the same Citadel render-loop lines, the control
 ## Acceptance
 - `npm run typecheck` clean; `npm run test -w @engine/core` green, including a port of
   `webgpu/cloud-shadow-pass.test.ts` (57 LOC).
-- `grep -rn 'setCloudOptions?\.\|hasCloudOptions\|RendererWithCloudOptions' games engine` returns
-  **nothing**, and `RendererLike.setCloudOptions` has no `?`.
-- `npm run typecheck` proves the three game call sites still compile as non-optional calls.
 - **Visual proof:** screenshots of `mode: "shadow"` and `mode: "haze"`, one with `vignette > 0`, and
   a side-by-side against the current WebGPU output. The quantization steps must be visibly present
   in both. Paths in the tracker.
