@@ -12,7 +12,7 @@ import { GpuAtlasStore } from "./texture-atlas";
 import { SpriteBatch } from "./sprite-batch";
 import type { GpuSpriteInstance } from "./sprite-batch";
 import { ShadowBatch } from "./shadow-batch";
-import { Overlay2D } from "./overlay-2d";
+import { Overlay2D } from "../overlay-2d";
 import { StaticLayerPass, WaterPass } from "./static-layer-pass";
 import type { VisibleRect } from "./static-layer-pass";
 import { ParticleBatch } from "./particle-batch";
