@@ -1,16 +1,10 @@
 
 
-export interface ViewUniform {
+import type { ViewUniform } from "../view-uniform";
 
-  scaleX: number;
-  scaleY: number;
-  offsetX: number;
-  offsetY: number;
-
-  timeSec: number;
-
-  windStrength: number;
-}
+// Relocated to ../view-uniform.ts (2026-08-18, WebGL2 migration) so passes can name it
+// without importing a backend. Re-exported here so existing importers keep working.
+export type { ViewUniform };
 
 const VIEW_UNIFORM_BYTES = 32;
 

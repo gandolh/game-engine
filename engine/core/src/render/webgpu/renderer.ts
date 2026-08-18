@@ -21,7 +21,7 @@ import { TintPass } from "./tint-pass";
 import { CloudShadowPass } from "./cloud-shadow-pass";
 import type { CloudOptions } from "../renderer";
 import { RainField } from "../rain-field";
-import { compareSprite, spritesOverlap } from "../canvas2d/draw";
+import { compareSprite, spritesOverlap } from "../raster2d";
 
 const CULL_MARGIN = 32;
 const GHOST_ALPHA = 0.4;     

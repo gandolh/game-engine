@@ -1,5 +1,5 @@
 import type { World } from "@engine/core";
-import type { Canvas2dSprite } from "@engine/core";
+import type { Sprite } from "@engine/core/render";
 import type { GameEntity } from "../components";
 import {
   WORLD_WIDTH,
@@ -227,8 +227,8 @@ export function* iterStaticSprites(
 export function buildStaticLayerSprites(
   world: World<GameEntity>,
   season: Season = "spring",
-): Canvas2dSprite[] {
-  const out: Canvas2dSprite[] = [];
+): Sprite[] {
+  const out: Sprite[] = [];
   for (const ls of iterStaticSprites(world, season)) {
     out.push({
       x: ls.x,

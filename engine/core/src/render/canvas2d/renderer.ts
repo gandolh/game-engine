@@ -2,8 +2,8 @@ import type { LoadedAtlasImage } from "../../assets/loader";
 import { Camera2D } from "../camera";
 import { EDG } from "../palette";
 import type { ParticleSystem } from "../particles";
-import type { Canvas2dSprite, Ctx2D } from "./types";
-import { compareSprite, drawSprite, createOffscreen, spritesOverlap } from "./draw";
+import type { Sprite, Ctx2D } from "../sprite-types";
+import { compareSprite, drawSprite, createOffscreen, spritesOverlap } from "../raster2d";
 import type { RendererLike, OverlayFn, UIQuad } from "../renderer";
 import { drawUIQuad } from "../ui-draw";
 import { resolveStaticRegion, staticBlitRect } from "../static-region";
@@ -14,7 +14,7 @@ export class Canvas2dRenderer implements RendererLike {
   private readonly ctx: CanvasRenderingContext2D;
   private readonly canvas: HTMLCanvasElement;
   private atlases: Map<string, LoadedAtlasImage> = new Map();
-  private queue: Canvas2dSprite[] = [];
+  private queue: Sprite[] = [];
 
   private queueLen = 0;
   private shadowLen = 0;
@@ -77,7 +77,7 @@ export class Canvas2dRenderer implements RendererLike {
   }
 
   bakeStaticLayer(
-    sprites: readonly Canvas2dSprite[],
+    sprites: readonly Sprite[],
     worldWidth: number,
     worldHeight: number,
     decorate?: (ctx: Ctx2D, widthPx: number, heightPx: number) => void,
@@ -187,7 +187,7 @@ export class Canvas2dRenderer implements RendererLike {
     return x >= this.cullLeft && x <= this.cullRight && y >= this.cullTop && y <= this.cullBottom;
   }
 
-  push(sprite: Canvas2dSprite): void {
+  push(sprite: Sprite): void {
     const halfW = sprite.width / 2;
     const halfH = sprite.height / 2;
     if (
@@ -239,7 +239,7 @@ export class Canvas2dRenderer implements RendererLike {
     return Math.min((typeof window !== "undefined" ? window.devicePixelRatio : 1) || 1, 2);
   }
 
-  private drawQueued(ctx: Ctx2D, s: Canvas2dSprite, sx: number, sy: number, ox: number, oy: number): void {
+  private drawQueued(ctx: Ctx2D, s: Sprite, sx: number, sy: number, ox: number, oy: number): void {
     const origY = s.y;
     const liftedY = s.z ? origY - s.z : origY;
     if (this.pixelSnap) {

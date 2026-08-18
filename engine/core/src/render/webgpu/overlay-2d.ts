@@ -13,7 +13,7 @@
  * See corpus/briefs/engine/todo/webgpu/wave-1d-overlay-2d.md §"Shadows decision" for
  * the full decision record.
  */
-import type { Ctx2D } from "../canvas2d/types";
+import type { Ctx2D } from "../sprite-types";
 import type { ViewUniform } from "./gpu-context";
 
 export class Overlay2D {

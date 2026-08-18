@@ -1,6 +1,6 @@
 import type { LoadedAtlasImage } from "../assets/loader";
-import { createOffscreen } from "./canvas2d/draw";
-import type { Ctx2D } from "./canvas2d/types";
+import { createOffscreen } from "./raster2d";
+import type { Ctx2D } from "./sprite-types";
 import { rgbOf } from "./palette";
 import type { UIQuad } from "./renderer";
 

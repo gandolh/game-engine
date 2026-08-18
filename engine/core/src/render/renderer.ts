@@ -1,10 +1,10 @@
 import type { Camera2D } from "./camera";
 import type { LoadedAtlasImage } from "../assets/loader";
 import type { ParticleSystem } from "./particles";
-import type { Canvas2dSprite, Ctx2D } from "./canvas2d/types";
+import type { Sprite, Ctx2D } from "./sprite-types";
 import type { StaticRegion } from "./static-region";
 
-export type Sprite = Canvas2dSprite;
+export type { Sprite };
 
 export interface WashOptions { color: string; alpha: number; }
 export interface WeatherLike { count: number; draw(ctx: Ctx2D): void; }

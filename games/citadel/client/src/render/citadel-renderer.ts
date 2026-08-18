@@ -29,7 +29,8 @@ import {
   Camera2D,
   createRenderer,
 } from "@engine/core";
-import type { RendererLike, LoadedAtlasImage, Canvas2dSprite, CloudOptions } from "@engine/core";
+import type { RendererLike, LoadedAtlasImage, CloudOptions } from "@engine/core";
+import type { Sprite } from "@engine/core/render";
 import { TILE_SIZE, isTravellingFsm } from "@citadel/sim-core";
 import type {
   BuildingSnapshot,
@@ -356,7 +357,7 @@ function isoBuildingPlacement(iso: IsoProjection, b: BuildingSnapshot, base: Qua
  * shadows, cluster borders, and the placement ghost — everything that should sit
  * FLAT on the iso grid rather than billboard upright.
  */
-function isoDiamondSprite(x: number, y: number, width: number, height: number, tintRgba: number, layer: number, sortY: number): Canvas2dSprite {
+function isoDiamondSprite(x: number, y: number, width: number, height: number, tintRgba: number, layer: number, sortY: number): Sprite {
   return isoFlatSprite(x, y, width, height, FRAME_DIAMOND, tintRgba, layer, sortY);
 }
 
@@ -367,7 +368,7 @@ function isoDiamondSprite(x: number, y: number, width: number, height: number, t
  *  top-left); the engine sprite-batch anchors by CENTRE, so we add half-extents
  *  here — mirroring `quadToSprite`. Skipping this shifts the diamond up-left by
  *  half its size (the ghost/shadow then sit off the cursor / building base). */
-function isoFlatSprite(x: number, y: number, width: number, height: number, frame: string, tintRgba: number, layer: number, sortY: number): Canvas2dSprite {
+function isoFlatSprite(x: number, y: number, width: number, height: number, frame: string, tintRgba: number, layer: number, sortY: number): Sprite {
   return { atlasId: QUAD_ATLAS_ID, frame, x: x + width / 2, y: y + height / 2, width, height, rotation: 0, layer, alpha: 1, tintRgba, sortY };
 }
 

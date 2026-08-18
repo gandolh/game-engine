@@ -3,8 +3,8 @@
 import type { GpuContext, ViewUniform } from "./gpu-context";
 import type { DecorateFn, Sprite } from "../renderer";
 import type { LoadedAtlasImage } from "../../assets/loader";
-import { createOffscreen, compareSprite, drawSprite } from "../canvas2d/draw";
-import type { Ctx2D } from "../canvas2d/types";
+import { createOffscreen, compareSprite, drawSprite } from "../raster2d";
+import type { Ctx2D } from "../sprite-types";
 import { EDG } from "../palette";
 import { resolveStaticRegion, staticBlitRect } from "../static-region";
 import type { StaticRegion } from "../static-region";

@@ -2,7 +2,7 @@
 
 import { createRng } from "@engine/core/runtime";
 import type { Rng } from "@engine/core/runtime";
-import type { Canvas2dSprite } from "@engine/core/render";
+import type { Sprite } from "@engine/core/render";
 import { FORGE_SMOKE_FRAMES } from "@farm/sim-core/render-systems";
 import type { Season } from "@farm/sim-core/protocols/weather";
 
@@ -150,8 +150,8 @@ function makeSmokePool(n: number): SmokeParticle[] {
   return arr;
 }
 
-function makeSpritePool(n: number): Canvas2dSprite[] {
-  const arr: Canvas2dSprite[] = [];
+function makeSpritePool(n: number): Sprite[] {
+  const arr: Sprite[] = [];
   for (let i = 0; i < n; i++) {
     arr.push({ x: 0, y: 0, width: 16, height: 16, frame: "", atlasId: "", rotation: 0, layer: 0, alpha: 1 });
   }
@@ -175,9 +175,9 @@ export class AmbientLayer {
   private leaves: LeafParticle[];
   private smoke: SmokeParticle[];
 
-  private birdSprites: Canvas2dSprite[];
-  private leafSprites: Canvas2dSprite[];
-  private smokeSprites: Canvas2dSprite[];
+  private birdSprites: Sprite[];
+  private leafSprites: Sprite[];
+  private smokeSprites: Sprite[];
 
   private birdCountdown: number = 0;
 
@@ -194,7 +194,7 @@ export class AmbientLayer {
     this.smokeSprites = makeSpritePool(CONSTANTS.SMOKE_CAP);
   }
 
-  init(staticSprites: readonly Canvas2dSprite[], seed: number): void {
+  init(staticSprites: readonly Sprite[], seed: number): void {
 
     this.rng = createRng((seed ^ 0xdeadbeef) >>> 0);
     this.treeAnchors = [];
@@ -385,7 +385,7 @@ export class AmbientLayer {
     }
   }
 
-  pushSprites(renderer: { push(s: Canvas2dSprite): void }): void {
+  pushSprites(renderer: { push(s: Sprite): void }): void {
     const nowMs = this._nowMs;
     const season = this._season;
     const leafFrame = season === "autumn" ? LEAF_FRAME_AUTUMN : LEAF_FRAME_GREEN;

@@ -1,7 +1,7 @@
 export { Camera2D, MIN_ZOOM, MAX_ZOOM, expSmooth } from "./camera";
 export type { CameraConfig } from "./camera";
 export { Canvas2dRenderer } from "./canvas2d";
-export type { Canvas2dSprite } from "./canvas2d";
+export type { Sprite, Ctx2D } from "./sprite-types";
 export { ParticleSystem } from "./particles";
 export type { ParticleEmitOptions, ParticleShape } from "./particles";
 export { RainField } from "./rain-field";
@@ -18,9 +18,9 @@ export {
 export type { Edg32Color } from "./palette";
 
 export type { RendererLike, WashOptions, WeatherLike, DecorateFn, CloudOptions, OverlayFn, UIQuad } from "./renderer";
+export type { ViewUniform } from "./view-uniform";
 export { drawUIQuad } from "./ui-draw";
 export { resolveStaticRegion, staticBlitRect } from "./static-region";
 export type { StaticRegion, StaticBlit } from "./static-region";
-export type { Ctx2D } from "./canvas2d/types";
 export { createRenderer } from "./create-renderer";
 export type { CreateRendererOptions } from "./create-renderer";

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { World } from "@engine/core";
-import type { Canvas2dSprite } from "@engine/core";
+import type { Sprite } from "@engine/core/render";
 import type { GameEntity } from "../components";
 import { OCCLUDER_WALLS, CLIFFS, isOccluderWall, WALLS } from "./geometry";
 import { iterStaticSprites } from "./static-layer";
@@ -54,7 +54,7 @@ describe("static layer exclusions", () => {
 
 describe("pushOccluderSprites", () => {
   it("pushes every occluder wall + cliff on the entity layer, depth-keyed at the face base", () => {
-    const pushed: Canvas2dSprite[] = [];
+    const pushed: Sprite[] = [];
     pushOccluderSprites({ push: (s) => void pushed.push(s) });
 
     expect(pushed.length).toBe(OCCLUDER_WALLS.length + CLIFFS.length);

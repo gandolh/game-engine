@@ -187,7 +187,7 @@ describe("x-ray (occlusion-transparency) pass", () => {
     } as unknown as import("./camera").Camera2D;
   }
 
-  function base(partial: Partial<import("./canvas2d/types").Canvas2dSprite>): import("./canvas2d/types").Canvas2dSprite {
+  function base(partial: Partial<import("./sprite-types").Sprite>): import("./sprite-types").Sprite {
     return {
       x: 0, y: 0, width: 16, height: 16, frame: "f", atlasId: "terrain",
       rotation: 0, layer: 50, alpha: 1, ...partial,

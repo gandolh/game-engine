@@ -13,7 +13,7 @@
  *  caller's onImpact(gx, gy) fires (rain only) so a splash/ripple can be spawned at the ground.
  */
 
-import type { Ctx2D } from "./canvas2d/types";
+import type { Ctx2D } from "./sprite-types";
 import { EDG } from "./palette";
 
 export type WeatherKind = "rain" | "snow" | "none";
