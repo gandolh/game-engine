@@ -90,13 +90,14 @@ export interface HollowAppOptions {
    *  manual pan (see `setFollow`'s doc) — lets the caller keep its own
    *  "is following" UI state (the panel's follow button) in sync. */
   onFollowCancelled?(): void;
-  /** Fired if the WebGPU renderer cannot start — no `navigator.gpu`, OR
-   *  `requestAdapter()` returned null / device creation threw (the sandbox /
-   *  a non-WebGPU browser). The caller (`main.ts`) shows a user-facing
-   *  message; everything else (worker sim, research rail, glyph overlay,
-   *  perf HUD) keeps running. Without this, `createDevice3d`'s throw would
-   *  surface as an UNHANDLED promise rejection with a blank canvas and no
-   *  on-screen explanation. */
+  /** Fired if the WebGL2 renderer cannot start — the browser lacks WebGL2
+   *  entirely, or the context couldn't be acquired (hardware acceleration
+   *  disabled, a VM/sandbox with no usable GPU adapter, an exhausted
+   *  context budget). The caller (`main.ts`) shows a user-facing message;
+   *  everything else (worker sim, research rail, glyph overlay, perf HUD)
+   *  keeps running. Without this, `createDevice3d`'s throw would surface as
+   *  an UNHANDLED promise rejection with a blank canvas and no on-screen
+   *  explanation. */
   onRendererUnavailable?(message: string): void;
 }
 
@@ -119,7 +120,7 @@ export interface HollowApp {
   dispose(): void;
   /** SEAM for chunk hollow-09c: every alive agent's world head-position +
    *  model matrix + world AABB, as of the most recently drawn frame. `null`
-   *  before the first frame renders (e.g. no WebGPU, or no snapshot yet). */
+   *  before the first frame renders (e.g. no WebGL2, or no snapshot yet). */
   getAgentRenderState(): ReadonlyMap<number, AgentRenderState> | null;
   /** SEAM for chunk hollow-09c: the `viewProj` matrix used for the most
    *  recently drawn frame — combine with `getAgentRenderState()`'s
@@ -143,7 +144,7 @@ export interface HollowApp {
   /** Latest render-loop profile (scene-build + submit CPU cost, keyed
    *  `"frame"`/`"interp"`) for the perf HUD (`main.ts` feeds it to the
    *  engine `DebugOverlay.setFrameReport`). `null` before the first frame or
-   *  when the renderer never started (no WebGPU). Refreshed periodically,
+   *  when the renderer never started (no WebGL2). Refreshed periodically,
    *  not every frame, to keep the stats-scan cost off the hot path. */
   getRenderReport(): ProfileReport | null;
 }
@@ -160,9 +161,10 @@ interface Instance {
 const FOLLOW_EYE_HEIGHT = 1;
 
 /** Boot the 3D town against `canvas`, fed by `worker`'s snapshot stream.
- *  Returns immediately (WebGPU device creation is async); the render loop
- *  starts once the device is ready. Safe to call `dispose()` before that
- *  resolves. */
+ *  Returns immediately (device creation is awaited internally, even though
+ *  the WebGL2 path is synchronous under the hood — see
+ *  render3d/webgl2/device3d.ts's header); the render loop starts once the
+ *  device is ready. Safe to call `dispose()` before that resolves. */
 export function startHollowApp(canvas: HTMLCanvasElement, worker: Worker, opts: HollowAppOptions): HollowApp {
   const snapshotBuffer = new SnapshotBuffer();
   let disposed = false;
@@ -200,25 +202,27 @@ export function startHollowApp(canvas: HTMLCanvasElement, worker: Worker, opts: 
   void bootRenderer();
 
   async function bootRenderer(): Promise<void> {
-    const NO_WEBGPU_MSG =
-      "WebGPU is not available in this browser. Open in a WebGPU-capable Chrome " +
-      "(chrome://flags → Unsafe WebGPU, or Chrome 113+ which ships it by default).";
-    if (!navigator.gpu) {
-      opts.onRendererUnavailable?.(NO_WEBGPU_MSG);
-      return;
-    }
-
-    // `createDevice3d` throws when `requestAdapter()` returns null (a browser
-    // that exposes `navigator.gpu` but has no usable GPU adapter — the
-    // headless sandbox, some VMs). Catch it so it becomes an on-screen
-    // message, not an unhandled promise rejection + blank canvas.
+    // `createDevice3d` (WebGL2, synchronous under the hood — see
+    // render3d/webgl2/device3d.ts's header) throws when WebGL2 is
+    // unavailable or the context can't be acquired. WebGL2 has been
+    // supported by every evergreen browser since ~2017, so on a modern
+    // machine the realistic cause isn't a missing browser feature — it's
+    // disabled hardware acceleration or a VM/sandboxed environment with no
+    // usable GPU adapter (e.g. a SwiftShader-only software fallback that
+    // still refuses WebGL2, or a context-creation failure from an exhausted
+    // context budget). Catch it so it becomes an on-screen message, not an
+    // unhandled promise rejection + blank canvas.
     let device3d: Awaited<ReturnType<typeof createDevice3d>>;
     try {
       device3d = await createDevice3d(canvas);
     } catch {
       opts.onRendererUnavailable?.(
-        "WebGPU could not start — no GPU adapter was found. Try a hardware-accelerated " +
-          "Chrome 113+ (chrome://flags → Unsafe WebGPU). The simulation and chronicle keep running.",
+        "3D rendering could not start — WebGL2 is unavailable in this browser. This is " +
+          "usually caused by disabled hardware acceleration or running inside a VM/sandbox " +
+          "without a GPU adapter, rather than a missing browser feature (WebGL2 has shipped " +
+          "everywhere since 2017). Try enabling hardware acceleration in your browser's " +
+          "settings, or open this in a different browser/machine. The simulation and " +
+          "chronicle keep running.",
       );
       return;
     }
