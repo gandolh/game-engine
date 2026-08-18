@@ -1,6 +1,6 @@
 # WebGL2 migration — BUILD STATE / RESUME (live tracker)
 
-status: **WAVES 1–3 CODE COMPLETE, GATE GREEN** (01–07, 10, 11 committed; 3D verified in-browser, 2D NOT yet visually verified). Next: **08** (assembly), then 09, 12, 13.
+status: **MERGED TO `main`** (`37a8780`). Briefs 01–08, 10, 11 done; **09 partially done** (Farm verified in-browser; Citadel + MateQuest still unseen). Remaining: finish 09, then 12, 13.
 updated: 2026-08-18
 
 **Read this first to resume.** Design-of-record is
@@ -24,9 +24,9 @@ a blank canvas). Rationale and the rejected alternative are in the BUILD ORDER.
 | 06 | particles + weather | 2 | **DONE\*** | `ad123de` | agent stopped before reporting; test-verified only, **not visually** |
 | 07 | cloud shadow + haze | 2 | **DONE** | `ba39bcd` | 77 tests; 3 real-WebGL2 screenshots, quantization intact |
 | 10 | render3d device + buffers | 2 | **DONE** | `59f6c2e`+`(next)` | buffers.ts moved up (pure CPU packing); 68 render3d tests green at HEAD; depth-context caveat below |
-| 08 | WebGl2Renderer assembly | 3 | TODO | — | |
+| 08 | WebGl2Renderer assembly | 3 | **DONE** | `24e413a` | draw order pinned by test + **mutation-verified**; Canvas2D deleted; both interface changes landed |
 | 11 | render3d scene renderer | 3 | **DONE** | `f915407` | **Hollow renders on WebGL2 in-browser, 60fps.** 100 render3d tests; materials UBO `MAX_MATERIALS=256` |
-| 09 | client switch + fallback screen | 4 | TODO | — | |
+| 09 | client switch + fallback screen | 4 | **PARTIAL** | see log | Farm verified in a real browser; Citadel/MateQuest unseen; unsupported-screen helper not yet written |
 | 12 | delete WebGPU + purge types | 5 | TODO | — | |
 | 13 | corpus + decisions update | 5 | TODO | — | |
 
@@ -250,6 +250,66 @@ The off-palette-colour regex flagged `#define MAX_MATERIALS 256` as a colour —
 passed. Newly reachable because the migration generates GLSL from TypeScript. Lookahead now rejects any
 **word** character; verified `#define`/`#version`/`#ifdef` no longer match while `#ff00aa`/`#abc`/
 `#123456` still do. **This was the only red in the wave-2 gate.**
+
+## 🔴 REGRESSION FOUND BY RUNNING THE APP (fixed) — `.glsl` broke every Node consumer
+
+The single most valuable thing running `npm run dev` did. **Typecheck and 689 tests were all green
+while `npm run dev`, `npm run server`, `npm run sim`, `npm run sim:citadel` and `npm run preview` were
+all broken.**
+
+`ERR_UNKNOWN_FILE_EXTENSION: Unknown file extension ".glsl"` — the Farm server died on startup. Cause:
+brief 08 imported `WebGl2Renderer` **statically** in `create-renderer.ts` *and* value-exported it from
+`render/index.ts`, so the barrel transitively pulled `import … from "*.glsl?raw"` into every Node
+consumer. Only a bundler can resolve `?raw`.
+
+The old code avoided this by construction and nobody had written the reason down: the WebGPU renderer
+was loaded via **`await import("./webgpu/renderer")`** — dynamic, browser-only — and the barrel only
+ever value-exported the shader-free `Canvas2dRenderer`.
+
+**Fix:** `createRenderer` uses a dynamic `await import("./webgl2/renderer")`, and the barrel's
+`WebGl2Renderer` export is **type-only** (erased at runtime). Both carry comments explaining why, so
+the next person doesn't "tidy" them back into static imports. Verified by running `npm run sim` again.
+
+**Lesson for the remaining briefs: a green typecheck plus a green test suite says nothing about whether
+the app or the headless tools still start.** Brief 12's acceptance already listed `npm run build`,
+`sim`, `sim:citadel` and `preview` for exactly this reason — that list is load-bearing, not ceremony.
+
+## Brief 09 — Farm verified in a real browser (2026-08-18)
+
+**Confirmed working** via `npm run dev` + headless Chrome (screenshots `farm-webgl2-01..08*.png` in the
+session scratchpad):
+- Baked terrain, animated water, bridges, buildings, crop sprites, fences — at a zoomed-in camera
+  **and** at the wide establishing view.
+- The whole in-canvas UI: hotbar, world clock, speed controls, and the **dense text panels**
+  (Farmers/Shop/Activity/Relations/Wealth) — every glyph is a tinted quad, so this exercises
+  `drawUIQuad` + the tint cache + `Overlay2D` end to end.
+- **Two stacked canvases at 1280×577** (GL + `Overlay2D`), exactly as designed.
+- **The day/night wash works.** I first suspected it was dead because an 11:13 PM [Night] frame still
+  looked bright — then measured pixels rather than trusting the impression. Every sampled region
+  (grass, water, soil) shifts toward `EDG.slate` #5a6988 in the night frame. Spring night is slate at
+  **alpha 0.3** — a moonlight tint, not a blackout. **The suspicion was wrong; the wash is fine.**
+  Recorded because "fixing" this non-bug would have been an expensive detour.
+- Sim healthy alongside: worker `tick` mean **1.22 ms**, `snapshot.build` 0.53 ms.
+
+**The tint-cache perf question is answered and passes comfortably.** Brief 05's bar was `ui.flush`
+≈ 5 ms at ~2,000 quads. Measured: **`ui.flush` mean 3.49 ms / p95 5.10 ms at `ui.quads` mean 7,272** —
+about 3.6× the quad count at *lower* cost than the target. The brief-118 cache survived the swap.
+
+**fps is NOT interpretable from this run.** `gpu.renderer` reads
+`ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero)), SwiftShader driver)` — headless Chrome,
+**software rasterisation**. Observed 10–19 fps, `frame` JS mean 12.1 ms / p95 17.1 ms,
+`render.endFrame` 7.7 ms. The project's perf wiki is explicit: *never diagnose a raster/GPU regression
+from a headless SwiftShader profile.* **A real-GPU `?profile` reading is still required** before
+claiming perf parity with the 2026-06-12 baseline (fps ~99, `frame` ~5 ms).
+
+**NOT visually confirmed — 09 is not done until these are seen:**
+1. **Farm's restored night glows.** Wired and unit-tested (the draw-order test asserts the additive
+   pass runs after sprites and before the wash; another asserts it is skipped with no `OverlayFn`), but
+   no frame was captured with a light emitter in view at night. This is the headline bug fix.
+2. **Rain and snow.** The sim reported `Weather: rainy` on day 14 and no rain was visible in that
+   frame. May be subtlety at that zoom, may be real. **Unresolved.**
+3. **Citadel and MateQuest have not been launched at all.** MateQuest is the riskiest of the three —
+   it is the only game that previously ran on Canvas2D.
 
 ## Decisions taken during the build
 _(append as they land — brief 13 folds these into the wiki)_

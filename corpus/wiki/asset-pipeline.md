@@ -9,7 +9,7 @@ Research synthesis (2026-06-10) on asset "cooking" and texture-atlas best practi
 
 ## The bake principle (what we already do)
 
-Assets are **code, not images**: each sprite is a `PixelRecipe` (ASCII pixel grid + EDG32 palette chars) in [games/farm/atlas-recipes/src/](../../games/farm/atlas-recipes/src/). `npm run atlas` rasterizes every recipe and shelf-packs them into 6 specialized sheets (`characters`, `buildings`, `terrain`, `crops`, `props`, `items-ui`) + an `index.json`, committed under [games/farm/client/public/atlas/](../../games/farm/client/public/atlas/) (brief 47). The renderer ([canvas2d](../../engine/core/src/render/canvas2d/)) resolves frames per-sheet via `atlasId` and additionally bakes the static backdrop + water pattern to OffscreenCanvas once at startup.
+Assets are **code, not images**: each sprite is a `PixelRecipe` (ASCII pixel grid + EDG32 palette chars) in [games/farm/atlas-recipes/src/](../../games/farm/atlas-recipes/src/). `npm run atlas` rasterizes every recipe and shelf-packs them into 6 specialized sheets (`characters`, `buildings`, `terrain`, `crops`, `props`, `items-ui`) + an `index.json`, committed under [games/farm/client/public/atlas/](../../games/farm/client/public/atlas/) (brief 47). The renderer (`canvas2d`) resolves frames per-sheet via `atlasId` and additionally bakes the static backdrop + water pattern to OffscreenCanvas once at startup.
 
 This matches the industry "asset conditioning" pattern exactly — source asset → deterministic transform → optimized runtime artifact — as in Unreal cooking, Unity's import pipeline (`Library/` cache + `.meta` sidecars), Godot's `.import` sidecars + `.godot/imported/` cache, and O3DE's Asset Processor (SQLite job-fingerprint graph).
 
