@@ -18,12 +18,12 @@ a blank canvas). Rationale and the rejected alternative are in the BUILD ORDER.
 |---|---|---|---|---|---|
 | 01 | shared 2D vocabulary relocation | 1 | **DONE** | see git log | clean break, no compat alias; hit a pre-existing `Sprite` name collision (below) |
 | 02 | GL context + shader tooling | 1 | **DONE** | see git log | 8 new files, 33 tests incl. lint negative fixtures |
-| 03 | sprite + shadow batch | 2 | **DONE** | _pending wave-2 gate_ | 29 tests + real-browser screenshot; adds a `setView` call brief 08 MUST make |
+| 03 | sprite + shadow batch | 2 | **DONE** | `59f6c2e` | 29 tests + real-browser screenshot; adds a `setView` call brief 08 MUST make |
 | 04 | static layer + water | 2 | TODO | — | |
 | 05 | tint + overlay-2d + UI quads | 2 | TODO | — | |
 | 06 | particles + weather | 2 | TODO | — | |
-| 07 | cloud shadow + haze | 2 | **DONE** | _pending wave-2 gate_ | 77 tests; 3 real-WebGL2 screenshots, quantization intact |
-| 10 | render3d device + buffers | 2 | **DONE** | _pending wave-2 gate_ | buffers.ts moved up (pure CPU packing); 15 new tests; depth-context caveat below |
+| 07 | cloud shadow + haze | 2 | **DONE** | `ba39bcd` | 77 tests; 3 real-WebGL2 screenshots, quantization intact |
+| 10 | render3d device + buffers | 2 | **DONE** | `59f6c2e`+`(next)` | buffers.ts moved up (pure CPU packing); 68 render3d tests green at HEAD; depth-context caveat below |
 | 08 | WebGl2Renderer assembly | 3 | TODO | — | |
 | 11 | render3d scene renderer | 3 | TODO | — | |
 | 09 | client switch + fallback screen | 4 | TODO | — | |
@@ -155,6 +155,27 @@ running brief 05. It flagged this itself rather than staying quiet, which is the
 filesystem but nothing protects the browser. Either (a) tell each parallel agent to close only its own
 named session, never `all: true`, or (b) serialize the visual-verification step. Watch brief 05's
 report for a truncated verification and re-dispatch just that step if so.
+
+## Commit-hygiene note (2026-08-18) — messy boundary, deliberately not rewritten
+
+Committing per-brief mid-wave (at the user's request) hit a snag worth recording so the git history
+reads honestly: the executor agents used `git mv`, which **stages** the rename immediately. So a
+path-scoped `git add` for brief 03 did not prevent `git commit` from also picking up the already-staged
+renames belonging to briefs 05 and 10. Commit `59f6c2e` ("brief 03") therefore also contains three
+pure renames — `render/{webgpu => }/overlay-2d.ts` (brief 05) and
+`render3d/{webgpu => }/buffers{,.test}.ts` (brief 10) — with **zero content change**.
+
+Consequence while wave 2 is still in flight: **`HEAD` alone does not compile**, because
+`render/overlay-2d.ts` is committed at its pre-move content (`../sprite-types`, `./gpu-context` — both
+wrong one level up) while brief 05's fix is still an uncommitted working-tree change. The **working
+tree is clean** (`@engine/core` forced typecheck passes), which is what the running agents build
+against. This self-resolves when brief 05 lands and its content is committed.
+
+**Not rewriting history to tidy this** — concurrent sessions share this working tree, and a
+reset/rebase to fix a cosmetic boundary is not worth the risk of destroying another session's work.
+**For future waves: `git add -- <paths>` does not isolate a commit when other agents have staged
+renames. Either `git reset` the index to empty first (safe, index-only) or commit only after the whole
+wave lands.**
 
 ## Decisions taken during the build
 _(append as they land — brief 13 folds these into the wiki)_
