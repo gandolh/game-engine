@@ -2,7 +2,7 @@
 
 A tiny top-down farming sim where a valley of AI farmers — each driven by one of four personalities — plant, harvest, trade, and try to out-earn each other across 100 in-game days. You mostly watch them play; one farmer, **Pip**, is playable.
 
-Built on a custom TypeScript game engine that uses an ECS (entity-component-system) core, a deterministic fixed-step game loop, a Canvas 2D renderer, and a WebAssembly pathfinder. The simulation runs in a Node.js server and streams render snapshots to the browser over a WebSocket; the browser is a pure client that renders + interpolates them. All art is drawn from a single 32-color palette ([EDG32](https://lospec.com/palette-list/endesga-32)), enforced across sprites, UI, and effects.
+Built on a custom TypeScript game engine that uses an ECS (entity-component-system) core, a deterministic fixed-step game loop, a WebGL2 renderer, and a WebAssembly pathfinder. The simulation runs in a Node.js server and streams render snapshots to the browser over a WebSocket; the browser is a pure client that renders + interpolates them. All art is drawn from a single 32-color palette ([EDG32](https://lospec.com/palette-list/endesga-32)), enforced across sprites, UI, and effects.
 
 ![Home screen](media/fv-home-screen.png)
 ![Game running — world, day/night clock, observer panel, leaderboard, and activity feed](media/fv-edg32-running.png)
@@ -13,7 +13,7 @@ Requirements: Node 20+ and npm.
 
 ```bash
 npm install
-npm run build-wasm   # one-time: compile the WASM pathfinder
+npm run build-wasm   # optional — the WASM artifacts are committed, so a fresh clone can skip this
 npm run dev          # starts the sim server + the client at http://localhost:5173
 ```
 

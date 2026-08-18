@@ -5,7 +5,21 @@ updated: 2026-08-18
 
 # Project Status
 
-Current-state **snapshot** (2026-07-17).
+Current-state **snapshot** (2026-08-18). Banners below are newest-first.
+
+> **2026-08-18 Corpus audit — the work queue was fiction and 452 links were dead.** `todos/` held 29
+> files while their own trackers recorded **24 as done**; those moved to `todos/closed/`, leaving a
+> 5-file queue (hollow-13, engine-ui item 2, two trackers, one design-of-record). Every link broken by
+> a directory move was repaired, and `lint.sh` — which had only ever checked `wiki/` and only `../`
+> links — now resolves the whole corpus and holds live pages to 100%. Stale claims corrected across
+> `index.md`/`routing.md`/`CLAUDE.md` and eight wiki pages (four games not two; MateQuest built not
+> pre-build; `shader-ideas.md`'s half-migrated WGSL prose; `asset-pipeline.md`'s atlas conclusion,
+> which the migration *inverted*). Full account: [log.md](../log.md).
+
+> **2026-08-18 WebGL2-only render backend — SHIPPED and merged to main** (13 briefs + a context-loss
+> follow-up). Details in the section below: [WebGL2-only render backend](#webgl2-only-render-backend-2026-08-18--shipped).
+> It also fixed a bug it never set out to find: Farm's night lighting had **never** rendered, because
+> WebGPU accepted `endFrame`'s `OverlayFn` and silently dropped it.
 
 > **2026-07-17 STABLE POINT — the engine-library-extraction todo is DONE and the todo queue is EMPTY.** `@engine/core` + `@engine/ui` + `@engine/wasm-modules` are now **MIT-licensed reusable libraries at v0.1.0, un-published** (games stay in-repo as reference consumers); an out-of-workspace `examples/library-consumer` fixture installs the three `npm pack` tarballs via `file:` and drives them green in plain Node. Packaging mechanics + the `publishConfig.exports`-is-dead lesson are in [architecture.md](architecture.md) "Library packaging". The four remaining stability items landed with the packaging: **festival multi-day** (`FESTIVAL_DAYS=2`, cumulative attendance 0/12→8/12; simultaneous same-day majority is physically impossible — open-question resolved), **Citadel raider-march glide** (`EntityInterpolator` segment intervals), **dither-specks/hillshade unification** (specks biased by `hillshade()`), **Citadel Status-toggle Tab-reachability** (`siegeDispatcher` in the keydown chain), and **starve-softness accepted-as-intended** (documented, fixture unchanged — see [open-questions.md](open-questions.md)). Commits `7212575`/`4297341`/`ff6322f` (packaging+fixture), `98f66d0`/`4822ecc` (festival+connectivity world-swap reset), `821d304` (glide), `1aba7c0` (dither), `e3660fa` (Tab), `c67d6d8` (consumer @engine pins 0.0.0→0.1.0 — the "harmless deferred" flag was actually a clean-install breakage). **Closeout verify (medium+determinism):** typecheck 14/14; touched-workspace tests green (engine/core 194, engine/ui 166, farm/sim-core 867, citadel/client 549 `--maxWorkers=2`); Farm determinism MATCH (30d); Citadel grow stdout byte-identical, `sack` PASS (keep sacked day 71), `starve` gameOver. **Deferred-by-choice (not bugs):** siegeMirror lacks `onFocusNode` wiring (inert), `?raw` .wgsl imports keep `@engine/ui` bundler-only in bare Node, raider glide not yet live-verified in a raid (27 interpolator unit tests + earlier pace check stand in). Details: the three closed todos in [todos/closed/](../todos/) + [log.md](../log.md).
 

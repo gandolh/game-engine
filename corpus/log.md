@@ -4,6 +4,55 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-08-18] maintenance | Corpus audit — the queue was fiction, 452 links were dead, and the wiki still described a two-game WebGPU repo
+
+Asked to make the corpus contain only what is relevant to this repository. Nothing foreign was in
+it — no other project, no stray notes. The problem was **staleness presented as current**, in four
+distinct shapes:
+
+**1. A work queue that was fiction.** `todos/` held 29 files; the trackers inside them recorded 24 as
+done and verified. Moved those to `todos/closed/`. The queue is now 5 files and every one is real:
+hollow-13 (LLM seam, genuinely queued), engine-ui item 2 (deferred), two BUILD-STATE trackers, one
+design-of-record. `hollow-08` got a supersession note — it shipped as specified, then the WebGPU
+backend it built was deleted; its 3D-seam *design* still holds, its API does not.
+
+**2. 452 dead links, all from directory moves.** Every one repaired and verified to resolve at its
+new target. `lint.sh` never saw them: it checked only `wiki/*.md` and only `../`-prefixed links, so
+`index.md` had been carrying dead `todos/` links unnoticed. Now it resolves **every** relative link
+in the corpus and holds live pages to 100%, while counting archives' decayed *code* references
+separately (a frozen spec naming the pre-2026-07 `packages/` layout or a deliberately-deleted
+`webgpu/` file is correct as history) — but archives' *corpus-doc* links still have to resolve,
+because those stay ours to fix. Mutation-tested all four branches. 227 archival, 0 broken.
+
+**3. Claims a reader would act on.** Four games, not two (`index.md`, `routing.md`, `corpus/CLAUDE.md`,
+and the root `CLAUDE.md`/`README.md`). MateQuest documented as "PRE-BUILD … no code exists yet" while
+`games/mathquest` ships 45 files and `npm run mathquest` runs it. `shader-ideas.md` half-migrated —
+link targets repointed to `.glsl` but the prose still said "we write WGSL" and every link *text* still
+read `*.wgsl`, so each reference contradicted the file it pointed at. `asset-pipeline.md`'s atlas
+conclusion was **inverted**, not merely dated: it argued atlasing matters less than on WebGL because
+there is "no explicit draw-call batching to preserve" — true of Canvas2D, but `WebGl2Renderer` keeps
+one sprite group per atlas texture, so the sheet split now sets the frame's draw-call count. Plus the
+Canvas2D box in the architecture diagram, the renamed `Canvas2dSprite.z`, Hollow's `scene3d.wgsl`
+paths, Citadel's cleared "WebGPU cannot render headless" blocker, `decisions.md`'s "migration in
+flight", and a superseded Worker bullet still naming `games/farm/client/src/worker/` (brief 115
+renamed it `net/`).
+
+**4. Two copies of every page description, drifting.** `index.md` and `corpus/CLAUDE.md` both said the
+catalog is *generated* from each page's `summary:` and told you not to hand-edit it — while **21 of 28
+lines had drifted from it.** That is exactly how a "WebGPU-only render path" line outlived the page
+that already said WebGL2. The catalog is genuinely hand-authored (it adds the per-game grouping and
+trims for triage), so that is now what it says, with the rule that it may be *shorter* but must never
+*contradict*, and `lint.sh --index` prints the derived version to diff against. Also corrected 13
+`updated:` dates that understated when their page last changed.
+
+**Left alone, deliberately:** the archives' 227 historical code references (correct as history); the
+seven oversized wiki pages (a standing advisory, and splitting `status.md` is its own job); and
+`log.md`'s non-chronological tail. **Adjacent fixes outside `corpus/`,** because they contradicted the
+corpus they route into: the root `CLAUDE.md` (two→four games, missing Hollow/MateQuest workspaces +
+commands + palettes, the `worker/`→`net/` rename, `deliberate.ts`'s real path, and the WebGL2-only
+convention, which was documented nowhere) and `README.md` (still advertising "a Canvas 2D renderer",
+and calling `build-wasm` one-time-required when the artifacts are committed).
+
 ## [2026-08-18] migration | WebGL2-only render backend — SHIPPED, merged to main
 
 All 13 briefs done. `render/canvas2d/`, `render/webgpu/` and `render3d/webgpu/` are deleted;
