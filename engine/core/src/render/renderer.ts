@@ -1,15 +1,29 @@
 import type { Camera2D } from "./camera";
 import type { LoadedAtlasImage } from "../assets/loader";
 import type { ParticleSystem } from "./particles";
-import type { Canvas2dSprite, Ctx2D } from "./canvas2d/types";
+import type { Sprite, Ctx2D } from "./sprite-types";
 import type { StaticRegion } from "./static-region";
 
-export type Sprite = Canvas2dSprite;
+export type { Sprite };
 
 export interface WashOptions { color: string; alpha: number; }
 export interface WeatherLike { count: number; draw(ctx: Ctx2D): void; }
 export type DecorateFn = (ctx: Ctx2D, widthPx: number, heightPx: number) => void;
 
+/**
+ * A world-space 2D draw callback, invoked once per `endFrame` between the sprites and
+ * the day/night wash, composited **additively** onto the scene.
+ *
+ * `transform` is the world→screen mapping in **pixels** (`sx`/`sy` scale, `ox`/`oy`
+ * offset) — already applied to the context, so the callback authors in world
+ * coordinates. Farm's night lighting (`makeLightOverlay`) is the live consumer:
+ * warm radial glows drawn with `globalCompositeOperation = "lighter"`.
+ *
+ * **This is honoured.** It previously was not: the WebGPU backend accepted the
+ * parameter as `_overlay` and never invoked it, so Farm's night glows silently did
+ * not render for the entire time Farm was WebGPU-only. Any future backend that takes
+ * this and drops it is re-introducing that bug, not making an optimisation.
+ */
 export type OverlayFn = (
   ctx: Ctx2D,
   transform: { sx: number; sy: number; ox: number; oy: number },
@@ -116,10 +130,11 @@ export interface RendererLike {
    * Set the fBm cloud-shadow / warm-haze overlay for the NEXT `endFrame`. The
    * overlay is drawn (world-anchored, below the wash) only when `coverage > 0.001`,
    * and the options are consumed each frame (re-set per frame to keep it on).
-   * Optional: only the WebGPU backend implements it — Canvas2D omits it, so
-   * callers should invoke it via optional-call (`renderer.setCloudOptions?.(…)`).
+   * Required. It was optional only while Canvas2D existed as a second backend that
+   * could not implement it; with one universal backend there is nothing to guard
+   * against, so callers call it directly (no `?.()`, no type-guard).
    */
-  setCloudOptions?(opts: CloudOptions): void;
+  setCloudOptions(opts: CloudOptions): void;
 
   /**
    * Screen-space UI draw seam.

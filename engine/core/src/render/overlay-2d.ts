@@ -1,5 +1,7 @@
 /**
- * Overlay2D — a transparent `<canvas>` stacked exactly over the WebGPU canvas.
+ * Overlay2D — a transparent `<canvas>` stacked exactly over the GPU canvas (WebGL2, and
+ * formerly WebGPU — the class itself has no backend coupling; see the two type-only
+ * imports below, both backend-neutral).
  *
  * Provides a `Ctx2D` for particles, weather, and the day/night screen-space wash.
  * The overlay canvas is CSS-positioned identically to the GPU canvas (same client box,
@@ -13,8 +15,8 @@
  * See corpus/briefs/engine/todo/webgpu/wave-1d-overlay-2d.md §"Shadows decision" for
  * the full decision record.
  */
-import type { Ctx2D } from "../canvas2d/types";
-import type { ViewUniform } from "./gpu-context";
+import type { Ctx2D } from "./sprite-types";
+import type { ViewUniform } from "./view-uniform";
 
 export class Overlay2D {
   /** overlay must NOT clear to a solid color */
@@ -24,41 +26,42 @@ export class Overlay2D {
   readonly ctx: Ctx2D;
 
   private readonly overlayCanvas: HTMLCanvasElement;
-  private readonly gpuCanvas: HTMLCanvasElement;
+  private readonly baseCanvas: HTMLCanvasElement;
 
   /**
-   * Creates and CSS-positions a new `<canvas>` as a sibling of `gpuCanvas`.
+   * Creates and CSS-positions a new `<canvas>` as a sibling of `baseCanvas`.
    *
-   * The overlay canvas shares the same CSS box as the GPU canvas:
-   *   - same position/left/top (copied from gpuCanvas.style at construction time)
+   * `baseCanvas` is whatever GPU canvas this overlay stacks over (a WebGL2 canvas
+   * going forward). The overlay canvas shares the same CSS box as it:
+   *   - same position/left/top (copied from baseCanvas.style at construction time)
    *   - same CSS width/height (kept in sync every `beginFrame`)
    *   - `pointer-events: none` so it never intercepts input
-   *   - `z-index` one above the GPU canvas so it renders on top
+   *   - `z-index` one above the base canvas so it renders on top
    *
-   * If `gpuCanvas.parentElement` is null (detached / test context) the overlay is
+   * If `baseCanvas.parentElement` is null (detached / test context) the overlay is
    * created and fully usable; it simply isn't inserted into the DOM.
    */
-  constructor(gpuCanvas: HTMLCanvasElement) {
-    this.gpuCanvas = gpuCanvas;
+  constructor(baseCanvas: HTMLCanvasElement) {
+    this.baseCanvas = baseCanvas;
 
     const overlay = document.createElement("canvas");
 
-    // Mirror the GPU canvas's CSS position.
-    const gpuStyle = gpuCanvas.style;
-    overlay.style.position = gpuStyle.position || "absolute";
-    overlay.style.left     = gpuStyle.left   || "0";
-    overlay.style.top      = gpuStyle.top    || "0";
+    // Mirror the base canvas's CSS position.
+    const baseStyle = baseCanvas.style;
+    overlay.style.position = baseStyle.position || "absolute";
+    overlay.style.left     = baseStyle.left   || "0";
+    overlay.style.top      = baseStyle.top    || "0";
 
     // Never intercept pointer/touch/wheel events.
     overlay.style.pointerEvents = "none";
 
-    // Sit one z-index above the GPU canvas.
-    const baseZ = parseInt(gpuCanvas.style.zIndex || "0", 10);
+    // Sit one z-index above the base canvas.
+    const baseZ = parseInt(baseCanvas.style.zIndex || "0", 10);
     overlay.style.zIndex = String(isNaN(baseZ) ? 1 : baseZ + 1);
 
-    if (gpuCanvas.parentElement !== null) {
-      // Insert immediately after the GPU canvas so stacking order is predictable.
-      gpuCanvas.parentElement.insertBefore(overlay, gpuCanvas.nextSibling);
+    if (baseCanvas.parentElement !== null) {
+      // Insert immediately after the base canvas so stacking order is predictable.
+      baseCanvas.parentElement.insertBefore(overlay, baseCanvas.nextSibling);
     }
 
     const ctx2d = overlay.getContext("2d");
@@ -73,11 +76,12 @@ export class Overlay2D {
    * Must be called once per frame, before any drawing.
    *
    * Matches the overlay canvas's device-pixel size to the base (GPU) canvas using the
-   * same DPR rule as `Canvas2dRenderer.beginFrame`:
+   * same DPR rule used throughout the renderer stack (see `GlContext.resize` /
+   * `WebGl2Renderer.beginFrame`):
    *
    *   dpr = min(window.devicePixelRatio || 1, 2)
-   *   canvas.width  = floor(gpuCanvas.clientWidth  * dpr)
-   *   canvas.height = floor(gpuCanvas.clientHeight * dpr)
+   *   canvas.width  = floor(baseCanvas.clientWidth  * dpr)
+   *   canvas.height = floor(baseCanvas.clientHeight * dpr)
    *
    * The overlay CSS width/height is also kept in sync every frame so window resize and
    * DPR changes (e.g. moving the window to a high-DPI display) are handled automatically.
@@ -91,8 +95,8 @@ export class Overlay2D {
       2,
     );
 
-    const clientW = this.gpuCanvas.clientWidth;
-    const clientH = this.gpuCanvas.clientHeight;
+    const clientW = this.baseCanvas.clientWidth;
+    const clientH = this.baseCanvas.clientHeight;
     const desiredW = Math.max(1, Math.floor(clientW * dpr));
     const desiredH = Math.max(1, Math.floor(clientH * dpr));
 
@@ -118,22 +122,22 @@ export class Overlay2D {
    * Applies the same world→screen transform the GPU sprite pass uses, so particles and
    * weather (authored in world pixels) are positioned identically on both surfaces.
    *
-   * The transform exactly mirrors `Canvas2dRenderer.endFrame`:
+   * The transform exactly mirrors `WebGl2Renderer.endFrame`:
    *
    *   ctx.setTransform(scaleX, 0, 0, scaleY, offsetX, offsetY)
    *
-   * where the four values come from the `ViewUniform` that Wave 2 computes from the
-   * camera each frame (see §3.1 and §4 of 01-architecture.md).
+   * where the four values come from the screen-pixel `ViewUniform` variant the renderer
+   * computes from the camera each frame (see `view-uniform.ts`'s header comment — this is
+   * the POSITIVE-scale, device-pixel-offset variant, not the GPU clip-space one).
    *
    * ViewUniform field semantics assumed here:
    *   scaleX / scaleY  — world-px → canvas device-px scale factors
-   *   offsetX / offsetY — pan in device pixels (already pixel-snapped by Wave 1a
+   *   offsetX / offsetY — pan in device pixels (already pixel-snapped by the renderer
    *                        when `pixelSnap` is true)
    *
-   * ASSUMPTION FOR WAVE 2: offsetX/offsetY must be expressed in **device pixels**
-   * (not CSS pixels), consistent with how the GPU pass uses them as clip-space
-   * parameters.  If Wave 1a's `GpuContext.setView` stores them in a different unit,
-   * Wave 2 must convert before calling `applyWorldTransform`.
+   * offsetX/offsetY must be expressed in **device pixels** (not CSS pixels), consistent
+   * with how the GPU pass uses the sibling clip-space view. If a caller computes them in
+   * a different unit, it must convert before calling `applyWorldTransform`.
    */
   applyWorldTransform(view: ViewUniform): void {
     this.ctx.setTransform(view.scaleX, 0, 0, view.scaleY, view.offsetX, view.offsetY);

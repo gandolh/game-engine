@@ -1,13 +1,13 @@
 import type { LoadedAtlasImage } from "../assets/loader";
-import { createOffscreen } from "./canvas2d/draw";
-import type { Ctx2D } from "./canvas2d/types";
+import { createOffscreen } from "./raster2d";
+import type { Ctx2D } from "./sprite-types";
 import { rgbOf } from "./palette";
 import type { UIQuad } from "./renderer";
 
 /**
  * Shared screen-space UI quad rasterizer used by every renderer backend.
  *
- * Both `Canvas2dRenderer` (directly) and `WebGpuRenderer` (via the `Overlay2D`
+ * The single backend (`WebGl2Renderer`, via the `Overlay2D`
  * screen-space canvas) drive their UI layer through this single helper so the two
  * backends paint identically. The supplied `ctx` MUST already be in identity
  * (screen) transform; this helper applies its own `dpr` scaling so the caller

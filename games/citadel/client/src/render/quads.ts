@@ -8,7 +8,7 @@ import { CITADEL_PAL as EDG } from "./citadel-palette";
 import {
   rgbOf,
 } from "@engine/core";
-import type { Canvas2dSprite } from "@engine/core";
+import type { Sprite } from "@engine/core/render";
 import {
   TerrainType,
   TILE_SIZE,
@@ -227,7 +227,7 @@ export const QUAD_FRAME = "px";
  * its size (buildings float off their footprint, the ghost sits left of the
  * cursor).
  */
-export function quadToSprite(q: QuadSpec, layer: number, alpha = 1, sortY?: number): Canvas2dSprite {
+export function quadToSprite(q: QuadSpec, layer: number, alpha = 1, sortY?: number): Sprite {
   return {
     atlasId: QUAD_ATLAS_ID,
     frame: q.frame ?? QUAD_FRAME,

@@ -1,12 +1,18 @@
-import type { LoadedAtlasImage } from "../../assets/loader";
-import type { Canvas2dSprite, Ctx2D } from "./types";
+/**
+ * The CPU 2D rasterizer — this is NOT a rendering backend and is not going away with
+ * Canvas2D. It bakes textures the GPU backend then samples (static-layer bake in
+ * `webgpu/static-layer-pass.ts`), backs the `ui-draw.ts` tint cache, and rasterizes
+ * `rain-field.ts`. Do not mistake this for dead Canvas2D-backend leftovers.
+ */
+import type { LoadedAtlasImage } from "../assets/loader";
+import type { Sprite, Ctx2D } from "./sprite-types";
 
-export function compareSprite(a: Canvas2dSprite, b: Canvas2dSprite): number {
+export function compareSprite(a: Sprite, b: Sprite): number {
   if (a.layer !== b.layer) return a.layer - b.layer;
   return (a.sortY ?? a.y) - (b.sortY ?? b.y);
 }
 
-export function spritesOverlap(a: Canvas2dSprite, b: Canvas2dSprite): boolean {
+export function spritesOverlap(a: Sprite, b: Sprite): boolean {
   const ay = a.z ? a.y - a.z : a.y;
   const by = b.z ? b.y - b.z : b.y;
   return (
@@ -17,14 +23,14 @@ export function spritesOverlap(a: Canvas2dSprite, b: Canvas2dSprite): boolean {
   );
 }
 
-export function drawSprite(ctx: Ctx2D, atlases: Map<string, LoadedAtlasImage>, s: Canvas2dSprite): void {
+export function drawSprite(ctx: Ctx2D, atlases: Map<string, LoadedAtlasImage>, s: Sprite): void {
   const atlas = atlases.get(s.atlasId);
   if (!atlas) throw new Error(`drawSprite: atlas sheet "${s.atlasId}" not loaded (frame "${s.frame}")`);
   const r = atlas.frameRect(s.frame);
   const bitmap = atlas.bitmap;
 
   const tint = (s.tintRgba ?? 0xffffffff) >>> 0;
-  const rgb = tint >>> 8; 
+  const rgb = tint >>> 8;
   if (rgb !== 0xffffff) {
     const buf = tintBuffer(r.w, r.h);
     if (buf) {
@@ -61,7 +67,7 @@ function blit(
   src: OffscreenCanvas | HTMLCanvasElement,
   sw: number,
   sh: number,
-  s: Canvas2dSprite,
+  s: Sprite,
 ): void {
   if (s.rotation !== 0 || s.flipX) {
     ctx.save();

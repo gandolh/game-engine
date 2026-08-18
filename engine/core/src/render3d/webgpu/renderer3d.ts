@@ -10,7 +10,7 @@ import type { Mat4 } from "../mat4";
 import type { Mesh } from "../types";
 import type { Device3d } from "./device3d";
 import { PipelineCache, type Pipeline3d } from "./pipeline-cache";
-import { FLOATS_PER_INSTANCE, packMaterials, packMesh, type Material } from "./buffers";
+import { FLOATS_PER_INSTANCE, packMaterials, packMesh, type Material } from "../buffers";
 
 /**
  * An opaque GPU handle for one uploaded mesh (returned by

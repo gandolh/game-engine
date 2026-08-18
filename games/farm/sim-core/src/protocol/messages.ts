@@ -1,6 +1,7 @@
 
 
-import type { Canvas2dSprite, ProfileReport } from "@engine/core";
+import type { ProfileReport } from "@engine/core";
+import type { Sprite } from "@engine/core/render";
 import type { RenderSnapshot } from "../snapshot/render-snapshot";
 
 export interface SimInitMsg {
@@ -80,7 +81,7 @@ export type SimInbound =
 export interface SimStaticLayerMsg {
   type: "static-layer";
 
-  sprites: Canvas2dSprite[];
+  sprites: Sprite[];
   worldWidthPx: number;
   worldHeightPx: number;
   season?: import("../protocols/weather").Season;

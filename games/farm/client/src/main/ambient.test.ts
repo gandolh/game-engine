@@ -3,15 +3,15 @@
 import { describe, it, expect } from "vitest";
 import { AmbientLayer } from "./ambient";
 import type { ViewRect } from "./ambient";
-import type { Canvas2dSprite } from "@engine/core/render";
+import type { Sprite } from "@engine/core/render";
 
-function makeSprite(frame: string, x = 0, y = 0, width = 16, height = 16): Canvas2dSprite {
+function makeSprite(frame: string, x = 0, y = 0, width = 16, height = 16): Sprite {
   return { x, y, width, height, frame, atlasId: "test", rotation: 0, layer: 0, alpha: 1 };
 }
 
 const WIDE_VIEW: ViewRect = { left: -10000, right: 10000, top: -10000, bottom: 10000 };
 
-function makeCollector(): { push(s: Canvas2dSprite): void; sprites: Array<{ x: number; y: number; frame: string; alpha: number }> } {
+function makeCollector(): { push(s: Sprite): void; sprites: Array<{ x: number; y: number; frame: string; alpha: number }> } {
   const sprites: Array<{ x: number; y: number; frame: string; alpha: number }> = [];
   return {
     push(s) {
@@ -25,7 +25,7 @@ describe("AmbientLayer pool caps", () => {
   it("bird active count never exceeds BIRD_CAP (6) across many frames", () => {
     const layer = new AmbientLayer();
 
-    const sprites: Canvas2dSprite[] = [];
+    const sprites: Sprite[] = [];
     for (let i = 0; i < 50; i++) {
       sprites.push(makeSprite("structure/tree", i * 32, 100));
     }
@@ -69,7 +69,7 @@ describe("AmbientLayer pool caps", () => {
 describe("AmbientLayer frame validity", () => {
   it("never pushes a sprite with an undefined/empty frame (multi-bird flock regression)", () => {
 
-    const sprites: Canvas2dSprite[] = [];
+    const sprites: Sprite[] = [];
     for (let i = 0; i < 20; i++) sprites.push(makeSprite("structure/tree", i * 32, 100));
     sprites.push(makeSprite("structure/home", 200, 200, 32, 48));
 
@@ -95,7 +95,7 @@ describe("AmbientLayer frame validity", () => {
 
 describe("AmbientLayer seeded determinism", () => {
   it("two layers with the same seed produce identical sprite snapshots after N updates", () => {
-    const anchors: Canvas2dSprite[] = [
+    const anchors: Sprite[] = [
       makeSprite("structure/tree", 100, 100),
       makeSprite("structure/tree", 300, 150),
       makeSprite("structure/home", 500, 200, 32, 48),
@@ -127,7 +127,7 @@ describe("AmbientLayer seeded determinism", () => {
   });
 
   it("two layers with DIFFERENT seeds produce different states after many updates", () => {
-    const anchors: Canvas2dSprite[] = [
+    const anchors: Sprite[] = [
       makeSprite("structure/tree", 100, 100),
       makeSprite("structure/tree", 300, 150),
     ];
@@ -159,7 +159,7 @@ describe("AmbientLayer seeded determinism", () => {
 
 describe("AmbientLayer anchor extraction", () => {
   it("extracts tree anchors from structure/tree* frames", () => {
-    const sprites: Canvas2dSprite[] = [
+    const sprites: Sprite[] = [
       makeSprite("structure/tree", 10, 20),
       makeSprite("structure/tree-autumn", 30, 40),
       makeSprite("structure/tree-bare", 50, 60),
@@ -183,7 +183,7 @@ describe("AmbientLayer anchor extraction", () => {
   });
 
   it("excludes forge-house from smoke anchors", () => {
-    const sprites: Canvas2dSprite[] = [
+    const sprites: Sprite[] = [
       makeSprite("structure/forge-house", 100, 100, 32, 48),
     ];
 
@@ -200,7 +200,7 @@ describe("AmbientLayer anchor extraction", () => {
   });
 
   it("produces smoke from non-forge buildings", () => {
-    const sprites: Canvas2dSprite[] = [
+    const sprites: Sprite[] = [
       makeSprite("structure/home", 200, 200, 32, 48),
     ];
 
@@ -220,7 +220,7 @@ describe("AmbientLayer anchor extraction", () => {
   });
 
   it("uses autumn leaf frame in autumn season", () => {
-    const sprites: Canvas2dSprite[] = [
+    const sprites: Sprite[] = [
       makeSprite("structure/tree", 100, 100),
     ];
 
@@ -240,7 +240,7 @@ describe("AmbientLayer anchor extraction", () => {
   });
 
   it("uses green leaf frame in non-autumn season", () => {
-    const sprites: Canvas2dSprite[] = [
+    const sprites: Sprite[] = [
       makeSprite("structure/tree", 100, 100),
     ];
 

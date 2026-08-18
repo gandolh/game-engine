@@ -5,7 +5,7 @@ import type { RendererLike, UIQuad } from "@engine/core/render";
  * screen-space UI draw seam (`RendererLike.beginUI/pushUI/endUI`).
  *
  * It is deliberately backend-agnostic: it neither knows nor cares whether the
- * underlying `RendererLike` is `WebGpuRenderer` or `Canvas2dRenderer`. UI submitted
+ * underlying `RendererLike` is the WebGL2 backend. UI submitted
  * through it draws ON TOP of the world scene in **screen pixels** (origin top-left),
  * unaffected by the world `Camera2D`. See `RendererLike.beginUI` for the lifecycle and
  * `UIQuad` for coordinate/colour semantics.

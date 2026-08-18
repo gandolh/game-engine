@@ -1,4 +1,4 @@
-export interface Canvas2dSprite {
+export interface Sprite {
   x: number;
   y: number;
   width: number;

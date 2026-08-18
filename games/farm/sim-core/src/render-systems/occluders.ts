@@ -1,5 +1,5 @@
 
-import type { Canvas2dRenderer } from "@engine/core";
+import type { RendererLike } from "@engine/core";
 import { OCCLUDER_WALLS, CLIFFS, BIG_STRUCTURES, BRIDGES } from "./geometry";
 import { frameToAtlasId, seasonalTreeFrame } from "./frames";
 import type { Season } from "../protocols/weather";
@@ -18,7 +18,7 @@ function bridgeSway(nowMs: number): number {
 
 const ENTITY_LAYER = 50; 
 
-export function pushOccluderSprites(renderer: Pick<Canvas2dRenderer, "push">): void {
+export function pushOccluderSprites(renderer: Pick<RendererLike, "push">): void {
   for (const wall of OCCLUDER_WALLS) {
     renderer.push({
       x: wall.tx * TILE + TILE / 2,
@@ -50,7 +50,7 @@ export function pushOccluderSprites(renderer: Pick<Canvas2dRenderer, "push">): v
   }
 }
 
-export function pushBridgeSprites(renderer: Pick<Canvas2dRenderer, "push">, nowMs: number): void {
+export function pushBridgeSprites(renderer: Pick<RendererLike, "push">, nowMs: number): void {
   const sway = bridgeSway(nowMs);
   for (const b of BRIDGES) {
     const dx = b.runsVertical ? sway : 0;
@@ -95,7 +95,7 @@ export function pushBridgeSprites(renderer: Pick<Canvas2dRenderer, "push">, nowM
 }
 
 export function pushBuildingSprites(
-  renderer: Pick<Canvas2dRenderer, "push" | "pushShadow">,
+  renderer: Pick<RendererLike, "push" | "pushShadow">,
   season: Season = "spring",
 ): void {
   for (const b of BIG_STRUCTURES) {

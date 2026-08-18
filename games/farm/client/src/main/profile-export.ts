@@ -36,7 +36,6 @@ function collect(deps: ProfileExportDeps): unknown {
     schema: "farm-valley-profile/1",
 
     collectedAt: new Date().toISOString(),
-    backend: "webgpu",
     run: context,
     display: {
       fps: Number(ov.fps.toFixed(2)),

@@ -15,3 +15,12 @@ declare module "*.wgsl?raw" {
   const src: string;
   export default src;
 }
+
+// Ambient declaration for GLSL shader sources imported with Vite's `?raw` suffix.
+// Needed per package: ambient `.d.ts` files are only visible inside a program whose
+// `include` covers them, and this client imports the `@engine/core` barrel, which
+// pulls in the WebGL2 render passes that `import … from "./shaders/*.glsl?raw"`.
+declare module "*.glsl?raw" {
+  const src: string;
+  export default src;
+}

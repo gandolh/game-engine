@@ -58,6 +58,16 @@ regenerate with `bash corpus/lint.sh --index` rather than hand-editing.
 
 - [wiki/mathquest-overview.md](wiki/mathquest-overview.md) — What MateQuest is (the **fourth** game — a Romanian-curriculum, grades I–VIII, math roguelike where **solving a problem IS the combat action**): **design-of-record v0.1, PRE-BUILD** (settled 2026-07-21). Pokémon-style Attack/Heal/Shield + Slay-the-Spire turn stakes; branching runs; two-layer progression (in-run XP + persistent per-topic mastery); soft-roguelike death; loot grants math lifelines; bilingual RO/EN; Romanian-folklore theme; Resurrect-64 palette; Web-Worker solo build like Citadel. Build plan + milestones: [todos/2026-07-21-mathquest-BUILD-STATE.md](todos/2026-07-21-mathquest-BUILD-STATE.md).
 
+## In-flight build programs (live trackers)
+
+- **WebGL2 migration** (planned 2026-08-18, no code yet) — collapse to **one render backend**: delete
+  Canvas2D, delete WebGPU, move all four games plus Hollow's 3D to **WebGL2**, because WebGPU is
+  still unshipped on Firefox/Linux and both 2D clients hard-forced it into a blank canvas. 13 briefs
+  in 5 waves. Design of record:
+  [todos/2026-08-18-webgl2-00-BUILD-ORDER.md](todos/2026-08-18-webgl2-00-BUILD-ORDER.md) · live state:
+  [todos/2026-08-18-webgl2-BUILD-STATE.md](todos/2026-08-18-webgl2-BUILD-STATE.md) · decision:
+  [wiki/decisions.md](wiki/decisions.md) (Renderer).
+
 ## Briefs — historical task specs (immutable archives)
 
 Each brief is the spec that directed a slice of work; once in `done/`/`superseded/` it is immutable.

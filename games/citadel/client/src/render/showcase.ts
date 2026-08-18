@@ -337,7 +337,7 @@ export async function runShowcase(
     pushLightPool(renderer, iso, lightPoolQuads(emittersOf(buildings), nightFactor));
 
     const wash = computeWash("summer", dayFraction);
-    renderer.setCloudOptions?.(cloudOptionsFor("summer", 1, dayFraction, nowMs / 1000));
+    renderer.setCloudOptions(cloudOptionsFor("summer", 1, dayFraction, nowMs / 1000));
     renderer.endFrame(wash, undefined, undefined);
 
     raf = requestAnimationFrame(frame);

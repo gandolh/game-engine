@@ -45,18 +45,6 @@ import type { SimClient } from "../net/sim-client";
 import type { AmbientLayer } from "./ambient";
 import { setupProfileExport } from "./profile-export";
 
-interface CloudOpts {
-  color: string;
-  coverage: number;
-  driftSpeed: number;
-  timeSec: number;
-}
-interface RendererWithCloudOptions {
-  setCloudOptions(opts: CloudOpts): void;
-}
-function supportsCloudOptions(r: RendererLike): r is RendererLike & RendererWithCloudOptions {
-  return typeof (r as Partial<RendererWithCloudOptions>).setCloudOptions === "function";
-}
 
 const HELD_TOOL_ANCHOR: Record<"down" | "up" | "side", { dx: number; dy: number; behind: boolean }> = {
   down: { dx: 5, dy: 2, behind: false },
@@ -683,32 +671,32 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
       ambient.pushSprites(renderer);
     });
 
-    if (supportsCloudOptions(renderer)) {
-      const wSnap = client.latestSnapshot()?.weather;
-      const condition = wSnap?.condition ?? "normal";
-      let cloudCoverage: number;
-      let cloudDrift: number;
-      if (condition === "sunny") {
-        cloudCoverage = 0.06;
-        cloudDrift = 3;
-      } else if (condition === "rainy") {
-        cloudCoverage = 0.52;
-        cloudDrift = 9;
-      } else if (condition === "storm") {
-        cloudCoverage = 0.72;
-        cloudDrift = 14;
-      } else {
+    // setCloudOptions is required on RendererLike (one backend), so no capability
+    // guard is needed. Options are CONSUMED each frame — re-set every frame.
+    const wSnap = client.latestSnapshot()?.weather;
+    const condition = wSnap?.condition ?? "normal";
+    let cloudCoverage: number;
+    let cloudDrift: number;
+    if (condition === "sunny") {
+      cloudCoverage = 0.06;
+      cloudDrift = 3;
+    } else if (condition === "rainy") {
+      cloudCoverage = 0.52;
+      cloudDrift = 9;
+    } else if (condition === "storm") {
+      cloudCoverage = 0.72;
+      cloudDrift = 14;
+    } else {
 
-        cloudCoverage = 0.22;
-        cloudDrift = 6;
-      }
-      renderer.setCloudOptions({
-        color: EDG.ink,
-        coverage: cloudCoverage,
-        driftSpeed: cloudDrift,
-        timeSec: nowMs / 1000,
-      });
+      cloudCoverage = 0.22;
+      cloudDrift = 6;
     }
+    renderer.setCloudOptions({
+      color: EDG.ink,
+      coverage: cloudCoverage,
+      driftSpeed: cloudDrift,
+      timeSec: nowMs / 1000,
+    });
     const lightOverlay = makeLightOverlay(nightness, view);
 
     const snap = client.latestSnapshot();

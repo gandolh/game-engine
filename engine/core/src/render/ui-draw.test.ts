@@ -3,7 +3,7 @@ import type { LoadedAtlasImage } from "../assets/loader";
 import { EDG } from "./palette";
 import { drawUIQuad } from "./ui-draw";
 import type { UIQuad } from "./renderer";
-import type { Ctx2D } from "./canvas2d/types";
+import type { Ctx2D } from "./sprite-types";
 
 /**
  * Tests for the textured-quad tint path that Chunk 2 implements in `drawUIQuad`.

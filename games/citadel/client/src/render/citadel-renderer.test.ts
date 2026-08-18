@@ -9,7 +9,8 @@
 import { describe, it, expect } from "vitest";
 import { rgbOf } from "@engine/core";
 import { CITADEL_PAL as EDG } from "./citadel-palette";
-import type { RendererLike, Canvas2dSprite } from "@engine/core";
+import type { RendererLike } from "@engine/core";
+import type { Sprite } from "@engine/core/render";
 import { TerrainType, TILE_SIZE, WORLD_WIDTH, WORLD_HEIGHT } from "@citadel/sim-core";
 import type { BuildingSnapshot, VillagerSnapshot, RaiderSnapshot } from "@citadel/sim-core";
 import {
@@ -814,9 +815,9 @@ describe("clusterBorderQuads (brief 12)", () => {
 describe("pushScene mood wiring", () => {
   it("a high-mood house receives a warm glow quad pushed with alpha > 0", () => {
     // Record all pushed quads to assert the mood wiring.
-    const pushed: Canvas2dSprite[] = [];
+    const pushed: Sprite[] = [];
     const fakeRenderer: RendererLike = {
-      push: (sprite: Canvas2dSprite) => pushed.push(sprite),
+      push: (sprite: Sprite) => pushed.push(sprite),
     } as unknown as RendererLike;
 
     // High-mood house: should emit a glow quad.
@@ -849,9 +850,9 @@ describe("pushScene mood wiring", () => {
   });
 
   it("a neglected house has no warm glow quad and a dimmer sprite", () => {
-    const pushed: Canvas2dSprite[] = [];
+    const pushed: Sprite[] = [];
     const fakeRenderer: RendererLike = {
-      push: (sprite: Canvas2dSprite) => pushed.push(sprite),
+      push: (sprite: Sprite) => pushed.push(sprite),
     } as unknown as RendererLike;
 
     // Low-mood house: no glow, dimmer sprite.
@@ -887,9 +888,9 @@ describe("pushScene mood wiring", () => {
   });
 
   it("a high-mood house has higher sprite alpha than a neglected one", () => {
-    const pushed: Canvas2dSprite[] = [];
+    const pushed: Sprite[] = [];
     const fakeRenderer: RendererLike = {
-      push: (sprite: Canvas2dSprite) => pushed.push(sprite),
+      push: (sprite: Sprite) => pushed.push(sprite),
     } as unknown as RendererLike;
 
     // High-mood house.
@@ -916,9 +917,9 @@ describe("pushScene mood wiring", () => {
 
 describe("pushScene villager facing flip (brief 104 item 2)", () => {
   it("flips to face the tracked screen-space heading, with hysteresis against near-vertical/idle jitter", () => {
-    const pushed: Canvas2dSprite[] = [];
+    const pushed: Sprite[] = [];
     const fakeRenderer: RendererLike = {
-      push: (sprite: Canvas2dSprite) => pushed.push(sprite),
+      push: (sprite: Sprite) => pushed.push(sprite),
     } as unknown as RendererLike;
 
     // A unique id, never used by another test — the heading tracker is a
@@ -966,9 +967,9 @@ describe("pushScene villager facing flip (brief 104 item 2)", () => {
 
 describe("pushAmbientCrowd (brief 105 crowd honesty)", () => {
   it("draws every pedestrian at AMBIENT_CROWD_ALPHA, strictly below full opacity", () => {
-    const pushed: Canvas2dSprite[] = [];
+    const pushed: Sprite[] = [];
     const fakeRenderer: RendererLike = {
-      push: (sprite: Canvas2dSprite) => pushed.push(sprite),
+      push: (sprite: Sprite) => pushed.push(sprite),
     } as unknown as RendererLike;
 
     const quads: QuadSpec[] = [
@@ -1000,9 +1001,9 @@ describe("service catchment layering (placement coverage draws under buildings)"
   });
 
   it("pushCatchment stamps tiles strictly below pushScene's building sprites", () => {
-    const pushed: Canvas2dSprite[] = [];
+    const pushed: Sprite[] = [];
     const fakeRenderer: RendererLike = {
-      push: (sprite: Canvas2dSprite) => pushed.push(sprite),
+      push: (sprite: Sprite) => pushed.push(sprite),
     } as unknown as RendererLike;
 
     // A chapel (has a service radius) sitting inside its own catchment.
@@ -1019,9 +1020,9 @@ describe("service catchment layering (placement coverage draws under buildings)"
   });
 
   it("pushDisconnectedMarkers still stamps its HUD pip above the entity layer", () => {
-    const pushed: Canvas2dSprite[] = [];
+    const pushed: Sprite[] = [];
     const fakeRenderer: RendererLike = {
-      push: (sprite: Canvas2dSprite) => pushed.push(sprite),
+      push: (sprite: Sprite) => pushed.push(sprite),
     } as unknown as RendererLike;
 
     const disconnected = building({ type: "market", x: 3, y: 3, w: 1, h: 1, connected: false });

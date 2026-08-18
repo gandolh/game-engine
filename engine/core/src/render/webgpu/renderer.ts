@@ -12,7 +12,7 @@ import { GpuAtlasStore } from "./texture-atlas";
 import { SpriteBatch } from "./sprite-batch";
 import type { GpuSpriteInstance } from "./sprite-batch";
 import { ShadowBatch } from "./shadow-batch";
-import { Overlay2D } from "./overlay-2d";
+import { Overlay2D } from "../overlay-2d";
 import { StaticLayerPass, WaterPass } from "./static-layer-pass";
 import type { VisibleRect } from "./static-layer-pass";
 import { ParticleBatch } from "./particle-batch";
@@ -21,7 +21,7 @@ import { TintPass } from "./tint-pass";
 import { CloudShadowPass } from "./cloud-shadow-pass";
 import type { CloudOptions } from "../renderer";
 import { RainField } from "../rain-field";
-import { compareSprite, spritesOverlap } from "../canvas2d/draw";
+import { compareSprite, spritesOverlap } from "../raster2d";
 
 const CULL_MARGIN = 32;
 const GHOST_ALPHA = 0.4;     
