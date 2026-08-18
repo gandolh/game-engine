@@ -114,7 +114,7 @@ workspace typecheck until that class is deleted. Brief 08 now also owns the thre
 `setCloudOptions` call sites in Farm/Citadel. Wave-2 agents are explicitly barred from
 `render/renderer.ts` and `render/index.ts`.
 
-## ⚠️ Controller TODO at the wave-2 gate — make the depth-enabled context explicit
+## ✅ DONE (`9c97b35`) — depth-enabled context is now explicit
 
 Brief 10 needed a **depth buffer** for 3D, but the shared `GlContext` is created with `depth: false`
 (correct for the CPU-sorted 2D sprite path) and `gl-context.ts` was another agent's lane this wave. Its
@@ -128,12 +128,13 @@ That is genuinely how the spec behaves, and the agent flagged it rather than hid
 loses its depth buffer and Hollow renders depth-garbage **with no error at all**. That is precisely the
 class of bug this migration has already found one of.
 
-**Decision: give `createGlContext` an explicit options parameter** (`{ depth?: boolean }`, defaulting
-to today's `false`) and have `GlDevice3d` ask for depth by name. Optional param ⇒ backward-compatible
-with every wave-2 pass already written against the current signature. Controller does this at the
-wave-2 gate, once no agent is holding the file.
+**Done:** `createGlContext(canvas, { depth?: boolean })` (default `false`, so every wave-2 pass written
+against the old signature is unaffected), and `GlDevice3d` now asks for depth by name. The pre-warm
+call and its dead `CONTEXT_ATTRIBUTES_3D` const are gone. `GlContextOptions`' doc comment states the
+underlying WebGL2 rule — attributes are honoured only on the **first** `getContext` per canvas — so the
+next person to need an attribute knows to add it here rather than behind the module's back.
 
-## ⚠️ Second controller TODO at the wave-2 gate — the GLSL lint scans comments
+## ✅ DONE (`3a56924`) — the GLSL lint no longer reads comments
 
 Brief 07 hit **two lint false positives that were both in its own comments, not its code**: the
 reserved-word scan flagged the word `in` inside the prose "a pseudo-random float in [0,1)", and the
@@ -142,8 +143,10 @@ It did the right thing — reworded the comments rather than weakening the lint 
 biting every future shader author, and the failure mode is confusing (a lint error pointing at a
 sentence).
 
-**Fix at the gate: strip `//` and `/* */` comments before applying the rules.** Cheap, removes a
-recurring papercut, and makes the remaining hits real. Keep scanning comments for nothing.
+**Done:** the identifier, colour-literal, and precision rules scan comment-stripped source (bodies
+replaced with spaces, newlines preserved, so line-based reporting stays aligned). The `#version` line-1
+check deliberately still reads raw source. Four regression fixtures pin it: prose ignored, code still
+caught, and a `precision` qualifier appearing ONLY in a comment correctly does **not** count.
 
 ## ⚠️ Orchestration hazard discovered — the browser tool is a SHARED resource across parallel agents
 
@@ -155,6 +158,9 @@ running brief 05. It flagged this itself rather than staying quiet, which is the
 filesystem but nothing protects the browser. Either (a) tell each parallel agent to close only its own
 named session, never `all: true`, or (b) serialize the visual-verification step. Watch brief 05's
 report for a truncated verification and re-dispatch just that step if so.
+**Also learned (commit hygiene):** `git reset` to empty the index *before* a path-scoped `git add`
+does correctly isolate a per-brief commit — that is the working fix for the `git mv` pre-staging
+problem noted below, and it was used for `9c97b35` / `3a56924`.
 
 ## Commit-hygiene note (2026-08-18) — messy boundary, deliberately not rewritten
 
