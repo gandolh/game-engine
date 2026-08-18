@@ -79,7 +79,14 @@ const SKIP_FILE = /\.(test|spec)\.(ts|js)$/;
 
 const ALLOWLIST_FILES: Record<string, string> = {};
 
-const HEX_RE = /#[0-9a-fA-F]{6}(?![0-9a-fA-F])|#[0-9a-fA-F]{3}(?![0-9a-fA-F])/g;
+// The trailing lookahead rejects any WORD character, not just further hex digits.
+// A real colour literal is always followed by a quote, space, semicolon, paren or
+// comma — never by a letter. Rejecting only hex was too narrow and matched GLSL
+// preprocessor directives: `#define` begins with `#def`, and d/e/f are all valid
+// hex digits, so `#define MAX_MATERIALS 256` was reported as an off-palette colour.
+// That became reachable once the WebGL2 migration started generating GLSL source
+// from TypeScript (render3d/webgl2/renderer3d.ts injects a #define).
+const HEX_RE = /#[0-9a-fA-F]{6}(?![0-9a-zA-Z_])|#[0-9a-fA-F]{3}(?![0-9a-zA-Z_])/g;
 
 function walk(dir: string, out: string[]): void {
   for (const name of readdirSync(dir)) {
