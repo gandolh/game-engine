@@ -16,10 +16,12 @@ GPU canvas, and its only backend coupling is two *type* imports — `Ctx2D` (rel
 and `ViewUniform` (from `gpu-context.ts`). It does not touch WebGPU at all. So:
 
 1. **Move `overlay-2d.ts` up one level** to `engine/core/src/render/overlay-2d.ts` — it is shared
-   infrastructure, not a WebGPU pass. Move `ViewUniform` to a backend-neutral home too (it is a
-   plain `{scaleX, scaleY, offsetX, offsetY, timeSec, windStrength}` record that every pass reads;
-   `render/view-uniform.ts` or alongside the sprite types). Rename its `gpuCanvas` constructor
-   parameter — it now stacks over a GL canvas.
+   infrastructure, not a WebGPU pass. Rename its `gpuCanvas` constructor parameter — it now stacks
+   over a GL canvas.
+   **✅ `ViewUniform` is ALREADY relocated — do not move it again.** The controller moved it to
+   `engine/core/src/render/view-uniform.ts` at the wave-1 gate (2026-08-18), because briefs 03/04/06/07
+   run in the same wave as this one and all needed a stable path to import from. Import from there.
+   `webgpu/gpu-context.ts` re-exports it for back-compat until brief 12 deletes that file.
    **Preserve the header comment explaining why shadows are NOT drawn here** (`multiply` composite
    does nothing on a transparent surface, so shadows are GPU-side). That comment is a decision
    record; someone will otherwise re-make the mistake.

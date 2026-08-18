@@ -1,6 +1,6 @@
 # WebGL2 migration — BUILD STATE / RESUME (live tracker)
 
-status: **PLANNED — no code written yet.** 13 briefs authored 2026-08-18; wave 1 not yet dispatched.
+status: **WAVE 1 COMPLETE** (briefs 01, 02) — gate green, committed. Wave 2 (03/04/05/06/07/10) next.
 updated: 2026-08-18
 
 **Read this first to resume.** Design-of-record is
@@ -16,8 +16,8 @@ a blank canvas). Rationale and the rejected alternative are in the BUILD ORDER.
 
 | # | Brief | Wave | Status | Commit | Notes |
 |---|---|---|---|---|---|
-| 01 | shared 2D vocabulary relocation | 1 | TODO | — | |
-| 02 | GL context + shader tooling | 1 | TODO | — | |
+| 01 | shared 2D vocabulary relocation | 1 | **DONE** | see git log | clean break, no compat alias; hit a pre-existing `Sprite` name collision (below) |
+| 02 | GL context + shader tooling | 1 | **DONE** | see git log | 8 new files, 33 tests incl. lint negative fixtures |
 | 03 | sprite + shadow batch | 2 | TODO | — | |
 | 04 | static layer + water | 2 | TODO | — | |
 | 05 | tint + overlay-2d + UI quads | 2 | TODO | — | |
@@ -58,12 +58,61 @@ a blank canvas). Rationale and the rejected alternative are in the BUILD ORDER.
 - **Subagent git rules:** no `git reset` / `checkout` / `stash`; commit only your own paths
   (concurrent sessions share the tree); the controller verifies exit status itself.
 
+## Wave 1 gate result (controller-verified 2026-08-18, not taken on report)
+- `npx turbo run typecheck --force` → **19/19 packages, 0 cached** (a cached pass proves nothing; forced).
+- `npm run test -w @engine/core` → **41 files / 322 tests passed**.
+- `npm run test -w @engine/ui` → **9 files / 171 tests passed**.
+- `git check-ignore` on `render/webgl2/`, `sprite-types.ts`, `raster2d.ts` → **empty** (nothing built
+  green from files git was silently ignoring).
+- `canvas2d/` now holds exactly `renderer.ts` + `index.ts` — precisely what brief 08 deletes.
+
+## Controller-side work done at the wave-1 gate
+- **Relocated `ViewUniform`** to `engine/core/src/render/view-uniform.ts` (backend-neutral), exported
+  from `render/index.ts`, and re-exported from `webgpu/gpu-context.ts` for back-compat. Its doc
+  comment now records the thing that will otherwise be re-broken: **two different instances are
+  computed per frame and are not interchangeable** — the clip-space one (`scaleY` already NEGATIVE,
+  Y-flip baked in) for GPU passes, and the screen-pixel one (both scales POSITIVE) for the 2D overlay.
+  Brief 05's scope was updated to say "already done, don't move it again".
+- **Repointed two stale wiki deep-links** that brief 01's move broke: `wiki/architecture.md`
+  (`spritesOverlap`) and `wiki/performance.md` (the pixel-snap item) → `render/raster2d.ts`.
+  `corpus/lint.sh` is green again.
+
 ## Decisions taken during the build
 _(append as they land — brief 13 folds these into the wiki)_
 - **2026-08-18** — `MAX_MATERIALS` UBO size for `scene3d`: _pending brief 11._
 - **2026-08-18** — `TEXTURE_2D` per sheet vs `TEXTURE_2D_ARRAY` for the atlas store: _pending brief 03._
 - **2026-08-18** — `OverlayFn`: implement on the overlay canvas, or delete from `RendererLike`?
   _pending brief 05's grep for real callers._
+- **2026-08-18 (brief 02, ACCEPTED)** — **DPR lives inside `GlContext.resize`.** WebGPU's
+  `gpu-context.ts#resize` takes dimensions the *caller* (`WebGpuRenderer.beginFrame`) has already
+  DPR-scaled. The WebGL2 version inverts this: `resize(cssWidth, cssHeight)` takes **CSS pixels** and
+  applies `min(devicePixelRatio, 2)` internally, then syncs `gl.viewport`. Justified — brief 02
+  assigns "DPR sizing" to that module. **Consequence for brief 08: call
+  `resize(canvas.clientWidth, canvas.clientHeight)` and do NOT re-apply DPR on top, or every
+  coordinate is double-scaled.**
+- **2026-08-18 (brief 02, DEFERRED to the controller)** — **`ViewUniform` was NOT relocated.** It
+  still lives only in `webgpu/gpu-context.ts`. This is a **plan gap**: briefs 03/04/06/07 all consume
+  a view record and were scheduled in the same wave as brief 05, which owned the move — so they had
+  no valid path to import from. **Resolved by the controller at the wave-1 gate:** `ViewUniform` moves
+  to a backend-neutral `render/view-uniform.ts` before wave 2 dispatches, and brief 05's scope drops
+  that item. Field order is fixed and shared by every pass:
+  `{scaleX, scaleY, offsetX, offsetY, timeSec, windStrength}`.
+- **2026-08-18 (brief 02)** — no UBO for the view record: 6 floats go through scalar
+  `uniform1f`/`uniform2f` via `uniformLocations`. Passes may roll a UBO for parity if they prefer;
+  neither is mandated.
+- **2026-08-18 (brief 01, ACCEPTED after controller review)** — **`Sprite` is an overloaded name in
+  this package and the flat barrel keeps its OLD meaning.** Renaming `Canvas2dSprite` → `Sprite`
+  collided with a **pre-existing ECS component also called `Sprite`**
+  (`engine/core/src/ecs/components.ts`, fields `atlasId/frame/layer/tintRgba`, used by
+  `GameEntity.sprite`). Both are wildcard-re-exported by `engine/core/src/index.ts`, which produced a
+  real `TS2308` ambiguous-export error. Resolution: an explicit
+  `export type { Sprite } from "./ecs";` in the package barrel, so **bare `@engine/core` → the ECS
+  component** (exactly its pre-existing meaning — no consumer changed behaviour), and **the render
+  `Sprite` must be imported from the `@engine/core/render` subpath**. Six call sites were retargeted.
+  Accepted over the alternatives (renaming the ECS component would touch sim code, which is
+  out of scope for this migration; reverting the rename would defeat brief 01).
+  **Every downstream brief: import the render `Sprite` from `@engine/core/render`, never from
+  `@engine/core`.**
 
 ## Verified-in-browser screenshots
 _(paths recorded here as each brief lands — this is the evidence trail brief 12 relies on before it
@@ -81,9 +130,16 @@ deletes the WebGPU reference implementation)_
 4. **Winding + depth convention** in 3D (brief 11) — a mismatch renders Hollow's town inside-out.
    Fix in the renderer, never in the shared `mat4.ts`.
 5. **Context loss** is routine on WebGL2 (unlike WebGPU) and has no existing analogue in this
-   codebase. Brief 02 defines the seam and makes loss degrade quietly; **full resource re-creation on
-   restore is deliberately deferred** — file it as a follow-up todo, don't let it silently become a
-   "known bug where the canvas goes black after a tab sleep".
+   codebase. Brief 02 delivered the seam (`isLost()`, `onContextLost`/`onContextRestored`) and loss
+   now degrades quietly. **Full resource re-creation on restore remains unimplemented** — every
+   pass's buffers/textures/programs/VAOs are invalidated by a loss and nothing rebuilds them, so a
+   loss+restore cycle leaves a frozen or black canvas. **Filed 2026-08-18 as
+   [2026-08-18-webgl2-followup-context-loss-recovery.md](2026-08-18-webgl2-followup-context-loss-recovery.md)**
+   — it is NOT in the 13-brief scope and must not be silently absorbed into one.
+6. **The GLSL lint's colour rule is a regex, not a compiler.** It flags any `vec3`/`vec4` built from
+   3–4 numeric literals, so a legitimate hardcoded non-colour vector (a fixed direction, say) will
+   false-positive. Correct response is to source the value from a uniform/constant — **not** to relax
+   the rule. Pass authors: read the rules in brief 02's handoff before writing a shader.
 6. **`@webgpu/types` is in 16 `package.json` files** because the `@engine/core` barrel transitively
    re-exported the WebGPU passes. Brief 12 must verify the GLSL equivalent does *not* leak the same
    way rather than mirroring the old workaround.
