@@ -1,5 +1,5 @@
 ---
-summary: The CodeGraph symbol index as this repo's code-understanding layer — what it is, the two-layer (why/what) model against the corpus, and the measured accuracy envelope including the two-game symbol-collision failure.
+summary: The CodeGraph symbol index as this repo's code-understanding layer — what it is, the two-layer (why/what) model against the corpus, and the measured accuracy envelope including the cross-game symbol-collision failure (measured on two games; there are now four).
 updated: 2026-07-09
 ---
 

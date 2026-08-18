@@ -1,6 +1,6 @@
 ---
 summary: Farm Valley's world dressing and scenery — multi-tile workshop buildings, island edge bands, coral zones, bridges, plot layout, floor tiles, and the 240x240 radial archipelago layout (source of truth for tile geometry).
-updated: 2026-06-12
+updated: 2026-07-09
 ---
 
 # Farm Valley — world dressing & layout

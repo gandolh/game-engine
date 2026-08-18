@@ -1,6 +1,6 @@
 ---
 summary: Citadel's game-design decisions of record. #21-#26 (2026-07-10, second session) deprecate multiplayer, grow the solo world to 192x192, and reverse #15's PvP relocation — they supersede much of #11-#20 from the same day.
-updated: 2026-07-10
+updated: 2026-08-18
 ---
 
 # Citadel — Decisions of Record

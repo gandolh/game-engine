@@ -1,6 +1,6 @@
 ---
 summary: What Citadel is (settlement sim on the shared engine), the 2026-06-28 cozy pivot design-of-record, its packages, sim systems, and shared invariants.
-updated: 2026-07-10
+updated: 2026-08-18
 ---
 
 # Citadel — overview
@@ -64,7 +64,7 @@ Citadel obeys the same engine-level rules as Farm Valley:
 
 ## Status notes (verified 2026-06-21)
 
-First real-GPU solo playtest (prior reviews were headless): **WebGPU renders correctly**
+First real-GPU solo playtest (prior reviews were headless), on the then-current WebGPU backend: **renders correctly**
 (terrain + sub-tile dither, building/villager sprites, HUD, day/night) and the full v1
 loop works — spaced, road-connected economy → founder → bread chain → immigration →
 stable growth (verified to Day 199). Three solo-blocking bugs were fixed (see the
@@ -103,7 +103,7 @@ are still open (solo is unaffected).
 Split out on 2026-07-09 to keep this page navigable:
 
 - [citadel-hud-and-overlays.md](citadel-hud-and-overlays.md) — HUD bar, goods strip, build bar, inspect panel, minimap, notifications.
-- [citadel-rendering.md](citadel-rendering.md) — the WebGPU render path, sprite batching, terrain baking, road/bridge networks.
+- [citadel-rendering.md](citadel-rendering.md) — the WebGL2 render path, sprite batching, terrain baking, road/bridge networks.
 
 ## Briefs & todos
 

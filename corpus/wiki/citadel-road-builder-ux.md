@@ -1,6 +1,6 @@
 ---
 summary: Road/wall drawing UX — what OpenTTD, Skylines, Factorio and Anno do, mapped onto Citadel's drag-build, with a ranked recommendation and the connectivity-feedback gap.
-updated: 2026-06-27
+updated: 2026-07-16
 ---
 
 # Citadel — road-builder UX (research + recommendation)

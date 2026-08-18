@@ -1,6 +1,6 @@
 ---
 summary: Ranked optimization backlog for the engine, filtered against what the code actually does — tiers 0-3, what is already done, and what is explicitly not worth doing at Farm Valley's scale.
-updated: 2026-07-15
+updated: 2026-08-18
 ---
 
 > ⚠️ **Historical, pre-2026-08-18.** The `Canvas2dRenderer` backend this page repeatedly names was **deleted** in the WebGL2-only migration (see [decisions.md](decisions.md) → Renderer). Its former paths are shown as plain code text, not links, because the files are gone. The CPU rasterizer it shared (`compareSprite`/`drawSprite`/`createOffscreen`) lives on at `engine/core/src/render/raster2d.ts` and is still load-bearing for texture baking.

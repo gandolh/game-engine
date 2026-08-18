@@ -9,9 +9,9 @@
 ## Context
 
 Part of the **"more islands"** theme (user request, 2026-06-09) — see
-[brief 50](50-interactive-shrine-landmark.md) (shrine),
-[51](51-heritage-sites-decorative-islands.md), [52](52-waterfall-island.md),
-[54](54-camping-rest-island.md). The ask: an island **bar where agents consume
+[brief 50](../done/50-54-more-islands.md) (shrine),
+[51](../done/50-54-more-islands.md), [52](../done/50-54-more-islands.md),
+[54](../done/50-54-more-islands.md). The ask: an island **bar where agents consume
 gold for AP**.
 
 ## ⚠️ Overlap — read before building

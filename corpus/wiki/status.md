@@ -1,6 +1,6 @@
 ---
 summary: The current-state snapshot: one terse line per brief, architecture milestones, current sim/determinism behaviour, and open gaps. The single source for brief state.
-updated: 2026-07-17
+updated: 2026-08-18
 ---
 
 # Project Status

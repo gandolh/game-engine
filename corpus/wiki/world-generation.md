@@ -1,6 +1,6 @@
 ---
 summary: The rect-based radial archipelago model (central cluster + two farm rings at 21-farmer scale), its deterministic generation pipeline, and the ranked menu of more-organic techniques.
-updated: 2026-06-12
+updated: 2026-07-09
 ---
 
 # World generation

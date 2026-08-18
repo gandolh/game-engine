@@ -1,6 +1,6 @@
 ---
 summary: What Farm Valley is (a watch-it-play sim of 21 farmers over 100 days), its SPADE-prototype lineage, and the four personality archetypes.
-updated: 2026-06-08
+updated: 2026-08-18
 ---
 
 # Farm Valley — Overview

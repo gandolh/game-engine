@@ -1,6 +1,6 @@
 ---
 summary: Historical grading record for the Citadel art-04..07 wave — baseline, re-grade, and final PASS/CONDITIONAL/FAIL verdicts against the critique rubric.
-updated: 2026-07-02
+updated: 2026-07-09
 ---
 
 # Citadel — asset critique verdict record

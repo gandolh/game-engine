@@ -1,6 +1,6 @@
 ---
 summary: Citadel multiplayer is deprecated (decision #21) — what still exists in the tree, the three known-broken things nobody fixed, and the exact preconditions for reviving it. Read this before touching @citadel/server.
-updated: 2026-07-10
+updated: 2026-07-13
 ---
 
 # Citadel Multiplayer — Deprecated

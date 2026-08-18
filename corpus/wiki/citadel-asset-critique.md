@@ -1,6 +1,6 @@
 ---
 summary: The Citadel whole-set visual acceptance bar — a seven-section critique checklist (silhouette, depth, isometry, seams, atmosphere, fire, cohesion) plus the PASS/CONDITIONAL/FAIL verdict rule.
-updated: 2026-07-02
+updated: 2026-07-09
 ---
 
 # Citadel — Asset Critique Checklist & Verdict Rubric

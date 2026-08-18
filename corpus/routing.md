@@ -12,13 +12,14 @@ make routing risky chunks down safe. (Confirmed 2026-07-01 after a Phase-D dispa
 executor chunks on Sonnet 5 successfully.)
 **Review skill:** /code-review (repo skill) over the diff; `npm run typecheck` + `npm run test` are the gates
 **PR skill:** propose git commands (gh CLI available). **Commit completed briefs at closeout** (one commit for code + one for the corpus change); never push / open a PR / tag without the user's say-so.
-**Issue tracker:** none — the work queue is `corpus/todos/` (ready/todo specs); archives live in `corpus/briefs/{engine,game}/{done,superseded}`
+**Issue tracker:** none — the work queue is `corpus/todos/` (ready/in-progress specs); finished specs move to `corpus/todos/closed/`, and the older archives live in `corpus/briefs/{engine,game}/{done,superseded}`
 **Code host:** GitHub (gh) — github.com/gandolh/game-engine
 
 > **Repo note:** this corpus predates the orchestrate convention. The work queue is
-> `corpus/todos/*.md` (NOT `corpus/briefs/todo/`, which is empty). `corpus/briefs/` holds
-> immutable historical specs. `corpus/wiki/status.md` is the single source for brief state.
-> Read `corpus/CLAUDE.md` for the brief/wiki/log workflow and source-of-truth ordering.
+> `corpus/todos/*.md`; finished specs move to `corpus/todos/closed/`. There is **no**
+> `corpus/briefs/todo/` — `corpus/briefs/` holds only immutable historical specs.
+> `corpus/wiki/status.md` is the single source for brief state. Read `corpus/CLAUDE.md`
+> for the brief/wiki/log workflow and source-of-truth ordering.
 
 ## Intent routing
 | Signal | Intent | Route to |
@@ -40,7 +41,7 @@ generated, disposable index — never a source of truth. Neither substitutes for
 | "Why is it built this way?" / "what was decided?" | `corpus/wiki/` (start at `index.md`) | Only the corpus knows intent |
 | "Who calls X?" / "what breaks if I change X?" / "where does feature Y live?" | the [`codegraph` project skill](../.claude/skills/codegraph/SKILL.md) | 20–180× cheaper than grep+read fanout |
 | **"Did I get _every_ usage?"** (rename, refactor, delete) | **`grep -rnw`** | codegraph is incomplete here — measured 16/42 call-site files for `createRng` |
-| Anything about a symbol **both games export** | **`grep`**, scoped by path | codegraph conflates them — `callers bootstrapSim` silently returns Farm's callers only |
+| Anything about a symbol **more than one game exports** | **`grep`**, scoped by path | codegraph conflates them — `callers bootstrapSim` silently returns Farm's callers only, and there are now four games |
 | "Does `@citadel/*` import `@farm/*`?" (dependency rule) | **`grep`** | It's a correctness invariant; don't ask a heuristic index |
 | Determinism / palette / scheduler-order questions | **run the guard test** | `npm run test`; the tests are the authority |
 
@@ -54,11 +55,15 @@ before you *act*.
 | Citadel gameplay (cozy pivot) | the todo/BUILD-ORDER, corpus/wiki/citadel-overview.md, corpus/wiki/decisions.md, games/citadel/sim-core/src/{systems,world,entities} | Farm-only code (games/farm/*), engine renderer internals | — (visual/feel checks: user drives the browser + shares screenshots; the playtest-citadel skill was removed 2026-07-13) |
 | Citadel UI / @engine/ui | the UI todo, games/citadel/client/src/render, engine/core/src/render, corpus/wiki/decisions.md (palette/EDG32) | Farm sim systems, Citadel sim-core balance | frontend-design |
 | Engine/core | the todo, engine/core/src/<subsystem>, corpus/wiki/architecture.md | game-specific code | — |
-| Farm gameplay | the todo, games/farm/sim-core/src, corpus/wiki/system-ordering.md | Citadel code | — |
+| Farm gameplay | the todo, games/farm/sim-core/src, corpus/wiki/system-ordering.md | other games' code | — |
+| Hollow (social-emergence sim) | the todo, corpus/wiki/hollow-overview.md, corpus/todos/2026-07-17-hollow-BUILD-STATE.md, games/hollow/sim-core/src | Farm/Citadel/MateQuest code, 2D renderer internals | — |
+| Hollow 3D / render3d | the todo, engine/core/src/render3d, games/hollow/client/src/render3d | every sim-core, the 2D render path | — |
+| MateQuest (math roguelike) | the todo, corpus/wiki/mathquest-overview.md, corpus/todos/2026-07-21-mathquest-BUILD-STATE.md, games/mathquest/{sim-core,client}/src | other games' code | — (RO is the default language; MATE_PAL = Resurrect 64) |
+| Renderer / @engine/core/render | the todo, engine/core/src/render/webgl2, corpus/wiki/decisions.md (Renderer) | game sim-cores | — (WebGL2 only; GLSL ES 3.00; a glsl-lint test guards each shader dir) |
 
 ## Conventions (locked — see corpus/wiki/decisions.md)
 - No `.js` import suffixes; pinned versions (no `^`/`~`); TS strict + noUncheckedIndexedAccess + exactOptionalPropertyTypes.
-- Fixed palette enforced per game (palette.test guard, per-scope) — every color from a named role constant, never raw hex: engine + Farm = EDG32 (`EDG.*`); Citadel = Apollo-46 (`CITADEL_PAL as EDG`). See citadel-decisions #28.
-- Engine never imports a game; the two games never import each other.
+- Fixed palette enforced per game (palette.test guard, per-scope) — every color from a named role constant, never raw hex: engine + Farm = EDG32 (`EDG.*`); Citadel = Apollo-46 (`CITADEL_PAL as EDG`); Hollow = `HOLLOW_PAL`; MateQuest = Resurrect-64 (`MATE_PAL`). See citadel-decisions #28.
+- Engine never imports a game; no game imports another game (four of them: farm, citadel, hollow, mathquest).
 - Determinism is load-bearing — no `Math.random`/`Date.now` in sim; all randomness via seeded `Rng.fork(label)`.
 - `npm run typecheck` + `npm run test` before any commit. Commit completed briefs at closeout (code + corpus as separate commits); never push without the user's go.

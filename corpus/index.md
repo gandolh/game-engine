@@ -4,21 +4,28 @@ The catalog. **Read this page, then at most 2–3 wiki pages** — the `summary:
 is the triage signal, so you should rarely need to open a page to find out whether it's relevant.
 If answering a question needs more than three pages, a page needs splitting (see [CLAUDE.md](CLAUDE.md)).
 
-Every wiki page carries `summary:` + `updated:` frontmatter. The lines below are generated from it —
-regenerate with `bash corpus/lint.sh --index` rather than hand-editing.
+Every wiki page carries `summary:` + `updated:` frontmatter. The lines below are **hand-authored** —
+they add the per-game grouping and trim each summary for triage — but they **must never contradict**
+the page's own `summary:`. `bash corpus/lint.sh --index` prints the frontmatter-derived version to
+diff against; shorter here is fine, *disagreeing* is a bug. (Audited 2026-08-18: 21 of 28 had drifted,
+which is how a "WebGPU-only render path" line outlived the page that already said WebGL2.)
 
 ## Schema & log
 
 - [CLAUDE.md](CLAUDE.md) — how this directory works; conventions; workflows; the retrieval budget
 - [routing.md](routing.md) — which question goes to which layer (wiki / code graph / grep / tests)
 - [log.md](log.md) — chronological record of corpus changes
+- [todos/](todos/) — **the work queue**: specs that are ready or in progress. Finished ones move to
+  [todos/closed/](todos/closed/). A closed brief's own `status:` line is frozen at authoring time —
+  the directory and [status.md](wiki/status.md) are what tell you its real state.
+- [verify/](verify/) — evidence attached to a specific verdict (screenshots, gamut data, a rebuildable page)
 
 ## Wiki — start here for synthesis
 
-### Cross-cutting (both games)
+### Cross-cutting (all four games)
 
 - [wiki/architecture.md](wiki/architecture.md) — The load-bearing map: workspaces, the four-layer dependency rule, the sim loop, ECS, message bus, per-tick data flow, render, and WASM.
-- [wiki/code-graph.md](wiki/code-graph.md) — The CodeGraph symbol index as the code-understanding layer: the two-layer why/what model, and its **measured failure modes** (it conflates same-named symbols across the two games).
+- [wiki/code-graph.md](wiki/code-graph.md) — The CodeGraph symbol index as the code-understanding layer: the two-layer why/what model, and its **measured failure modes** (it conflates same-named symbols across games).
 - [wiki/decisions.md](wiki/decisions.md) — Locked tech choices that future briefs must not relitigate — stack, sim, ECS, renderer, assets, palette, concurrency, WASM, and the gameplay source-of-truth.
 - [wiki/status.md](wiki/status.md) — The current-state snapshot: one terse line per brief, architecture milestones, current sim/determinism behaviour, and open gaps. The single source for brief state.
 - [wiki/open-questions.md](wiki/open-questions.md) — Live list of what is genuinely unresolved, plus settled premises that must not be re-litigated. Resolved items are deleted, not archived.
@@ -26,7 +33,7 @@ regenerate with `bash corpus/lint.sh --index` rather than hand-editing.
 - [wiki/performance-measurements.md](wiki/performance-measurements.md) — The profiling record: how to measure (`Profiler` + `?profile` + DebugOverlay), plus the 2026-06-05 and 2026-06-10 measured baselines every optimization claim is scored against.
 - [wiki/asset-pipeline.md](wiki/asset-pipeline.md) — The bake principle (assets are code, not images), asset-cooking and atlas research, and the cache-key/incremental-build recommendations that became brief 71.
 - [wiki/engine-ui.md](wiki/engine-ui.md) — The shared in-canvas UI toolkit (@engine/ui): the UNSCII text stack, the palette-agnostic icon pipeline, and the layout traps that bite when text metrics change.
-- [wiki/shader-ideas.md](wiki/shader-ideas.md) — Book-of-Shaders techniques filtered against the WebGPU renderer. Ideas, not committed work.
+- [wiki/shader-ideas.md](wiki/shader-ideas.md) — Book-of-Shaders techniques filtered against the WebGL2 renderer. Ideas, not committed work.
 
 ### Farm Valley
 
@@ -44,8 +51,8 @@ regenerate with `bash corpus/lint.sh --index` rather than hand-editing.
 - [wiki/citadel-decisions.md](wiki/citadel-decisions.md) — Citadel's game-design decisions of record. #21-#26 (2026-07-10, second session) deprecate multiplayer, grow the solo world to 192x192, and reverse #15's PvP relocation — they supersede much of #11-#20 from the same day.
 - [wiki/citadel-mp-deprecated.md](wiki/citadel-mp-deprecated.md) — Citadel multiplayer is deprecated (decision #21) — what still exists in the tree, the three known-broken things nobody fixed, and the exact preconditions for reviving it. Read this before touching @citadel/server.
 - [wiki/citadel-hud-and-overlays.md](wiki/citadel-hud-and-overlays.md) — HUD, overlays, and diegetic feedback surfaces: top bar, goods strip, build bar, inspect panel, minimap, notifications.
-- [wiki/citadel-rendering.md](wiki/citadel-rendering.md) — The WebGPU-only render path: sprite-batch quads, baked terrain, iso projection, road/bridge networks, atlas wiring.
-- [wiki/citadel-art-style.md](wiki/citadel-art-style.md) — The cozy-medieval-storybook iso pixel-art style bible — EDG32 palette roles, shading/form/light rules, the layered-composite authoring path.
+- [wiki/citadel-rendering.md](wiki/citadel-rendering.md) — Citadel's WebGL2 render path: sprite-batch quads, baked terrain, iso projection, road/bridge networks, the 3D-mesh building pipeline, and the atlas/asset wiring.
+- [wiki/citadel-art-style.md](wiki/citadel-art-style.md) — The cozy-medieval-storybook iso pixel-art style bible — palette roles, shading/form/light rules, the layered-composite authoring path. **Caveat:** that path was applied to the char-recipe buildings, which 3D meshes replaced on 2026-07-14.
 - [wiki/citadel-asset-critique.md](wiki/citadel-asset-critique.md) — The whole-set visual acceptance bar: a seven-section critique checklist plus the PASS/CONDITIONAL/FAIL verdict rule.
 - [wiki/citadel-asset-verdicts.md](wiki/citadel-asset-verdicts.md) — Historical grading record for the art-04..07 wave (baseline, re-grade, final verdicts).
 - [wiki/citadel-road-builder-ux.md](wiki/citadel-road-builder-ux.md) — Road/wall drawing UX: what OpenTTD, Skylines, Factorio and Anno do, mapped onto Citadel's drag-build, with the connectivity-feedback gap.
@@ -56,17 +63,29 @@ regenerate with `bash corpus/lint.sh --index` rather than hand-editing.
 
 ### MateQuest
 
-- [wiki/mathquest-overview.md](wiki/mathquest-overview.md) — What MateQuest is (the **fourth** game — a Romanian-curriculum, grades I–VIII, math roguelike where **solving a problem IS the combat action**): **design-of-record v0.1, PRE-BUILD** (settled 2026-07-21). Pokémon-style Attack/Heal/Shield + Slay-the-Spire turn stakes; branching runs; two-layer progression (in-run XP + persistent per-topic mastery); soft-roguelike death; loot grants math lifelines; bilingual RO/EN; Romanian-folklore theme; Resurrect-64 palette; Web-Worker solo build like Citadel. Build plan + milestones: [todos/2026-07-21-mathquest-BUILD-STATE.md](todos/2026-07-21-mathquest-BUILD-STATE.md).
+- [wiki/mathquest-overview.md](wiki/mathquest-overview.md) — What MateQuest is (the **fourth** game — a Romanian-curriculum, grades I–VIII, math roguelike where **solving a problem IS the combat action**): **built and playable** (design settled 2026-07-21, M0–M5 complete 2026-07-23). Pokémon-style Attack/Heal/Shield + Slay-the-Spire turn stakes; branching runs; two-layer progression (in-run XP + persistent per-topic mastery); soft-roguelike death; loot grants math lifelines; bilingual RO/EN; Romanian-folklore theme; Resurrect-64 palette; Web-Worker solo build like Citadel. Build plan + milestones: [todos/2026-07-21-mathquest-BUILD-STATE.md](todos/2026-07-21-mathquest-BUILD-STATE.md).
 
-## In-flight build programs (live trackers)
+## Build programs
 
-- **WebGL2 migration** (planned 2026-08-18, no code yet) — collapse to **one render backend**: delete
-  Canvas2D, delete WebGPU, move all four games plus Hollow's 3D to **WebGL2**, because WebGPU is
-  still unshipped on Firefox/Linux and both 2D clients hard-forced it into a blank canvas. 13 briefs
-  in 5 waves. Design of record:
-  [todos/2026-08-18-webgl2-00-BUILD-ORDER.md](todos/closed/2026-08-18-webgl2-00-BUILD-ORDER.md) · live state:
-  [todos/2026-08-18-webgl2-BUILD-STATE.md](todos/closed/2026-08-18-webgl2-BUILD-STATE.md) · decision:
-  [wiki/decisions.md](wiki/decisions.md) (Renderer).
+**Open** — the live queue is [todos/](todos/); these are its trackers:
+
+- **Hollow** — 01–12, 14, 15 shipped; **hollow-13** (LLM rationalizer seam) is the one queued brief.
+  [todos/2026-07-17-hollow-BUILD-STATE.md](todos/2026-07-17-hollow-BUILD-STATE.md)
+- **@engine/ui incremental improvements** — items 1 and 3 done, item 2 deferred.
+  [todos/2026-07-22-engine-ui-improvements.md](todos/2026-07-22-engine-ui-improvements.md)
+
+**Shipped** (kept because the *why* is still load-bearing):
+
+- **WebGL2 migration** (2026-08-18, complete) — collapsed to **one render backend**: deleted Canvas2D,
+  deleted WebGPU, moved all four games plus Hollow's 3D to **WebGL2**, because WebGPU is still
+  unshipped on Firefox/Linux and both 2D clients hard-forced it into a blank canvas. 13 briefs in 5
+  waves, all closed. It also fixed a bug it did not set out to find: Farm's night lighting had never
+  rendered, because WebGPU accepted `endFrame`'s `OverlayFn` and silently dropped it. Design of record:
+  [todos/closed/2026-08-18-webgl2-00-BUILD-ORDER.md](todos/closed/2026-08-18-webgl2-00-BUILD-ORDER.md) ·
+  final state: [todos/closed/2026-08-18-webgl2-BUILD-STATE.md](todos/closed/2026-08-18-webgl2-BUILD-STATE.md) ·
+  decision: [wiki/decisions.md](wiki/decisions.md) (Renderer).
+- **MateQuest M0–M5** (2026-07-23, complete) —
+  [todos/2026-07-21-mathquest-BUILD-STATE.md](todos/2026-07-21-mathquest-BUILD-STATE.md)
 
 ## Briefs — historical task specs (immutable archives)
 
@@ -74,8 +93,11 @@ Each brief is the spec that directed a slice of work; once in `done/`/`supersede
 **[status.md](wiki/status.md) is the single source for brief state** — this page deliberately does not
 duplicate the catalog. Number prefixes are stable across directory moves.
 
-- Engine: [briefs/engine/](briefs/engine/) — `done/` 02–21, `superseded/` 01 + the WebGPU wave, `todo/` empty
-- Game: [briefs/game/](briefs/game/) — briefs 01–116, all in `done/`/`superseded/`; `todo/` empty; `superseded/` gained 96/101/107/109/111/112
-- Citadel: [briefs/citadel-apr.md](briefs/citadel-apr.md) plus the `todos/*citadel-*` files
+- Engine: [briefs/engine/](briefs/engine/) — 16 in `done/` (02–12, 17–21); `superseded/` holds 01-tilemap
+  plus the WebGPU wave's [TOMBSTONE](briefs/engine/superseded/webgpu/TOMBSTONE.md)
+- Game: [briefs/game/](briefs/game/) — 77 briefs numbered 01–118: 67 in `done/`, 10 in `superseded/`
+- Citadel: [briefs/citadel-apr.md](briefs/citadel-apr.md) plus the `todos/closed/*citadel-*` specs
+
+There is no `todo/` directory under `briefs/` — new work is a spec in [todos/](todos/) instead.
 
 For era-level context read [log.md](log.md).

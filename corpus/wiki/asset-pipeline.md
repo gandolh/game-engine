@@ -1,6 +1,6 @@
 ---
 summary: The bake principle (assets are code, not images), asset-cooking and atlas research, and the cache-key/incremental-build recommendations that became brief 71.
-updated: 2026-06-10
+updated: 2026-08-18
 ---
 
 # Asset Pipeline — Baking, Caching, and Atlas Strategy
@@ -41,7 +41,7 @@ Because our artifacts are **committed**, the natural cache store is the manifest
 
 **Determinism of the PNG step.** With `pngjs`, pin `filterType: 0` (None — fine for flat-color pixel art), `deflateLevel: 9`, `deflateStrategy: 3`: byte-identical output for identical RGBA across machines/runs. This is the same property we already demand of the sim (mulberry32, no `Date.now()`), applied to the asset cook.
 
-## Atlas best practice — filtered for a Canvas2D pixel-art game
+## Atlas best practice — filtered for a pixel-art game
 
 **How many sheets / what sizes.** Web-safe max texture is 4096² (99% of devices; only ~50% support more). Irrelevant at our scale: ~170 frames of 16×16 (a few 32px) ≈ 45k px² of content — everything fits in one 256² sheet. Our 6-sheet split is justified by **authoring ergonomics and git-diff locality** (regenerate just `crops` when a crop changes), not by GPU limits. Keep ~6; don't over-split (per-sheet decode + HTTP fetch overhead) and don't merge (kills the per-sheet cache win). Power-of-two dimensions (already done via `nextPow2`) remain the safe default.
 
@@ -49,12 +49,17 @@ Because our artifacts are **committed**, the natural cache store is the manifest
 
 **Padding / bleeding.** Texture bleed is a *filtering* artifact: bilinear sampling at a frame edge mixes in the neighbor's texels. With nearest-neighbor (`imageSmoothingEnabled = false`, our default draw path) 1px transparent padding — what `packShelf` already does — is sufficient. Extrusion (duplicating edge pixels into the gutter) is the fix only where smoothing is intentionally enabled; brief 63's water-shimmer work is the local precedent that fractional-scale smoothing paths exist, so keep extrusion in the toolbox but don't apply it by default. No mipmaps for 2D pixel art (33% memory for blurrier output).
 
-**Does atlasing matter on Canvas2D at all?** Less than WebGL (no explicit draw-call batching to preserve), but yes:
+**Does atlasing matter?** It matters *more* than this page originally argued. The pre-2026-08-18 text
+read "less than WebGL (no explicit draw-call batching to preserve)" — true of Canvas2D, and **inverted
+by the WebGL2 migration**: [webgl2/renderer.ts](../../engine/core/src/render/webgl2/renderer.ts) keeps
+one sprite group **per atlas texture**, so the sheet split now sets the frame's draw-call count directly
+and a texture switch ends a batch. The "keep ~6 sheets" verdict above still holds (6 draw calls is
+nothing), but the reason changed from ergonomics-only to ergonomics **plus** batching.
 
 - First GPU upload of an image is the expensive step (~hundreds of ms observed for a first `texImage2D` vs ~0.1ms warm); one image per sheet = 6 uploads instead of ~170.
 - Loading thousands of individual images measured 17× slower than one atlas in the classic Game Developer HTML5 benchmark; even bundled, fewer `Image` objects = less GC pressure.
-- `createImageBitmap()` per sheet at load decodes off the main thread into a GPU-friendly bitmap — the correct Canvas2D load pattern (worth checking [loader.ts](../../engine/core/src/assets/loader.ts) does this).
-- Drawing in sheet-grouped order within a frame helps GPU texture-cache locality — our painter's-sort by `y` makes strict grouping impractical; not worth fighting.
+- `createImageBitmap()` per sheet at load decodes off the main thread into a GPU-friendly bitmap (worth checking [loader.ts](../../engine/core/src/assets/loader.ts) does this).
+- Drawing in sheet-grouped order within a frame helps GPU texture-cache locality — our painter's-sort by `y` makes strict grouping impractical; not worth fighting. Under WebGL2 this is what the per-atlas grouping already buys.
 
 **Manifest format.** TexturePacker JSON-Hash (`frames` dict + `rotated`/`trimmed`/`sourceSize` flags) is the interop standard, but those flags only pay when trimming/rotating — we do neither. Our minimal `{id, imageUrl, width, height, frames:{name:{x,y,w,h}}}` is the right call; just add the `inputsHash` stamp.
 

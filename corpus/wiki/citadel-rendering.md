@@ -1,6 +1,6 @@
 ---
 summary: Citadel's WebGL2 render path — sprite-batch quads, baked terrain, iso projection, road/bridge networks, the 3D-mesh building pipeline, and the atlas/asset wiring.
-updated: 2026-07-16
+updated: 2026-08-18
 ---
 
 # Citadel — rendering & assets
@@ -193,7 +193,7 @@ Brief:
 market/storehouse/bakery flat-render was a **host-specific driver artifact on the
 Playwright-bundled Chromium** — it does not reproduce on a real GPU, and the sprite data proved
 byte-identical to a working house. Visual checks need system Chrome (`channel:"chrome"`,
-`--enable-unsafe-webgpu`); WebGPU cannot render headless here at all. Iso windowing for the large MP
+`--enable-unsafe-webgpu`); WebGPU could not render headless here at all. **Cleared 2026-08-18:** the WebGL2 migration made headless rendering work, so this is no longer a verification blocker. Iso windowing for the large MP
 map is still deferred (and MP itself is deprecated — see
 [citadel-mp-deprecated.md](citadel-mp-deprecated.md)).
 

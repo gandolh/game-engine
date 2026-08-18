@@ -1,6 +1,6 @@
 ---
 summary: The single prices-to-AP-to-initial-gold model the economy constants derive from, the crop g/AP formula, the scoring table, and the re-tune procedure.
-updated: 2026-07-16
+updated: 2026-07-17
 ---
 
 # Economy model (prices ↔ AP ↔ initial gold)

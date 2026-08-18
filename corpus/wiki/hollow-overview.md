@@ -1,6 +1,6 @@
 ---
 summary: What Hollow is (generational social-emergence sim on the shared engine) — M1 headless sim (exit-bar PASSED), M2 3D layer (engine **WebGL2** renderer + gene-driven cozy town), M3 research surfaces (observe module + chronicle/dashboard + persona authoring + shocks/replay), M4 hollow-12 governance + antagonism arcs, M5 hollow-14 Daily Life (leader-assigned jobs + diurnal routine + one central hearth + rare/private interaction), M6 hollow-15 Mortality & Care (3-day starvation death + persistent corpses + graveyard/grave-digger burial + rot→disease + medic), plus load-bearing decisions + known traits.
-updated: 2026-07-21
+updated: 2026-08-18
 ---
 
 # Hollow — overview
@@ -110,7 +110,7 @@ Judged by reading real exported runs (`@tool/hollow-sim`, compressed profile, 12
 ## M2 — engine 3D renderer + cozy town (2026-07-20)
 The first true-3D path in the repo. **08** `@engine/core/render3d` (promoted mesh generators — engine
 ships **no palette**; `mat4` still emits **WebGPU-style clip z∈[0,1]**, remapped to GL's [-1,1] in the vertex shader, `OrbitCamera`, ray `pick`) + WebGPU
-device/pipeline/instanced draw + `scene3d.wgsl`. **09** the cozy town: ground/territory tints/
+device/pipeline/instanced draw + `scene3d.{vert,frag}.glsl` (was `scene3d.wgsl` pre-migration). **09** the cozy town: ground/territory tints/
 family-growing homes/stock-scaled nodes/day-night, gene-driven humanoids via the **mesh-variant
 scheme** (skin×hair×pose), overlay glyphs/tags/click-inspect/follow-cam. Headline post-Chrome fix
 (`53bc26c`): the material buffer used an 8-float stride but the WGSL `var<storage>` array is **std430 =
@@ -165,7 +165,7 @@ be appended after existing ones + created unconditionally. DOM/interaction flow 
   `export-panel.ts`, `persona-setup-panel.ts`, `time-control*`, `shock-*`, `run-descriptor.ts`).
 - Engine 3D (M2): [engine/core/src/render3d/](../../engine/core/src/render3d/) — `geometry.ts`,
   `mat4.ts`, `camera3d.ts`, `pick.ts`, `webgl2/` (`device3d`/`pipeline-cache`/`renderer3d`/
-  `buffers` + `shaders/scene3d.wgsl`). Generic; names no game.
+  `gl-buffers` + `shaders/scene3d.{vert,frag}.glsl`). Generic; names no game.
 - Client 3D (M2): [games/hollow/client/src/](../../games/hollow/client/src/) — `render3d/`
   (`app.ts` render loop, `humanoid.ts`, `agent-anim.ts`, `world-meshes.ts`, `overlay.ts`,
   `screen-project.ts`, `materials.ts`, `interp.ts`, …), `worker/` (`sim-worker.ts` + `inspect.ts`),

@@ -1,17 +1,17 @@
 ---
-summary: Book-of-Shaders techniques filtered against the WebGPU renderer — a TODO backlog (water noise, Voronoi caustics, GPU day/night wash, cloud shadows) and EDG32-compliance strategies. Ideas, not committed work.
-updated: 2026-06-12
+summary: Book-of-Shaders techniques filtered against the WebGL2 renderer — a TODO backlog (water noise, Voronoi caustics, GPU day/night wash, cloud shadows) and EDG32-compliance strategies. Ideas, not committed work.
+updated: 2026-08-18
 ---
 
-> **Note (2026-08-18):** ideas below may be written as WGSL. The engine is **WebGL2-only** now — new shaders are **GLSL ES 3.00** (`#version 300 es`, `precision` qualifier in fragment shaders, no colour literals — a per-directory `glsl-lint.test.ts` enforces all three). The ideas still stand; only the language changed.
+> **Note (2026-08-18):** these ideas were first written against WGSL. The engine is **WebGL2-only** now, so the snippets and file references below are **GLSL ES 3.00** (`#version 300 es`, a `precision` qualifier in fragment shaders, no colour literals — a per-directory `glsl-lint.test.ts` enforces all three). The ideas themselves are unchanged; only the language is.
 
-# Shader ideas — Book of Shaders → WebGPU TODOs
+# Shader ideas — Book of Shaders → WebGL2 TODOs
 
-Source: [The Book of Shaders](https://thebookofshaders.com/) (Vivo & Lowe), chapters 5–13, read 2026-06-12 and filtered against the WebGPU renderer (`webgpu-migration` branch, waves 0–4 shipped). Each TODO names the file it would land in. Items are *ideas*, not committed work — promote one to a `briefs/engine/todo/` brief before implementing.
+Source: [The Book of Shaders](https://thebookofshaders.com/) (Vivo & Lowe), chapters 5–13, read 2026-06-12 and filtered against the renderer (originally WebGPU; **WebGL2-only** since 2026-08-18). Each TODO names the file it would land in. Items are *ideas*, not committed work — promote one to a spec in [todos/](../todos/) before implementing.
 
 ## Cross-cutting constraints (read before picking any item)
 
-- **The book is GLSL; we write WGSL.** Core builtins translate 1:1 (`fract`, `mix`, `step`, `smoothstep`, `length`, `atan2` for `atan(y,x)`, `dpartial`→`fwidth` already in use in [particle.wgsl](../../engine/core/src/render/webgl2/shaders/particle.frag.glsl)).
+- **The book is GLSL, and so are we now.** Core builtins translate 1:1 (`fract`, `mix`, `step`, `smoothstep`, `length`, `atan2` for `atan(y,x)`, `dpartial`→`fwidth` already in use in [particle.frag.glsl](../../engine/core/src/render/webgl2/shaders/particle.frag.glsl)).
 - **EDG32 palette is enforced** ([palette.ts](../../engine/core/src/render/palette.ts) + guard test). Two compliant strategies, both already proven in the codebase:
   1. **Pre-parsed EDG uniforms at varying alpha** — CPU parses an `EDG.*` hex to floats and passes it in (the [weather-pass.ts](../../engine/core/src/render/webgl2/weather-pass.ts) pattern). Procedural math may only modulate *alpha/coverage*, never synthesize new RGB.
   2. **UV displacement only** — the shader perturbs *where* it samples an already-palette-compliant texture, never *what color* it outputs (safe for water/static-layer effects).
@@ -21,33 +21,33 @@ Source: [The Book of Shaders](https://thebookofshaders.com/) (Vivo & Lowe), chap
 
 ## Ch. 5 — Shaping functions (`step`, `smoothstep`, `pow`, `sin`)
 
-- [ ] **Shaped particle fade-out.** Particle alpha arrives per-instance linear from CPU; apply `pow()`/`smoothstep` easing in [particle.wgsl](../../engine/core/src/render/webgl2/shaders/particle.frag.glsl) (or CPU-side in [particle-batch.ts](../../engine/core/src/render/webgl2/particle-batch.ts)) so sparks die fast and smoke lingers. Cheap, no palette risk (alpha only).
-- [ ] **Rain-streak tail taper.** In [weather.wgsl](../../engine/core/src/render/webgl2/shaders/weather.frag.glsl) fade streak alpha head→tail with `smoothstep` along the quad's v coordinate — reads as motion blur, parity-plus over the flat Canvas2D lines.
+- [ ] **Shaped particle fade-out.** Particle alpha arrives per-instance linear from CPU; apply `pow()`/`smoothstep` easing in [particle.frag.glsl](../../engine/core/src/render/webgl2/shaders/particle.frag.glsl) (or CPU-side in [particle-batch.ts](../../engine/core/src/render/webgl2/particle-batch.ts)) so sparks die fast and smoke lingers. Cheap, no palette risk (alpha only).
+- [ ] **Rain-streak tail taper.** In [weather.frag.glsl](../../engine/core/src/render/webgl2/shaders/weather.frag.glsl) fade streak alpha head→tail with `smoothstep` along the quad's v coordinate — reads as motion blur, parity-plus over the flat Canvas2D lines.
 - [ ] **Soft-edged drop shadows.** [shadow-batch.ts](../../engine/core/src/render/webgl2/shadow-batch.ts) ellipses are hard-edged; `smoothstep` the ellipse SDF over ~1px (`fwidth`) like the particle circles already do.
 
 ## Ch. 6 — Colors (`mix`)
 
-- [x] **GPU day/night wash.** Realised as `TintPass` (`engine/core/src/render/webgpu/tint-pass.ts`), fed a CPU-computed EDG `WashSpec` via `endFrame(wash, …)`. Used by both games.
+- [x] **GPU day/night wash.** Realised as `TintPass` (`engine/core/src/render/webgl2/tint-pass.ts`), fed a CPU-computed EDG `WashSpec` via `endFrame(wash, …)`. Used by both games.
 - [ ] **Seasonal grading via per-channel `mix`.** Book shows `mix()` with a `vec3` t — per-channel grading could replace/extend the existing seasonal tint while keeping the target colors EDG-derived.
 
 ## Ch. 7 — Shapes (SDFs, polar coordinates)
 
-- [ ] **Proper 8-point star particle.** [particle.wgsl](../../engine/core/src/render/webgl2/shaders/particle.frag.glsl) star is an L1 diamond (brief 4a accepted the simplification). The book's polar method — modulate radius by `atan2(v,u)` — restores Canvas2D's 8-point star for ~5 lines of WGSL.
-- [ ] **Round snow.** [weather.wgsl](../../engine/core/src/render/webgl2/shaders/weather.frag.glsl) draws snow as squares; the SDF-circle-with-`fwidth` recipe is already proven in particle.wgsl — copy it over for parity with Canvas2D's round flakes.
+- [ ] **Proper 8-point star particle.** [particle.frag.glsl](../../engine/core/src/render/webgl2/shaders/particle.frag.glsl) star is an L1 diamond (brief 4a accepted the simplification). The book's polar method — modulate radius by `atan2(v,u)` — restores the old Canvas2D 8-point star for ~5 lines of GLSL.
+- [ ] **Round snow.** [weather.frag.glsl](../../engine/core/src/render/webgl2/shaders/weather.frag.glsl) draws snow as squares; the SDF-circle-with-`fwidth` recipe is already proven in particle.frag.glsl — copy it over for parity with Canvas2D's round flakes.
 - [ ] **SDF ring splashes for rain.** Brief 81's rain field has ground/water splashes (particles). A GPU expanding-ring SDF (`abs(length(uv)-r) < w`) per splash instance would be crisper and cheaper at high drop counts.
 
 ## Ch. 8 — 2D matrices (rotating/translating coordinate space)
 
-- [ ] **Vertex-shader wind sway.** Bridge sway is CPU-side today (per-frame sprite re-push, see log 2026-06-11); crops/trees don't sway at all. A per-instance `swayPhase + swayAmp` attribute in [sprite-batch.ts](../../engine/core/src/render/webgl2/sprite-batch.ts) plus a small shear/rotation about the sprite's base in the vertex stage gives whole-map foliage sway with zero per-frame CPU work. The rotation-matrix plumbing already exists in [sprite.wgsl](../../engine/core/src/render/webgl2/shaders/sprite.frag.glsl).
+- [ ] **Vertex-shader wind sway.** Bridge sway is CPU-side today (per-frame sprite re-push, see log 2026-06-11); crops/trees don't sway at all. A per-instance `swayPhase + swayAmp` attribute in [sprite-batch.ts](../../engine/core/src/render/webgl2/sprite-batch.ts) plus a small shear/rotation about the sprite's base in the vertex stage gives whole-map foliage sway with zero per-frame CPU work. The rotation-matrix plumbing already exists in [sprite.frag.glsl](../../engine/core/src/render/webgl2/shaders/sprite.frag.glsl).
 
 ## Ch. 9–10 — Patterns + random (`fract` grids, hash functions)
 
-- [ ] **Break water tiling repetition.** [water.wgsl](../../engine/core/src/render/webgl2/shaders/water.frag.glsl) scrolls one repeated texture — the eye catches the period. Book recipe: `floor()` the UV into a cell grid, hash the cell id (`fract(sin(dot(cell, vec2(12.9898,78.233))) * 43758.5453)`), and offset/flip each cell's UV phase. Pure UV displacement → palette-safe. (Shader hash is fine here — render-only; the `Math.random`-in-sim ban is unrelated.)
-- [ ] **Per-flake snow variation.** Hash the instance index in [weather.wgsl](../../engine/core/src/render/webgl2/shaders/weather.frag.glsl) for size/alpha twinkle variation instead of uniform flakes.
+- [ ] **Break water tiling repetition.** [water.frag.glsl](../../engine/core/src/render/webgl2/shaders/water.frag.glsl) scrolls one repeated texture — the eye catches the period. Book recipe: `floor()` the UV into a cell grid, hash the cell id (`fract(sin(dot(cell, vec2(12.9898,78.233))) * 43758.5453)`), and offset/flip each cell's UV phase. Pure UV displacement → palette-safe. (Shader hash is fine here — render-only; the `Math.random`-in-sim ban is unrelated.)
+- [ ] **Per-flake snow variation.** Hash the instance index in [weather.frag.glsl](../../engine/core/src/render/webgl2/shaders/weather.frag.glsl) for size/alpha twinkle variation instead of uniform flakes.
 
 ## Ch. 11 — Noise (value noise)
 
-- [ ] **Living water via noise UV-warp.** Add a small value-noise displacement to the water sample coordinate in [water.wgsl](../../engine/core/src/render/webgl2/shaders/water.frag.glsl), animated by the existing scroll time. Pure UV displacement (palette-safe); turns the flat scroll into visibly undulating water without new art. Pairs with the cell-hash item above. ~20 lines of WGSL (hash + bilinear value noise from the book).
+- [ ] **Living water via noise UV-warp.** Add a small value-noise displacement to the water sample coordinate in [water.frag.glsl](../../engine/core/src/render/webgl2/shaders/water.frag.glsl), animated by the existing scroll time. Pure UV displacement (palette-safe); turns the flat scroll into visibly undulating water without new art. Pairs with the cell-hash item above. ~20 lines of GLSL (hash + bilinear value noise from the book).
 - [ ] **Quantized noise shore foam.** A `step()`-thresholded noise band at the land/water boundary (the static layer knows where shores are — [water-depth.ts](../../games/farm/client/src/render/water-depth.ts) already computes the coastal band) as animated EDG-white foam flecks at 2 alpha levels.
 
 ## Ch. 12 — Cellular noise (Voronoi)
@@ -56,8 +56,8 @@ Source: [The Book of Shaders](https://thebookofshaders.com/) (Vivo & Lowe), chap
 
 ## Ch. 13 — Fractal brownian motion + domain warping
 
-- [x] **Cloud-shadow pass.** Realised as `CloudShadowPass` (`engine/core/src/render/webgpu/cloud-shadow-pass.ts` + `shaders/cloud.wgsl`, brief 15): world-anchored 3-octave fBm, `step()`-quantized to 3 alpha levels, pre-parsed EDG uniform color, premultiplied source-over. Driven per-game via the (optional) `RendererLike.setCloudOptions({ color, coverage, driftSpeed, timeSec, mode?, vignette? })` seam, consumed inside `endFrame` when `coverage > 0.001`. **Citadel wired 2026-07-02** (art-03 P2): `cloudOptionsFor(season, day, dayFraction, timeSec)` in `citadel-renderer.ts` derives coverage from the season→weather cadence (overcast/rainy/winter → heavier) and picks the mode; cool `slate` shadows.
-- [x] **fBm mist/fog sheet.** Realised as the **haze** mode of the same cloud pass (art-03 P2): `mode: "haze"` swaps the dark cool shadow blobs for a warm, very-low-alpha (≤0.12) `cream` veil (broader/softer thresholds, same fBm + `step()` quantization). Citadel triggers it in the dawn→mid-morning window for a cozy morning mist. Kept a param+branch on `cloud.wgsl` (not a fork) so Farm reuses it. A **soft radial vignette** (`vignette` param, NDC-space, 2-tier quantized) is folded into the same pass for cozy framing — available but Citadel currently leaves it off (`0`).
+- [x] **Cloud-shadow pass.** Realised as `CloudShadowPass` (`engine/core/src/render/webgl2/cloud-shadow-pass.ts` + `shaders/cloud.frag.glsl`, brief 15): world-anchored 3-octave fBm, `step()`-quantized to 3 alpha levels, pre-parsed EDG uniform color, premultiplied source-over. Driven per-game via the (optional) `RendererLike.setCloudOptions({ color, coverage, driftSpeed, timeSec, mode?, vignette? })` seam, consumed inside `endFrame` when `coverage > 0.001`. **Citadel wired 2026-07-02** (art-03 P2): `cloudOptionsFor(season, day, dayFraction, timeSec)` in `citadel-renderer.ts` derives coverage from the season→weather cadence (overcast/rainy/winter → heavier) and picks the mode; cool `slate` shadows.
+- [x] **fBm mist/fog sheet.** Realised as the **haze** mode of the same cloud pass (art-03 P2): `mode: "haze"` swaps the dark cool shadow blobs for a warm, very-low-alpha (≤0.12) `cream` veil (broader/softer thresholds, same fBm + `step()` quantization). Citadel triggers it in the dawn→mid-morning window for a cozy morning mist. Kept a param+branch on `cloud.frag.glsl` (not a fork) so Farm reuses it. A **soft radial vignette** (`vignette` param, NDC-space, 2-tier quantized) is folded into the same pass for cozy framing — available but Citadel currently leaves it off (`0`).
 
 ## Suggested first wave (if/when this becomes a brief)
 

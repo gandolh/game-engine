@@ -1,6 +1,6 @@
 ---
 summary: Citadel's HUD, overlays, and diegetic feedback surfaces — top bar, goods strip, build bar, inspect panel, minimap, notifications, and the DOM-to-canvas migration state.
-updated: 2026-07-02
+updated: 2026-08-18
 ---
 
 # Citadel — HUD & overlays

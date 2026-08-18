@@ -1,6 +1,6 @@
 ---
 summary: How farmers, Pip, NPCs and scenery animate — the scattered ad-hoc state, the deleted brief-04 Animator ghost, and the render-side animation-engine direction.
-updated: 2026-06-12
+updated: 2026-08-18
 ---
 
 # Animation

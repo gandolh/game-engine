@@ -1,5 +1,5 @@
 ---
-summary: Locked tech choices that future briefs must not relitigate — stack, sim, ECS, renderer (WebGL2-only as of 2026-08-18, migration in flight), assets, palette, concurrency, WASM, and the gameplay source-of-truth.
+summary: Locked tech choices that future briefs must not relitigate — stack, sim, ECS, renderer (WebGL2-only as of 2026-08-18, migration shipped), assets, palette, concurrency, WASM, and the gameplay source-of-truth.
 updated: 2026-08-18
 ---
 

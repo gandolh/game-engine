@@ -1,14 +1,17 @@
 ---
-summary: What MateQuest is (a Romanian-curriculum math roguelike — the FOURTH game on the shared engine) — design-of-record v0.1, PRE-BUILD. Turn-based Pokémon-style + Slay-the-Spire combat where solving a programa-școlară problem (grades I–VIII) IS the action; branching runs, two-layer progression (in-run XP + persistent per-topic mastery), soft-roguelike death, loot that grants math lifelines, Romanian-folklore theme, Resurrect-64 palette, Web-Worker solo build like Citadel; renders on the engine's WebGL2 backend (Canvas2D until 2026-08-18). Design settled 2026-07-21; no code yet.
-updated: 2026-07-21
+summary: What MateQuest is (a Romanian-curriculum math roguelike — the FOURTH game on the shared engine) — design-of-record v0.1, BUILT (M0–M5 complete, playable). Turn-based Pokémon-style + Slay-the-Spire combat where solving a programa-școlară problem (grades I–VIII) IS the action; branching runs, two-layer progression (in-run XP + persistent per-topic mastery), soft-roguelike death, loot that grants math lifelines, Romanian-folklore theme, Resurrect-64 palette, Web-Worker solo build like Citadel; renders on the engine's WebGL2 backend (Canvas2D until 2026-08-18). Design settled 2026-07-21; the whole milestone plan shipped by 2026-07-23.
+updated: 2026-08-18
 ---
 
 # MateQuest — overview
 
-> **Status: DESIGN-OF-RECORD v0.1, PRE-BUILD (2026-07-21).** The design tree below is settled;
-> **no code exists yet.** Working name **MateQuest** (codename / package `@mathquest/*`); proposed
-> Romanian title **_Cetatea Cifrelor_** ("The Citadel of Digits") — provisional. Build plan +
-> milestones live in the tracker: [todos/2026-07-21-mathquest-BUILD-STATE.md](../todos/2026-07-21-mathquest-BUILD-STATE.md).
+> **Status: BUILT AND PLAYABLE (design-of-record v0.1 settled 2026-07-21; M0–M5 complete 2026-07-23).**
+> The design tree below is settled *and shipped* — `games/mathquest/{sim-core,client}` exist on `main`,
+> `npm run mathquest` runs it, and every milestone was controller-verified in-browser. What remains is
+> an optional post-plan backlog (grades V–VIII generators), not the plan itself. Working name
+> **MateQuest** (codename / package `@mathquest/*`); proposed Romanian title **_Cetatea Cifrelor_**
+> ("The Citadel of Digits") — provisional. Per-milestone record + handoffs:
+> [todos/2026-07-21-mathquest-BUILD-STATE.md](../todos/2026-07-21-mathquest-BUILD-STATE.md).
 
 MateQuest is the **fourth game** on the shared TypeScript ECS engine (`@engine/*`), alongside Farm
 Valley, Citadel, and Hollow. It is an **educational math roguelike**: a turn-based dungeon-crawl where
