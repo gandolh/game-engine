@@ -18,12 +18,12 @@ a blank canvas). Rationale and the rejected alternative are in the BUILD ORDER.
 |---|---|---|---|---|---|
 | 01 | shared 2D vocabulary relocation | 1 | **DONE** | see git log | clean break, no compat alias; hit a pre-existing `Sprite` name collision (below) |
 | 02 | GL context + shader tooling | 1 | **DONE** | see git log | 8 new files, 33 tests incl. lint negative fixtures |
-| 03 | sprite + shadow batch | 2 | TODO | — | |
+| 03 | sprite + shadow batch | 2 | **DONE** | _pending wave-2 gate_ | 29 tests + real-browser screenshot; adds a `setView` call brief 08 MUST make |
 | 04 | static layer + water | 2 | TODO | — | |
 | 05 | tint + overlay-2d + UI quads | 2 | TODO | — | |
 | 06 | particles + weather | 2 | TODO | — | |
-| 07 | cloud shadow + haze | 2 | TODO | — | |
-| 10 | render3d device + buffers | 2 | TODO | — | |
+| 07 | cloud shadow + haze | 2 | **DONE** | _pending wave-2 gate_ | 77 tests; 3 real-WebGL2 screenshots, quantization intact |
+| 10 | render3d device + buffers | 2 | **DONE** | _pending wave-2 gate_ | buffers.ts moved up (pure CPU packing); 15 new tests; depth-context caveat below |
 | 08 | WebGl2Renderer assembly | 3 | TODO | — | |
 | 11 | render3d scene renderer | 3 | TODO | — | |
 | 09 | client switch + fallback screen | 4 | TODO | — | |
@@ -114,6 +114,48 @@ workspace typecheck until that class is deleted. Brief 08 now also owns the thre
 `setCloudOptions` call sites in Farm/Citadel. Wave-2 agents are explicitly barred from
 `render/renderer.ts` and `render/index.ts`.
 
+## ⚠️ Controller TODO at the wave-2 gate — make the depth-enabled context explicit
+
+Brief 10 needed a **depth buffer** for 3D, but the shared `GlContext` is created with `depth: false`
+(correct for the CPU-sorted 2D sprite path) and `gl-context.ts` was another agent's lane this wave. Its
+workaround: `GlDevice3d.create()` calls `canvas.getContext("webgl2", { depth: true, … })` **itself,
+before** calling `createGlContext(canvas)`, relying on the spec rule that **the first `getContext` call
+for a given type wins the attributes** and every later call returns that same context, silently
+ignoring the new attrs.
+
+That is genuinely how the spec behaves, and the agent flagged it rather than hiding it. But it is an
+**order-dependent, silent failure mode**: if anything ever calls `createGlContext(canvas)` first, 3D
+loses its depth buffer and Hollow renders depth-garbage **with no error at all**. That is precisely the
+class of bug this migration has already found one of.
+
+**Decision: give `createGlContext` an explicit options parameter** (`{ depth?: boolean }`, defaulting
+to today's `false`) and have `GlDevice3d` ask for depth by name. Optional param ⇒ backward-compatible
+with every wave-2 pass already written against the current signature. Controller does this at the
+wave-2 gate, once no agent is holding the file.
+
+## ⚠️ Second controller TODO at the wave-2 gate — the GLSL lint scans comments
+
+Brief 07 hit **two lint false positives that were both in its own comments, not its code**: the
+reserved-word scan flagged the word `in` inside the prose "a pseudo-random float in [0,1)", and the
+colour-literal scan flagged `vec4(0,0,0,0)` inside the prose "naturally evaluates to vec4(0,0,0,0)".
+It did the right thing — reworded the comments rather than weakening the lint — but this will keep
+biting every future shader author, and the failure mode is confusing (a lint error pointing at a
+sentence).
+
+**Fix at the gate: strip `//` and `/* */` comments before applying the rules.** Cheap, removes a
+recurring papercut, and makes the remaining hits real. Keep scanning comments for nothing.
+
+## ⚠️ Orchestration hazard discovered — the browser tool is a SHARED resource across parallel agents
+
+Brief 07 called `agent_browser_close({ all: true })` when finishing its visual proof, which closed
+**every** active browser session — including one named `webgl2-05-brief` belonging to the concurrently
+running brief 05. It flagged this itself rather than staying quiet, which is the only reason we know.
+
+**Lesson for future waves: browser sessions are global, not per-agent.** File lanes protect the
+filesystem but nothing protects the browser. Either (a) tell each parallel agent to close only its own
+named session, never `all: true`, or (b) serialize the visual-verification step. Watch brief 05's
+report for a truncated verification and re-dispatch just that step if so.
+
 ## Decisions taken during the build
 _(append as they land — brief 13 folds these into the wiki)_
 - **2026-08-18** — `MAX_MATERIALS` UBO size for `scene3d`: _pending brief 11._
@@ -134,6 +176,34 @@ _(append as they land — brief 13 folds these into the wiki)_
   to a backend-neutral `render/view-uniform.ts` before wave 2 dispatches, and brief 05's scope drops
   that item. Field order is fixed and shared by every pass:
   `{scaleX, scaleY, offsetX, offsetY, timeSec, windStrength}`.
+- **2026-08-18 (brief 03, API ADDITION — brief 08 must honour it)** — **`SpriteBatch.setView(view)`
+  and `ShadowBatch.setView(view)` are NEW methods with no WebGPU counterpart, and must be called ONCE
+  PER FRAME before any `drawRange`/`draw`.** WebGPU shared the view via bind-group 0 across pipelines;
+  WebGL2 has no equivalent for independently-compiled programs without a UBO, and the view record was
+  deliberately left as scalar uniforms. Per-frame order is therefore:
+  **`setView` → `begin` → `add`* → `upload` → `drawRange`*.** Omitting `setView` yields a valid draw
+  call that renders nothing visible — exactly the silent-failure shape to watch for.
+- **2026-08-18 (brief 03)** — **v-flip fixed in exactly one place**: `UNPACK_FLIP_Y_WEBGL = true`
+  around `texImage2D` in `GlAtlasStore.add()`, reset to `false` immediately after; `uv()` does **no**
+  extra flip. One `TEXTURE_2D` per sheet (not `TEXTURE_2D_ARRAY`) — `AtlasUV.layer` is always 0 in the
+  original and never used for indexing.
+- **2026-08-18 (brief 03)** — blend state translated literally from the WebGPU pipeline:
+  `blendFuncSeparate(ONE, ONE_MINUS_SRC_ALPHA, ONE, ONE_MINUS_SRC_ALPHA)` +
+  `blendEquationSeparate(FUNC_ADD, FUNC_ADD)` — i.e. **premultiplied**, matching the context's
+  `premultipliedAlpha: true`.
+- **2026-08-18 (brief 03)** — WebGL2 has **no base-instance parameter**, so `drawRange`'s `first`
+  offset is implemented by re-pointing every per-instance attribute at `first * 64` bytes before
+  `drawArraysInstanced(TRIANGLES, 0, 6, count)`. Relatedly, both batches rebuild their per-instance
+  attribute bindings on **every** draw rather than baking them into the VAO once: growing the instance
+  buffer replaces the underlying `WebGLBuffer`, and a VAO pins the actual buffer object, so a one-time
+  binding would silently point at a deleted buffer after the first capacity doubling.
+- **2026-08-18 (brief 10)** — `pipeline-cache` for 3D is keyed by **`toonSteps` only**; WebGPU's
+  `format` key was dropped rather than faked, since `GPUTextureFormat` has no WebGL2 meaning. Vertex
+  attribute locations are **fixed in the cache** (loc0 position.xyz, loc1 materialIndex; loc2–5 model
+  matrix columns, loc6 tint, all `divisor:1`), mechanically derived from `FLOATS_PER_VERTEX` (4) and
+  `FLOATS_PER_INSTANCE` (20) — so brief 11's GLSL must declare matching `layout(location = N)`.
+  `MAX_UNIFORM_BLOCK_SIZE` is queried once at device creation and exposed as
+  `GlDevice3d.maxUniformBlockSize`, which brief 11 sizes `MAX_MATERIALS` against.
 - **2026-08-18 (brief 02)** — no UBO for the view record: 6 floats go through scalar
   `uniform1f`/`uniform2f` via `uniformLocations`. Passes may roll a UBO for parity if they prefer;
   neither is mandated.
@@ -152,8 +222,21 @@ _(append as they land — brief 13 folds these into the wiki)_
   `@engine/core`.**
 
 ## Verified-in-browser screenshots
-_(paths recorded here as each brief lands — this is the evidence trail brief 12 relies on before it
-deletes the WebGPU reference implementation)_
+_(the evidence trail brief 12 relies on before it deletes the WebGPU reference implementation.
+Scratchpad paths are session-local — brief 09 re-verifies in the assembled build, which is the
+durable check.)_
+- **brief 03** — `scratchpad/webgl2-03-visual-proof.png`: real Farm `characters`/`props` atlases, 4
+  character frames (one flipped, one rotated, one tinted) + 3 prop frames across two `drawRange`
+  texture groups + one shadow ellipse. Confirms sprites right-side-up (v-flip correct), no dark edge
+  fringing (blend state correct), shadow blends onto the ground colour.
+- **brief 07** — `scratchpad/01-shadow-mode.png`, `02-haze-mode-darkbg.png` (+ `02-haze-mode.png`),
+  `03-vignette.png`: real `getContext("webgl2")` in Chromium driving the shipped GLSL verbatim.
+  **All three show hard step-quantized tiers, never a smooth gradient** — the stated failure condition
+  for this pass. Haze is near-invisible over saturated green (expected: low max alpha), hence the
+  dark-background capture.
+  WebGPU side-by-side was attempted and is **inconclusive, not evidence**: adapter/device/pipeline all
+  created without error but the composited canvas showed nothing — consistent with the project's known
+  no-GPU-adapter sandbox limitation, not a WGSL bug.
 
 ## Known risks going in
 1. **MateQuest is the behavioural change.** It is the only game that ran on Canvas2D, so it is the
