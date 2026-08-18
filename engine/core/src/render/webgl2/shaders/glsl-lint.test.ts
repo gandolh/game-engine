@@ -88,6 +88,41 @@ const DECLARATION_RE = new RegExp(
 );
 
 /** True iff `src`'s very first line (no leading blank line) is `#version 300 es`. */
+/**
+ * Strip `//` line comments and block comments before applying the identifier and
+ * colour-literal rules.
+ *
+ * Why: without this, the lint reads PROSE. Brief 07 hit exactly two false
+ * positives, both in its own comments — the reserved-word scan flagged the word
+ * `in` inside "a pseudo-random float in [0,1)", and the colour-literal scan
+ * flagged `vec4(0,0,0,0)` inside "naturally evaluates to vec4(0,0,0,0)". A lint
+ * error pointing at a sentence is confusing enough that the next author will
+ * weaken the rule instead of fixing real code, so scan code only.
+ *
+ * Comment bodies are replaced with spaces (newlines preserved) so any line-based
+ * reporting stays aligned with the original source.
+ */
+function stripComments(src: string): string {
+  let out = "";
+  let i = 0;
+  while (i < src.length) {
+    const two = src.slice(i, i + 2);
+    if (two === "//") {
+      while (i < src.length && src[i] !== "\n") { out += " "; i += 1; }
+    } else if (two === "/*") {
+      out += "  "; i += 2;
+      while (i < src.length && src.slice(i, i + 2) !== "*/") {
+        out += src[i] === "\n" ? "\n" : " ";
+        i += 1;
+      }
+      if (i < src.length) { out += "  "; i += 2; }
+    } else {
+      out += src[i]; i += 1;
+    }
+  }
+  return out;
+}
+
 function hasVersionLine(src: string): boolean {
   return src.split("\n")[0] === "#version 300 es";
 }
@@ -97,11 +132,13 @@ function isFragmentShader(fileName: string): boolean {
 }
 
 /** True iff `src` declares `precision (lowp|mediump|highp) float;` anywhere. */
-function hasPrecisionQualifier(src: string): boolean {
+function hasPrecisionQualifier(rawSrc: string): boolean {
+  const src = stripComments(rawSrc);
   return /\bprecision\s+(?:lowp|mediump|highp)\s+float\s*;/.test(src);
 }
 
-function declaredIdentifiers(src: string): string[] {
+function declaredIdentifiers(rawSrc: string): string[] {
+  const src = stripComments(rawSrc);
   const names: string[] = [];
   for (const m of src.matchAll(DECLARATION_RE)) names.push(m[1]!);
   return names;
@@ -120,7 +157,8 @@ const HEX_COLOR_RE = /\b0x[0-9a-fA-F]{6,8}\b/g;
 // beats a semantic check this project doesn't have the tooling to write).
 const RGB_LITERAL_RE = /\bvec[34]\(\s*[0-9]*\.?[0-9]+f?\s*(?:,\s*[0-9]*\.?[0-9]+f?\s*){2,3}\)/g;
 
-function findColorLiterals(src: string): string[] {
+function findColorLiterals(rawSrc: string): string[] {
+  const src = stripComments(rawSrc);
   return [...(src.match(HEX_COLOR_RE) ?? []), ...(src.match(RGB_LITERAL_RE) ?? [])];
 }
 
@@ -160,6 +198,28 @@ describe("GLSL lint guard — negative fixtures (must catch the failure)", () =>
   it("flags a hardcoded RGB float literal passed to vec3/vec4", () => {
     const src = "#version 300 es\nvoid main() { vec3 c = vec3(1.0, 0.42, 0.0); }\n";
     expect(findColorLiterals(src).length, "vec3(1.0, 0.42, 0.0) should be flagged").toBeGreaterThan(0);
+  });
+
+  it("does NOT flag a reserved word appearing only in a comment", () => {
+    // Regression guard for brief 07's false positive: the word `in` in prose.
+    const src = "#version 300 es\nprecision highp float;\n// returns a pseudo-random float in [0,1)\nvoid main() {}\n";
+    expect(declaredIdentifiers(src).filter((n) => RESERVED.has(n))).toEqual([]);
+  });
+
+  it("does NOT flag a colour literal appearing only in a comment", () => {
+    // Regression guard for brief 07's other false positive.
+    const src = "#version 300 es\nprecision highp float;\n/* naturally evaluates to vec4(0,0,0,0) here */\nvoid main() {}\n";
+    expect(findColorLiterals(src)).toEqual([]);
+  });
+
+  it("still flags a colour literal in CODE even when comments are present", () => {
+    const src = "#version 300 es\nprecision highp float;\n// vec3(0.1, 0.2, 0.3) is fine in prose\nvoid main() { vec3 c = vec3(1.0, 0.42, 0.0); }\n";
+    expect(findColorLiterals(src).length).toBeGreaterThan(0);
+  });
+
+  it("does NOT count a precision qualifier that only appears in a comment", () => {
+    const src = "#version 300 es\n// precision mediump float; (intentionally only a comment)\nout vec4 o;\nvoid main() { o = vec4(1.0); }\n";
+    expect(hasPrecisionQualifier(src)).toBe(false);
   });
 
   it("does NOT flag a conforming shader shape (sanity check on the happy path)", () => {
