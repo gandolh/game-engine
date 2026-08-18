@@ -1,6 +1,6 @@
 # WebGL2 migration — BUILD STATE / RESUME (live tracker)
 
-status: **WAVE 1 COMPLETE** (briefs 01, 02) — gate green, committed. Wave 2 (03/04/05/06/07/10) next.
+status: **3D HALF DONE AND VERIFIED IN-BROWSER** (01, 02, 03, 07, 10, 11 committed). Awaiting 2D briefs 04, 05, 06 → then 08, 09, 12, 13.
 updated: 2026-08-18
 
 **Read this first to resume.** Design-of-record is
@@ -25,7 +25,7 @@ a blank canvas). Rationale and the rejected alternative are in the BUILD ORDER.
 | 07 | cloud shadow + haze | 2 | **DONE** | `ba39bcd` | 77 tests; 3 real-WebGL2 screenshots, quantization intact |
 | 10 | render3d device + buffers | 2 | **DONE** | `59f6c2e`+`(next)` | buffers.ts moved up (pure CPU packing); 68 render3d tests green at HEAD; depth-context caveat below |
 | 08 | WebGl2Renderer assembly | 3 | TODO | — | |
-| 11 | render3d scene renderer | 3 | TODO | — | |
+| 11 | render3d scene renderer | 3 | **DONE** | `f915407` | **Hollow renders on WebGL2 in-browser, 60fps.** 100 render3d tests; materials UBO `MAX_MATERIALS=256` |
 | 09 | client switch + fallback screen | 4 | TODO | — | |
 | 12 | delete WebGPU + purge types | 5 | TODO | — | |
 | 13 | corpus + decisions update | 5 | TODO | — | |
@@ -183,6 +183,40 @@ reset/rebase to fix a cosmetic boundary is not worth the risk of destroying anot
 renames. Either `git reset` the index to empty first (safe, index-only) or commit only after the whole
 wave lands.**
 
+## Resolved: the one genuine WebGL2 incompatibility (brief 11, `f915407`)
+`scene3d.wgsl`'s `var<storage, read> materials: array<MaterialEntry>` → a **`std140` UBO** with
+**`MAX_MATERIALS = 256`** (256 × 4 floats × 4 B = **4 KB**, 4× under WebGL2's guaranteed 16 KB
+`MAX_UNIFORM_BLOCK_SIZE` floor; Hollow's real combined table is a handful of entries). Because
+`FLOATS_PER_MATERIAL` is **4** — exactly the `std140` array stride — **`packMaterials`' output uploads
+unchanged**: no repacking, no padding. `setMaterials` **throws** above the cap rather than truncating,
+since silent truncation would paint agents in the wrong skin tone and read as a *genetics* bug.
+Documented fallback if it ever outgrows a UBO: `RGBA32F` lookup texture + `texelFetch`.
+
+## Trap findings from brief 11 (checked, not guessed — record these)
+- **Flat shading** came from **`dpdx`/`dpdy` on world position**, not a `flat`-qualified varying and not
+  per-vertex normals → ported to `dFdx`/`dFdy` (core GLSL ES 3.00). Guessing would have produced smooth
+  Gouraud shading that looks fine and is wrong.
+- **Index width:** `packMesh` always emits `Uint32Array` → every draw uses `gl.UNSIGNED_INT`.
+- **Winding** needed no change: `geometry.ts`'s CCW-outward convention matches WebGL2's own defaults
+  (set explicitly anyway for self-documentation).
+- **Depth DID need a fix.** `mat4.ts`'s `perspective()` targets WebGPU/D3D's **z ∈ [0,1]**; GL wants
+  **z ∈ [-1,1]**. Left alone, ordering stays monotonic (nothing inside-out) but **only half the depth
+  buffer is used**. Fixed with the standard `gl_Position.z = z*2 - w` remap **in the vertex shader**,
+  deliberately **not** in the shared `mat4.ts`.
+- **Ambient `.d.ts` visibility is per-program.** `@hollow/client` needed its own
+  `declare module "*.glsl?raw"` in `vite-env.d.ts` once the re-pointed barrel pulled real `.glsl`
+  imports — the declaration in `render/webgl2/glsl.d.ts` is only visible inside a program whose
+  `include` covers it. **Brief 12 must expect the same for the tools** rather than assuming the
+  `?raw` decls simply won't be needed.
+
+## Bug found and fixed outside the briefs (`73ca377`)
+`games/hollow/client/src/render3d-demo.ts` still pre-checked `navigator.gpu` and bailed with a WebGPU
+message, while the barrel it imports now serves WebGL2. That made the guard **actively wrong, not just
+stale**: a WebGL2 browser without WebGPU — Firefox on Linux, *the exact case this migration exists for*
+— would have seen the demo refuse to start while the renderer underneath worked. Brief 11 flagged it
+instead of silently reaching outside its lane, which is the behaviour we want. Replaced with a
+try/catch around `createDevice3d`.
+
 ## Decisions taken during the build
 _(append as they land — brief 13 folds these into the wiki)_
 - **2026-08-18** — `MAX_MATERIALS` UBO size for `scene3d`: _pending brief 11._
@@ -256,6 +290,12 @@ durable check.)_
   character frames (one flipped, one rotated, one tinted) + 3 prop frames across two `drawRange`
   texture groups + one shadow ellipse. Confirms sprites right-side-up (v-flip correct), no dark edge
   fringing (blend state correct), shadow blends onto the ground colour.
+- **brief 11 (the 3D payoff)** — `scratchpad/hollow-webgl2-11-town.png`, `-canvas.png`, `-final.png`:
+  Hollow's cozy town via `npm run hollow`, real browser. Two-tone flat-shaded roofs (visibly per-face,
+  not smooth Gouraud), warm palette ramps, houses/hearth/resource nodes/agents with correct occlusion,
+  nothing inside-out, steady 60fps, sim advancing (tick 274→815, pop 40→42), no console errors.
+  No WebGPU side-by-side — this sandbox has no real GPU adapter, which is *why* WebGPU was unrenderable
+  here; WebGL2 rendered fine regardless (Chrome picked a software/ANGLE path).
 - **brief 07** — `scratchpad/01-shadow-mode.png`, `02-haze-mode-darkbg.png` (+ `02-haze-mode.png`),
   `03-vignette.png`: real `getContext("webgl2")` in Chromium driving the shipped GLSL verbatim.
   **All three show hard step-quantized tiers, never a smooth gradient** — the stated failure condition
