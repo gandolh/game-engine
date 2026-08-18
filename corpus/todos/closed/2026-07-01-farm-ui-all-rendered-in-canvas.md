@@ -22,17 +22,17 @@ tags: [farm, client, engine, ui, render, architecture, interaction]
 > overlap, add **J** to the help modal key list).
 
 Move **all** of Farm Valley's UI off the DOM and into the canvas by adopting the
-game-agnostic [`@engine/ui`](../../engine/ui/src) framework Citadel already proved, AND
+game-agnostic [`@engine/ui`](../../../engine/ui/src) framework Citadel already proved, AND
 reinvent the interaction model (player *and* observer surfaces). This is the intended
 cross-game payoff of the Citadel `@engine/ui` investment — "Farm Valley *can* adopt it
 (proof of cross-game reuse)" is literally an acceptance criterion of
-[all-GUI-in-game (done)](closed/2026-06-28-citadel-ui-all-rendered-in-game.md).
+[all-GUI-in-game (done)](../closed/2026-06-28-citadel-ui-all-rendered-in-game.md).
 
 ## Why this is tractable (grounding facts, verified 2026-07-01)
 - Farm's client already renders through the same `RendererLike` as Citadel — **WebGPU
-  primary, Canvas2D fallback** ([main.ts:59](../../games/farm/client/src/main.ts)) — and
+  primary, Canvas2D fallback** ([main.ts:59](../../../games/farm/client/src/main.ts)) — and
   that interface **already exposes `beginUI/pushUI/endUI`**
-  ([renderer.ts](../../engine/core/src/render/renderer.ts)); Farm just never calls them
+  ([renderer.ts](../../../engine/core/src/render/renderer.ts)); Farm just never calls them
   (all UI is raw DOM today). So this is **adopt + port + reinvent**, NOT build-from-scratch.
 - `@engine/ui` is game-agnostic + backend-agnostic: retained-mode widget tree
   (`panel/box/label/button/slider/checkbox`), two-pass flex layout, deterministic 5×7

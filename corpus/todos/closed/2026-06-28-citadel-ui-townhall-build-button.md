@@ -7,7 +7,7 @@ tags: [citadel, ui, art, building, cozy-pivot]
 
 # Town Hall — build button + iso sprite
 
-> **UNBLOCKED 2026-06-30** — `@engine/ui` shipped ([brief 17](../briefs/engine/done/17-engine-ui-framework.md)); build this panel native to it (`@engine/ui` widget tree + the Citadel HUD pattern in `games/citadel/client/src/ui/resource-hud.ts`), not DOM. Depends on
+> **UNBLOCKED 2026-06-30** — `@engine/ui` shipped ([brief 17](../../briefs/engine/done/17-engine-ui-framework.md)); build this panel native to it (`@engine/ui` widget tree + the Citadel HUD pattern in `games/citadel/client/src/ui/resource-hud.ts`), not DOM. Depends on
 > [render-all-gui-in-game / @engine/ui](2026-06-28-citadel-ui-all-rendered-in-game.md).
 > The **iso sprite** half has no such dependency and can proceed now.
 
@@ -19,21 +19,21 @@ the player must be able to *place* it.
 
 ## Current state
 - `town-hall` **already exists as a building type** in
-  [building.ts](../../games/citadel/sim-core/src/entities/building.ts) (3×3,
+  [building.ts](../../../games/citadel/sim-core/src/entities/building.ts) (3×3,
   `SERVICE_RADII["town-hall"] = 10`, currently flagged `isKeep` as the MP anchor) — but
   it is **not on the toolbar** (no `#build-bar` button) and likely has **no dedicated
   iso recipe** (falls back to the generic `fort`/box form).
 - The build bar is wired in
-  [main.ts:145](../../games/citadel/client/src/main.ts#L145)
+  [main.ts:145](../../../games/citadel/client/src/main.ts#L145)
   (`#build-bar button` querySelectorAll); buttons live in
-  [index.html](../../games/citadel/client/index.html).
+  [index.html](../../../games/citadel/client/index.html).
 
 ## Scope
 1. **Toolbar button** — add a `town-hall` button to `#build-bar` in `index.html`
    (icon-only + `title` tooltip, matching the condensed build-bar convention), wired to
    set placement mode to `place` with `selectedType = "town-hall"` and the 3×3 footprint.
 2. **Iso sprite** — author a distinct `bld/town-hall` recipe in
-   [sprites/recipes/buildings.ts](../../games/citadel/client/src/render/sprites/recipes/buildings.ts)
+   [sprites/recipes/buildings.ts](../../../games/citadel/client/src/render/sprites/recipes/buildings.ts)
    (a civic hall form — bigger, banners/clock/portico — not the generic fort). EDG32-only
    via `SWATCH`. Add to `BUILDING_SPRITE_TYPES`; set `BUILDING_HEIGHT_TILES`.
 3. Verify placement works end-to-end (ghost, validity, occupancy) on the 3×3 footprint.

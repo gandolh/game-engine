@@ -70,7 +70,7 @@ Reproduced headlessly (no injections), 250 days, same seed and flags:
   (buildings ≥ 15 + pop ≥ 10) → quarry → keep day 59.
 
 **The loop that locks:** immigration is gated on positive bread surplus
-([immigration.ts](../../games/citadel/sim-core/src/systems/immigration.ts) — `foodSurplus`
+([immigration.ts](../../../games/citadel/sim-core/src/systems/immigration.ts) — `foodSurplus`
 drives the roll); one staffed bakery feeds exactly ~6–7 mouths, so surplus is ~0; escaping
 needs a second staffed bakery; staffing needs an arrival; an arrival needs surplus. Nothing
 in the game breaks this cycle — not banked wood, not placed buildings (23 sat unstaffed),

@@ -65,7 +65,7 @@ in-transit population.
   snapshot alone. The sim already steps units tile-to-tile and the client has an
   `EntityInterpolator.isMoving` notion
   ([entity-interp.ts](../../../games/citadel/client/src/render/entity-interp.ts),
-  added in [entity-movement-natural-feel](../2026-06-27-citadel-entity-movement-natural-feel.md)) —
+  added in [entity-movement-natural-feel](2026-06-27-citadel-entity-movement-natural-feel.md)) —
   use "is this unit currently travelling?" to decide whether to draw it on the
   road at all, vs. fold it into its building's occupancy badge (Part B).
 - A stationary villager at a building should not be rendered as a free dot on a
@@ -91,7 +91,7 @@ building**:
 
 The sum of all building badges (plus anyone genuinely in-transit on roads) should
 equal the population — ties into
-[entity-count-matches-population](../2026-06-27-citadel-entity-count-matches-population.md).
+[entity-count-matches-population](2026-06-27-citadel-entity-count-matches-population.md).
 
 ### Approach
 

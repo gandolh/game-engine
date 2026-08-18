@@ -34,7 +34,7 @@ requests a device, reads `getPreferredCanvasFormat()`. The WebGL2 version reuses
 `createGlContext` and — unlike the 2D path — **needs a depth buffer** (`depth: true`) and
 `gl.enable(gl.DEPTH_TEST)` + `gl.enable(gl.CULL_FACE)`, since real 3D depends on both. Keep the
 throw catchable and clearly identifiable: Hollow's
-[app.ts](../../games/hollow/client/src/render3d/app.ts) ~205–223 already catches it and turns it into
+[app.ts](../../../games/hollow/client/src/render3d/app.ts) ~205–223 already catches it and turns it into
 an on-screen message, and that path must keep working (brief 11 rewords the message).
 
 **3. `render3d/webgl2/pipeline-cache.ts`** — sibling of `webgpu/pipeline-cache.ts` (124 LOC).

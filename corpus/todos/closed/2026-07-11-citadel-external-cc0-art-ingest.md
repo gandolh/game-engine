@@ -17,29 +17,29 @@ this todo now proposes fixing.
 > **📊 See the evidence before you act on this brief.** The two failed spikes, the gamut plot
 > that explains *why* they failed, and the contact sheet of the current art are all on the
 > verification page: <https://claude.ai/code/artifact/4ba07f60-7c41-48b6-b446-0359a3d2c6e5>
-> — sources + rebuild instructions in [../verify/2026-07-11-citadel-art/](../verify/2026-07-11-citadel-art/README.md).
+> — sources + rebuild instructions in [../verify/2026-07-11-citadel-art/](../../verify/2026-07-11-citadel-art/README.md).
 
 ## What was tried
 
 Citadel's art is 100% procedural: ASCII pixel recipes in
-[recipes/](../../games/citadel/client/src/render/sprites/recipes/), drawn with the iso
+[recipes/](../../../games/citadel/client/src/render/sprites/recipes/), drawn with the iso
 primitives in [iso-draw.ts](../../games/citadel/client/src/render/sprites/recipes/iso-draw.ts),
-rasterized by [rasterize.ts](../../games/citadel/client/src/render/sprites/rasterize.ts) and
+rasterized by [rasterize.ts](../../../games/citadel/client/src/render/sprites/rasterize.ts) and
 shelf-packed into a runtime atlas at boot by
-[atlas.ts](../../games/citadel/client/src/render/sprites/atlas.ts). No PNG is committed.
+[atlas.ts](../../../games/citadel/client/src/render/sprites/atlas.ts). No PNG is committed.
 
 The plan was: ingest CC0 iso art → quantize every pixel to EDG32 (`nearestEdg32()` already
-exists in [palette.ts](../../engine/core/src/render/palette.ts)) → bake to a committed PNG +
+exists in [palette.ts](../../../engine/core/src/render/palette.ts)) → bake to a committed PNG +
 manifest → load it with the recipes as fallback. This would have required amending the
-*"No external art pipeline"* line in [decisions.md](../wiki/decisions.md) → **that amendment is
+*"No external art pipeline"* line in [decisions.md](../../wiki/decisions.md) → **that amendment is
 NOT needed; the decision stands as written.**
 
 ### The geometry actually lined up
 
 | Constant | Value | Source |
 |---|---|---|
-| `ISO_TILE_W` / `ISO_TILE_H` | 32 / 16 (2:1 dimetric) | [iso.ts:40-42](../../games/citadel/client/src/render/iso.ts#L40-L42) |
-| `ISO_ART_SCALE` | **2** | [iso.ts:135](../../games/citadel/client/src/render/iso.ts#L135) |
+| `ISO_TILE_W` / `ISO_TILE_H` | 32 / 16 (2:1 dimetric) | [iso.ts:40-42](../../../games/citadel/client/src/render/iso.ts#L40-L42) |
+| `ISO_ART_SCALE` | **2** | [iso.ts:135](../../../games/citadel/client/src/render/iso.ts#L135) |
 | Real building frames | 64×62 (well) → 192×186 (keep); typical **128×92** | rasterized from `BUILDING_RECIPES` |
 
 The best CC0 candidate — [rubberduck's isometric medieval buildings](https://opengameart.org/content/isometric-medieval-buildings)
@@ -87,7 +87,7 @@ box with a different roof colour**: `house`, `bakery`, `woodcutter`, `market`, `
 `watchpost`, `quarry`, `sawmill`, `smith` are near-identical 128×92 cubes.
 
 This directly contradicts the file's own stated design goal —
-[buildings.ts:2-6](../../games/citadel/client/src/render/sprites/recipes/buildings.ts#L2-L6)
+[buildings.ts:2-6](../../../games/citadel/client/src/render/sprites/recipes/buildings.ts#L2-L6)
 claims each type uses "a distinct FORM … so the *silhouette* — not just the colour — tells a
 mill from a mine." For those 8 types it is simply **not true**. (Only `mill`, `chapel`, `keep`,
 `tower`, `garrison`, `town-hall`, `well` and `farm` currently read at a glance.)
@@ -111,23 +111,23 @@ day/night wash tints everything — at dusk a red-roof bakery and an orange-roof
    - `public-square` — flat plaza + banner; should read as **negative space**, not a building
 2. **Use the CC0 renders as visual reference only** (they are genuinely nice medieval forms) —
    no pixels ingested, no licence obligations, no decision amended.
-3. **Fix the stale comment** at [buildings.ts:2](../../games/citadel/client/src/render/sprites/recipes/buildings.ts#L2):
+3. **Fix the stale comment** at [buildings.ts:2](../../../games/citadel/client/src/render/sprites/recipes/buildings.ts#L2):
    it says art is "authored at 4× (`ISO_ART_SCALE`)" but `ISO_ART_SCALE = 2`.
 
 ## Acceptance criteria
 
 - `npm run typecheck` + `npm run test` green, **including the EDG32 palette guard**
-  ([palette.test.ts](../../engine/core/src/render/palette.test.ts)).
+  ([palette.test.ts](../../../engine/core/src/render/palette.test.ts)).
 - **Silhouette test:** each of the 8 types is distinguishable from the others with **colour
   stripped** (render the alpha mask only). Worth adding as a real test — there is already a
-  [silhouette.test.ts](../../games/citadel/client/src/render/sprites/silhouette.test.ts) and a
-  [unit-silhouette.test.ts](../../games/citadel/client/src/render/sprites/unit-silhouette.test.ts)
+  [silhouette.test.ts](../../../games/citadel/client/src/render/sprites/silhouette.test.ts) and a
+  [unit-silhouette.test.ts](../../../games/citadel/client/src/render/sprites/unit-silhouette.test.ts)
   to model it on.
-- **Playtested in a real browser** ([playtest-citadel](../../.claude/skills/)) — this is a
+- **Playtested in a real browser** ([playtest-citadel](../../../.claude/skills/)) — this is a
   visual change, so unit tests are not the acceptance bar. Screenshots before/after.
 
 ## Out of scope
 
 - Any external art pipeline (**settled: rejected — see above**).
 - Any change to the EDG32 rule.
-- Farm Valley's atlas ([tools/atlas-builder](../../tools/atlas-builder/)).
+- Farm Valley's atlas ([tools/atlas-builder](../../../tools/atlas-builder/)).

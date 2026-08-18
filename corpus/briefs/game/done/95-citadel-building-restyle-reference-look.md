@@ -41,11 +41,11 @@ Decisions taken with the user:
   (clay/rust/salmon for terracotta, cream/tan infill, bark/woodDark oak framing,
   slate/steel stone).
 - **Resolution: keep 32-based** (`ISO_ART_SCALE = 1` in
-  [iso.ts](../../../games/citadel/client/src/render/iso.ts)). An earlier pass tried
+  [iso.ts](../../../../games/citadel/client/src/render/iso.ts)). An earlier pass tried
   4×; the user judged 32 dense enough in practice, so buildings author at native
   res like units/terrain. The `ISO_ART_SCALE` knob + `isoArtDims` stay so the
   authoring math is scale-independent if revisited. **This also supersedes the 4×
-  rationale in brief [94](94-upscale-units-terrain-to-match-buildings.md)** —
+  rationale in brief [94](../superseded/94-upscale-units-terrain-to-match-buildings.md)** —
   re-evaluate or close 94 (units/terrain no longer need to "catch up" to 4×).
 - Scope: **iterate the existing ~20 generated buildings**, do NOT add new
   standalone props/decor sprites (would need sim/placement hooks).
@@ -61,14 +61,14 @@ In [iso-draw.ts](../../../games/citadel/client/src/render/sprites/recipes/iso-dr
 - **Richer wall shading** (`drawWalls`): 3 tones — lit infill, top highlight band,
   darker sill ambient-occlusion band — instead of a flat fill.
 - `PLASTER` palette in
-  [buildings.ts](../../../games/citadel/client/src/render/sprites/recipes/buildings.ts)
+  [buildings.ts](../../../../games/citadel/client/src/render/sprites/recipes/buildings.ts)
   retargeted to the terracotta + cream + oak mapping.
 - Verified at 1× (raster): house/storehouse/chapel still read with roofs +
   framing. typecheck + recipes.test green.
 
 (Context: this builds on the earlier same-day passes — per-type silhouettes, then
 distinct medieval FORMS + animated post-mill. See log 2026-06-21 entries and
-[citadel-overview.md](../../wiki/citadel-overview.md) "Per-building FORMS".)
+[citadel-overview.md](../../../wiki/citadel-overview.md) "Per-building FORMS".)
 
 ## Remaining (the ask, not yet done)
 
@@ -91,7 +91,7 @@ distinct medieval FORMS + animated post-mill. See log 2026-06-21 entries and
 
 ## Constraints / gotchas
 
-- **EDG32 guard** ([palette.ts](../../../games/citadel/client/src/render/sprites/palette.ts)
+- **EDG32 guard** ([palette.ts](../../../../games/citadel/client/src/render/sprites/palette.ts)
   + the guard test) — every new char must already be in `SWATCH`.
 - **Render-only / determinism** — recipes + atlas are pure; no sim impact. The
   mill animation uses the main-thread render clock only.

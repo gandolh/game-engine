@@ -32,7 +32,7 @@ tags: [engine, ui, render, typography, assets, citadel, farm]
 The `@engine/ui` text stack currently renders through a **minimal, hand-coded 5×7 ASCII
 bitmap font** ([engine/ui/src/text/glyphs.ts](../../engine/ui/src/text/glyphs.ts) —
 codepoints `0x20–0x7e` only, baked to an atlas in
-[font-atlas.ts](../../engine/ui/src/text/font-atlas.ts)). That is functional but:
+[font-atlas.ts](../../../engine/ui/src/text/font-atlas.ts)). That is functional but:
 
 - **ASCII-only, no icons.** Emoji / pictographic glyphs can't render in-canvas, which is
   why the Citadel **build bar** migration fell back to *text labels* instead of the old

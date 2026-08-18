@@ -12,7 +12,7 @@ The atmosphere half of the cozy-art upgrade. **Independent of the 2× flip** (to
 wash / cloud / weather channels, not sprite recipes) — can run in parallel with
 [art-02](2026-07-01-citadel-art-02-recipe-fidelity-pass.md). Grounded by the
 [survey](2026-07-01-citadel-iso-pixel-art-quality-research.md); rules in the
-[style bible](../wiki/citadel-art-style.md#light--atmosphere).
+[style bible](../../wiki/citadel-art-style.md#light--atmosphere).
 
 > **Key finding (2026-07-01, re-verified): the fBm overlay already exists.** The engine has
 > a production **`CloudShadowPass`** — [cloud-shadow-pass.ts](../../engine/core/src/render/webgpu/cloud-shadow-pass.ts)
@@ -31,7 +31,7 @@ wash / cloud / weather channels, not sprite recipes) — can run in parallel wit
 `{ shadowColor: EDG rgb floats, coverage: 0..1, driftSpeed: world-px/s, timeSec: number }`.
 
 ## Part 1 — Refine the day/night wash + light pools (no engine code)
-File: [`atmosphere.ts`](../../games/citadel/client/src/render/atmosphere.ts).
+File: [`atmosphere.ts`](../../../games/citadel/client/src/render/atmosphere.ts).
 - Rework the wash endpoints (`SeasonWash`) for **warm-biased golden hour** at dawn/dusk and
   a *gentle* cool at night — never a hard blue-black (cozy nights are lamplit). The wash is
   already a pure `mix()`-style blend on `dayFractionOf`/`nightFactorOf`; just retune the EDG
@@ -42,7 +42,7 @@ File: [`atmosphere.ts`](../../games/citadel/client/src/render/atmosphere.ts).
 
 ## Part 2 — Wire the existing fBm cloud/fog overlay into Citadel
 1. **Enable cloud shadows.** In the Citadel render loop (the `begin/endFrame` owner, see
-   [`citadel-renderer.ts`](../../games/citadel/client/src/render/citadel-renderer.ts)), call
+   [`citadel-renderer.ts`](../../../games/citadel/client/src/render/citadel-renderer.ts)), call
    `renderer.setCloudOptions({ shadowColor, coverage, driftSpeed, timeSec })` before
    `endFrame`, deriving `coverage` from the **season/weather** the snapshot already carries
    (overcast → higher coverage) and `timeSec` from the render clock (render-only; the pass
@@ -53,11 +53,11 @@ File: [`atmosphere.ts`](../../games/citadel/client/src/render/atmosphere.ts).
    `tintColor`/`mode` flag to `CloudOptions` + a warm branch in the shader (lift instead of
    darken), OR a sibling `HazePass` reusing the same `hash21`/`valueNoise`/`fbm3` helpers.
    Keep it EDG-uniform-colored + `step()`-quantized (2–3 alpha levels) so it stays pixel-art
-   crisp — the [shader-ideas.md](../wiki/shader-ideas.md) rule. Very low max alpha (≤0.12).
+   crisp — the [shader-ideas.md](../../wiki/shader-ideas.md) rule. Very low max alpha (≤0.12).
 3. **Soft vignette** (optional, cheap cozy framing): a radial darken in the fog/tint pass, or
    folded into the wash. Keep subtle.
 
-> **Prior-art reconcile:** [shader-ideas.md](../wiki/shader-ideas.md) backlogs "GPU day/night
+> **Prior-art reconcile:** [shader-ideas.md](../../wiki/shader-ideas.md) backlogs "GPU day/night
 > wash", "cloud-shadow pass", and "fBm mist/fog sheet" — framed for Farm's `packages/engine`.
 > The cloud pass already realises the first two in `@engine/core`; this brief realises the
 > mist/fog item and **enables all of it for Citadel**. Update shader-ideas.md when done
@@ -65,7 +65,7 @@ File: [`atmosphere.ts`](../../games/citadel/client/src/render/atmosphere.ts).
 
 ## Reuse note (engine layering)
 Any shader change lives in `@engine/core` and must stay **generic** (engine never imports a
-game — [decisions.md](../wiki/decisions.md)). The cloud pass already proves the pattern; a
+game — [decisions.md](../../wiki/decisions.md)). The cloud pass already proves the pattern; a
 fog variant is a param/branch on it, reusable by Farm. Don't regress Farm's render path.
 
 ## Acceptance
@@ -76,4 +76,4 @@ fog variant is a param/branch on it, reusable by Farm. Don't regress Farm's rend
 - `npm run typecheck` + `npm run test` green (engine + citadel).
 - **Verified in a real browser** (playtest-citadel) across a full day/night cycle — per
   [verify-ui-in-browser-before-done]; before/after screenshots at dawn / noon / dusk / night.
-- [shader-ideas.md](../wiki/shader-ideas.md) updated.
+- [shader-ideas.md](../../wiki/shader-ideas.md) updated.

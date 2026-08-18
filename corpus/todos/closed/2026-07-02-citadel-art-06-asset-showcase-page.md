@@ -23,7 +23,7 @@ catcher (one screenshot shows the whole atlas).
 
 A **showcase mode in the real Citadel client** (WebGPU, the real atlas + renderer — not a
 mock) reachable by a URL flag (e.g. `?showcase` / `#showcase`, DEV-only, alongside the existing
-`window.__citadel` dev hook in [main.ts](../../games/citadel/client/src/render/../main.ts)) that:
+`window.__citadel` dev hook in [main.ts](../../../games/citadel/client/src/render/../main.ts)) that:
 
 1. **Lays EVERY asset on the iso grid with generous spacing so no two sprites' pixels
    overlap.** Grid pitch ≥ the widest sprite footprint + a margin (compute from
@@ -77,7 +77,7 @@ mock) reachable by a URL flag (e.g. `?showcase` / `#showcase`, DEV-only, alongsi
 
 ## The critique harness
 
-art-06 is what the [asset critique rubric](../wiki/citadel-asset-critique.md) is **run
+art-06 is what the [asset critique rubric](../../wiki/citadel-asset-critique.md) is **run
 against** — the five capture screenshots (`showcase-{noon,dusk,night,fire,isometry}.png`) are
 the rubric's judged artifacts, and the isometry-overlay / all-burning / day-phase toggles exist
 specifically so sections A/C/E/F can be graded. Landing this first unblocks grading the others.
@@ -87,5 +87,5 @@ specifically so sections A/C/E/F can be graded. Landing this first unblocks grad
 - This is the ONE art brief that's mostly **tooling**, not recipe art — it unblocks visual
   verification for art-04/05/07 (and future art work), so it's reasonable to land it FIRST.
 - Reference layout inspiration: the CC0 packs in
-  [inspirations/CREDITS.md](../../inspirations/CREDITS.md) ship exactly this kind of "all tiles
+  [inspirations/CREDITS.md](../../../inspirations/CREDITS.md) ship exactly this kind of "all tiles
   on one sheet" contact sheet — mirror that legibility.

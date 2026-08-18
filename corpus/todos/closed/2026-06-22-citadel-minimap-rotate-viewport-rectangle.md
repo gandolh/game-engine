@@ -6,7 +6,7 @@ resolved: 2026-06-22
 tags: [citadel, render, ui, minimap]
 ---
 
-> **Done 2026-06-22.** [minimap.ts](../../games/citadel/client/src/ui/minimap.ts)
+> **Done 2026-06-22.** [minimap.ts](../../../games/citadel/client/src/ui/minimap.ts)
 > now draws in iso world-px space (chose the cleaner framing over option (b)): a
 > single uniform fit transform maps iso world-px → the square face; terrain is
 > re-baked once as iso diamonds (via `tileDiamond`), and buildings/villagers/
@@ -21,10 +21,10 @@ tags: [citadel, render, ui, minimap]
 ## Problem
 
 The minimap draws the world in **axis-aligned tile space**
-([ui/minimap.ts](../../games/citadel/client/src/ui/minimap.ts)). The game itself
+([ui/minimap.ts](../../../games/citadel/client/src/ui/minimap.ts)). The game itself
 renders **2:1 dimetric isometric**, so the rectangular screen viewport, when its
 four corners are inverted back to tile coords, becomes a **diamond** on the
-minimap ([minimap.ts:126-148](../../games/citadel/client/src/ui/minimap.ts#L126)).
+minimap ([minimap.ts:126-148](../../../games/citadel/client/src/ui/minimap.ts#L126)).
 A diamond "viewport" is hard to read — players expect the on-minimap viewport box
 to look like their actual (rectangular) screen.
 
@@ -40,11 +40,11 @@ The cleanest framing: draw the minimap in **iso/screen space** instead of tile
 space, so the inverse-projected viewport is axis-aligned by construction.
 
 - Project every stamped element through the same `tileToIso` the world uses
-  ([render/iso.ts](../../games/citadel/client/src/render/iso.ts)) into a
+  ([render/iso.ts](../../../games/citadel/client/src/render/iso.ts)) into a
   normalized iso box that fits the minimap face, instead of the current
   `px(tileX)/py(tileY)` linear tile→px map.
 - Terrain bake: today it's a 1px/tile axis-aligned bake scaled up
-  ([minimap.ts:69-80](../../games/citadel/client/src/ui/minimap.ts#L69)). Either
+  ([minimap.ts:69-80](../../../games/citadel/client/src/ui/minimap.ts#L69)). Either
   (a) re-bake it as an iso diamond (rotate the offscreen canvas when blitting), or
   (b) keep the tile bake but apply a single canvas transform (rotate ~45° + 2:1
   vertical scale) around the minimap center before drawing terrain + entities, so
@@ -53,7 +53,7 @@ space, so the inverse-projected viewport is axis-aligned by construction.
   existing draw — and worth trying first.
 - The **click-to-seek** inverse must be updated to match: `mousedown` currently
   maps click→tile via a plain linear map
-  ([minimap.ts:83-88](../../games/citadel/client/src/ui/minimap.ts#L83)); after
+  ([minimap.ts:83-88](../../../games/citadel/client/src/ui/minimap.ts#L83)); after
   rotating, invert the same transform (screen→iso→tile) so clicks still recentre
   on the tile under the cursor.
 - Keep the minimap face square; the rotated map should fit inside it (the iso
@@ -66,7 +66,7 @@ space, so the inverse-projected viewport is axis-aligned by construction.
 - Watch the dpr scaling (`ctx.scale(dpr,dpr)` already applied in the ctor) — the
   rotation transform composes on top; verify on a HiDPI display.
 - Re-verify the four-corner viewport inversion
-  ([minimap.ts:129-145](../../games/citadel/client/src/ui/minimap.ts#L129)) still
+  ([minimap.ts:129-145](../../../games/citadel/client/src/ui/minimap.ts#L129)) still
   produces a closed quad after the change — it should now be the rectangle.
 
 ## Acceptance

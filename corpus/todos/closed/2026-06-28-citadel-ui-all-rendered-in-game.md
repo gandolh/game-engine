@@ -7,11 +7,11 @@ tags: [citadel, farm, engine, ui, render, architecture, framework]
 
 # `@engine/ui` — render ALL GUI in-game, as a reusable cross-game framework
 
-> **Update 2026-06-30 — ✅ DONE. ALL GUI now renders in-canvas; no DOM UI overlays remain over the Citadel world.** The DOM-overlay removal completed (5/5 surfaces, branch `citadel-dom-overlay-removal`). Earlier waves: framework SHIPPED + all 6 consumer panels ([brief 17](../briefs/engine/done/17-engine-ui-framework.md)); **toasts** (in-canvas column, `opacity`-fade + `#toast-live` aria-live mirror); **build bar** ([build-bar.ts](../../games/citadel/client/src/ui/build-bar.ts), grouped TEXT buttons + dispatcher + a11y mirror; emoji dropped → [authored-typography-and-icons](2026-06-30-engine-ui-authored-typography-and-icons.md) todo). **Final wave (this update) — the last 3 DOM surfaces:**
-> 1. **Occupancy badges** → in-canvas world-anchored `@engine/ui` chips ([occupancy-badges.ts](../../games/citadel/client/src/render/occupancy-badges.ts)): pooled panel+label headcount chips, positioned per-building via a new canvas-relative `tileToCanvasCss`, drawn in the render loop. Removed `#occupancy-badges` DOM + CSS.
+> **Update 2026-06-30 — ✅ DONE. ALL GUI now renders in-canvas; no DOM UI overlays remain over the Citadel world.** The DOM-overlay removal completed (5/5 surfaces, branch `citadel-dom-overlay-removal`). Earlier waves: framework SHIPPED + all 6 consumer panels ([brief 17](../../briefs/engine/done/17-engine-ui-framework.md)); **toasts** (in-canvas column, `opacity`-fade + `#toast-live` aria-live mirror); **build bar** ([build-bar.ts](../../../games/citadel/client/src/ui/build-bar.ts), grouped TEXT buttons + dispatcher + a11y mirror; emoji dropped → [authored-typography-and-icons](2026-06-30-engine-ui-authored-typography-and-icons.md) todo). **Final wave (this update) — the last 3 DOM surfaces:**
+> 1. **Occupancy badges** → in-canvas world-anchored `@engine/ui` chips ([occupancy-badges.ts](../../../games/citadel/client/src/render/occupancy-badges.ts)): pooled panel+label headcount chips, positioned per-building via a new canvas-relative `tileToCanvasCss`, drawn in the render loop. Removed `#occupancy-badges` DOM + CSS.
 > 2. **`@engine/ui` widget extension** — added reusable **`slider`** + **`checkbox`/`toggle`** node kinds (the framework only had panel/box/label/button): ctors + flex sizing + EDG32 theme tokens + render walk; slider drag via the dispatcher's existing `onDrag` hook + track-click + arrow-key nudge; a11y-mirror branches (`<input type=range>` w/ `aria-valuenow`; `<input type=checkbox>` w/ `aria-checked`). The node owns its value (clamp+snap); `onChange` fires on every input.
-> 3. **Minimap** → in-canvas raw-quad draw ([minimap.ts](../../games/citadel/client/src/ui/minimap.ts)): no `@engine/ui` node kind (closed `renderTree` switch has no escape hatch) — instead draws terrain (precomputed face-local quads) + entity specks + camera-viewport rect via `UISurface.rect` directly in the host loop; `trySeek(x,y,ox,oy)` for click-to-seek. Removed the `#minimap` Canvas2D + CSS. (Tradeoff: terrain tiles render as small axis-aligned rects, not diamonds — UISurface can't fill diamonds; imperceptible at 168px.)
-> 4. **Settings modal** → in-canvas `@engine/ui` ([settings-modal.ts](../../games/citadel/client/src/ui/settings-modal.ts)): tabbed (Display zoom-slider / Atmosphere toggle-checkboxes / Simulation speed-buttons) via a button-row + panel-visibility pattern; own dispatcher + `#ui-a11y-settings` mirror; the host makes it **fully modal** (all canvas pointer/wheel swallowed while open). The live **search field was dropped** (no text-input widget in `@engine/ui`); `matchesSearch`/`nextTabIndex` helpers kept.
+> 3. **Minimap** → in-canvas raw-quad draw ([minimap.ts](../../../games/citadel/client/src/ui/minimap.ts)): no `@engine/ui` node kind (closed `renderTree` switch has no escape hatch) — instead draws terrain (precomputed face-local quads) + entity specks + camera-viewport rect via `UISurface.rect` directly in the host loop; `trySeek(x,y,ox,oy)` for click-to-seek. Removed the `#minimap` Canvas2D + CSS. (Tradeoff: terrain tiles render as small axis-aligned rects, not diamonds — UISurface can't fill diamonds; imperceptible at 168px.)
+> 4. **Settings modal** → in-canvas `@engine/ui` ([settings-modal.ts](../../../games/citadel/client/src/ui/settings-modal.ts)): tabbed (Display zoom-slider / Atmosphere toggle-checkboxes / Simulation speed-buttons) via a button-row + panel-visibility pattern; own dispatcher + `#ui-a11y-settings` mirror; the host makes it **fully modal** (all canvas pointer/wheel swallowed while open). The live **search field was dropped** (no text-input widget in `@engine/ui`); `matchesSearch`/`nextTabIndex` helpers kept.
 >
 > **Verified in real WebGPU** (playtest-citadel + a focused modal probe): minimap renders w/ viewport rect; occupancy "N" chips render over buildings; the modal opens (tabs + working zoom slider thumb), is fully modal (a click behind it with a build tool armed placed nothing), exposes Close/Display/Atmosphere/Simulation as real a11y `<button>`s, and clears its mirror on Escape. Gates: `@engine/ui` 133 tests, `@citadel/client` 369 tests, EDG32 palette guard 6/6, all typecheck-clean. Determinism untouched (render/input only). **A review pass (3 scoped finders) caught + fixed 5 real issues: a module-init crash (the modal ctor read `camera.zoom` before async boot — guarded), modal not-fully-modal (presses/wheel/keys leaked behind it — full-canvas intercept), slider thumb overflow at min/max, mirror slider bypassing snap/clamp, and a checkbox a11y text-node growth bug.**
 
@@ -40,15 +40,15 @@ The whole UI should be **rendered in-game** — drawn inside the WebGPU canvas a
 the scene — rather than as HTML/DOM overlays floating on top of it.
 
 ## Current state — the UI is DOM + a 2D-canvas minimap, NOT in-engine
-Per [citadel-overview.md](../wiki/citadel-overview.md), the client is **DOM overlays over
+Per [citadel-overview.md](../../wiki/citadel-overview.md), the client is **DOM overlays over
 a single WebGPU world canvas**:
 - `#build-bar`, `#hud` row, follow-HUD — plain DOM
-  ([index.html](../../games/citadel/client/index.html)).
-- Toasts ([ui/toast.ts](../../games/citadel/client/src/ui/toast.ts)), settings modal
-  ([ui/settings-modal.ts](../../games/citadel/client/src/ui/settings-modal.ts)),
-  occupancy badges ([render/occupancy-badges.ts](../../games/citadel/client/src/render/occupancy-badges.ts))
+  ([index.html](../../../games/citadel/client/index.html)).
+- Toasts ([ui/toast.ts](../../../games/citadel/client/src/ui/toast.ts)), settings modal
+  ([ui/settings-modal.ts](../../../games/citadel/client/src/ui/settings-modal.ts)),
+  occupancy badges ([render/occupancy-badges.ts](../../../games/citadel/client/src/render/occupancy-badges.ts))
   — pooled **DOM** overlays positioned via `tileToScreenCss`.
-- Minimap ([ui/minimap.ts](../../games/citadel/client/src/ui/minimap.ts)) — a separate
+- Minimap ([ui/minimap.ts](../../../games/citadel/client/src/ui/minimap.ts)) — a separate
   **Canvas2D** surface.
 
 So "render all GUI in-game" is an **architectural shift**: build the `@engine/ui`

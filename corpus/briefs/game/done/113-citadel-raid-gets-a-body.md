@@ -149,5 +149,5 @@ trajectory in the playtest evidence.
 cozy play cannot reach Town tier at all** (pop equilibrates at 7–9; wood income collapses to
 ~0 once services staff; three live attempts stalled at 300–536 days) — so keep/garrison/raids
 are currently unreachable content in solo. Filed as
-[2026-07-11-citadel-solo-town-tier-unreachable.md](../../../todos/2026-07-11-citadel-solo-town-tier-unreachable.md);
+[2026-07-11-citadel-solo-town-tier-unreachable.md](../../../todos/closed/2026-07-11-citadel-solo-town-tier-unreachable.md);
 it gates brief 103's live acceptance.

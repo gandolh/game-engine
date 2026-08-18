@@ -20,7 +20,7 @@ Valley NPCs do.
   positions.
 - This is a render-side change; the sim tick output must stay deterministic and
   untouched.
-- See [wiki/citadel-overview.md](../wiki/citadel-overview.md).
+- See [wiki/citadel-overview.md](../../wiki/citadel-overview.md).
 
 ## Acceptance
 

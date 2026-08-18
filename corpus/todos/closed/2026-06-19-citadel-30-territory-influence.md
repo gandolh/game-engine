@@ -9,7 +9,7 @@ tags: [citadel, sim, world, territory, multiplayer]
 
 **Spine position: C (needs [28](2026-06-19-citadel-28-playerstate-refactor.md),
 [29](2026-06-19-citadel-29-world-256-townhall.md)).**
-Part of the [Citadel MP epic](closed/2026-06-19-citadel-26-multiplayer-presence-bots-emotes.md).
+Part of the [Citadel MP epic](../closed/2026-06-19-citadel-26-multiplayer-presence-bots-emotes.md).
 
 **Lineage:** with N players on one 256² grid and a town-hall anchor each, a player needs
 a defined claim of tiles to build on and defend. `PlayerState.territory` (from brief 28)

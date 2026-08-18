@@ -32,7 +32,7 @@ status: **DONE 2026-07-11 (Option A — wired).** Commit `490b892`.
 > [economy.md](../../../wiki/economy.md) + [system-ordering.md](../../../wiki/system-ordering.md) updated.
 
 status: superseded-by-closeout — **decision made 2026-07-10: Option A, wire it.** Execute the Option-A branch below; Option B is dead. ⚠️ Baseline moves by design: prove reproducibility ×3 and eyeball a headless run showing wall trades actually closing.
-source: [2026-07-02 review findings item 7](../../../todos/2026-07-02-full-repo-review-findings.md) — read it first; it carries the verified evidence.
+source: [2026-07-02 review findings item 7](../../../todos/closed/2026-07-02-full-repo-review-findings.md) — read it first; it carries the verified evidence.
 
 ## Problem
 

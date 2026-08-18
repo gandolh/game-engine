@@ -9,7 +9,7 @@ status: **done.** Numbers settled 2026-07-10 (second grilling session); sequence
 ⚠️ **110 first (decision #26).** This brief's balance numbers are meaningless on a map that is about
 to quadruple: #22 grows the solo world 96×96 → 192×192, which lengthens roads to clustered resources
 and therefore changes every service-ratio this brief reads.
-source: [todos/2026-06-22-citadel-two-way-service-economy.md](../../../todos/2026-06-22-citadel-two-way-service-economy.md) (scopes #1 and #3, explicitly deferred there "for a combined economy-growth pass so the same numbers aren't tuned twice") + the immigration overlap flagged in [todos/2026-06-22-citadel-playtest-findings.md](../../../todos/2026-06-22-citadel-playtest-findings.md).
+source: [todos/2026-06-22-citadel-two-way-service-economy.md](../../../todos/closed/2026-06-22-citadel-two-way-service-economy.md) (scopes #1 and #3, explicitly deferred there "for a combined economy-growth pass so the same numbers aren't tuned twice") + the immigration overlap flagged in [todos/2026-06-22-citadel-playtest-findings.md](../../../todos/closed/2026-06-22-citadel-playtest-findings.md).
 
 ## Settled targets (do not re-derive)
 

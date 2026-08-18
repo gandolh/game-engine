@@ -19,8 +19,8 @@ overlay.
   layering).
 - All colors must come from `CITADEL_PAL.*` (Apollo-46) on the Citadel side —
   the palette guard test is per-scope.
-- See [wiki/citadel-overview.md](../wiki/citadel-overview.md) and
-  [wiki/performance.md](../wiki/performance.md) for what's already measured.
+- See [wiki/citadel-overview.md](../../wiki/citadel-overview.md) and
+  [wiki/performance.md](../../wiki/performance.md) for what's already measured.
 
 ## Acceptance
 

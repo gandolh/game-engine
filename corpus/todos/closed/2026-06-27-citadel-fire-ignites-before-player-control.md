@@ -15,8 +15,8 @@ tags: [citadel, sim, gameplay, fire, hazard, boot, live-finding, minor]
 > day 11 stays fire-free through day ~18, ignites day 24. Regression test
 > (phase45) asserts no ignition during grace + fire after, and fails without the
 > fix. sim-core 159/159; determinism identical. Commit `573d9c8`.
-> See [log.md](../log.md). Pairs with the cold-start P0
-> [founding-window-expires-before-boot](closed/2026-06-27-citadel-founding-window-expires-before-boot.md).
+> See [log.md](../../log.md). Pairs with the cold-start P0
+> [founding-window-expires-before-boot](../closed/2026-06-27-citadel-founding-window-expires-before-boot.md).
 
 # Citadel — fire ignites on an unattended cluster before the player has control
 
@@ -30,16 +30,16 @@ was destroyed before any villager ever arrived — see the related cold-start P0
 
 ## What's actually happening (verified against code)
 
-Ignition in [fire-system.ts:_checkIgnition](../../games/citadel/sim-core/src/systems/fire-system.ts#L180)
+Ignition in [fire-system.ts:_checkIgnition](../../../games/citadel/sim-core/src/systems/fire-system.ts#L180)
 is a pure **density** function, independent of population or activity:
 
-- Only wooden buildings ([WOODEN_TYPES](../../games/citadel/sim-core/src/systems/fire-system.ts#L28)).
+- Only wooden buildings ([WOODEN_TYPES](../../../games/citadel/sim-core/src/systems/fire-system.ts#L28)).
 - Needs `nearbyWooden >= 3` within radius 4
-  ([:194-196](../../games/citadel/sim-core/src/systems/fire-system.ts#L194));
+  ([:194-196](../../../games/citadel/sim-core/src/systems/fire-system.ts#L194));
   `chance = min(0.70, (nearbyWooden-2)*0.20)`
-  ([:197-198](../../games/citadel/sim-core/src/systems/fire-system.ts#L197)).
+  ([:197-198](../../../games/citadel/sim-core/src/systems/fire-system.ts#L197)).
 - A nearby **well** multiplies chance ×0.2
-  ([:200](../../games/citadel/sim-core/src/systems/fire-system.ts#L200)) — mitigates
+  ([:200](../../../games/citadel/sim-core/src/systems/fire-system.ts#L200)) — mitigates
   but does not eliminate.
 
 So a dense wooden cluster burns **whether or not anyone lives there**. The
@@ -70,10 +70,10 @@ not a fair difficulty.
 
 - Sim + determinism change — re-prove with multi-seed `EXPORT=json` +
   `CHECK_DETERMINISM=1`. Keep the fire RNG draw order stable (solo = player 0 =
-  legacy stream, [fire-system.ts:64](../../games/citadel/sim-core/src/systems/fire-system.ts#L64)).
+  legacy stream, [fire-system.ts:64](../../../games/citadel/sim-core/src/systems/fire-system.ts#L64)).
 - Confirm the headless `siege`/`grow` scenarios still behave (fire is part of
   their balance), and that any grace period doesn't neuter the siege→fire
-  interlock ([igniteBuildingById](../../games/citadel/sim-core/src/systems/fire-system.ts#L326)).
+  interlock ([igniteBuildingById](../../../games/citadel/sim-core/src/systems/fire-system.ts#L326)).
 
 ## Acceptance
 

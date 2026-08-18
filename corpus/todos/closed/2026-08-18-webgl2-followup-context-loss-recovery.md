@@ -2,7 +2,7 @@
 
 status: **DONE 2026-08-18** (implemented after the 13 briefs; see the resolution note at the end)
 created: 2026-08-18
-context: [2026-08-18-webgl2-00-BUILD-ORDER.md](closed/2026-08-18-webgl2-00-BUILD-ORDER.md) · discovered during brief 02
+context: [2026-08-18-webgl2-00-BUILD-ORDER.md](../closed/2026-08-18-webgl2-00-BUILD-ORDER.md) · discovered during brief 02
 
 ## The gap
 

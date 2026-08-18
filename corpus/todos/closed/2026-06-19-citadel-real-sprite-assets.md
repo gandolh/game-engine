@@ -28,18 +28,18 @@ comparison.
 
 Verified in the renderer:
 
-- [citadel-renderer.ts](../../games/citadel/client/src/render/citadel-renderer.ts) —
+- [citadel-renderer.ts](../../../games/citadel/client/src/render/citadel-renderer.ts) —
   `createQuadAtlas()` generates a 1×1 white pixel and tints it per entity; no frames.
-- [quads.ts:142-190](../../games/citadel/client/src/render/quads.ts#L142) —
+- [quads.ts:142-190](../../../games/citadel/client/src/render/quads.ts#L142) —
   `buildingQuad()` returns a single filled `fillRect`-equivalent quad per building
   (roads/gates get an inset band; everything else fills its footprint, burning →
   `EDG.orange`); `villagerQuad()` is a 0.7-tile centered square colored by FSM
   state; `raiderQuad()` is a red square scaled by strength.
 
 Farm Valley's pipeline is the template: ASCII `PixelRecipe` grids → `npm run atlas`
-([tools/atlas-builder](../../tools/atlas-builder/)) shelf-packs them into sheets +
+([tools/atlas-builder](../../../tools/atlas-builder/)) shelf-packs them into sheets +
 `index.json`. The bake principle and atlas best-practice are documented in
-[wiki/asset-pipeline.md](../wiki/asset-pipeline.md). The renderer already does
+[wiki/asset-pipeline.md](../../wiki/asset-pipeline.md). The renderer already does
 sprite-batch quads with `atlasId`/frame resolution — it just has nothing but a 1×1
 frame to draw.
 

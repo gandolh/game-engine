@@ -1,8 +1,8 @@
 # Citadel `sack` scenario no longer sacks (pre-existing drift)
 
 status: **CLOSED 2026-07-11.** Commits `7c76522` + `36382d2`. Unblocks
-[brief 103](../briefs/game/todo/103-citadel-challenge-mode.md); de-risks
-[brief 113](../briefs/game/todo/113-citadel-raid-gets-a-body.md).
+[brief 103](../../briefs/game/done/103-citadel-challenge-mode.md); de-risks
+[brief 113](../../briefs/game/done/113-citadel-raid-gets-a-body.md).
 
 > **Resolution 2026-07-11 — it was not "drift". It was four defects, and the fixture was
 > structurally inert, not subtly off.**
@@ -59,9 +59,9 @@ status: **CLOSED 2026-07-11.** Commits `7c76522` + `36382d2`. Unblocks
 ## What
 
 The headless scenario `SCENARIO=sack` in
-[tools/citadel-sim/src/index.ts](../../tools/citadel-sim/src/index.ts) is designed to end
+[tools/citadel-sim/src/index.ts](../../../tools/citadel-sim/src/index.ts) is designed to end
 with the keep sacked and `gameOver` set — "keep alone, `defenseStrength` 8, no extra defenses
-→ sacked on raid 4" ([index.ts:495](../../tools/citadel-sim/src/index.ts)). It no longer
+→ sacked on raid 4" ([index.ts:495](../../../tools/citadel-sim/src/index.ts)). It no longer
 reaches that state.
 
 ## How it surfaced
@@ -81,11 +81,11 @@ chased it. No brief owns it.
 end to end. That path has been frozen since the 2026-06-28 cozy pivot, guarded only by a
 byte-identity regression test — which proves the path *hasn't changed*, not that it *works*.
 
-- **[Brief 103](../briefs/game/todo/103-citadel-challenge-mode.md) (Challenge mode) is
+- **[Brief 103](../../briefs/game/done/103-citadel-challenge-mode.md) (Challenge mode) is
   blocked.** Its acceptance is "challenge run playable start→**sack**-or-survive" and "raid
   can sack". Challenge mode *is* the sharp path's first real consumer. It cannot be signed
   off while the fixture that demonstrates a sack doesn't.
-- **[Brief 113](../briefs/game/todo/113-citadel-raid-gets-a-body.md) inherits the risk.** It
+- **[Brief 113](../../briefs/game/done/113-citadel-raid-gets-a-body.md) inherits the risk.** It
   rehomes the army's marching machinery onto the raid, and requires the sharp resolution stay
   "reachable, byte-identical". If the sharp resolution is *already* not reachable, that
   acceptance criterion is vacuously true and 113 will build a body on a broken skeleton.
@@ -99,10 +99,10 @@ SCENARIO=sack MAX_DAYS=40 npm run sim:citadel
 ```
 
 The scenario's own comments encode the intended arithmetic — verify the code still agrees:
-- [index.ts:468-476](../../tools/citadel-sim/src/index.ts) — "defense=8, raid=10: 8 < 15
+- [index.ts:468-476](../../../tools/citadel-sim/src/index.ts) — "defense=8, raid=10: 8 < 15
   (repelled threshold), 8 >= 5 → *damage* tier, not sacked yet on first hit … else sacked.
   The keep is sacked with economy still alive."
-- `applyRaidDamage` ([siege-resolution.ts:200](../../games/citadel/sim-core/src/systems/siege-resolution.ts))
+- `applyRaidDamage` ([siege-resolution.ts:200](../../../games/citadel/sim-core/src/systems/siege-resolution.ts))
   — the repelled / damage / sacked tier thresholds.
 
 Prime suspects, in order:

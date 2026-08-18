@@ -35,7 +35,7 @@ tags: [citadel, client, render, mesh, cleanup, tests, tech-debt]
 
 # Phase 3 — mesh renderer polish + dead-code cleanup
 
-The [3D-mesh building rebuild](closed/2026-07-13-citadel-3d-box-asset-renderer.md) shipped all 21
+The [3D-mesh building rebuild](../closed/2026-07-13-citadel-3d-box-asset-renderer.md) shipped all 21
 buildings as meshes (`6cc32fb` + `d1e7c7c`), browser-approved. These deferred items remain — none
 block gameplay; they're consistency + tech-debt:
 

@@ -7,10 +7,10 @@
 >
 > **Two pieces of this brief survive and were rehomed, not lost:**
 > - The **`enableArmy` default flip to `false` + gating the `launchAttack` handler** (scope 2/3 below)
->   moves to [brief 110](110-citadel-client-world-size.md) scope 7. The trap it warns about — the
+>   moves to [brief 110](../done/110-citadel-client-world-size.md) scope 7. The trap it warns about — the
 >   handler debits `tools` and pushes an `ArmyState` that an unregistered `ArmySystem` never resolves,
 >   so `state.armies` grows without bound — is **real** and must be defused with the flip.
-> - The army's **marching machinery** is salvaged by [brief 113](113-citadel-raid-gets-a-body.md),
+> - The army's **marching machinery** is salvaged by [brief 113](../done/113-citadel-raid-gets-a-body.md),
 >   which gives the existing cozy PvE raid a visible body.
 
 status: superseded — was: todo. Decision **#15** (2026-07-10, first session), reversed by #23.

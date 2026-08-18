@@ -42,7 +42,7 @@ calls against the default framebuffer. So `beginPass`/`pass.end()`/`queue.submit
 
 ## `createRenderer` — one backend
 
-Rewrite [../../engine/core/src/render/create-renderer.ts](../../engine/core/src/render/create-renderer.ts).
+Rewrite [../../engine/core/src/render/create-renderer.ts](../../../engine/core/src/render/create-renderer.ts).
 It currently has a `backend` option (`"auto" | "webgpu" | "canvas2d"`) and a try/fallback ladder.
 With one backend that machinery is gone:
 - `createRenderer(canvas, camera, opts?)` → `Promise<RendererLike>`, always `WebGl2Renderer`.

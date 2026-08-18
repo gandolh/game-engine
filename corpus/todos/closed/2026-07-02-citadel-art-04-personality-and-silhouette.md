@@ -13,7 +13,7 @@ scope: BRIEF-ONLY (no implementation yet — spec + acceptance)
 
 The buildings "look kind of similar and flat." Root cause is **form-family collapse**, not
 palette — verified against
-[`buildings.ts`](../../games/citadel/client/src/render/sprites/recipes/buildings.ts) +
+[`buildings.ts`](../../../games/citadel/client/src/render/sprites/recipes/buildings.ts) +
 [`iso-draw.ts`](../../games/citadel/client/src/render/sprites/recipes/iso-draw.ts):
 
 - **`cottage()` is reused for 6 building types** (house, bakery, woodcutter, sawmill, smith,
@@ -25,12 +25,12 @@ palette — verified against
   whole cottage family → rooflines read identical in silhouette.
 - Personality currently rides on **accents that don't alter the silhouette** (chimney, anvil,
   cross, banner). Per SLYNYRD 41/54 + Pixel Parmesan (see
-  [inspirations/CREDITS.md](../../inspirations/CREDITS.md)), a building must be recognisable
+  [inspirations/CREDITS.md](../../../inspirations/CREDITS.md)), a building must be recognisable
   **in solid black** — silhouette, not colour, carries identity.
 
 So art-04 pushes personality **into the silhouette**: roofline, height, footprint break-up,
 ridge direction, porches/lean-tos, and material-specific volumes — while staying inside the
-[cozy style bible](../wiki/citadel-art-style.md) (2:1 dimetric, committed UL sun, EDG32,
+[cozy style bible](../../wiki/citadel-art-style.md) (2:1 dimetric, committed UL sun, EDG32,
 deterministic, base-square-narrowing-upward).
 
 ## Goal / acceptance
@@ -40,7 +40,7 @@ deterministic, base-square-narrowing-upward).
   each `bld/<type>`, reduces to an opaque-mask bitfield, and asserts **pairwise mask distance ≥
   a threshold** (e.g. Hamming distance over the normalized footprint) so a future palette-only
   re-skin can't collapse two forms. (Complements the existing opaque-fraction floor in
-  [recipes.test.ts](../../games/citadel/client/src/render/sprites/recipes.test.ts).)
+  [recipes.test.ts](../../../games/citadel/client/src/render/sprites/recipes.test.ts).)
 - **Depth test ("not flat"):** each building's largest wall/roof face shows **≥3 distinct
   EDG values** in a vertical scan (a mask/histogram assertion), and the roof shows a warm
   ridge kiss. This makes "flat" a testable regression, not a vibe.
@@ -52,7 +52,7 @@ deterministic, base-square-narrowing-upward).
 - Still: palette guard green, typecheck green, determinism (render-clock only), and
   **verified in a real browser** (playtest-citadel) — not just unit tests
   (per [memory: verify UI in a browser](../../CLAUDE.md)).
-- **Final grade:** passes the whole-set [asset critique rubric](../wiki/citadel-asset-critique.md)
+- **Final grade:** passes the whole-set [asset critique rubric](../../wiki/citadel-asset-critique.md)
   — this brief owns sections A (silhouette/identity), B (depth/shading), C (isometry/form).
 
 ## Work (per family — new/varied FORMs, then re-point recipes)

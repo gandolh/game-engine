@@ -1,7 +1,7 @@
 # Verification — Citadel CC0 art ingest (2026-07-11)
 
 Evidence for the **reject** call in
-[../../todos/2026-07-11-citadel-external-cc0-art-ingest.md](../../todos/2026-07-11-citadel-external-cc0-art-ingest.md).
+[../../todos/2026-07-11-citadel-external-cc0-art-ingest.md](../../todos/closed/2026-07-11-citadel-external-cc0-art-ingest.md).
 
 **Published page:** <https://claude.ai/code/artifact/4ba07f60-7c41-48b6-b446-0359a3d2c6e5>
 

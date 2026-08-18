@@ -13,7 +13,7 @@ The keyboard-controlled farmer **Pip** does not move in response to WASD / arrow
 - [packages/server/src/sim-host.ts](../../../../packages/server/src/sim-host.ts) — `case "input"` (~L99) → `applyInput(...)`; `applyInput` (~L154) writes `pendingMoveX/Y`, `pendingAction`, `selectedSlot` onto the single `player` entity.
 - [packages/server/src/run-registry.ts](../../../../packages/server/src/run-registry.ts) — fan-out + ownership: first socket gets `attach owner:true`; only `socket === run.owner` may send control messages (~L169). Confirm `input` is treated as owner-gated control or passed through.
 - [packages/sim-core/src/systems/player-control/system.ts](../../../../packages/sim-core/src/systems/player-control/system.ts) — `PlayerControlSystem.run` consumes `pendingMoveX/Y`: velocity move (`PLAYER_SPEED = 1/PLAYER_STEP_TICKS`), per-axis AABB wall-slide, `canStand` = `isWalkable && !featureAt`. Note `pendingMove*` is **read but never cleared** here — held direction persists until a keyup sends `null`.
-- [corpus/wiki/player-and-interaction.md](../../wiki/player-and-interaction.md) — the Pip design synthesis (movement is **not** AP-gated; facing is authoritative). Predates the brief-72 server migration — update it if the input path changed.
+- [corpus/wiki/player-and-interaction.md](../../../wiki/player-and-interaction.md) — the Pip design synthesis (movement is **not** AP-gated; facing is authoritative). Predates the brief-72 server migration — update it if the input path changed.
 
 ## Current state / chain
 
@@ -33,7 +33,7 @@ Keyboard → `render-loop` (held axes, `owner` gate, `moveChanged` gate) → `cl
 - [ ] **3. Check ownership** — log/confirm `client.owner` is `true` on the single-player path and that the server isn't sending `attach owner:false` for the lone socket (duplicate-attach or reconnect-as-spectator bug). (Suspect #2.)
 - [ ] **4. Fix the identified break** — minimal, targeted. If it's the `moveChanged`-vs-attach race (#3), options: send the current held axes once on attach, or resend held input until the worker acks, or drop the `moveChanged` gate and send every-frame held state (cheap; the worker already paces stepping) — pick the smallest change that doesn't reintroduce per-frame flooding.
 - [ ] **5. Regression test** — add/extend a test that drives the full input path to Pip's transform. [player-control.test.ts](../../../../packages/sim-core/src/systems/player-control.test.ts) already covers `PlayerControlSystem` in isolation; add coverage for the **client→host→pendingMove** wiring (e.g. against `run-registry` / `sim-host` with a fake socket — see [run-registry.test.ts](../../../../packages/server/src/run-registry.test.ts)) so an `owner`/attach/async-wiring regression is caught headlessly.
-- [ ] **6. Update the wiki** — fold the corrected input path (server hop + `owner` gate) into [player-and-interaction.md](../../wiki/player-and-interaction.md), which still describes the pre-brief-72 in-worker `postMessage` path. Add a `log.md` entry.
+- [ ] **6. Update the wiki** — fold the corrected input path (server hop + `owner` gate) into [player-and-interaction.md](../../../wiki/player-and-interaction.md), which still describes the pre-brief-72 in-worker `postMessage` path. Add a `log.md` entry.
 - [ ] **7. Verify** — `npm run dev`: WASD/arrows move Pip smoothly (held key = continuous walk, diagonal works, wall-slide intact); `E` action and `1–9` slot select still work. `npm run typecheck` clean, `npm run test` green.
 
 ## Acceptance

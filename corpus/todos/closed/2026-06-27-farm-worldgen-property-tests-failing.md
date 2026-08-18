@@ -29,14 +29,14 @@ to these files predates it ("restructuring", 4e8fb44). Recording so it isn't los
 Multi-seed layout-invariant property tests (they sweep many seeds asserting the
 generated archipelago is well-formed):
 
-- [generate-world.property.test.ts](../../games/farm/sim-core/src/world/generate-world.property.test.ts)
+- [generate-world.property.test.ts](../../../games/farm/sim-core/src/world/generate-world.property.test.ts)
   — "every region pair keeps a >=2-tile ocean gap (bounds)" and "every region
   center is reachable from the village over land+road".
-- [walkable-grid.test.ts](../../games/farm/sim-core/src/world/walkable-grid.test.ts)
+- [walkable-grid.test.ts](../../../games/farm/sim-core/src/world/walkable-grid.test.ts)
   — "no two island bodies are adjacent (≥2 Chebyshev between every region pair)".
-- [bridge-graph.test.ts](../../games/farm/sim-core/src/world/bridge-graph.test.ts)
+- [bridge-graph.test.ts](../../../games/farm/sim-core/src/world/bridge-graph.test.ts)
   — "bridges never overlap an island (other than their endpoints)".
-- [interior-decor.test.ts](../../games/farm/sim-core/src/render-systems/interior-decor.test.ts)
+- [interior-decor.test.ts](../../../games/farm/sim-core/src/render-systems/interior-decor.test.ts)
   — "blue-noise: no two décor tiles within Chebyshev MIN_SPACING".
 
 The shape (ocean-gap / island-adjacency / reachability / bridge-overlap all

@@ -206,7 +206,7 @@ design-of-record). Five chunks, sim-core then a render pass (`19fa2dc`·`48240fd
 
 ## M6 — Mortality & Care (hollow-15, done 2026-07-21)
 Gave death consequences and a care economy. Sim-core complete + headless-verified; render dispatched
-separately (visual; no longer Chrome-gated since 2026-08-18). Brief: [../todos/2026-07-21-hollow-15-mortality-and-care.md](../todos/2026-07-21-hollow-15-mortality-and-care.md).
+separately (visual; no longer Chrome-gated since 2026-08-18). Brief: [../todos/2026-07-21-hollow-15-mortality-and-care.md](../todos/closed/2026-07-21-hollow-15-mortality-and-care.md).
 - **Starvation is lethal in 3 in-game days.** A starvation-death path already existed
   (`family/lifecycle-system.ts`) but defaulted to a huge 3000 raw ticks; the bootstrap default is now
   day-derived (`STARVATION_DEATH_DAYS * ticksPerDay`), still overridable via `starvationDeathTicks`

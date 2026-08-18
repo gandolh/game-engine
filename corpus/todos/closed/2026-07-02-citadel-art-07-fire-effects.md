@@ -15,11 +15,11 @@ The user wants to **"test with fire effects too."** Today a burning building is 
 only three cheap render-only cues — there is **no actual fire**:
 
 - an **orange multiply-tint** on the building sprite
-  ([quads.ts](../../games/citadel/client/src/render/quads.ts): `packTint(b.burning ? EDG.orange : …)`),
+  ([quads.ts](../../../games/citadel/client/src/render/quads.ts): `packTint(b.burning ? EDG.orange : …)`),
 - a **dark soot/scorch wash + crack quads** ramped by burn time
-  ([wear.ts](../../games/citadel/client/src/render/wear.ts) `wearOverlayQuads`),
+  ([wear.ts](../../../games/citadel/client/src/render/wear.ts) `wearOverlayQuads`),
 - **grey chimney smoke** that keeps emitting from bakery/smith/woodcutter regardless of fire
-  ([citadel-fx.ts](../../games/citadel/client/src/render/citadel-fx.ts) `CitadelSmoke`).
+  ([citadel-fx.ts](../../../games/citadel/client/src/render/citadel-fx.ts) `CitadelSmoke`).
 
 So a burning building looks *sooty and orange*, not *on fire*. There are **no flames, no
 embers, no fire-lit ground glow, no fire-tinted smoke** — the engine already has a
@@ -49,7 +49,7 @@ gritty realism), deterministic, render-only:
    flickering deterministically on the render clock) so the fire lights its surroundings at
    night — the strongest "this is dangerous and warm" cue.
 5. **Ramp with burn time** — flame/ember intensity rises with the same `burningSince`
-   render-clock the soot ramp already uses ([main.ts](../../games/citadel/client/src/main.ts)),
+   render-clock the soot ramp already uses ([main.ts](../../../games/citadel/client/src/main.ts)),
    so a fresh ignition flickers small and a long fire roars.
 
 ### Acceptance
@@ -83,12 +83,12 @@ gritty realism), deterministic, render-only:
 - Cap particle emission (embers + smoke) so a many-building fire can't starve the shared
   `ParticleSystem` (512 cap) — same discipline as `CitadelSmoke`.
 - Cozy-stylised, not realistic gore — warm storybook fire per the
-  [style bible](../wiki/citadel-art-style.md).
+  [style bible](../../wiki/citadel-art-style.md).
 - Keep the existing orange-tint + soot cues (they compose under the flame); don't remove the
   burn read that's already tested.
 
 - **Final grade:** passes section F (fire effects) of the
-  [asset critique rubric](../wiki/citadel-asset-critique.md), judged from `showcase-fire.png` +
+  [asset critique rubric](../../wiki/citadel-asset-critique.md), judged from `showcase-fire.png` +
   a live fire event in playtest-citadel.
 
 ## Out of scope

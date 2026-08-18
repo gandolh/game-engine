@@ -15,10 +15,10 @@ migration either works or doesn't — everything before it is untested-in-anger 
 
 | File | Today | Becomes |
 |---|---|---|
-| [../../games/farm/client/src/main.ts](../../games/farm/client/src/main.ts) ~65 | `backend: "webgpu"` | no `backend` option |
-| [../../games/farm/client/src/main/profile-export.ts](../../games/farm/client/src/main/profile-export.ts) ~39 | `backend: "webgpu"` | no `backend` option |
-| [../../games/citadel/client/src/render/citadel-renderer.ts](../../games/citadel/client/src/render/citadel-renderer.ts) ~268 | `backend: "webgpu"` | no `backend` option |
-| [../../games/mathquest/client/src/main.ts](../../games/mathquest/client/src/main.ts) ~140 | `backend: "canvas2d"` | no `backend` option |
+| [../../games/farm/client/src/main.ts](../../../games/farm/client/src/main.ts) ~65 | `backend: "webgpu"` | no `backend` option |
+| [../../games/farm/client/src/main/profile-export.ts](../../../games/farm/client/src/main/profile-export.ts) ~39 | `backend: "webgpu"` | no `backend` option |
+| [../../games/citadel/client/src/render/citadel-renderer.ts](../../../games/citadel/client/src/render/citadel-renderer.ts) ~268 | `backend: "webgpu"` | no `backend` option |
+| [../../games/mathquest/client/src/main.ts](../../../games/mathquest/client/src/main.ts) ~140 | `backend: "canvas2d"` | no `backend` option |
 
 Keep every `onBackend` callback (they log `"[render] backend:"` / `"[citadel render] backend:"`);
 they now report `"webgl2"`.
@@ -48,8 +48,8 @@ Add a shared helper in `@engine/core` — `renderUnsupportedNotice(canvas, messa
 use it in Farm, Citadel, and MateQuest when `createRenderer` throws. **Lift the pattern from Hollow**,
 which already does this correctly: `onRendererUnavailable` shows an on-screen box, and *everything
 non-render keeps running* rather than dying with an unhandled rejection
-([app.ts](../../games/hollow/client/src/render3d/app.ts) ~205–223,
-[main.ts](../../games/hollow/client/src/main.ts) ~466 for the overlay convention).
+([app.ts](../../../games/hollow/client/src/render3d/app.ts) ~205–223,
+[main.ts](../../../games/hollow/client/src/main.ts) ~466 for the overlay convention).
 
 Requirements:
 - Message text: plain, actionable, **no `chrome://flags`** and no WebGPU mention. WebGL2 has been

@@ -14,12 +14,12 @@ different NPC farms.
 ## Context
 
 - Farm sprites are baked from per-asset pixel recipes in
-  [@farm/atlas-recipes](../../games/farm/atlas-recipes/) via
-  `npm run atlas` ([@tool/atlas-builder](../../tools/atlas-builder/));
+  [@farm/atlas-recipes](../../../games/farm/atlas-recipes/) via
+  `npm run atlas` ([@tool/atlas-builder](../../../tools/atlas-builder/));
   `npm run preview` renders the world to a PNG for quick review.
 - **Palette constraint:** Farm/engine assets must stay on EDG32 (`EDG.*`) —
   Citadel's Apollo-46 palette is *not* available to Farm (locked decision, see
-  [wiki/decisions.md](../wiki/decisions.md) and the palette guard test). "Take
+  [wiki/decisions.md](../../wiki/decisions.md) and the palette guard test). "Take
   the example from Citadel" means its techniques/quality (shading, silhouettes,
   detail density), not its palette.
 

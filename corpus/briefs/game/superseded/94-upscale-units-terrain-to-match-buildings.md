@@ -13,7 +13,7 @@
 ## Why
 
 Citadel building sprites were rebuilt with distinct medieval forms authored at
-**4×** (`ISO_ART_SCALE`, see [iso.ts](../../../games/citadel/client/src/render/iso.ts)
+**4×** (`ISO_ART_SCALE`, see [iso.ts](../../../../games/citadel/client/src/render/iso.ts)
 and the 2026-06-21 "Per-building FORMS + 4× detail" log/wiki entries). The
 villager/raider/pedestrian figures and the terrain diamonds are still authored at
 **1×** (32-based / the 16px tile), so they now read as noticeably lower-detail
@@ -22,13 +22,13 @@ units + terrain to match in a follow-up — this brief.
 
 ## Scope
 
-- **Units** ([recipes/units.ts](../../../games/citadel/client/src/render/sprites/recipes/units.ts)):
+- **Units** ([recipes/units.ts](../../../../games/citadel/client/src/render/sprites/recipes/units.ts)):
   `vil/person`, `raider`, `vil/pedestrian`. They're currently asserted 32×32 /
   16×16 (recipes.test.ts). Re-author at higher res (match the building 4× feel —
   likely 64-based for the two main figures) with more medieval detail (tunic,
   belt, tool/weapon), keeping the grey-ramp tint-multiply convention (quads.ts /
   palette.ts) so the per-instance state/strength colouring still works.
-- **Terrain** ([terrain-dither.ts](../../../games/citadel/client/src/render/terrain-dither.ts),
+- **Terrain** ([terrain-dither.ts](../../../../games/citadel/client/src/render/terrain-dither.ts),
   the baked static layer + `fx/diamond`): raise the per-tile detail (texture
   clusters, shore/edge work) so tiles don't look flat next to the buildings.
   Mind the baked-layer texture budget and the EDG32 guard.
@@ -43,7 +43,7 @@ units + terrain to match in a follow-up — this brief.
 - **Anchor convention** (the ⚠️ note in citadel-overview.md): units are anchored
   by CENTRE; keep `isoSpriteDims`/placement in sync if unit sprite dims change.
 - **Tests**: update the 32×32/16×16 unit-dims assertions in
-  [recipes.test.ts](../../../games/citadel/client/src/render/sprites/recipes.test.ts);
+  [recipes.test.ts](../../../../games/citadel/client/src/render/sprites/recipes.test.ts);
   keep the EDG32 + opaque-fraction guards green.
 
 ## Verify

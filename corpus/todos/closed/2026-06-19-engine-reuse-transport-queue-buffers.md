@@ -13,21 +13,21 @@ tags: [engine, sim, perf]
 > MessageBus.send() freelist **deferred** (unjustified at current volume — noted).
 > Multi-seed determinism byte-identical; typecheck + tests green. See log.md 2026-06-26.
 
-Two engine transport paths allocate every tick where the [MessageBus](../../engine/core/src/sim/message-bus.ts)
+Two engine transport paths allocate every tick where the [MessageBus](../../../engine/core/src/sim/message-bus.ts)
 already shows the zero-alloc swap-buffer pattern to copy. Bring them in line.
 
 ## Context
 
 - **`CommandQueue.drain()` copies the pending array every tick.**
-  [command-queue.ts:32](../../engine/core/src/commands/command-queue.ts#L32) does
+  [command-queue.ts:32](../../../engine/core/src/commands/command-queue.ts#L32) does
   `const batch = this.pending.slice();`. `CommandSystem.run()` calls it once per
   tick → a fresh array allocation per tick even when empty. Replace with the
   swap-buffer dance the message bus already uses in
-  [message-bus.ts:38-43](../../engine/core/src/sim/message-bus.ts#L38) (`flush()`
+  [message-bus.ts:38-43](../../../engine/core/src/sim/message-bus.ts#L38) (`flush()`
   swaps `inflight`↔`deliverable` and resets `length = 0` — zero allocation).
 
 - **`MessageBus.send()` spreads a new object per message.**
-  [message-bus.ts:32](../../engine/core/src/sim/message-bus.ts#L32) does
+  [message-bus.ts:32](../../../engine/core/src/sim/message-bus.ts#L32) does
   `this.inflight.push({ ...message, tickIssued });` — a fresh object per send to
   attach `tickIssued`. Lower priority (a freelist of `QueuedMessage` objects is
   more involved than the array swap), but it's the same class of hot-path churn.

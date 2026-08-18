@@ -9,7 +9,7 @@ tags: [citadel, sim, pve, hazards, multiplayer, determinism]
 
 **Spine position: F (needs [28](2026-06-19-citadel-28-playerstate-refactor.md),
 [31](2026-06-19-citadel-31-pathfinder-perf.md)).**
-Part of the [Citadel MP epic](closed/2026-06-19-citadel-26-multiplayer-presence-bots-emotes.md).
+Part of the [Citadel MP epic](../closed/2026-06-19-citadel-26-multiplayer-presence-bots-emotes.md).
 
 **Lineage:** the shipped game runs NPC raiders + fire/disease hazards against the single
 player. MP **keeps PvE on** alongside PvP, so the threat model is per-player.

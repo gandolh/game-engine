@@ -12,7 +12,7 @@ Today Pip only acts on the **single faced tile** via the `E` key: `PlayerControl
 - [packages/farm-valley/src/main/tooltip.ts](../../../../packages/farm-valley/src/main/tooltip.ts) (L36–41) — the **canonical screen→world conversion** (`mousePos` → `wx/wy` via dpr + `camera.worldUnits` + center). Factor this into a shared `screenToTile(camera, canvas)` helper and reuse it for both the cursor and the click target. `Math.round(wx/TILE)` → tile index.
 - [packages/farm-valley/src/main/camera.ts](../../../../packages/farm-valley/src/main/camera.ts) — `mousePos` (tracked on `mousemove`) and the **`mousedown` camera-drag** handler (~L145). A click-to-act must be disambiguated from a pan-drag (see Risks).
 - [packages/farm-valley/src/worker/sim-client/client.ts](../../../../packages/farm-valley/src/worker/sim-client/client.ts) — `sendInput()` (~L275) and the `{ type: "input", ... }` message; this is where a clicked-tile field gets added. Server side: [sim-host.ts](../../../../packages/server/src/sim-host.ts) `applyInput` (~L154) writes the input onto the player entity.
-- [corpus/wiki/player-and-interaction.md](../../wiki/player-and-interaction.md) — Pip's hotbar + action model (slots, tools, `PlayerControlSystem` dispatch). Update after.
+- [corpus/wiki/player-and-interaction.md](../../../wiki/player-and-interaction.md) — Pip's hotbar + action model (slots, tools, `PlayerControlSystem` dispatch). Update after.
 
 ## Current state
 
@@ -30,7 +30,7 @@ Today Pip only acts on the **single faced tile** via the `E` key: `PlayerControl
   - **(b) Validity-aware cursor (richer):** have the worker/host expose a lightweight "what would the selected slot do at tile (x,y)?" prediction — either fold a small per-hovered-tile hint into the snapshot, or add a cheap query message — so the cursor can show an **active** vs **disabled/no-op** variant. More faithful but adds a data channel; only do this if (a) is judged insufficient.
   - Custom cursor art (if any) must use **EDG.* palette** constants and pass the palette guard; prefer CSS named cursors to sidestep that entirely.
 - [ ] **5. Tests** — extend [player-control.test.ts](../../../../packages/sim-core/src/systems/player-control.test.ts): clicking a valid owned/empty plot with the seed slot queues a `plant` at the **clicked** tile (not the faced one); clicking out-of-reach is rejected by the guard; `E` with no clicked tile still uses the faced tile (regression). If 4(b) is chosen, test the prediction path headlessly.
-- [ ] **6. Wiki + log** — document click-to-target + the cursor model in [player-and-interaction.md](../../wiki/player-and-interaction.md); add a `log.md` entry.
+- [ ] **6. Wiki + log** — document click-to-target + the cursor model in [player-and-interaction.md](../../../wiki/player-and-interaction.md); add a `log.md` entry.
 - [ ] **7. Verify** — `npm run dev`: hovering the canvas shows the action-appropriate cursor for the selected slot; left-clicking an in-reach tile performs the slot's action there (plant/till/water/chop/mine/fish), out-of-reach clicks do nothing, and click-drag still pans the camera. `E` faced-tile action unchanged. `npm run typecheck` clean, `npm run test` green.
 
 ## Acceptance

@@ -17,11 +17,11 @@ tags: [citadel, playtest, cozy-pivot, phase-e, phase-f, ux]
 > with happy 91–99. Phase F is placement-verified live; only the sub-second `false→true` edge
 > isn't harness-observable (coverage is reached during boot — a sampling race, not a defect; the
 > edge + seeded-silent behavior are unit-tested in main.ts). **This todo is now DONE.** See the
-> P2 update below and [log 2026-07-01](../log.md).
+> P2 update below and [log 2026-07-01](../../log.md).
 
 > **Run config (reproducible):** client seed fixed `0x1a2b3c4d`, solo Web-Worker sim
 > (`cozyThreats:true`, `seedTown:true`, `deferThreatsUntilBuildings:6` — confirmed at
-> [sim-worker.ts:59-81](../../games/citadel/client/src/worker/sim-worker.ts#L59)), system
+> [sim-worker.ts:59-81](../../../games/citadel/client/src/worker/sim-worker.ts#L59)), system
 > Chrome + WebGPU. Two runs: the skill's `play.mjs` default plan (SECONDS=200 SPEED=4,
 > `reloads:0`, only a benign 404) + a focused `ef-probe.mjs` (scratch, git-ignored under
 > `citadel-playtest-out/`) that places chapel+market+watchpost on the seeded house and reads
@@ -58,7 +58,7 @@ digest byte-identical vs pre-E/F baseline — proven by `git stash` A/B on seed 
 - **The review fix is load-bearing here.** `uncoveredHouseTiles` now reads the sim's
   authoritative per-house `lacks*` (not recomputed market geometry), so the pulse and the
   `allHomesCovered` banner can never disagree about goods (which the sim gates on stockpile
-  availability, not just market-in-range). See [coverage.ts](../../games/citadel/client/src/render/coverage.ts).
+  availability, not just market-in-range). See [coverage.ts](../../../games/citadel/client/src/render/coverage.ts).
 - **Not yet fully green:** the false→true banner edge was never triggered because no run
   produced a fully-covered house. **Acceptance still open:** a run that places
   chapel+market+watchpost **road-connected + staffed** in range of a house, watches mood climb
@@ -81,18 +81,18 @@ to Pop 0 in ~10–20 days). Winter didn't cliff it (Phase H floor); a Day-32 dis
 ## P1 (UX) — threat/dip toast COPY reads pressure-game, undercutting the cozy contract — ✅ SHIPPED 2026-07-01
 
 **Fixed.** The event strings now branch on the same `cozy` flag the mechanics already use:
-- **Fire** ([fire-system.ts](../../games/citadel/sim-core/src/systems/fire-system.ts) `_igniteBuilding`):
+- **Fire** ([fire-system.ts](../../../games/citadel/sim-core/src/systems/fire-system.ts) `_igniteBuilding`):
   ignition → *"a … hearth is smouldering — a well nearby would settle it."*; spread →
   *"the smoulder drifted to a … — keep a well close."*
-- **Disease** ([disease-system.ts](../../games/citadel/sim-core/src/systems/disease-system.ts)):
+- **Disease** ([disease-system.ts](../../../games/citadel/sim-core/src/systems/disease-system.ts)):
   onset → *"N villager(s) are under the weather."*; ended → *"the town is back on its feet."*
-- **Immigration** ([immigration.ts](../../games/citadel/sim-core/src/systems/immigration.ts) — gained a
+- **Immigration** ([immigration.ts](../../../games/citadel/sim-core/src/systems/immigration.ts) — gained a
   `cozy` constructor opt, wired from `sim-bootstrap.ts` like Fire/Disease): a hungry departure →
   *"a villager left to find food (pop N) — the larder is bare."* (never "starved (pop 0)").
 
 The **sharp** strings are kept verbatim under `cozyThreats:false` (Challenge mode) — the
 regression guards match on them (`defer-threats.test.ts` `THREAT_RE`, `phase45.test.ts`). A new
-copy-contract block in [cozy-threats.test.ts](../../games/citadel/sim-core/src/systems/cozy-threats.test.ts)
+copy-contract block in [cozy-threats.test.ts](../../../games/citadel/sim-core/src/systems/cozy-threats.test.ts)
 pins the fire cozy/sharp split both ways. **Determinism:** reproducible (run1==run2 byte-identical)
 and **no numeric drift** — per-day summaries byte-identical vs the pre-P1 baseline; the only diff is
 the event copy, which is the intended change. All gates green (sim-core 226/226, client 397/397,
@@ -123,7 +123,7 @@ taken from them.
 
 **Instrumentation half — ✅ DONE 2026-07-01.**
 - `window.__citadel.snapshot()` now returns the latest `RenderSnapshot`
-  ([main.ts](../../games/citadel/client/src/main.ts), dev-only hook), so a harness reads
+  ([main.ts](../../../games/citadel/client/src/main.ts), dev-only hook), so a harness reads
   `day/population/happiness/tier/stockpiles/activeFires/**allHomesCovered**` directly instead of
   scraping the (stale-since-2026-06-30) DOM HUD.
 - `play.mjs` `readHud()` now prefers the snapshot (`timeline[].src === "snapshot"`; DOM kept only
@@ -140,7 +140,7 @@ taken from them.
 - It anchors on the seeded **house** (coverage anchor) and places chapel/market/watchpost with a new
   coverage-aware ring placer (`addNear`) that guarantees each service's footprint **centre** is within
   `SERVICE_RADII` (=8, center-to-center Manhattan — the exact test in
-  [needs-happiness.ts](../../games/citadel/sim-core/src/systems/needs-happiness.ts):119-160) of the
+  [needs-happiness.ts](../../../games/citadel/sim-core/src/systems/needs-happiness.ts):119-160) of the
   anchor, landing clear of the seeded box (its footprints are in `occ`). Plus 2 extra houses + 2 wells
   near the anchor.
 

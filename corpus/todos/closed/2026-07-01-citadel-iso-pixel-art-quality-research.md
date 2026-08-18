@@ -10,23 +10,23 @@ tags: [citadel, client, render, art, isometric, pixel-art, shaders, research]
 The **survey** that grounds the Citadel cozy-art upgrade: external craft study, a code-
 grounded map of what Citadel renders today, and the locked decisions. It is the *why*.
 
-- The **style bible** (durable art-direction rules) → [wiki/citadel-art-style.md](../wiki/citadel-art-style.md).
+- The **style bible** (durable art-direction rules) → [wiki/citadel-art-style.md](../../wiki/citadel-art-style.md).
 - The **implementation work** (phased, verifiable) → todo briefs:
   - [art-01 — style bible + 2× scale flip (the gate)](2026-07-01-citadel-art-01-scale-flip-and-palette.md)
   - [art-02 — recipe fidelity pass (buildings / units / terrain / roads)](2026-07-01-citadel-art-02-recipe-fidelity-pass.md)
   - [art-03 — atmosphere + reusable fBm overlay pass](2026-07-01-citadel-art-03-atmosphere-and-fbm-overlay.md)
-  - **Wave 2 (2026-07-02, DONE — de-samify + fire; graded PASS via the [critique rubric](../wiki/citadel-asset-critique.md)):**
-    - [art-04 — building personality & silhouette de-samification](closed/2026-07-02-citadel-art-04-personality-and-silhouette.md)
-    - [art-05 — unit / character personality](closed/2026-07-02-citadel-art-05-unit-personality.md)
-    - [art-06 — all-assets showcase page (isometry + fire test harness)](closed/2026-07-02-citadel-art-06-asset-showcase-page.md)
-    - [art-07 — fire effects (flame + embers + glow)](closed/2026-07-02-citadel-art-07-fire-effects.md)
+  - **Wave 2 (2026-07-02, DONE — de-samify + fire; graded PASS via the [critique rubric](../../wiki/citadel-asset-critique.md)):**
+    - [art-04 — building personality & silhouette de-samification](../closed/2026-07-02-citadel-art-04-personality-and-silhouette.md)
+    - [art-05 — unit / character personality](../closed/2026-07-02-citadel-art-05-unit-personality.md)
+    - [art-06 — all-assets showcase page (isometry + fire test harness)](../closed/2026-07-02-citadel-art-06-asset-showcase-page.md)
+    - [art-07 — fire effects (flame + embers + glow)](../closed/2026-07-02-citadel-art-07-fire-effects.md)
   - **Wave 3 (2026-07-02, briefs only — targeted fidelity fixes from a showcase review):**
     - [art-08 — windmill: cubic base → cylindrical tower refactor](2026-07-02-citadel-art-08-windmill-cube-base-refactor.md)
     - [art-09 — well: center on tile + rectangular kerb](2026-07-02-citadel-art-09-well-center-and-rectangular.md)
     - [art-10 — market: stalls on the plot edges](2026-07-02-citadel-art-10-market-tables-on-edges.md)
     - [art-11 — fix reversed/weird roof slope shading](2026-07-02-citadel-art-11-roof-slope-shading-fix.md)
     - [art-12 — detail/realism uplift + layered composite recipes](2026-07-02-citadel-art-12-detail-uplift-layered-recipes.md)
-  - External reference art (study-only, CC0 manifest): [inspirations/CREDITS.md](../../inspirations/CREDITS.md).
+  - External reference art (study-only, CC0 manifest): [inspirations/CREDITS.md](../../../inspirations/CREDITS.md).
 
 > **Framing:** Citadel is **already true-isometric** (2:1 dimetric, 32×16 tiles, correct
 > projection + `x+y` painter's depth, per [true-iso brief 21](2026-06-21-citadel-true-isometric.md)),
@@ -37,11 +37,11 @@ grounded map of what Citadel renders today, and the locked decisions. It is the 
 
 1. **Resolution → 2× outright.** `ISO_ART_SCALE = 2`; re-author to that density. Not an
    A/B, not "keep both." Re-opens the 4×-reverted call from
-   [restyle brief 95](../briefs/game/done/95-citadel-building-restyle-reference-look.md) at
+   [restyle brief 95](../../briefs/game/done/95-citadel-building-restyle-reference-look.md) at
    the middle ground the code was always parameterised for. 4× stays a **future** knob if 2×
    underwhelms after polish.
 2. **Art direction → cozy medieval storybook** (warm bias, golden hour, soft shadows,
-   friendly rounded forms, lived-in). Full rules in the [style bible](../wiki/citadel-art-style.md).
+   friendly rounded forms, lived-in). Full rules in the [style bible](../../wiki/citadel-art-style.md).
 3. **Shaders → both.** Refine the existing overlay channels (day/night wash, light pool,
    weather) **and** light up the reusable full-screen fBm overlay. *(Refined 2026-07-01:
    the fBm pass **already exists** — `CloudShadowPass` /
@@ -55,22 +55,22 @@ grounded map of what Citadel renders today, and the locked decisions. It is the 
 
 Source-of-truth ordering code > done-brief > wiki; all below read from source.
 
-- **Projection** — [`iso.ts`](../../games/citadel/client/src/render/iso.ts): `ISO_TILE_W=32`,
+- **Projection** — [`iso.ts`](../../../games/citadel/client/src/render/iso.ts): `ISO_TILE_W=32`,
   `ISO_TILE_H=16` (2:1), `ISO_HW=16`, `ISO_HH=8`, `ISO_HEIGHT_STEP=8`/storey. Standard
   formula; multi-tile footprints sort by their FAR corner (`isoFootprintBox`). Nothing to fix.
-- **Renderer** — WebGPU-only ([`citadel-renderer.ts`](../../games/citadel/client/src/render/citadel-renderer.ts));
+- **Renderer** — WebGPU-only ([`citadel-renderer.ts`](../../../games/citadel/client/src/render/citadel-renderer.ts));
   sprite-batch quads from one procedural atlas; snapshot interpolation. Explicit layer stack.
 - **Assets are code** — ASCII `PixelRecipe` grids rasterised at boot into one pow2 shelf-
-  packed atlas ([`atlas.ts`](../../games/citadel/client/src/render/sprites/atlas.ts)); no
+  packed atlas ([`atlas.ts`](../../../games/citadel/client/src/render/sprites/atlas.ts)); no
   committed PNGs; game-local (NOT Farm's committed-PNG stack in
-  [asset-pipeline.md](../wiki/asset-pipeline.md)). Recipes in
-  [`sprites/recipes/`](../../games/citadel/client/src/render/sprites/recipes/): `buildings.ts`,
+  [asset-pipeline.md](../../wiki/asset-pipeline.md)). Recipes in
+  [`sprites/recipes/`](../../../games/citadel/client/src/render/sprites/recipes/): `buildings.ts`,
   `units.ts`, `fx.ts`, iso primitives in `iso-draw.ts`.
 - **Terrain** — flat EDG diamonds + hash-based sub-tile dither + elevation-tinted relief,
-  baked via `WindowController` ([`terrain-dither.ts`](../../games/citadel/client/src/render/terrain-dither.ts));
+  baked via `WindowController` ([`terrain-dither.ts`](../../../games/citadel/client/src/render/terrain-dither.ts));
   tiles bake FLAT (a geometric lift was tried & removed). Roads/walls/bridges autotile.
 - **Palette** — 32-colour **EDG32**, guard-test enforced; all colours via a `SWATCH` char map.
-- **Atmosphere** — [`atmosphere.ts`](../../games/citadel/client/src/render/atmosphere.ts):
+- **Atmosphere** — [`atmosphere.ts`](../../../games/citadel/client/src/render/atmosphere.ts):
   `endFrame(wash, particles, weather, _overlay)` — **`wash` renders** (TintPass), **`weather`
   renders** (WeatherPass), **`_overlay` is a NO-OP on WebGPU**. Day fraction + cosine
   `nightFactorOf` already drive a seasonal wash; night light pool = sprite quads. A separate
@@ -108,7 +108,7 @@ From SLYNYRD 41/54, Pixel Parmesan, Screaming Brain, Pixnote (sources below):
 Do **not** commit external CC0 PNGs: Citadel's art is procedural code + palette-guarded + no
 import path; external art fails the guard, needs full recolour (= re-authoring), and breaks
 the deterministic "assets are code" invariant. Study packs for form/silhouette/shading only.
-Best references in the [style bible](../wiki/citadel-art-style.md#references).
+Best references in the [style bible](../../wiki/citadel-art-style.md#references).
 
 ## Sources
 

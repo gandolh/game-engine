@@ -45,7 +45,7 @@ tags: [citadel, render, art, projection, epic]
 > libs — but installed Chrome/Edge do). Placed house/chapel/storehouse/bakery/
 > woodcutter + market and zoomed in: **all five render as correct iso volumes**;
 > only `market` is flat — and that is **by design** (`market → marketStalls(...)`
-> in [buildings.ts](../../games/citadel/client/src/render/sprites/recipes/buildings.ts),
+> in [buildings.ts](../../../games/citadel/client/src/render/sprites/recipes/buildings.ts),
 > open stalls with no height arg, unlike `cottage`/`warehouse`). So the earlier
 > flat-box report was a host-specific WebGPU artifact, as suspected — not a code
 > bug. If it resurfaces on another GPU, the `copyExternalImageToTexture` /
@@ -63,7 +63,7 @@ This is a **render + input + art** epic, fully contained to `@citadel/client`.
 `@citadel/sim-core` is untouched:
 
 - The world stays a `WORLD_WIDTH × WORLD_HEIGHT` **axis-aligned tile grid**
-  ([world/terrain.ts](../../games/citadel/sim-core/src/world/terrain.ts)). Iso is a
+  ([world/terrain.ts](../../../games/citadel/sim-core/src/world/terrain.ts)). Iso is a
   *display* of that grid, not a different grid.
 - **Determinism is unaffected** — everything here is downstream of the
   `RenderSnapshot` the worker posts; no sim RNG, no tick-output change. The
@@ -95,7 +95,7 @@ single source of truth, consumed by both projection and inverse.
 ## Stages (each independently shippable + tested)
 
 ### Stage 1 — Projection + inverse in transform.ts  *(code, small, linchpin)*
-[transform.ts](../../games/citadel/client/src/render/transform.ts) today is a trivial
+[transform.ts](../../../games/citadel/client/src/render/transform.ts) today is a trivial
 linear map (`worldX = tileX · TILE_SIZE`) with a one-`floor` `screenToTile`. Replace
 with the iso pair:
 
@@ -118,7 +118,7 @@ tileX = (a + b) / 2 ;  tileY = (b - a) / 2   // then floor, with elevation corre
   yet (pure math + tests only).
 
 ### Stage 2 — Renderer pre-projection + depth sort  *(code, medium)*
-[citadel-renderer.ts](../../games/citadel/client/src/render/citadel-renderer.ts).
+[citadel-renderer.ts](../../../games/citadel/client/src/render/citadel-renderer.ts).
 The WebGPU backend currently does an axis-aligned ortho blit. Lowest-risk path:
 **CPU pre-project quad positions** in the push helpers (compute each quad's iso
 screen-world position) so `@engine/core`'s shared WebGPU passes stay untouched. (A
@@ -135,9 +135,9 @@ projection matrix in the shader is cleaner but touches shared engine code — de
   occlusion; ghost preview lands on the hovered diamond tile.
 
 ### Stage 3 — Iso terrain bake  *(code, medium)*
-[terrain-dither.ts](../../games/citadel/client/src/render/terrain-dither.ts) +
-[window-controller.ts](../../games/citadel/client/src/render/window-controller.ts) +
-[render-window.ts](../../games/citadel/client/src/render/render-window.ts).
+[terrain-dither.ts](../../../games/citadel/client/src/render/terrain-dither.ts) +
+[window-controller.ts](../../../games/citadel/client/src/render/window-controller.ts) +
+[render-window.ts](../../../games/citadel/client/src/render/render-window.ts).
 Terrain cells become **diamond tiles**, not axis-aligned rects. The static-layer bake
 fills diamonds; the elevation field (just added) can now drive real per-tile *height*
 offset, not just a light/dark dither bias.
@@ -147,7 +147,7 @@ offset, not just a light/dark dither bias.
   determinism of the bake (pure) preserved.
 
 ### Stage 4 — Re-author the sprite library at the iso angle  *(ART — the bulk)*
-[sprites/recipes/](../../games/citadel/client/src/render/sprites/) — `draw.ts`
+[sprites/recipes/](../../../games/citadel/client/src/render/sprites/) — `draw.ts`
 (`makeBuilding` / `makeFort` generators + accent primitives), `buildings.ts`,
 `units.ts`. Today every `PixelRecipe` is a **flat top-down** silhouette with a fixed
 top-left light. True iso means re-drawing each to show **two faces + roof on the
@@ -162,8 +162,8 @@ not an afternoon).
   zoom; palette guard green. *(This stage can sub-divide per building category.)*
 
 ### Stage 5 — Autotile + cluster iso geometry  *(code, medium)*
-[autotile.ts](../../games/citadel/client/src/render/autotile.ts) (road/wall networks)
-and [clustering.ts](../../games/citadel/client/src/render/clustering.ts) (house
+[autotile.ts](../../../games/citadel/client/src/render/autotile.ts) (road/wall networks)
+and [clustering.ts](../../../games/citadel/client/src/render/clustering.ts) (house
 neighbourhood borders) both emit axis-aligned shapes. Rework to iso-aware geometry
 (diamond road segments, iso cluster outlines).
 - **Acceptance:** roads/walls connect visually on the diamond grid; house clusters

@@ -43,4 +43,4 @@ Two defects in [`wellForm`](../../games/citadel/client/src/render/sprites/recipe
   smell; check whether other 1×1/odd sprites share it while here.
 - Keep `wellForm` a distinct silhouette (silhouette.test stays green).
 
-Graded against the [asset critique rubric](../wiki/citadel-asset-critique.md) C (isometry/anchoring).
+Graded against the [asset critique rubric](../../wiki/citadel-asset-critique.md) C (isometry/anchoring).

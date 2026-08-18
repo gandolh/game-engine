@@ -21,11 +21,11 @@ since they share the same systems.
 ## Context
 
 1. **Siege outcome is a deterministic threshold with zero variance.**
-   [siege-resolution.ts:78-82](../../games/citadel/sim-core/src/systems/siege-resolution.ts#L78)
+   [siege-resolution.ts:78-82](../../../games/citadel/sim-core/src/systems/siege-resolution.ts#L78)
    — `resolveSiege(raidStrength, defenseStrength, _rng)` ignores its RNG fork
    (param is literally `_rng`) and returns `repelled` if `defense ≥ strength*1.5`,
    `damage` if `≥ strength*0.5`, else `sacked`. The caller
-   ([siege-resolution.ts:211](../../games/citadel/sim-core/src/systems/siege-resolution.ts#L211))
+   ([siege-resolution.ts:211](../../../games/citadel/sim-core/src/systems/siege-resolution.ts#L211))
    *passes* `state.rng.fork(\`siege-${raider.id}\`)` but it's discarded. So a player
    at exactly the threshold gets a guaranteed fixed result — no clutch defenses, no
    drama. **Fix:** use the seeded fork to turn the thresholds into probability bands
@@ -36,7 +36,7 @@ since they share the same systems.
 2. **No counterplay during the raider march.**
    Raiders spawn at the map edge and crawl (`raider-movement.ts`, ~1 tile / 3 ticks)
    and only resolve on contact with walls/towers/keep
-   ([siege-resolution.ts:201-215](../../games/citadel/sim-core/src/systems/siege-resolution.ts#L201)).
+   ([siege-resolution.ts:201-215](../../../games/citadel/sim-core/src/systems/siege-resolution.ts#L201)).
    Nothing the player does during the march matters. **Fix:** a "scout" event that
    reveals incoming raider strength a couple days early (legible warning), and/or let
    garrison buildings deploy interceptors that shave raider strength if their path is

@@ -9,7 +9,7 @@ tags: [citadel, server, multiplayer, presence, flavor]
 
 **Spine position: I (needs [35](2026-06-19-citadel-35-citadel-server-multiwriter.md)).**
 The ephemeral-flavor layer of the
-[Citadel MP epic](closed/2026-06-19-citadel-26-multiplayer-presence-bots-emotes.md). Absorbs the
+[Citadel MP epic](../closed/2026-06-19-citadel-26-multiplayer-presence-bots-emotes.md). Absorbs the
 presence/emotes scope from the superseded brief 26.
 
 **Lineage:** tiny-world-builder sends **presence** (cursor / active-tool) on a channel

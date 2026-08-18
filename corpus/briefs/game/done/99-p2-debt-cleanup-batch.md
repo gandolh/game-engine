@@ -52,7 +52,7 @@ status: **DONE 2026-07-11.** Commits `f244bea`/`98839a6` (the wave), `f260a7e` (
 > (baseline moved by design); Citadel **MATCH ×3 + byte-identical**.
 
 status: todo
-source: [2026-07-02 review findings items 28–35](../../../todos/2026-07-02-full-repo-review-findings.md) — the file:line detail lives there; verify each against current code first (brief 97's wave may have shifted lines).
+source: [2026-07-02 review findings items 28–35](../../../todos/closed/2026-07-02-full-repo-review-findings.md) — the file:line detail lives there; verify each against current code first (brief 97's wave may have shifted lines).
 
 One mechanical-cleanup wave; suitable for `plan-split-dispatch` with mostly junior chunks.
 Group by package:

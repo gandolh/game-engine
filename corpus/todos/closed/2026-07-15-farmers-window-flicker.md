@@ -13,9 +13,9 @@ forcing the panel to re-lay-out every frame or every data refresh.
 
 ## Context
 
-- Farm Valley in-canvas UI is built on [@engine/ui](../../engine/ui/); the
+- Farm Valley in-canvas UI is built on [@engine/ui](../../../engine/ui/); the
   player-facing panel/HUD landscape is described in
-  [wiki/player-and-interaction.md](../wiki/player-and-interaction.md).
+  [wiki/player-and-interaction.md](../../wiki/player-and-interaction.md).
 - Brief 117 (collapsible HUD panels, done 2026-07-15) recently reworked the HUD
   panels behind labeled toggles — worth checking whether the flicker predates or
   was introduced/exposed by that change.

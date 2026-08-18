@@ -12,11 +12,11 @@ scope: BRIEF-ONLY (no implementation yet — spec + acceptance)
 ## Why (code-grounded)
 
 Units are also "similar and flat." From
-[`units.ts`](../../games/citadel/client/src/render/sprites/recipes/units.ts):
+[`units.ts`](../../../games/citadel/client/src/render/sprites/recipes/units.ts):
 
 - There is **ONE villager body** (`drawVillager`) reused for every job. Job identity is a
   **per-instance multiply-tint only** (job → hue in
-  [`quads.ts`](../../games/citadel/client/src/render/quads.ts) VILLAGER_COLORS: farmer green,
+  [`quads.ts`](../../../games/citadel/client/src/render/quads.ts) VILLAGER_COLORS: farmer green,
   smith crimson, priest white, …). Silhouette is identical across all 10+ roles, so a farmer,
   a soldier, a priest and a trader are the *same figure in different colours*.
 - The raider is one bulkier body; the pedestrian is one 16×16 crowd figure.
@@ -25,7 +25,7 @@ Units are also "similar and flat." From
   uniform coloured pawns.
 
 Per the references (SLYNYRD 54 character sections, and the "silhouette-first" rule in the
-[style bible](../wiki/citadel-art-style.md)), a **held tool / headgear / robe** silhouette is
+[style bible](../../wiki/citadel-art-style.md)), a **held tool / headgear / robe** silhouette is
 the cheapest, strongest way to make small figures read as distinct roles.
 
 ## Goal / acceptance
@@ -51,7 +51,7 @@ the cheapest, strongest way to make small figures read as distinct roles.
   cutout. Respect the tight atlas/particle budget noted in the file.
 - Palette guard green · typecheck green · determinism · **browser-verified** (playtest-citadel:
   a populated town at noon — roles legible at gameplay zoom).
-- **Final grade:** passes the [asset critique rubric](../wiki/citadel-asset-critique.md) —
+- **Final grade:** passes the [asset critique rubric](../../wiki/citadel-asset-critique.md) —
   this brief owns A4/A5 (unit role + crowd silhouettes) and the multiply-tint items.
 
 ## Work

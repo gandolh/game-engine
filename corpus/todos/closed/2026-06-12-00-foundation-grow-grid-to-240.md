@@ -18,7 +18,7 @@ blocks: [bigger-decorated-neutral-islands, per-farm-ranch-islands, casino-island
 > real blast radius was dozens of hardcoded 160-coords (setup.ts décor/stations,
 > coral.ts, shared.ts, regions.ts anchors). Full guard-tests + 1058 repo tests +
 > typecheck green; render eyeballed OK; determinism check waived by the user.
-> See [log.md](../log.md) 2026-06-12 + [world-generation.md](../wiki/world-generation.md).
+> See [log.md](../../log.md) 2026-06-12 + [world-generation.md](../../wiki/world-generation.md).
 >
 > **Follow-up (2026-06-12, casino pass):** the grow MISSED `BIG_STRUCTURES` in
 > geometry.ts — baked building art (forge-house/carpenter/weather/volcano/casino) had

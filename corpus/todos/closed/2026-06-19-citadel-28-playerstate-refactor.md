@@ -8,7 +8,7 @@ tags: [citadel, sim, multiplayer, refactor, foundation]
 # Citadel 28 — PlayerState[] refactor
 
 **Spine position: A — gates everything.** This is the largest item in the
-[Citadel MP epic](closed/2026-06-19-citadel-26-multiplayer-presence-bots-emotes.md) (which
+[Citadel MP epic](../closed/2026-06-19-citadel-26-multiplayer-presence-bots-emotes.md) (which
 this set decomposes + supersedes). Everything downstream depends on it.
 
 **Lineage:** the shipped Citadel sim has a single implicit "player" — one global
@@ -26,7 +26,7 @@ then make every per-player system loop over players instead of acting on global 
   `tier`, `territory`, `activeDecrees`, `defensiveStrength`, `fireState`.
 - **Shared (NOT per-player):** terrain, the world grid, the tick clock.
 - **`ownerId`** added to **buildings + villagers**
-  ([building.ts](../../games/citadel/sim-core/src/entities/building.ts) and the
+  ([building.ts](../../../games/citadel/sim-core/src/entities/building.ts) and the
   villager entity).
 - **Per-player loops:** every economy / needs-happiness / immigration / tier /
   hazard / siege system iterates per player over its own `PlayerState`

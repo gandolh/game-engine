@@ -7,7 +7,7 @@ tags: [tools, headless, citadel, farm, run-sim, citadel-sim, json, llm-context, 
 ---
 
 > **✅ CLOSED 2026-07-11 (`d224b09`) — the read-only reporting scope shipped as Wave 2.5** of
-> the [dispatch plan](../2026-07-10-remaining-work-dispatch-plan.md). A generic
+> the [dispatch plan](2026-07-10-remaining-work-dispatch-plan.md). A generic
 > `RunReport` envelope lives in `@engine/core/sim` (`run-report.ts`); both tools take
 > `REPORT=1` / `REPORT_FILE=` and emit meta + compact per-day timeline + cumulative event log
 > + full end-state, byte-identical per seed. Farm harvests events per-tick (high-water mark,
@@ -31,12 +31,12 @@ only way to see how a run went.
 
 Both headless runners exist; what's missing is the *output contract*.
 
-- **Farm** — [tools/run-sim/](../../tools/run-sim/) drives `bootstrapSim()` on the main
+- **Farm** — [tools/run-sim/](../../../tools/run-sim/) drives `bootstrapSim()` on the main
   thread. It already has `EXPORT=csv|json` + `EXPORT_FILE`
-  ([env.ts](../../tools/run-sim/src/env.ts), [format.ts](../../tools/run-sim/src/format.ts)),
+  ([env.ts](../../../tools/run-sim/src/env.ts), [format.ts](../../../tools/run-sim/src/format.ts)),
   but the JSON is a **fixed per-day metric table** (`EXPORT_COLUMNS`) — a spreadsheet, not a
   world report. No final world state, no event log, no agent detail.
-- **Citadel** — [tools/citadel-sim/](../../tools/citadel-sim/src/index.ts) (~1000 lines) has
+- **Citadel** — [tools/citadel-sim/](../../../tools/citadel-sim/src/index.ts) (~1000 lines) has
   six scenarios (`grow`/`starve`/`siege`/`sack`/`fire`/`disease`) but emits **only
   `console.log` prose**. There is **no JSON export at all** — an LLM has to parse English
   summary lines to learn anything.
@@ -79,7 +79,7 @@ all Citadel GUI in-canvas (`@engine/ui`) — so its timeline logs `pop=null happ
 for every tick, and `buildingCount` counts roads (431 of 439). Fix alongside (or after) the
 report work: read HUD state from `window.__citadel` by exposing the latest snapshot's
 `day/season/pop/popCap/happiness/tier/stockpiles` (`currentSnapshot` already exists in
-[sim-client.ts](../../games/citadel/client/src/worker/sim-client.ts)); count non-road/non-wall
+[sim-client.ts](../../../games/citadel/client/src/worker/sim-client.ts)); count non-road/non-wall
 buildings (or report roads separately). Nice-to-have: a `__citadel.setZoom(z)` / camera-center
 dev hook so a visual harness doesn't fake mouse-wheel events. The dev-hook shape should
 probably mirror whatever end-state snapshot the JSON report settles on — one contract, two

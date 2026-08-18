@@ -10,10 +10,10 @@ tags: [citadel, sim, combat, multiplayer, determinism]
 **Spine position: E (needs [28](2026-06-19-citadel-28-playerstate-refactor.md),
 [30](2026-06-19-citadel-30-territory-influence.md),
 [31](2026-06-19-citadel-31-pathfinder-perf.md)).**
-Part of the [Citadel MP epic](closed/2026-06-19-citadel-26-multiplayer-presence-bots-emotes.md).
+Part of the [Citadel MP epic](../closed/2026-06-19-citadel-26-multiplayer-presence-bots-emotes.md).
 
 **Lineage:** generalizes the **shipped raider/siege model** (raiders auto-path to the keep;
-[siege-resolution.ts](../../games/citadel/sim-core/src/systems/siege-resolution.ts)
+[siege-resolution.ts](../../../games/citadel/sim-core/src/systems/siege-resolution.ts)
 resolves abstract deterministic siege math) from PvE-vs-keep to **player-vs-player.**
 
 ## Idea / Scope
@@ -23,9 +23,9 @@ resolve it with the existing siege math; destroying a town hall eliminates that 
 
 - **Launch-attack command:** spend resources **and/or conscript pop** to launch an army
   that **auto-paths to a TARGETED enemy building / town-hall.** (Conscription ties into the
-  shipped decree from [citadel-09](closed/2026-06-19-citadel-09-interlocking-decrees.md).)
+  shipped decree from [citadel-09](../closed/2026-06-19-citadel-09-interlocking-decrees.md).)
 - **Resolution:** the existing abstract deterministic siege math
-  ([siege-resolution.ts](../../games/citadel/sim-core/src/systems/siege-resolution.ts))
+  ([siege-resolution.ts](../../../games/citadel/sim-core/src/systems/siege-resolution.ts))
   **generalized to player-vs-player** (attacker army strength vs defender
   `defensiveStrength`). Reuses the per-player split from brief 28.
 - **NO RTS unit micro, NO commandable stacks** — you target, the sim resolves.

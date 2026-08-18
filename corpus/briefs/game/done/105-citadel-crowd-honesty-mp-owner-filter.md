@@ -17,7 +17,7 @@ status: todo — **reshaped 2026-07-10 (second grilling session): scope 1 only.*
 The bug it describes is real — `getVillagers()` emits ALL villagers while `population` is per-player,
 so each MP client renders rivals' villagers as its own crowd — and it is unreachable while nobody runs
 MP. It is a revival precondition; do not delete it from this file.
-source: [todos/2026-06-27-citadel-entity-count-matches-population.md](../../../todos/2026-06-27-citadel-entity-count-matches-population.md) — the sim-side leak was fixed (`removeOneVillager` + invariant test); these are the two explicitly-deferred halves.
+source: [todos/2026-06-27-citadel-entity-count-matches-population.md](../../../todos/closed/2026-06-27-citadel-entity-count-matches-population.md) — the sim-side leak was fixed (`removeOneVillager` + invariant test); these are the two explicitly-deferred halves.
 
 ## Scope
 

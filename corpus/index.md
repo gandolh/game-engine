@@ -64,8 +64,8 @@ regenerate with `bash corpus/lint.sh --index` rather than hand-editing.
   Canvas2D, delete WebGPU, move all four games plus Hollow's 3D to **WebGL2**, because WebGPU is
   still unshipped on Firefox/Linux and both 2D clients hard-forced it into a blank canvas. 13 briefs
   in 5 waves. Design of record:
-  [todos/2026-08-18-webgl2-00-BUILD-ORDER.md](todos/2026-08-18-webgl2-00-BUILD-ORDER.md) · live state:
-  [todos/2026-08-18-webgl2-BUILD-STATE.md](todos/2026-08-18-webgl2-BUILD-STATE.md) · decision:
+  [todos/2026-08-18-webgl2-00-BUILD-ORDER.md](todos/closed/2026-08-18-webgl2-00-BUILD-ORDER.md) · live state:
+  [todos/2026-08-18-webgl2-BUILD-STATE.md](todos/closed/2026-08-18-webgl2-BUILD-STATE.md) · decision:
   [wiki/decisions.md](wiki/decisions.md) (Renderer).
 
 ## Briefs — historical task specs (immutable archives)

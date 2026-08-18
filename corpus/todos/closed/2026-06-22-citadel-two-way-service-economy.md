@@ -7,7 +7,7 @@ source: "OpenTTD research, 2026-06-22"
 ---
 
 > **✅ DONE 2026-07-10.** The deferred upside halves (scopes #1 + #3) shipped as
-> [brief 100 — economy-growth pass](../briefs/game/done/100-citadel-economy-growth-pass.md).
+> [brief 100 — economy-growth pass](../../briefs/game/done/100-citadel-economy-growth-pass.md).
 > Both directions of the loop now exist: one curve (`bufferServiceFactor`) throttles a backed-up
 > producer toward the 0.6 floor and lifts a sustainedly-served one to 1.25×, and service coverage
 > re-weights the immigration roll. Headless `grow` 60d moved `pop 9-10` → `pop 12`. This todo is
@@ -29,7 +29,7 @@ source: "OpenTTD research, 2026-06-22"
 > road/hauling quality is the lever — "roads matter" is now a mechanic, not an
 > assertion. No RNG → determinism preserved (headless `grow` byte-identical, still
 > Final pop 11/12 bread 108 — it's well-served so the cap doesn't bite there).
-> [production.ts](../../games/citadel/sim-core/src/systems/production.ts), commit
+> [production.ts](../../../games/citadel/sim-core/src/systems/production.ts), commit
 > `2279575`. **Deferred:** scope #1 (graded service-RATIO that nudges output rate
 > up when well-served) and #3 (service-driven growth trickle) — both overlap the
 > immigration/founding model and the todo says coordinate, not double-tune; left
@@ -65,7 +65,7 @@ a mechanic and gives the player a dial to push.
    own output rate up when well-served, down when chronically unserved. Mirror
    OpenTTD's banded probabilities rather than a hard on/off. Verify against the
    `production` system and building output in
-   [games/citadel/sim-core/src/systems/](../../games/citadel/sim-core/src/systems/).
+   [games/citadel/sim-core/src/systems/](../../../games/citadel/sim-core/src/systems/).
 2. **Stockpile pressure** — an output that piles up uncollected (no road-connected
    consumer in range) stops growing or slowly spoils, instead of an infinite pool.
    This is the lever that makes layout/road quality pay off.
@@ -73,7 +73,7 @@ a mechanic and gives the player a dial to push.
    served and stagnate when not; the payoff is "it bloomed because of what I built."
    Tie a *continuous* growth trickle to sustained service coverage rather than only
    the instantaneous pop/happiness thresholds in
-   [tiers.ts](../../games/citadel/sim-core/src/systems/tiers.ts). This dovetails
+   [tiers.ts](../../../games/citadel/sim-core/src/systems/tiers.ts). This dovetails
    with the immigration rework already scoped in P0/P1 — coordinate, don't duplicate.
 
 ## Constraints

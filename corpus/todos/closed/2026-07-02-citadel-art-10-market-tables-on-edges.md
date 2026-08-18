@@ -38,4 +38,4 @@ the centre kept open (the gathering space), like a real market square.
 - Consider 3–4 stalls (one per rim edge) if the 2×2 footprint has room and it stays
   legible — a fuller market — but 2 on the near edges is the minimum fix.
 
-Graded against the [asset critique rubric](../wiki/citadel-asset-critique.md) A/G.
+Graded against the [asset critique rubric](../../wiki/citadel-asset-critique.md) A/G.

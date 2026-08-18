@@ -19,10 +19,10 @@ tags: [citadel, sim, render, villagers, population, consistency]
 
 > **Partial — 2026-06-27.** Found and fixed the real on-map mismatch: **raid
 > casualties decremented `p.population` WITHOUT despawning villager entities**
-> ([siege-resolution.ts](../../games/citadel/sim-core/src/systems/siege-resolution.ts),
+> ([siege-resolution.ts](../../../games/citadel/sim-core/src/systems/siege-resolution.ts),
 > the `p.population -= popLoss` after a sacking) — so after every raid the visible
 > crowd exceeded the count. Extracted a single source of truth
-> `removeOneVillager(state, p)` in [sim-state.ts](../../games/citadel/sim-core/src/sim-state.ts)
+> `removeOneVillager(state, p)` in [sim-state.ts](../../../games/citadel/sim-core/src/sim-state.ts)
 > (despawn highest-id owned villager + free its worker slot + decrement pop, in
 > lockstep, deterministic) and routed all three loss paths through it — immigration
 > (starvation/morale), disease deaths, and now raid casualties (previously the
@@ -30,10 +30,10 @@ tags: [citadel, sim, render, villagers, population, consistency]
 > New phase-4 invariant test asserts `ownedVillagers == population` **every tick**
 > across a raid that inflicts casualties. 165 sim-core tests green; determinism
 > preserved (despawn order is deterministic; phase-4 deep-equal snapshot test
-> still passes). Commit pending. See [log.md](../log.md).
+> still passes). Commit pending. See [log.md](../../log.md).
 >
 > **Still open (deferred):** the **ambient-crowd** layer
-> ([ambient-crowd.ts](../../games/citadel/client/src/render/ambient-crowd.ts)) still
+> ([ambient-crowd.ts](../../../games/citadel/client/src/render/ambient-crowd.ts)) still
 > draws extra background figures that can read as population — decide whether to
 > cap to population, gate, or make them visually distinct. Also: the snapshot's
 > `getVillagers()` emits **all** villagers regardless of `ownerId` while
@@ -48,18 +48,18 @@ There appear to be **more villager entities drawn on the map than the player's
 `population`** value. The two should be the same number: every person counted in
 `population` is one villager entity, and there are no villager entities beyond the
 population count. Today `spawnVillager` increments `p.population` and spawns an
-entity together ([immigration.ts:205-271](../../games/citadel/sim-core/src/systems/immigration.ts#L205)),
+entity together ([immigration.ts:205-271](../../../games/citadel/sim-core/src/systems/immigration.ts#L205)),
 but somewhere the two diverge — entities outlive their population decrement, or
 ambient/extra entities are rendered on top of the real ones, so the on-screen
 crowd doesn't match the HUD population.
 
 Possible sources to check:
 - **Starvation / morale departures** decrement `p.population`
-  ([immigration.ts:228-294](../../games/citadel/sim-core/src/systems/immigration.ts#L228))
+  ([immigration.ts:228-294](../../../games/citadel/sim-core/src/systems/immigration.ts#L228))
   — confirm the corresponding villager **entity is despawned** in the same path,
   not just the counter decremented (or vice versa).
 - The **ambient crowd** render layer
-  ([ambient-crowd.ts](../../games/citadel/client/src/render/ambient-crowd.ts)) draws
+  ([ambient-crowd.ts](../../../games/citadel/client/src/render/ambient-crowd.ts)) draws
   extra background figures that are *not* real villagers — if these read as
   population to the player, that's the mismatch. Decide whether ambient figures
   should be capped/removed so the visible crowd == population, or made visually

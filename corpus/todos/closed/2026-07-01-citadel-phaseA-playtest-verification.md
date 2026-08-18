@@ -10,7 +10,7 @@ tags: [citadel, playtest, cozy-pivot, phase-a, phase-c, ux, tooling]
 > left outstanding was satisfied by the 2026-07-01 Phase E/F playtest (200+ day live run —
 > see [that closed todo](2026-07-01-citadel-phaseEF-playtest.md)); its one live finding, the
 > **stale DOM-scraping `play.mjs` driver**, was extracted 2026-07-11 into
-> [the headless-JSON-run todo](../2026-07-11-headless-json-run-for-both-games.md) (the
+> [the headless-JSON-run todo](2026-07-11-headless-json-run-for-both-games.md) (the
 > browser-side sibling of the same "runs must be machine-readable" problem).
 
 > **Run config (reproducible):** client seed fixed `0x1a2b3c4d`, solo Web-Worker
@@ -70,7 +70,7 @@ visually:
 **Phase A visual re-eyeball, revisited:** with the town now able to stay alive +
 fire-free, house mood held at the neutral base **40** the whole run (the seeded
 house has NO chapel/market/watchpost in range → all three needs lack → base-40
-mood by [needs-happiness.ts](../../games/citadel/sim-core/src/systems/needs-happiness.ts)).
+mood by [needs-happiness.ts](../../../games/citadel/sim-core/src/systems/needs-happiness.ts)).
 So the *thriving* warm-glow contrast still wasn't framed — but now for a benign,
 correct reason (the seed intentionally ships only the bread chain, no services), not
 because the town is burning/starving. To eyeball the glow-vs-neglect contrast, a
@@ -89,7 +89,7 @@ client path carries the Phase A signal:
 - **Unserved houses** (no service in range): `mood: 40`, all three `lacks*: true` —
   the neutral base, fully neglected.
 
-The math matches [needs-happiness.ts](../../games/citadel/sim-core/src/systems/needs-happiness.ts)
+The math matches [needs-happiness.ts](../../../games/citadel/sim-core/src/systems/needs-happiness.ts)
 to the number. `lacksSafety` stayed true in both runs only because the test
 placement spaced the watchpost outside `SERVICE_RADII` — **not a bug**, a test-layout
 artifact (faith + goods flipping is sufficient proof of the mechanism). No page
@@ -141,7 +141,7 @@ every tick, and `buildingCount` counts roads (`bld=439`, 431 of them roads) →
 - **Acceptance:** `play.mjs` reads HUD state from `window.__citadel` (extend the dev
   hook to expose the latest snapshot's `day/season/pop/popCap/happiness/tier/
   stockpiles` — `currentSnapshot` already exists in
-  [sim-client.ts](../../games/citadel/client/src/worker/sim-client.ts)) instead of
+  [sim-client.ts](../../../games/citadel/client/src/worker/sim-client.ts)) instead of
   DOM scraping; the road-laying step stops inflating `buildingCount` (count
   non-road/non-wall types, or report roads separately). Re-run → timeline shows real
   pop/happy/tier again.

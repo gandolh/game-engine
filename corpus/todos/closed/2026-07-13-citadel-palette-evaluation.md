@@ -14,7 +14,7 @@ and the questions that must be answered before any code moves.
 
 ## Why the instinct is sound — EDG32 genuinely misfits the medieval look
 
-This isn't speculation; the [CC0 art-ingest spike](closed/2026-07-11-citadel-external-cc0-art-ingest.md)
+This isn't speculation; the [CC0 art-ingest spike](../closed/2026-07-11-citadel-external-cc0-art-ingest.md)
 already measured it. When it tried to quantize real medieval iso art to EDG32, **every muted timber
 and roof shingle snapped to hot rust**, because of a specific gamut gap:
 
@@ -53,13 +53,13 @@ Palettes considered and rejected for this use: 16-colour sets (Sweetie-16, etc.)
 
 ## ⚠️ Why this is a big deal, not a quick swap (read before scoping)
 
-1. **EDG32 is a locked decision.** [decisions.md](../wiki/decisions.md) enforces *"every colour from
-   `EDG.*`"* with a **guard test** ([palette.test.ts](../../engine/core/src/render/palette.test.ts))
+1. **EDG32 is a locked decision.** [decisions.md](../../wiki/decisions.md) enforces *"every colour from
+   `EDG.*`"* with a **guard test** ([palette.test.ts](../../../engine/core/src/render/palette.test.ts))
    that walks `engine/`, `games/`, and `tools/` and fails on any off-palette literal. Changing the
    palette **relitigates a locked convention** and needs explicit user sign-off + a decisions.md
    amendment. The art-ingest spike explicitly did **not** amend it.
 2. **The palette is engine-level and SHARED by both games.** `EDG.*` lives in
-   [engine/core/src/render/palette.ts](../../engine/core/src/render/palette.ts) and is consumed by
+   [engine/core/src/render/palette.ts](../../../engine/core/src/render/palette.ts) and is consumed by
    **Farm Valley *and* Citadel** — sprites, tiles, particles, the day/night wash, and HTML/canvas
    UI. A **Citadel-only** palette therefore requires **decoupling the palette per-game** first (the
    engine is generic and must not know about a game's palette) — a real architectural change, not a
@@ -68,7 +68,7 @@ Palettes considered and rejected for this use: 16-colour sets (Sweetie-16, etc.)
 3. **Migration surface is wide.** Every Citadel recipe palette (`PLASTER`, `WOOD`, `STONE`,
    `MARKET`, `FORT`, `GREENROOF`, …), the day/night wash ramp, particles, and all Citadel HTML/canvas
    UI colours would be re-picked against the new palette, then re-critiqued
-   ([citadel-asset-critique.md](../wiki/citadel-asset-critique.md)) and browser-verified.
+   ([citadel-asset-critique.md](../../wiki/citadel-asset-critique.md)) and browser-verified.
 
 ## Open questions to resolve before any work
 

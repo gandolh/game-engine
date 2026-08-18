@@ -7,7 +7,7 @@ tags: [citadel, ux, roads, research, input, build-tools]
 ---
 
 > **Done 2026-06-27 (research phase).** Wrote the cross-game research note +
-> ranked recommendation: [wiki/citadel-road-builder-ux.md](../wiki/citadel-road-builder-ux.md)
+> ranked recommendation: [wiki/citadel-road-builder-ux.md](../../wiki/citadel-road-builder-ux.md)
 > (OpenTTD / Cities:Skylines / Factorio / Anno / Settlers / organic builders,
 > mapped onto our 4-connected iso tile grid). Key finding: the biggest hole is
 > **no road-connectivity feedback** — the `connected` flag exists on every
@@ -17,15 +17,15 @@ tags: [citadel, ux, roads, research, input, build-tools]
 > tint) into a scoped implementation todo:
 > [road-feedback-connectivity-indicator](2026-06-27-citadel-road-feedback-connectivity-indicator.md).
 > Snap/auto-extend + in-tool undo deferred there; curved/freeform roads explicitly
-> rejected (fight the tile grid). See [log.md](../log.md).
+> rejected (fight the tile grid). See [log.md](../../log.md).
 
 # Citadel — make the road builder more user-friendly (research-first)
 
 ## Problem
 
 The road builder works but is unintuitive. Today (see
-[main.ts](../../games/citadel/client/src/main.ts) +
-[placement-state.ts](../../games/citadel/client/src/ui/placement-state.ts)):
+[main.ts](../../../games/citadel/client/src/main.ts) +
+[placement-state.ts](../../../games/citadel/client/src/ui/placement-state.ts)):
 a click-drag in "Road" mode paints a run; the path is L-shaped (now obstacle-aware
 auto-route — see the done todo
 [citadel-road-routing-around-buildings](2026-06-22-citadel-road-routing-around-buildings.md)).
@@ -64,7 +64,7 @@ a picked direction land in the wiki.
     obvious without a tutorial wall-of-text?
 - Accessibility / input: keyboard modifiers (straight-line lock, force-L,
   copy-segment), and how this maps to our right-drag-pan / left-drag-build scheme
-  (right-click is already the camera pan — [main.ts](../../games/citadel/client/src/main.ts)).
+  (right-click is already the camera pan — [main.ts](../../../games/citadel/client/src/main.ts)).
 
 ### Deliverable
 

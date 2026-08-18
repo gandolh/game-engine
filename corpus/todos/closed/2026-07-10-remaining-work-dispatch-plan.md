@@ -9,14 +9,14 @@ unblocked-but-unstarted briefs **103** and **113**. #26's two gating items, brie
 and **100**, landed 2026-07-10 (`8e930f3`, `0fd66c0`).
 
 **Rebuilt 2026-07-11 (corpus maintenance pass):** two 2026-07-11 todos joined the queue as
-**Wave 2.5** ([headless JSON run mode](closed/2026-07-11-headless-json-run-for-both-games.md),
+**Wave 2.5** ([headless JSON run mode](../closed/2026-07-11-headless-json-run-for-both-games.md),
 sequenced *before* Wave 3 because it makes every later wave's headless verification cheaper)
 and **Wave 5** ([building silhouette differentiation](2026-07-11-citadel-external-cc0-art-ingest.md),
 render-only, last). The `sack`-drift blocker on 103 was **fixed 2026-07-11**
 (`7c76522`/`36382d2`) — Wave 4 is unblocked.
 
 Out of scope: **96** (living art reference, not a task); **101**, **107** (Farm is in
-maintenance); engine **18**, **19** (parked). See [wiki/status.md](../wiki/status.md).
+maintenance); engine **18**, **19** (parked). See [wiki/status.md](../../wiki/status.md).
 
 ---
 
@@ -24,7 +24,7 @@ maintenance); engine **18**, **19** (parked). See [wiki/status.md](../wiki/statu
 
 1. **104 and 105 collide on one file.** 104 item 4 (ambient-crowd cadence parity) and 105
    scope 1 (ambient-crowd honesty) both edit
-   [`ambient-crowd.ts`](../../games/citadel/client/src/render/ambient-crowd.ts). 104's own
+   [`ambient-crowd.ts`](../../../games/citadel/client/src/render/ambient-crowd.ts). 104's own
    item 4 says "land 105's decision first or in the same session." **One chunk, never two
    parallel ones.**
 2. **99's Citadel item 34 also touches the Citadel client render path** (`extendTrail`,
@@ -41,7 +41,7 @@ maintenance); engine **18**, **19** (parked). See [wiki/status.md](../wiki/statu
    (ghost workers)". Brief 97 **closed 2026-07-10** (`c8ee284`); chunk 4 landed in wave 1
    (`releaseWorkersAt` at all four removal sites). Nothing blocks 103 on that axis.
 6. **103 blocks on the `sack` scenario drift** — see the separate todo,
-   [2026-07-10-citadel-sack-scenario-drift.md](closed/2026-07-10-citadel-sack-scenario-drift.md).
+   [2026-07-10-citadel-sack-scenario-drift.md](../closed/2026-07-10-citadel-sack-scenario-drift.md).
    Its acceptance is "challenge run playable start→**sack**-or-survive" and the fixture
    that proves a sack no longer sacks.
 7. **103 contradicts itself.** The 2026-07-10 reshape header (decisions #23/#24) says
@@ -69,7 +69,7 @@ Sequential. Waves 1 and 2 touch disjoint packages (Citadel client vs Farm sim-co
 *could* overlap, but the `typecheck`/`test` gates are repo-wide, so a failure in a
 concurrent run is hard to attribute. One wave at a time.
 
-Model routing per [routing.md](../routing.md): controller/verify = **opus**; executor chunks
+Model routing per [routing.md](../../routing.md): controller/verify = **opus**; executor chunks
 = **Sonnet 5** by default including medium-hard sim work; bias borderline → junior. Reserve
 opus executor chunks for genuinely novel/risky work.
 
@@ -120,7 +120,7 @@ the determinism gate can't tell correct from wrong-but-deterministic). Farm base
 design and explains itself; Citadel byte-identical. Brief moved to `done/`. See status.md.
 
 Source detail lives in
-[closed/2026-07-02-full-repo-review-findings.md](closed/2026-07-02-full-repo-review-findings.md).
+[closed/2026-07-02-full-repo-review-findings.md](../closed/2026-07-02-full-repo-review-findings.md).
 ⚠️ **Verify every item against current code first — brief 97's two waves moved these lines.**
 
 | Chunk | Items | Model |
@@ -146,11 +146,11 @@ inboxes). 42/36/40 trades close on seeds `0xc0ffee`/`1`/`42`. Determinism MATCH 
 **Wave 2 complete.**
 
 Decision made 2026-07-10: **Option A. Option B (remove it) is dead.** Read
-[review findings item 7](closed/2026-07-02-full-repo-review-findings.md) first — it carries the
+[review findings item 7](../closed/2026-07-02-full-repo-review-findings.md) first — it carries the
 verified evidence. The loop is dead end-to-end while still charging AP:
 
 - `BUY_REQUEST` is forwarded to the seller's inbox
-  ([market.ts:132-155](../../games/farm/sim-core/src/systems/economy/market.ts)) but nothing
+  ([market.ts:132-155](../../../games/farm/sim-core/src/systems/economy/market.ts)) but nothing
   consumes it — PerceiveSystem's switch doesn't, then clears the inbox.
 - `TRADE_COMPLETED` is **never sent** in production code, though readers exist in
   market / trust / event-feed.
@@ -158,7 +158,7 @@ verified evidence. The loop is dead end-to-end while still charging AP:
   hoarder:127, opportunist:127) is written **only by test fixtures** — the buy path can
   never fire live.
 - `"sell-from-wall"` has an AP cost
-  ([ap.ts:32](../../games/farm/sim-core/src/systems/economy/ap.ts)) but **no ActSystem case**.
+  ([ap.ts:32](../../../games/farm/sim-core/src/systems/economy/ap.ts)) but **no ActSystem case**.
 - `handlePostOffer` never validates/escrows seller stock (latent oversell); `offersById`
   grows all run, because `TRADE_COMPLETED`/`CANCEL_OFFER` are never sent.
 
@@ -172,7 +172,7 @@ expensive if wrong.
 
 **Gates:** a multi-day headless run shows **≥1 completed wall trade per standard seed**;
 gold + stock conserved (test); `offersById` bounded; determinism **MATCH ×3**. Update
-[wiki/economy.md](../wiki/economy.md) + [wiki/system-ordering.md](../wiki/system-ordering.md)
+[wiki/economy.md](../../wiki/economy.md) + [wiki/system-ordering.md](../../wiki/system-ordering.md)
 if flows change (they will — a new inbox consumer lands in a scheduler band).
 
 ---
@@ -186,7 +186,7 @@ byte-identical to pre-change code on grow+sack. The `play.mjs` driver fix was fo
 landed (`__citadel.snapshot()` + snapshot-based `readHud`). Scripted-action layer deliberately
 deferred. Todo moved to `closed/`.
 
-Spec: [closed/2026-07-11-headless-json-run-for-both-games.md](closed/2026-07-11-headless-json-run-for-both-games.md).
+Spec: [closed/2026-07-11-headless-json-run-for-both-games.md](../closed/2026-07-11-headless-json-run-for-both-games.md).
 **Read-only reporting scope only** (the scripted-action layer is explicitly separable —
 defer it unless it falls out free). Sequenced before Wave 3 because 102/113/103 all carry
 "prove the behaviour in a headless run" gates, and this makes those runs machine-readable
@@ -255,10 +255,10 @@ Model: **opus** for the design gate, **Sonnet** for the build.
 **Start at scope 2 — scope 1 already landed in brief 110 (`0fd66c0`).**
 
 Raids have a mechanic and no body: `applyRaidDamage`
-([siege-resolution.ts:200](../../games/citadel/sim-core/src/systems/siege-resolution.ts)) is
+([siege-resolution.ts:200](../../../games/citadel/sim-core/src/systems/siege-resolution.ts)) is
 an abstract `raidStrength` applied at the keep; `pickEdgeSpawn` picks an entry tile and then
 nothing walks from it. Armies have a body and no mechanic: `ArmyState`
-([sim-state.ts:87](../../games/citadel/sim-core/src/sim-state.ts)) carries `x, y, tileX,
+([sim-state.ts:87](../../../games/citadel/sim-core/src/sim-state.ts)) carries `x, y, tileX,
 tileY` and `ArmySystem` (150 lines) marches and resolves it — but it is PvP down to its
 fields, and MP is deprecated. **Give the raid the army's body.**
 
@@ -312,7 +312,7 @@ cushion, **bread-only**). Cozy byte-identical by construction; no new RNG. Scope
 483/483. Determinism ×3 + browser playtest **consciously skipped at closeout** (user call — no RNG change,
 cozy gated off). One junior + one senior chunk (the senior chunk owned the sim re-point + the falsified-test
 rewrite; the collision — tithe eroding `tools` — was resolved by the bread-only design call). Brief moved to
-`done/`. See the status.md Wave-4 entry + [citadel-decisions.md](../wiki/citadel-decisions.md) #27.
+`done/`. See the status.md Wave-4 entry + [citadel-decisions.md](../../wiki/citadel-decisions.md) #27.
 
 <details><summary>Original Wave 4 plan (for the record)</summary>
 
@@ -324,7 +324,7 @@ whose final shape isn't known.
 
 **Two things to resolve before splitting:**
 - ✅ ~~The `sack` scenario is broken~~ — **FIXED 2026-07-11** (`7c76522`/`36382d2`; see
-  [the closed todo](closed/2026-07-10-citadel-sack-scenario-drift.md)). The `sack` scenario
+  [the closed todo](../closed/2026-07-10-citadel-sack-scenario-drift.md)). The `sack` scenario
   is now a real playthrough (grows honestly, earns Town, raises the keep, sacked day 50,
   exits 1 on failure) and `sharp-raid-path.test.ts` guards reachability. 103's
   "start→sack-or-survive" acceptance is demonstrable.
@@ -382,7 +382,7 @@ Render-only, zero sim impact, could in principle run any time — sequenced last
 gameplay waves (raid body, challenge mode) aren't queued behind art polish.
 
 **Gates:** typecheck + tests green (EDG32 palette guard, `@citadel/client` suite); the
-[whole-set critique checklist](../wiki/citadel-asset-critique.md) re-run over the changed
+[whole-set critique checklist](../../wiki/citadel-asset-critique.md) re-run over the changed
 set; **browser-verified in `?showcase`** (UI/art is not done until seen in a browser).
 
 Model: Sonnet executor chunks (the art-08..12 wave's precedent); opus only if a recipe needs
@@ -394,7 +394,7 @@ a genuinely new primitive.
 
 ## Closeout discipline (every wave)
 
-Per [routing.md](../routing.md) and the repo's convention:
+Per [routing.md](../../routing.md) and the repo's convention:
 1. `npm run typecheck` + `npm run test` before any commit.
 2. Route closeout through `corpus-flow`: update `wiki/status.md`, append to `log.md`, fold
    durable findings into the wiki, move the brief `todo/` → `done/` (**number prefix stays

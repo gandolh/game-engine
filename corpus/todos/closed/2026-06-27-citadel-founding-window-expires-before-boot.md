@@ -18,7 +18,7 @@ tags: [citadel, sim, gameplay, immigration, boot, p0, live-finding]
 > ~day 20 still bootstraps). **Live-confirmed**: a settlement built at day 11 now
 > reaches Pop 6/6 by day 36 (was stuck at 0 indefinitely). sim-core 158/158;
 > headless determinism identical (Final pop/bread unchanged).
-> Commit `699620d`. See [log.md](../log.md).
+> Commit `699620d`. See [log.md](../../log.md).
 
 # Citadel — founding window closes before the player can build (live solo client)
 
@@ -41,18 +41,18 @@ map** and building a fully road-connected farm→mill→bakery + houses,
 
 - The pioneer/founder only spawns inside the **founding window**:
   `foundingWindow = daysSinceStart <= floor(daysPerYear/4) + 2`
-  ([immigration.ts:136](../../games/citadel/sim-core/src/systems/immigration.ts#L136)).
-  With `DAYS_PER_YEAR = 16` ([sim-bootstrap.ts:58](../../games/citadel/sim-core/src/sim-bootstrap.ts#L58))
+  ([immigration.ts:136](../../../games/citadel/sim-core/src/systems/immigration.ts#L136)).
+  With `DAYS_PER_YEAR = 16` ([sim-bootstrap.ts:58](../../../games/citadel/sim-core/src/sim-bootstrap.ts#L58))
   that window is **6 sim-days** from `startDay`.
 - `startDay` is set on `ImmigrationSystem`'s **first observed day**
-  ([immigration.ts](../../games/citadel/sim-core/src/systems/immigration.ts)), i.e.
+  ([immigration.ts](../../../games/citadel/sim-core/src/systems/immigration.ts)), i.e.
   sim day 0 — so the window is effectively **sim-days 0–6**.
 - But the client runs the sim during page load / WebGPU renderer init: by the time
   the dev hook is even available and the sim can be paused, it is already at
   **~Day 15** (measured live — pause froze it at Day 15). The 6-day window has
   been closed for ~9 days before the player can place a single building.
 - The only other immigration path needs a **strictly-positive bread surplus**
-  ([immigration.ts:~142+](../../games/citadel/sim-core/src/systems/immigration.ts)),
+  ([immigration.ts:~142+](../../../games/citadel/sim-core/src/systems/immigration.ts)),
   which is unreachable from a **0-population** cold start: no villagers → no farm
   worker → no bread → no surplus → no immigrants → no villagers. Hard deadlock.
 
@@ -62,7 +62,7 @@ bootstrap from zero.
 
 ## Why the unit tests don't catch it
 
-[economy.test.ts](../../games/citadel/sim-core/src/systems/economy.test.ts) drives
+[economy.test.ts](../../../games/citadel/sim-core/src/systems/economy.test.ts) drives
 `bootstrapSim()` directly and enqueues `placeBuilding`/`placeRoad` **at tick 0**,
 synchronously — so the buildings are connected *inside* the founding window and the
 pioneer spawns. The tests never model the real client's multi-second boot delay,
@@ -88,10 +88,10 @@ so the live failure is invisible to them.
 - Any fix touches **sim + determinism** — re-prove with a multi-seed
   `EXPORT=json` diff and `CHECK_DETERMINISM=1`, not just a single determinism run.
 - Reproduce live with the `window.__citadel` dev hook (DEV-only,
-  [main.ts:558](../../games/citadel/client/src/main.ts#L558)); the headless runner
+  [main.ts:558](../../../games/citadel/client/src/main.ts#L558)); the headless runner
   won't reproduce it because it has no boot delay.
 - Confirm the fix also holds for the `?mp` server transport
-  ([@citadel/server](../../games/citadel/server/)), which boots the sim differently.
+  ([@citadel/server](../../../games/citadel/server/)), which boots the sim differently.
 
 ## Acceptance
 

@@ -15,7 +15,7 @@ tags: [planning, citadel]
 
 # Build order — Citadel
 
-New game on the existing engine. Full design of record: [briefs/citadel-apr.md](../briefs/citadel-apr.md).
+New game on the existing engine. Full design of record: [briefs/citadel-apr.md](../../briefs/citadel-apr.md).
 Grilled to zero open questions on 2026-06-18 (all decisions in the APR + each todo's
 "Decisions (grilled 2026-06-18)" section).
 
@@ -75,7 +75,7 @@ later adopt them:
 
 ## ✅ STATUS (updated 2026-06-19): depth pass + render wave SHIPPED
 
-All 17 actionable post-v1 briefs are **Done** and merged to main (07/08/09/10/14 + 11/12/13/15/16/17/18/19/20/24/25/27) — closed in [todos/closed/](closed/), logged in [../log.md](../log.md). **20** was satisfied by construction (27 already routes every draw through the sprite-batch); **24** shipped only its render-only fire-soot slice (full WGSL wear shader + sim age field deferred). Verified: `@citadel/sim-core` 120/120, `citadel` 124/124, palette 6/6, typecheck + `build -w citadel` clean. **⚠️ Render visuals are unverified — WebGPU can't render headless here; a real-GPU eyeball is pending (per-brief lists in the closed briefs).**
+All 17 actionable post-v1 briefs are **Done** and merged to main (07/08/09/10/14 + 11/12/13/15/16/17/18/19/20/24/25/27) — closed in [todos/closed/](../closed/), logged in [../log.md](../../log.md). **20** was satisfied by construction (27 already routes every draw through the sprite-batch); **24** shipped only its render-only fire-soot slice (full WGSL wear shader + sim age field deferred). Verified: `@citadel/sim-core` 120/120, `citadel` 124/124, palette 6/6, typecheck + `build -w citadel` clean. **⚠️ Render visuals are unverified — WebGPU can't render headless here; a real-GPU eyeball is pending (per-brief lists in the closed briefs).**
 
 ### Multiplayer RTS epic (grilled 2026-06-19) — briefs 28–37 + 21/22
 
@@ -158,11 +158,11 @@ baseline across grow/siege/sack/fire/disease (seeds 1,7) at `TICKS_PER_DAY=20`.
   (`games/citadel/client/src/render/render-window.ts`, `build-budget.ts`;
   `windowController.update(camera)` now runs each frame at `main.ts:1221`), but the runtime
   is **unreachable in production**, so the GPU-runtime verification cannot be performed as
-  written. Resolved 2026-07-10 by the [brief 108](../briefs/game/done/108-citadel-live-mp-verification.md)
+  written. Resolved 2026-07-10 by the [brief 108](../../briefs/game/done/108-citadel-live-mp-verification.md)
   live-MP pass: the *client* is hardcoded to a 96×96 world, so `shouldWindow` is always false
   and the windowed path never executes — panning re-bakes nothing, because nothing is
   windowed. Both todos are in `closed/`; their remaining GPU verification is now owned by
-  [brief 110](../briefs/game/done/110-citadel-client-world-size.md), which fixes the client
+  [brief 110](../../briefs/game/done/110-citadel-client-world-size.md), which fixes the client
   world size and makes the windowed bake iso-correct (review findings item 35).
 
 **Verification ceiling** (updated 2026-07-10). The sim + netcode + bot logic is unit-tested +

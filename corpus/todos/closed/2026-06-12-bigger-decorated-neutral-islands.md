@@ -18,7 +18,7 @@ depends_on: [foundation-grow-grid-to-240, foundation-theme-decor-table]
 > ice-pond→pond, camp→camp, weather-station→quarry, volcano→volcano. Bridge gen
 > clean (no throw), no-adjacency ≥2 holds, full repo **1063 tests** + typecheck green.
 > set-pieces snapshot regenerated (bigger islands shifted open-water scatter). Render
-> eyeball pending. See [log.md](../log.md) 2026-06-12.
+> eyeball pending. See [log.md](../../log.md) 2026-06-12.
 
 Neutral (non-farm) islands should be **bigger** and carry **themed decorations**
 so they read as distinct, lived-in places rather than bare bounded rects.

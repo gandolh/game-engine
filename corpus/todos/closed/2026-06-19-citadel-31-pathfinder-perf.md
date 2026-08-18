@@ -8,7 +8,7 @@ tags: [citadel, sim, perf, pathfinder, determinism, multiplayer]
 # Citadel 31 — Pathfinder perf at 256²
 
 **Spine position: D (needs [29](2026-06-19-citadel-29-world-256-townhall.md)).**
-Part of the [Citadel MP epic](closed/2026-06-19-citadel-26-multiplayer-presence-bots-emotes.md).
+Part of the [Citadel MP epic](../closed/2026-06-19-citadel-26-multiplayer-presence-bots-emotes.md).
 **Load-bearing** — it gates the two heaviest pathing consumers
 ([32 pvp-armies](2026-06-19-citadel-32-pvp-armies.md), [33 per-player-pve](2026-06-19-citadel-33-per-player-pve.md)).
 
@@ -17,7 +17,7 @@ Part of the [Citadel MP epic](closed/2026-06-19-citadel-26-multiplayer-presence-
 
 ## The problem (verified 2026-06-19)
 
-`bfsPath` in [pathfinder.ts:39](../../games/citadel/sim-core/src/world/pathfinder.ts)
+`bfsPath` in [pathfinder.ts:39](../../../games/citadel/sim-core/src/world/pathfinder.ts)
 allocates a `new Uint32Array(width*height)` **per call**. At 256² that is ~256KB per
 pathfind, churned ×N players × (raiders + armies + haulers) every tick — a GC storm.
 

@@ -21,7 +21,7 @@ depends_on: [foundation-grow-grid-to-240]
 > tile (mouths). 5 guard tests (zero functional overlap, inside-themed-region,
 > determinism, frames-in-table, blue-noise). typecheck + 703 sim-core tests green.
 > Render eyeball pending. Note: tall props bake below dynamic sprites (layer 2) — a
-> farmer draws over a lamp-post; fine for the substrate. See [log.md](../log.md) 2026-06-12.
+> farmer draws over a lamp-post; fine for the substrate. See [log.md](../../log.md) 2026-06-12.
 
 The shared substrate for every décor todo. This is the long-open world-gen
 "Variety" item, scoped concretely. **Strictly render-only.**

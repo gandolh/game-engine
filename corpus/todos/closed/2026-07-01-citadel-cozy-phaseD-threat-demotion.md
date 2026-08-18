@@ -8,7 +8,7 @@ tags: [citadel, cozy-pivot, phase-d, threats, gameplay]
 > **✅ SHIPPED 2026-07-01.** Freeze mechanism = `cozyThreats` bootstrap option (default ON).
 > Fire extinguishes-not-razes, disease recovers-not-kills, raids pilfer-not-sack, winter
 > grain floored 0.5. Gates: sim-core 205/205, typecheck-clean, determinism MATCH ×3
-> (baseline moved by design). See [log.md](../log.md). Built via plan-split-dispatch with
+> (baseline moved by design). See [log.md](../../log.md). Built via plan-split-dispatch with
 > executor chunks on Sonnet 5.
 ---
 
@@ -17,7 +17,7 @@ tags: [citadel, cozy-pivot, phase-d, threats, gameplay]
 Implements cozy-pivot decisions #4/#5/#6 from the
 [build order](2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md). Phase B already built the
 happiness→productivity floor (`productivityFactor(h)` in
-[production.ts](../../games/citadel/sim-core/src/systems/production.ts), reading the local
+[production.ts](../../../games/citadel/sim-core/src/systems/production.ts), reading the local
 worker's home-house `mood`). Phase D re-points the four threats through **that one channel**
 (a radius-local happiness dip) instead of destroying/killing/sacking, and **freezes** the
 destructive machinery behind a flag so a future Challenge mode is a re-wire, not a rebuild.
@@ -25,13 +25,13 @@ destructive machinery behind a flag so a future Challenge mode is a re-wire, not
 ## Freeze mechanism (decided 2026-07-01): `cozyThreats` bootstrap flag, default ON
 
 Follow the existing opt-in-flag pattern (`enforceTerritory`, `chargeBuildCost`) in
-[sim-bootstrap.ts](../../games/citadel/sim-core/src/sim-bootstrap.ts):
+[sim-bootstrap.ts](../../../games/citadel/sim-core/src/sim-bootstrap.ts):
 
 - Add `cozyThreats?: boolean` to `CitadelSimOptions`, **default `true`**.
 - Thread it into `FireSystem`, `DiseaseSystem`, `SiegeResolutionSystem` constructors
   (an options arg, e.g. `{ cozy }`). `cozy === true` → cozy behavior (below);
   `cozy === false` → **today's exact destructive behavior, byte-identical**.
-- The client bootstrap ([sim-worker.ts](../../games/citadel/client/src/worker/sim-worker.ts))
+- The client bootstrap ([sim-worker.ts](../../../games/citadel/client/src/worker/sim-worker.ts))
   already passes `chargeBuildCost:true` — leave it; cozy is the default so it needs no change.
   (Optionally set it explicitly for clarity.)
 - The `@citadel/server` MP bootstrap + the headless tool default to cozy too (default ON).
@@ -63,7 +63,7 @@ trouble maps.
   watchpost reduce the theft; **no building or villager ever lost**, `keepSacked`/`gameOver`
   never set by a raid.
 - **Winter:** grain floored **~×0.5, never 0** — one-line change in
-  [seasons.ts:32](../../games/citadel/sim-core/src/world/seasons.ts#L32)
+  [seasons.ts:32](../../../games/citadel/sim-core/src/world/seasons.ts#L32)
   `grainMultiplier("winter")` `0.0 → 0.5` (spring is already `0.5` — precedent in the same
   function). NOTE: this one is unconditional (not flag-gated) — a 0.5 winter floor is harmless
   in sharp mode too and Phase H owns the broader winter/economy retune. Confirm no test asserts

@@ -7,7 +7,7 @@ tags: [citadel, ui, economy, building]
 
 # Build cost on hover + affordability-gated build buttons
 
-> **UNBLOCKED 2026-06-30** — `@engine/ui` shipped ([brief 17](../briefs/engine/done/17-engine-ui-framework.md)); build this panel native to it (`@engine/ui` widget tree + the Citadel HUD pattern in `games/citadel/client/src/ui/resource-hud.ts`), not DOM. Depends on
+> **UNBLOCKED 2026-06-30** — `@engine/ui` shipped ([brief 17](../../briefs/engine/done/17-engine-ui-framework.md)); build this panel native to it (`@engine/ui` widget tree + the Citadel HUD pattern in `games/citadel/client/src/ui/resource-hud.ts`), not DOM. Depends on
 > [render-all-gui-in-game / @engine/ui](2026-06-28-citadel-ui-all-rendered-in-game.md).
 > The **sim half** (introducing a `BUILD_COST` + debit in `placeOne`) has no UI
 > dependency and can proceed now.
@@ -17,9 +17,9 @@ When the player hovers a building in the build menu, show **what it costs to bui
 
 ## ⚠️ Prerequisite — there is NO build cost today
 Placement is currently **free** — `placeOne` in
-[sim-bootstrap.ts](../../games/citadel/sim-core/src/sim-bootstrap.ts) checks tier /
+[sim-bootstrap.ts](../../../games/citadel/sim-core/src/sim-bootstrap.ts) checks tier /
 terrain / occupancy but **charges no resources**. Only *upgrades* have a cost
-(`upgradeCost` in [building.ts](../../games/citadel/sim-core/src/entities/building.ts)).
+(`upgradeCost` in [building.ts](../../../games/citadel/sim-core/src/entities/building.ts)).
 So this todo has two halves:
 
 1. **Sim: introduce a per-type build cost.** Add a `BUILD_COST: Record<string,

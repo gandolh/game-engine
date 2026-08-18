@@ -12,12 +12,12 @@ tags: [citadel, sim, gameplay, balance, ux, playtest]
 > event copy and the inspect panel, all browser-verified. Every finding from this pass is
 > now resolved. The 2026-07-11 playtest that closed it surfaced a NEW P1 — solo cozy play
 > cannot reach Town tier — tracked separately in
-> [2026-07-11-citadel-solo-town-tier-unreachable.md](../2026-07-11-citadel-solo-town-tier-unreachable.md).
+> [2026-07-11-citadel-solo-town-tier-unreachable.md](2026-07-11-citadel-solo-town-tier-unreachable.md).
 
 > **Status 2026-06-22 (partial).** Resolved: **P0 immigration deadlock**, **P1
 > grow death-spiral**, **P1-live silent placement reject**, **P2 tier-lock
 > cold-open spam**. See the per-section notes below and the
-> [log entry](../log.md). The actual root cause of the growth stall was deeper
+> [log entry](../../log.md). The actual root cause of the growth stall was deeper
 > than this doc's diagnosis — output is **per-building** (a 2nd worker is a wasted
 > mouth) and **services were staffed before the bread chain**; the fix was
 > goods-before-services worker assignment + per-unstaffed-building founding +
@@ -27,13 +27,13 @@ tags: [citadel, sim, gameplay, balance, ux, playtest]
 > **Update 2026-06-27.** **P2 service-coverage feedback is now RESOLVED** — the
 > [coverage overlay](2026-06-22-citadel-catchment-coverage-overlay.md) (placement
 > ring + `C` overlay + "covers 0 homes" toast) and the road
-> [disconnected-building marker](closed/2026-06-27-citadel-road-feedback-connectivity-indicator.md)
+> [disconnected-building marker](../closed/2026-06-27-citadel-road-feedback-connectivity-indicator.md)
 > together make "I built X and nothing happened" legible (service reach AND road
 > connectivity). Also shipped the OpenTTD two-way loop's downside
 > ([stockpile pressure](2026-06-22-citadel-two-way-service-economy.md)). **Still
 > open: P3 disease counterplay** (the only untouched finding — a healer exists but
 > there's no proactive lever; left for a dedicated balance pass).
-> **➡️ P3 promoted 2026-07-03** to [brief 102](../briefs/game/todo/102-citadel-disease-counterplay.md).
+> **➡️ P3 promoted 2026-07-03** to [brief 102](../../briefs/game/done/102-citadel-disease-counterplay.md).
 
 # Citadel — playtest findings
 
@@ -63,19 +63,19 @@ The single most important finding. Live, a well-fed connected town **sat at pop 
 for 565 in-game days** — never grew, never shrank meaningfully, happiness pinned
 at the base 40. This is not slow growth; it's a hard equilibrium the town cannot
 escape. Root cause is two coupled rules in
-[immigration.ts](../../games/citadel/sim-core/src/systems/immigration.ts):
+[immigration.ts](../../../games/citadel/sim-core/src/systems/immigration.ts):
 
 1. **Founders stop once each building *type* has one worker, not when slots are
    full.** `needsFounder` is gated on `countUnstaffedProductionTypes`
-   ([immigration.ts:129-133](../../games/citadel/sim-core/src/systems/immigration.ts#L129),
-   [:239](../../games/citadel/sim-core/src/systems/immigration.ts#L239)) — a type
+   ([immigration.ts:129-133](../../../games/citadel/sim-core/src/systems/immigration.ts#L129),
+   [:239](../../../games/citadel/sim-core/src/systems/immigration.ts#L239)) — a type
    counts as "staffed" the moment *any one* building of that type has a worker. So
    with farm(2 slots)/mill/bakery/woodcutter present, founding delivers ~5–6
    villagers (one per type) and **stops**, leaving every second farm slot, second
    mill, etc. permanently empty.
 2. **Post-founding immigration requires a strictly-positive daily bread surplus.**
    `else if (p.foodSurplus > 0 && population < popCap)` then roll
-   `rng < happinessFactor` ([immigration.ts:136-141](../../games/citadel/sim-core/src/systems/immigration.ts#L136)).
+   `rng < happinessFactor` ([immigration.ts:136-141](../../../games/citadel/sim-core/src/systems/immigration.ts#L136)).
    But a *half-staffed* food chain produces almost exactly enough bread to feed
    the current population → `foodSurplus` hovers at **0** (observed: bread deltas
    were `+0` almost every day) → the immigration roll almost never gets a chance
@@ -91,7 +91,7 @@ that would create a surplus. **Chicken-and-egg.** More farms/houses don't help
 unreachable via normal play."** Village tier is easy (buildings-path, pop ≥ 5),
 which unlocks sawmill/smith/quarry/tower/wall/gate. But **Town** needs pop ≥ 10
 (even the buildings-path requires `minPopForBuildings: 10`,
-[tiers.ts:97](../../games/citadel/sim-core/src/systems/tiers.ts#L97)) and pop is
+[tiers.ts:97](../../../games/citadel/sim-core/src/systems/tiers.ts#L97)) and pop is
 frozen at ~6 — so keep/garrison never unlock, and L3 upgrades (Town-gated) are
 impossible. On top of that, **zero upgrades of any level happened** because L2
 needs planks+stone+tools that the worker-starved refining chain can't produce.
@@ -121,7 +121,7 @@ Driving placement live, buildings dropped onto tiles already covered by a road
 carpet (or another building) were **silently rejected** — no toast, no ghost-red,
 nothing; they just don't appear. (`placeOne` returns `false` with no event on the
 occupancy/terrain reject path,
-[sim-bootstrap.ts:331](../../games/citadel/sim-core/src/sim-bootstrap.ts#L331).)
+[sim-bootstrap.ts:331](../../../games/citadel/sim-core/src/sim-bootstrap.ts#L331).)
 A player carpeting roads and then placing structures hits this constantly and gets
 no explanation. Pair with the zero-coverage-service feedback in P2 below: **every
 failed/ineffective placement should say why.**
@@ -138,7 +138,7 @@ failed/ineffective placement should say why.**
 > banks a bread surplus, and recovers from winter + disease shocks.
 
 The default `grow` scenario is *documented* to "grow past 8+ by summer/autumn"
-([tools/citadel-sim/src/index.ts:170](../../tools/citadel-sim/src/index.ts#L170)).
+([tools/citadel-sim/src/index.ts:170](../../../tools/citadel-sim/src/index.ts#L170)).
 Observed: pop is pinned at **6/12** for ~40 days, then **collapses to 2/12** by
 day 60 (settlement falls Village → Hamlet). It never reaches 8. The town is in a
 slow-bleed equilibrium it cannot climb out of.
@@ -146,7 +146,7 @@ slow-bleed equilibrium it cannot climb out of.
 Root cause is a coupled loop, not one number:
 - **Happiness is hard-capped near 50** because `faith`/`safety` coverage sit at
   **0%** the whole game (see P2) — `_updateHappiness` is base 40 + up to 20 each
-  for faith/safety/goods ([needs-happiness.ts:101-118](../../games/citadel/sim-core/src/systems/needs-happiness.ts#L101)).
+  for faith/safety/goods ([needs-happiness.ts:101-118](../../../games/citadel/sim-core/src/systems/needs-happiness.ts#L101)).
   With two needs dead, the ceiling is ~70 and the steady state is ~50.
 - **Immigration is too weak to outrun attrition.** Recurring disease (P3) plus
   winter bread deficits trim 1 villager every several days; immigration replaces
@@ -155,7 +155,7 @@ Root cause is a coupled loop, not one number:
 Fixes to weigh (pick the smallest set that makes a well-built town climb):
 - Re-tune immigration so a fed, road-connected, happy town grows steadily (the
   loop should be winnable, not a knife-edge). Verify against
-  [immigration.ts](../../games/citadel/sim-core/src/systems/immigration.ts).
+  [immigration.ts](../../../games/citadel/sim-core/src/systems/immigration.ts).
 - And/or soften winter grain halt so an autumn surplus actually carries the town.
 - Confirm the `grow` scenario itself is a fair exemplar after the tune (it places
   services out of range — see P2 — so it under-sells the game even when the sim
@@ -169,8 +169,8 @@ spiralling. Determinism holds across 3 seeds.
 
 `faith`/`safety`/`goods` coverage is purely distance-based (Manhattan ≤ radius,
 radius 8 for chapel/watchpost/market —
-[needs-happiness.ts:76-96](../../games/citadel/sim-core/src/systems/needs-happiness.ts#L76),
-[building.ts:97](../../games/citadel/sim-core/src/entities/building.ts#L97)). In
+[needs-happiness.ts:76-96](../../../games/citadel/sim-core/src/systems/needs-happiness.ts#L76),
+[building.ts:97](../../../games/citadel/sim-core/src/entities/building.ts#L97)). In
 the `grow` scenario the chapel/market/watchpost are placed ~11 tiles from the
 houses, so coverage is **0% forever** despite the buildings existing, being
 connected, and being staffed. A player gets *no signal* that the building is
@@ -183,7 +183,7 @@ This is the single biggest "feels broken" moment for a new player. Options:
 - **Minimap/overlay** — a faint coverage tint per need so gaps are visible.
 - Spacing tension (fire pushes buildings ≥5 apart; service radius 8 + connectivity
   pull them together) is **intended design** — confirmed 2026-06-22, see the design
-  note in [citadel-overview.md](../wiki/citadel-overview.md). So this is about
+  note in [citadel-overview.md](../../wiki/citadel-overview.md). So this is about
   *legibility*, not re-tuning: surface the coverage gap, don't remove the tradeoff.
 
 **Acceptance:** placing a service that covers no houses produces a visible cue;
@@ -197,7 +197,7 @@ Even in non-crowded towns, a 1-villager outbreak recurs every ~10–15 days
 pop. The player's only mitigation is a Healer, but in a small early town the
 onset feels like unavoidable random attrition rather than a managed risk —
 it's a steady tax that helps drive the P1 spiral. Verify onset math in
-[disease-system.ts](../../games/citadel/sim-core/src/systems/disease-system.ts)
+[disease-system.ts](../../../games/citadel/sim-core/src/systems/disease-system.ts)
 and either (a) gate onset on a higher crowding/unhappiness floor so a healthy
 sparse town is safe, or (b) make the risk legible and pre-emptively counterable
 (a Healer built *before* an outbreak should visibly lower the standing risk, not
@@ -222,7 +222,7 @@ entire defensive plan silently fails and the event log is unreadable. This is th
 problem: 20 near-identical toasts. Coalesce locked-placement rejections ("12
 walls need Village tier — unlock it first") and/or grey-out/te-tooltip locked
 toolbar buttons so the player never fires the command. Verify the lock path in
-[placeOne / TIER_LOCK](../../games/citadel/sim-core/src/sim-bootstrap.ts#L286).
+[placeOne / TIER_LOCK](../../../games/citadel/sim-core/src/sim-bootstrap.ts#L286).
 
 **Acceptance:** attempting locked placements yields at most one coalesced message
 per type per action; locked tools are visibly locked in the toolbar.

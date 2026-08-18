@@ -30,7 +30,7 @@ status: partial (render-only)
 > item 2 (explicit L/R sprite facing flip), item 4 (ambient-crowd cadence parity), and the
 > live playtest-citadel feel sign-off (the 2026-07-08 pass was code-only).
 
-source: [todos/2026-06-27-citadel-entity-movement-natural-feel.md](../../../todos/2026-06-27-citadel-entity-movement-natural-feel.md) — the interpolation half shipped (`EntityInterpolator`, commit `3b19275`); this brief is the explicitly-deferred residue.
+source: [todos/2026-06-27-citadel-entity-movement-natural-feel.md](../../../todos/closed/2026-06-27-citadel-entity-movement-natural-feel.md) — the interpolation half shipped (`EntityInterpolator`, commit `3b19275`); this brief is the explicitly-deferred residue.
 
 ## Scope (all render-only, zero sim/determinism impact)
 

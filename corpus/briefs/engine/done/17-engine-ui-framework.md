@@ -3,7 +3,7 @@
 > **Done 2026-06-30** (branch `engine-ui-framework`, pending in-browser WebGPU visual check). Framework + Citadel resource-HUD pilot shipped; the other 5 panel todos + full DOM-overlay removal remain open (now unblocked).
 
 > Immutable spec. Implements the round-7-grilled todo
-> [../../../todos/2026-06-28-citadel-ui-all-rendered-in-game.md](../../../todos/2026-06-28-citadel-ui-all-rendered-in-game.md).
+> [../../../todos/2026-06-28-citadel-ui-all-rendered-in-game.md](../../../todos/closed/2026-06-28-citadel-ui-all-rendered-in-game.md).
 > Built via plan-split-dispatch (controller=opus). Scope of THIS brief: the **framework**
 > (the blocker for all 6 Citadel UI panel todos) **+ one pilot consumer** that proves it
 > end-to-end. The remaining 5 panels + full DOM-UI removal stay as their existing todos.
@@ -23,17 +23,17 @@
    `@engine/core`/`@engine/ui` never import a game. Game panels live in each game's client.
 
 ## Grounding (from the 2026-06-29 mapping pass — verify before trusting)
-- **Renderer abstraction:** `RendererLike` ([engine/core/src/render/renderer.ts:25](../../../engine/core/src/render/renderer.ts#L25)),
+- **Renderer abstraction:** `RendererLike` ([engine/core/src/render/renderer.ts:25](../../../../engine/core/src/render/renderer.ts#L25)),
   `Canvas2dSprite` ([render/canvas2d/types.ts](../../../engine/core/src/render/canvas2d/types.ts)),
   layer-sorted sprites (`GHOST_UI_LAYER=80`). **No screen-space UI layer and no text
   rendering exist today.** WebGPU: instanced `SpriteBatch` + `GpuAtlasStore`; has `Overlay2D`
   for particles/weather. Canvas2D: `endFrame(...)` exposes an **unused `overlay` callback**
   with `{sx,sy,ox,oy}`. Camera2D is world-space only. Subpath-export pattern in
-  [engine/core/package.json](../../../engine/core/package.json).
+  [engine/core/package.json](../../../../engine/core/package.json).
 - **Citadel client:** DOM UI everywhere (`#build-bar`/`#hud`/follow-HUD/toasts/badges/
   minimap/settings/trader). Input via `placement-state.ts` → `transform.ts`
   (event→devicePx→world→tile). Render loop in
-  [games/citadel/client/src/main.ts](../../../games/citadel/client/src/main.ts) (~886–1130):
+  [games/citadel/client/src/main.ts](../../../../games/citadel/client/src/main.ts) (~886–1130):
   `beginFrame` → push scene/overlays → `endFrame` → DOM overlay reposition. Snapshot type in
   `games/citadel/client/src/.../snapshot/index.ts`; resource readout (bread/wood/pop/etc.)
   read in `onSnapshot`/`loop`.

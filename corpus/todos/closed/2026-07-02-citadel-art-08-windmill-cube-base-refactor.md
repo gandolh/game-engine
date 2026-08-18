@@ -53,6 +53,6 @@ cylinder on top (see references below).
   (cylinder shading: bright stripe off the left edge, dark stripe by the right, serrate
   the verticals).
 - itch/YouTube "isometric windmill in Aseprite" for the base+tower+cap+sails massing.
-- [inspirations/CREDITS.md](../../inspirations/CREDITS.md).
+- [inspirations/CREDITS.md](../../../inspirations/CREDITS.md).
 
-Graded against the [asset critique rubric](../wiki/citadel-asset-critique.md) A/B/C.
+Graded against the [asset critique rubric](../../wiki/citadel-asset-critique.md) A/B/C.

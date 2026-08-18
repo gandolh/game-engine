@@ -2,7 +2,7 @@
 
 status: TODO (dispatch to a Sonnet executor; controller = opus verifies)
 created: 2026-07-23
-design-of-record: [../wiki/mathquest-overview.md](../wiki/mathquest-overview.md) · tracker: [2026-07-21-mathquest-BUILD-STATE.md](2026-07-21-mathquest-BUILD-STATE.md)
+design-of-record: [../wiki/mathquest-overview.md](../../wiki/mathquest-overview.md) · tracker: [2026-07-21-mathquest-BUILD-STATE.md](../2026-07-21-mathquest-BUILD-STATE.md)
 
 ## Scope (this slice only — M5's FIRST of three; read the boundary carefully)
 

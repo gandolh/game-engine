@@ -14,7 +14,7 @@ item in the list) is drawn outside/below the window bounds.
 
 - Either the window height should grow to fit the item list, or the list needs
   clipping + scrolling — pick whichever matches the existing @engine/ui panel
-  conventions ([wiki/player-and-interaction.md](../wiki/player-and-interaction.md)).
+  conventions ([wiki/player-and-interaction.md](../../wiki/player-and-interaction.md)).
 - Check whether the height is a hardcoded constant that fell behind when a new
   item (pumpkin) was added to the shop inventory.
 

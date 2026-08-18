@@ -14,7 +14,7 @@ user can identify their farm at a glance.
 ## Context
 
 - Pip is the playable farmer; player-facing systems are catalogued in
-  [wiki/player-and-interaction.md](../wiki/player-and-interaction.md).
+  [wiki/player-and-interaction.md](../../wiki/player-and-interaction.md).
 - Design is open: could be an outline/tint on the plot, a banner/flag sprite,
   or a screen-space marker that only appears past a zoom threshold. Whatever is
   chosen must use EDG32 palette roles (no raw hex).

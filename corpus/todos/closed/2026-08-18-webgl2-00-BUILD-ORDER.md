@@ -24,8 +24,8 @@ no-GPU-adapter sandbox path.
 
 Today both 2D clients **hard-force** `backend: "webgpu"`, which makes `createRenderer` rethrow
 instead of falling back, so an unsupported browser gets a **blank canvas**:
-[../../games/farm/client/src/main.ts](../../games/farm/client/src/main.ts) line ~66,
-[../../games/citadel/client/src/render/citadel-renderer.ts](../../games/citadel/client/src/render/citadel-renderer.ts)
+[../../games/farm/client/src/main.ts](../../../games/farm/client/src/main.ts) line ~66,
+[../../games/citadel/client/src/render/citadel-renderer.ts](../../../games/citadel/client/src/render/citadel-renderer.ts)
 line ~269. Citadel's boot even documents it: *"if WebGPU is unavailable this throws and the surface
 stays blank"*.
 
@@ -50,7 +50,7 @@ difference is not load-bearing at this scale.
 2. **No compute shaders anywhere.** Zero `@compute` in all 7 WGSL files.
 3. **Exactly one WebGL2-incompatible feature in the whole repo:** `var<storage, read> materials:
    array<MaterialEntry>` in
-   [../../engine/core/src/render3d/webgpu/shaders/scene3d.wgsl](../../engine/core/src/render3d/webgl2/shaders/scene3d.frag.glsl)
+   [../../engine/core/src/render3d/webgpu/shaders/scene3d.wgsl](../../../engine/core/src/render3d/webgl2/shaders/scene3d.frag.glsl)
    (line ~27). WebGL2 has no storage buffers → becomes a **UBO with a compile-time
    `MAX_MATERIALS`** (WebGL2 guarantees ≥16 KB UBOs; the table is small — world keys + agent
    skin/hair/cloth keys). Fallback if it ever outgrows a UBO: an `RGBA32F` lookup texture +
@@ -85,7 +85,7 @@ difference is not load-bearing at this scale.
 ## Locked constraints (carry into every brief)
 
 - **`RendererLike` is the contract and it does not change shape.** The interface at
-  [../../engine/core/src/render/renderer.ts](../../engine/core/src/render/renderer.ts) is the seam
+  [../../engine/core/src/render/renderer.ts](../../../engine/core/src/render/renderer.ts) is the seam
   that makes this migration cheap. Ports implement it; they do not redesign it. **One exception:**
   `setCloudOptions?` becomes **required** (it was optional only because Canvas2D lacked it), and
   `OverlayFn` gets a single defined behaviour instead of one-per-backend.

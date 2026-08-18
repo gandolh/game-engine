@@ -19,10 +19,10 @@ player has no reason to manage it. A surfaced number with no mechanic is noise.
 ## Context
 
 - `threatLevel` is a `PlayerState` field
-  ([sim-state.ts](../../games/citadel/sim-core/src/sim-state.ts)); raids bump it +15
+  ([sim-state.ts](../../../games/citadel/sim-core/src/sim-state.ts)); raids bump it +15
   on spawn and −10 on repel, clamped 0-100
-  ([raid-spawn.ts](../../games/citadel/sim-core/src/systems/raid-spawn.ts),
-  [siege-resolution.ts:219](../../games/citadel/sim-core/src/systems/siege-resolution.ts#L219)).
+  ([raid-spawn.ts](../../../games/citadel/sim-core/src/systems/raid-spawn.ts),
+  [siege-resolution.ts:219](../../../games/citadel/sim-core/src/systems/siege-resolution.ts#L219)).
 - Raid arrival is on a fixed interval (≈8 days → 3-day floor) that does **not** read
   `threatLevel` — verify the spawn cadence in `raid-spawn.ts` and wire threat into it.
 

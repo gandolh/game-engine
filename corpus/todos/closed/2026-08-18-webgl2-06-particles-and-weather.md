@@ -30,7 +30,7 @@ in the repo (279 LOC) and uses `@builtin(instance_index)`, which becomes `gl_Ins
 
 That second path is why `WeatherLike` is structurally typed (`{count, draw(ctx)}`) and why
 `rain-field.ts` imports `Ctx2D`. Citadel passes its `RainField` straight through
-([../../games/citadel/client/src/render/weather.ts](../../games/citadel/client/src/render/weather.ts)),
+([../../games/citadel/client/src/render/weather.ts](../../../games/citadel/client/src/render/weather.ts)),
 and Citadel's `citadel-fx.ts` documents its particles as "rendered natively by the WebGPU backend's
 particle pass". **Keep both paths and the `instanceof RainField` branch exactly.** The CPU path is
 not dead code — it is the escape hatch for any game-supplied `WeatherLike` that is not a RainField,

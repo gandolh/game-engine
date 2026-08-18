@@ -1,5 +1,12 @@
 # hollow-08 — engine WebGPU 3D renderer + primitive-mesh promotion
 
+> **SUPERSEDED 2026-08-18 (as-built, not as-specified).** Delivered as specified and verified
+> (`b5f146e` + `575b9d0`), then the WebGPU backend it built was deleted wholesale by the WebGL2
+> migration. The 3D layer it introduced still exists and still ships — it now lives in
+> `engine/core/src/render3d/webgl2/`, not `render3d/webgpu/`. Read this brief for the *design*
+> of the 3D seam (device/pipeline-cache/materials split, mesh promotion), never for its API or
+> shader language. See [wiki/decisions.md](../../wiki/decisions.md) (Renderer).
+
 status: todo
 milestone: M2
 depends-on: M1 exit bar cleared (hollow-07)

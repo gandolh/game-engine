@@ -17,7 +17,7 @@ shore, etc.).
   contour or slope cues — whatever fits the tile renderer. The underlying
   terrain data and sim behavior must not change.
 - All colors from `CITADEL_PAL.*` (Apollo-46); no raw hex literals.
-- See [wiki/citadel-overview.md](../wiki/citadel-overview.md) for how the
+- See [wiki/citadel-overview.md](../../wiki/citadel-overview.md) for how the
   Citadel map/renderer is put together.
 
 ## Acceptance

@@ -27,7 +27,7 @@ depends_on: [foundation-grow-grid-to-240, foundation-theme-decor-table]
 > 160-scale coords and were baking in open ocean post-grow. Now locked to their
 > island via `scaleAroundNearestIsland`; a new geometry.test guard asserts every
 > baked structure sits on land + the expected islands carry one. Full repo **1074
-> tests** + typecheck green. See [log.md](../log.md) 2026-06-12.
+> tests** + typecheck green. See [log.md](../../log.md) 2026-06-12.
 
 No building/structure on the casino island; the casino content (gaming tables,
 activities) sits **in the open air** on the island terrain. The island is enlarged

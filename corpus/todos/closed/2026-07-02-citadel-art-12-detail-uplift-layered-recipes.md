@@ -68,12 +68,12 @@ Pick the achievable slice; this is a QUALITY pass, not a rewrite.
   [Pixel Parmesan fundamentals](https://pixelparmesan.com/blog/fundamentals-of-isometric-pixel-art)
   (readability, cylinder shading) ·
   [Modular Isometric Pixel Art tutorial (YouTube)](https://www.youtube.com/watch?v=YN7X0NfxjPc)
-  (modular composite pieces) · [inspirations/CREDITS.md](../../inspirations/CREDITS.md).
+  (modular composite pieces) · [inspirations/CREDITS.md](../../../inspirations/CREDITS.md).
 
 ## Out of scope
 
 - The specific windmill (art-08) + roof (art-11) fixes land FIRST (this depends on them so
   the shared FORMs are correct before the density bump amplifies them).
 
-Graded against the [asset critique rubric](../wiki/citadel-asset-critique.md) B (depth) + G (cohesion);
+Graded against the [asset critique rubric](../../wiki/citadel-asset-critique.md) B (depth) + G (cohesion);
 this is the one most likely to move the "feels premium" needle.

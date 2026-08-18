@@ -9,9 +9,9 @@ tags: [citadel, server, netcode, multiplayer, determinism]
 
 **Spine position: H (needs [28](2026-06-19-citadel-28-playerstate-refactor.md)).**
 The netcode foundation of the
-[Citadel MP epic](closed/2026-06-19-citadel-26-multiplayer-presence-bots-emotes.md).
+[Citadel MP epic](../closed/2026-06-19-citadel-26-multiplayer-presence-bots-emotes.md).
 
-**Lineage:** the FV server [`@farm/server`](../../games/farm/server/) ships a
+**Lineage:** the FV server [`@farm/server`](../../../games/farm/server/) ships a
 `RunRegistry` + `SimHost` (one host per run-key, encode-once snapshot fan-out, owner /
 late-join / reconnect). We reuse the **pattern**, not the code: it
 `import`s `@farm/sim-core` (FV-coupled) and is **owner-writes / spectators-watch only.**

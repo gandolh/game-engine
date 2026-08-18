@@ -10,7 +10,7 @@ tags: [citadel, client, render, art, isometric, pixel-art, cozy]
 
 The cozy-storybook fidelity pass over the sprite recipes, on the confirmed 2× base.
 **Blocked by** [art-01 (2× flip gate)](2026-07-01-citadel-art-01-scale-flip-and-palette.md).
-Rules: [style bible](../wiki/citadel-art-style.md). Consumes art-01's palette-role audit table.
+Rules: [style bible](../../wiki/citadel-art-style.md). Consumes art-01's palette-role audit table.
 Each sub-phase is independent and separately browser-verifiable, so ship them one at a time.
 
 ## Shared techniques (concrete — apply across sub-phases)
@@ -47,12 +47,12 @@ low-freq fBm term on top of `terrain-dither.ts`'s existing high-freq `(tx,ty,typ
 
 ## Sub-phase B — Buildings (biggest visual surface)
 Files: [`iso-draw.ts`](../../games/citadel/client/src/render/sprites/recipes/iso-draw.ts),
-[`buildings.ts`](../../games/citadel/client/src/render/sprites/recipes/buildings.ts).
+[`buildings.ts`](../../../games/citadel/client/src/render/sprites/recipes/buildings.ts).
 - **Cluster dithering** between lit/mid/shaded bands in `drawWalls`, `drawGableRoof`, the
   `postMill` cylinder, `drawAshlarCourses` — a sparse 1px checker on `(x+y)&1` for one
   transition row. Subtle (cozy, not gritty).
 - **Hue-shifted ramps** (art-01 audit): swap straight-darker steps for the warm/cool EDG32
-  neighbours per the [style bible](../wiki/citadel-art-style.md#palette-bias-edg32-roles).
+  neighbours per the [style bible](../../wiki/citadel-art-style.md#palette-bias-edg32-roles).
 - **Warm ridge/corner kiss** (`salmon`/`gold`) on lit roof ridges + the near vertical corner.
 - **Warm dusk window glow**: give `drawWindow` glass a `gold`/`yellow` variant the renderer
   can select by night factor (thread via the existing wash/night signal — render-only).
@@ -61,7 +61,7 @@ Files: [`iso-draw.ts`](../../games/citadel/client/src/render/sprites/recipes/iso
 - Keep each FORM's silhouette distinct; re-run the recipe opaque-fraction test.
 
 ## Sub-phase C — Units / characters
-File: [`units.ts`](../../games/citadel/client/src/render/sprites/recipes/units.ts) (32×32
+File: [`units.ts`](../../../games/citadel/client/src/render/sprites/recipes/units.ts) (32×32
 villager/raider/pedestrian, multiply-tinted grey ramps).
 - At 2× add a 4th ramp value + warmer skin/cloth; keep the darkest chars for the multiply-
   tint contract (outline stays dark, white body takes the tint).
@@ -71,7 +71,7 @@ villager/raider/pedestrian, multiply-tinted grey ramps).
   names + a `*FrameAt(clockMs)` selector mirroring `millFrameAt`; budget atlas cost.
 
 ## Sub-phase D — Terrain + fields
-File: [`terrain-dither.ts`](../../games/citadel/client/src/render/terrain-dither.ts) + the
+File: [`terrain-dither.ts`](../../../games/citadel/client/src/render/terrain-dither.ts) + the
 open-field/market/plaza ground diamonds in `iso-draw.ts`.
 - Warmer earth tones; **cluster-not-speckle** dither; palette-snapped noise variation (Book
   of Shaders ch.11–12, baked into the recipe/dither, deterministic) so the ground breathes.
@@ -79,7 +79,7 @@ open-field/market/plaza ground diamonds in `iso-draw.ts`.
 - Give field furrows / market cobble / plaza paving the same warmth pass.
 
 ## Sub-phase E — Roads / networks / walls
-File: [`autotile.ts`](../../games/citadel/client/src/render/autotile.ts) + network quads.
+File: [`autotile.ts`](../../../games/citadel/client/src/render/autotile.ts) + network quads.
 - Cozy warm cobble/dirt tones.
 - **Audit outlined-tile "pixel tangents"** at diamond abutments (per the style bible /
   survey) — ensure autotiled seams don't double-outline; roads/bridges read soft, not harsh.

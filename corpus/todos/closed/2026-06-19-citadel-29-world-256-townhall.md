@@ -8,7 +8,7 @@ tags: [citadel, sim, world, multiplayer]
 # Citadel 29 — 256×256 world + town-hall
 
 **Spine position: B (needs [28](2026-06-19-citadel-28-playerstate-refactor.md)).**
-Part of the [Citadel MP epic](closed/2026-06-19-citadel-26-multiplayer-presence-bots-emotes.md).
+Part of the [Citadel MP epic](../closed/2026-06-19-citadel-26-multiplayer-presence-bots-emotes.md).
 
 **Lineage:** the shipped world is 96×96 with a single implicit player at a fixed plot.
 An MP RTS needs room for N players to claim and build outward from independent starts.

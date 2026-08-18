@@ -33,7 +33,7 @@ put them — locate them first).
 - Additive on a shared VPS: no global Caddy rewrites, no pm2 process-name collisions.
 - Real-hardware verification is the acceptance bar (brief 88 precedent) — a dry run is not
   closeout. Do not deploy without the user in the loop for the actual VPS run.
-- ⚠️ **Gated on [brief 110](110-citadel-client-world-size.md)** (decision #11): the MP client
+- ⚠️ **Gated on [brief 110](../done/110-citadel-client-world-size.md)** (decision #11): the MP client
   currently renders only a 96×96 corner of the server's 256×256 world, so deploying the MP server
   before 110 lands would ship that bug to a real box. Solo needs no server and is unaffected.
 - ⚠️ **Also gated on [brief 111](111-citadel-mp-room-keys-and-session-semantics.md)** (decision #16):

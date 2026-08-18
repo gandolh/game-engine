@@ -12,7 +12,7 @@ composition) does not produce recognizable complex buildings reliably — blind 
 art needs a visual loop we can't cheaply run, and it's a weak spot. **Rebuild all Citadel
 building art from 0** using an **in-code 3D-box renderer** (the user's idea; also how pros make
 iso art — model in 3D, project to a 2D sprite). Supersedes the
-[CC0-ingest todo](closed/2026-07-11-citadel-external-cc0-art-ingest.md) (external art was
+[CC0-ingest todo](../closed/2026-07-11-citadel-external-cc0-art-ingest.md) (external art was
 rejected; this is the from-scratch replacement).
 
 ## Why this approach (research 2026-07-13, inline)
@@ -36,18 +36,18 @@ Apollo tone. (Superseded the box-only first cut per user direction 2026-07-13.)
 
 ## The technique
 - **2:1 dimetric** (Citadel already uses it: `ISO_TILE_W=32`, `ISO_TILE_H=16`, `ISO_ART_SCALE=2`
-  in [iso.ts](../../games/citadel/client/src/render/iso.ts)).
+  in [iso.ts](../../../games/citadel/client/src/render/iso.ts)).
 - Project a 3D point: `sx = (x−y)·(TILE_W/2)`, `sy = (x+y)·(TILE_H/2) − z·heightScale` (scaled by
   `ISO_ART_SCALE`). Draw faces **back-to-front (painter's)**.
 - **Three-tone flat shading** (the non-negotiable iso look): top face brightest, left mid, right
   dark — depth reads from face value. Each material = **3 adjacent steps on an Apollo ramp**
-  (`CITADEL_PAL`/`APOLLO` in [citadel-palette.ts](../../games/citadel/client/src/render/citadel-palette.ts)).
+  (`CITADEL_PAL`/`APOLLO` in [citadel-palette.ts](../../../games/citadel/client/src/render/citadel-palette.ts)).
 - Optional darker silhouette outline (IsoVoxel-style) for readability.
 
 ## Integration contract (verified)
 The atlas consumes `RasterizedRecipe = {rgba: Uint8ClampedArray, width, height}` per named frame
-([rasterize.ts](../../games/citadel/client/src/render/sprites/rasterize.ts),
-[atlas.ts](../../games/citadel/client/src/render/sprites/atlas.ts) shelf-packs `ALL_RECIPES`).
+([rasterize.ts](../../../games/citadel/client/src/render/sprites/rasterize.ts),
+[atlas.ts](../../../games/citadel/client/src/render/sprites/atlas.ts) shelf-packs `ALL_RECIPES`).
 The new renderer emits a `RasterizedRecipe` directly per building (named `bld/<type>`) — a drop-in;
 no char-grid needed. Everything downstream (renderer, snapshot, day/night wash, showcase) is
 unchanged.

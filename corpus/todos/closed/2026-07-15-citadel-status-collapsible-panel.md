@@ -12,10 +12,10 @@ toggle, matching the collapsible HUD panels Farm Valley got in brief 117.
 
 ## Context
 
-- Farm Valley brief [117 — collapsible HUD panels](../briefs/game/done/117-collapsible-hud-panels.md)
+- Farm Valley brief [117 — collapsible HUD panels](../../briefs/game/done/117-collapsible-hud-panels.md)
   put five panels behind labeled toggles, collapsed by default; the synthesis
   (including the traps hit) is in
-  [wiki/player-and-interaction.md](../wiki/player-and-interaction.md).
+  [wiki/player-and-interaction.md](../../wiki/player-and-interaction.md).
 - Reuse the same `@engine/ui` toggle/panel mechanism rather than reimplementing
   it in the Citadel client; colors from `CITADEL_PAL.*`.
 

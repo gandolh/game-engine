@@ -66,7 +66,7 @@ Two facts about the MP server that nobody chose, and that only matter once Citad
 
 ## Notes
 
-- Sequence with [110](110-citadel-client-world-size.md): independent (110 is render-side, this is
+- Sequence with [110](../done/110-citadel-client-world-size.md): independent (110 is render-side, this is
   transport/lifecycle) but **both gate [109](109-citadel-vps-deploy.md)**. Do 110 first — it is the
   one that makes MP *look* right; this one makes it *safe to expose*.
 - `reset()` currently nulls `hostPeer` and `nextPlayerId` and empties `bots` — process-global state

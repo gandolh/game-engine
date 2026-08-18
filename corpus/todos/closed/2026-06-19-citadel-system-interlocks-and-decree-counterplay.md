@@ -23,8 +23,8 @@ related additions:
 ## Context
 
 1. **Hazards don't interact with raids or each other.**
-   [fire-system.ts](../../games/citadel/sim-core/src/systems/fire-system.ts) and
-   [disease-system.ts](../../games/citadel/sim-core/src/systems/disease-system.ts)
+   [fire-system.ts](../../../games/citadel/sim-core/src/systems/fire-system.ts) and
+   [disease-system.ts](../../../games/citadel/sim-core/src/systems/disease-system.ts)
    ignite/spread independently and don't talk to raids or the garrison. Add
    interlocks: raid `applyRaidDamage` has a chance to **ignite** a wooden building
    (siege → fire, making wells/firebreaks tactical); disease reduces conscripted
@@ -33,7 +33,7 @@ related additions:
    burning building's `workerCount` — extend the radius.
 
 2. **Decrees are inescapable happiness debt.**
-   [needs-happiness.ts:113-116](../../games/citadel/sim-core/src/systems/needs-happiness.ts#L113)
+   [needs-happiness.ts:113-116](../../../games/citadel/sim-core/src/systems/needs-happiness.ts#L113)
    applies a flat penalty per active decree every recompute (rationing −10, tithe −8,
    workHours −12, conscription −5) with no duration cap and no way to "pay it back."
    Overcommitting can spiral (happiness ↓ → emigration → less food → more emigration).
@@ -42,7 +42,7 @@ related additions:
    decrees, and/or a stacking penalty so panic-stacking all decrees hurts.
 
 3. **Trader is flavor, not strategy.**
-   [trader.ts:56-60](../../games/citadel/sim-core/src/systems/trader.ts#L56) pushes
+   [trader.ts:56-60](../../../games/citadel/sim-core/src/systems/trader.ts#L56) pushes
    three **hardcoded** offers (`grain 5→bread 2`, `wood 4→flour 3`, `bread 3→grain 8`)
    regardless of state — and several are strictly worse than the production chain, so
    there's no reason to trade. Add **scarcity-based dynamic pricing** (offers shift

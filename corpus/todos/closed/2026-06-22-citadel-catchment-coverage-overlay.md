@@ -19,7 +19,7 @@ source: "OpenTTD research, 2026-06-22"
 > change). New pure `render/coverage.ts` mirrors the sim's coverage geometry
 > (same `serviceCenter` = `b.x+floor(w/2)`, same `SERVICE_RADII`, same Manhattan
 > test) so the visuals can't drift; `pushCatchment` in
-> [citadel-renderer.ts](../../games/citadel/client/src/render/citadel-renderer.ts)
+> [citadel-renderer.ts](../../../games/citadel/client/src/render/citadel-renderer.ts)
 > stamps flat iso ground diamonds on a new `LAYER_COVERAGE` (just below the
 > ghost). **(1) Placement ring** — selecting any service building (chapel/market/
 > watchpost/tower/garrison/keep/town-hall/well/healer) draws its Manhattan reach
@@ -40,7 +40,7 @@ source: "OpenTTD research, 2026-06-22"
 > closer"` and the overlay then showed the faith catchment visibly stranded off
 > the houses (the exact P2 gap, now legible). Drove real UI gestures via a new
 > DEV-only `__citadel.tileToScreenCss(tx,ty)` hook in
-> [main.ts](../../games/citadel/client/src/main.ts) (projects a tile to a CSS-px
+> [main.ts](../../../games/citadel/client/src/main.ts) (projects a tile to a CSS-px
 > point so a harness can hover/click specific tiles, not just send commands).
 
 # Citadel — service catchment radius + coverage overlay
@@ -58,12 +58,12 @@ legibility** — and that gap is our single biggest "feels broken" moment.
 This is the direct remedy for **P2** in
 [2026-06-22-citadel-playtest-findings.md](2026-06-22-citadel-playtest-findings.md):
 chapel/market/watchpost coverage is purely Manhattan-distance ≤ radius
-([needs-happiness.ts:76-96](../../games/citadel/sim-core/src/systems/needs-happiness.ts#L76),
-radius 8, [building.ts:97](../../games/citadel/sim-core/src/entities/building.ts#L97)),
+([needs-happiness.ts:76-96](../../../games/citadel/sim-core/src/systems/needs-happiness.ts#L76),
+radius 8, [building.ts:97](../../../games/citadel/sim-core/src/entities/building.ts#L97)),
 and in the `grow` scenario the services sit ~11 tiles from the houses → faith/safety
 read **0% forever** with no signal. The spacing tension (fire pushes buildings ≥5
 apart; service radius pulls them together) is **intended design**
-(see [citadel-overview.md](../wiki/citadel-overview.md)) — so the fix is *legibility,
+(see [citadel-overview.md](../../wiki/citadel-overview.md)) — so the fix is *legibility,
 not re-tuning*. Show the coverage; keep the tradeoff.
 
 ## Scope
@@ -74,7 +74,7 @@ not re-tuning*. Show the coverage; keep the tradeoff.
    committing. This is the highest-value, lowest-risk piece — do it first.
 2. **Post-place feedback toast** — on successful placement, if `housesInRadius === 0`,
    toast `"chapel covers 0 homes — move it closer"` (use the existing transient
-   toast, [ui/toast.ts](../../games/citadel/client/src/ui/toast.ts)). Pairs with
+   toast, [ui/toast.ts](../../../games/citadel/client/src/ui/toast.ts)). Pairs with
    the P1 "placement silently fails" finding: *every ineffective placement should
    say why.*
 3. **Coverage overlay toggle** — a hotkey (e.g. `C`) tints tiles by need coverage
@@ -84,7 +84,7 @@ not re-tuning*. Show the coverage; keep the tradeoff.
 ## Constraints
 
 - **Render/UI only — no sim change.** The coverage math
-  ([needs-happiness.ts](../../games/citadel/sim-core/src/systems/needs-happiness.ts))
+  ([needs-happiness.ts](../../../games/citadel/sim-core/src/systems/needs-happiness.ts))
   stays authoritative; the overlay/ring *visualise* it, they don't recompute a
   second source of truth. Read radius from the same constant the sim reads.
 - EDG32 palette only (the guard test walks the client) — tints come from `EDG.*`.

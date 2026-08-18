@@ -51,4 +51,4 @@ highlight lands on the wrong side. (Visible on the orange cottages + lean-to she
   order shifts. `drawHippedRoof` (boxBuilding/quarry-era) + `drawFlatCrenellatedTop` use
   simpler `dyAbs<0`/`x<cx` splits — sanity-check they're not also inverted while here.
 
-Graded against the [asset critique rubric](../wiki/citadel-asset-critique.md) B5 (committed sun).
+Graded against the [asset critique rubric](../../wiki/citadel-asset-critique.md) B5 (committed sun).

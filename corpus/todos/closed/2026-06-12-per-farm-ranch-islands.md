@@ -23,7 +23,7 @@ depends_on: [foundation-grow-grid-to-240, foundation-theme-decor-table]
 > primitives + bridge generators moved above the ranch section; generators now take
 > a `regions` param). Guard test (ranch-islands.test.ts, 7 tests) + tend-gate test;
 > full repo **1071 tests** + typecheck green. Render eyeball pending. See
-> [log.md](../log.md) 2026-06-12.
+> [log.md](../../log.md) 2026-06-12.
 
 Each of the 21 farms gets its own **neighbouring ranch island** a short distance
 away — and the farm's **livestock lives there**. Cows + sheep (and chickens) in

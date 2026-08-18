@@ -2,7 +2,7 @@
 
 status: TODO (dispatch to a Sonnet executor; controller = opus verifies)
 created: 2026-07-23
-design-of-record: [../wiki/mathquest-overview.md](../wiki/mathquest-overview.md) · tracker: [2026-07-21-mathquest-BUILD-STATE.md](2026-07-21-mathquest-BUILD-STATE.md) · builds on M4a: [2026-07-23-mathquest-M4a-progression-loot.md](2026-07-23-mathquest-M4a-progression-loot.md)
+design-of-record: [../wiki/mathquest-overview.md](../../wiki/mathquest-overview.md) · tracker: [2026-07-21-mathquest-BUILD-STATE.md](../2026-07-21-mathquest-BUILD-STATE.md) · builds on M4a: [2026-07-23-mathquest-M4a-progression-loot.md](2026-07-23-mathquest-M4a-progression-loot.md)
 
 ## Scope (M4b only — read this boundary carefully)
 

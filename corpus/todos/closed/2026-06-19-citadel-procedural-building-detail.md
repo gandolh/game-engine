@@ -22,13 +22,13 @@ glance — all in pure code, all EDG32, no art pipeline.
 
 ## Context
 
-[quads.ts:142-172](../../games/citadel/client/src/render/quads.ts#L142)
+[quads.ts:142-172](../../../games/citadel/client/src/render/quads.ts#L142)
 `buildingQuad()` returns one rectangle per building (roads/gates already inset). The
 sprite-batch can take many quads per building cheaply, so layer on:
 
 - **Roof/eave band** — a 2-3px darker strip along the top edge (light comes from
   top-left per the project's committed light direction; see
-  [wiki/asset-pipeline.md](../wiki/asset-pipeline.md) art-direction section). A
+  [wiki/asset-pipeline.md](../../wiki/asset-pipeline.md) art-direction section). A
   matching 1px highlight on the top-left, shadow on the bottom-right gives instant
   pseudo-3D.
 - **Door + windows** — small dark sub-quads placed deterministically by a hash of

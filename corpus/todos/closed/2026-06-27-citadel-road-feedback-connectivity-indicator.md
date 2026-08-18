@@ -8,7 +8,7 @@ source: "carved from wiki/citadel-road-builder-ux.md (research, 2026-06-27)"
 ---
 
 > **Done 2026-06-27.** Shipped all three items. (1) New pure
-> [road-feedback.ts](../../games/citadel/client/src/render/road-feedback.ts)
+> [road-feedback.ts](../../../games/citadel/client/src/render/road-feedback.ts)
 > (`needsRoadConnection`/`disconnectedBuildings`) + renderer `pushDisconnectedMarkers`
 > floats a pulsing EDG-gold pip over each production/housing/storage building that
 > is `connected:false` (infrastructure excluded). (2) Mode label shows
@@ -18,12 +18,12 @@ source: "carved from wiki/citadel-road-builder-ux.md (research, 2026-06-27)"
 > `_blockedForRoad` (endpoints stay green) → red/green drag preview. All client
 > render/UI over the existing deterministic commands — no sim change. 7 road-feedback
 > unit tests + 222 @citadel/client suite green; live-verified all three. Commit
-> `9b1d702`. See [log.md](../log.md). **Deferred follow-ups stand:** snap/auto-extend
+> `9b1d702`. See [log.md](../../log.md). **Deferred follow-ups stand:** snap/auto-extend
 > + in-tool undo (noted below).
 # Citadel — road-builder feedback (the cheap, high-value tier)
 
 Scoped implementation todo carved from the research in
-[wiki/citadel-road-builder-ux.md](../wiki/citadel-road-builder-ux.md) (items 1–3,
+[wiki/citadel-road-builder-ux.md](../../wiki/citadel-road-builder-ux.md) (items 1–3,
 the highest-leverage / lowest-cost changes). Snap/auto-extend and in-tool undo
 (items 4–5) are deferred follow-ups noted at the bottom.
 
@@ -36,7 +36,7 @@ EDG32 palette, allocation-light per frame.
 **Problem.** Every `BuildingSnapshot` carries `connected`, but it's never shown.
 A player lays a road, leaves a building unhooked, and gets no signal — yet road
 connectivity is the spine of the economy (founders only staff `connected`
-buildings, [systems/immigration.ts](../../games/citadel/sim-core/src/systems/immigration.ts)).
+buildings, [systems/immigration.ts](../../../games/citadel/sim-core/src/systems/immigration.ts)).
 Live testing (2026-06-27) hit this trap directly.
 
 **Do.** Stamp a small floating marker (EDG gold "⚠ no road" glyph or a flat iso
@@ -56,7 +56,7 @@ live in `npm run citadel`.
 once roads carry a cost, the price) in a cursor-anchored label or the `lbl-mode`
 line — OpenTTD/Skylines style. The path tiles are already computed
 (`PlacementStateManager.roadTiles`); this is a formatting + DOM/overlay change in
-[main.ts](../../games/citadel/client/src/main.ts).
+[main.ts](../../../games/citadel/client/src/main.ts).
 
 **Acceptance.** Dragging shows a live length that updates as the run grows; clears
 on release/cancel.
@@ -86,7 +86,7 @@ green. Pure/preview only — the sim rules are unchanged (it's still the authori
 - Reuse `routeRoadPath` / `_blockedForRoad` / the `connected` flag — interaction
   shell, not re-pathing.
 - Pairs with, doesn't duplicate, the coverage overlay
-  ([render/coverage.ts](../../games/citadel/client/src/render/coverage.ts)), which
+  ([render/coverage.ts](../../../games/citadel/client/src/render/coverage.ts)), which
   teaches *service* reach, not *road* connectivity.
 
 ## Deferred follow-ups (separate todos when reached)

@@ -9,7 +9,7 @@ tags: [engine, audio, sound, citadel, farm, client, render, juice]
 
 > **➡️ Promoted 2026-07-08:** the dispatch-ready execution plan (shared API contract, three
 > chunks, model routing, waves, gates) is now
-> [engine brief 19](../briefs/engine/done/19-audio-subsystem.md). This todo remains the
+> [engine brief 19](../../briefs/engine/done/19-audio-subsystem.md). This todo remains the
 > problem statement + design constraints + acceptance. Execution deferred to a later session.
 
 ## Problem
@@ -29,7 +29,7 @@ comes later.
   `@farm/sim-core` / `@citadel/sim-core`, and never gate a sim decision on it. No
   `Math.random`/`Date.now` concern because it's not sim — but keep it out of the tick.
 - **Engine stays game-agnostic.** New subsystem `engine/core/src/audio/` exported as a
-  subpath (`@engine/core/audio`, added to [engine/core/package.json](../../engine/core/package.json)
+  subpath (`@engine/core/audio`, added to [engine/core/package.json](../../../engine/core/package.json)
   `exports`, mirroring `/render`, `/input`, …). The engine defines a generic
   `AudioEngine` + sound-id concept; each game owns its own event→sound MAP (no game names
   in the engine).
@@ -61,26 +61,26 @@ comes later.
      supported in the API (future real assets) but need not be wired to a committed `.wav`
      yet. (If the executor prefers 1-2 tiny CC0 `.wav`s to prove buffer decode too, that's
      acceptable — keep them <50KB and note the source.)
-2. **Farm Valley wiring** ([@farm/client](../../games/farm/client/)): pick **2-3 events** that
+2. **Farm Valley wiring** ([@farm/client](../../../games/farm/client/)): pick **2-3 events** that
    fire often enough to hear (candidates: new day / harvest / a trade or sale) and play a
    distinct sound for each, driven from the **same snapshot-event hook the UI already uses**
    (the client already diffs `recentEvents`; Farm's equivalent feed — confirm the exact
    field). Unlock audio on first input. A mute control (reuse existing settings UI if cheap).
-3. **Citadel wiring** ([@citadel/client](../../games/citadel/client/)): same, off Citadel's
+3. **Citadel wiring** ([@citadel/client](../../../games/citadel/client/)): same, off Citadel's
    `recentEvents` via the existing `newEventsSince` diff in
-   [toast.ts](../../games/citadel/client/src/ui/toast.ts) (toasts already fire there — hang
+   [toast.ts](../../../games/citadel/client/src/ui/toast.ts) (toasts already fire there — hang
    sound off the identical path). Candidates: building placed / raid-or-threat warning /
    promotion(level-up). Unlock on first gesture; a mute toggle (the settings modal exists).
 
 ## Notes / prior art to mirror
 
 - Toasts are the template for "client reacts to sim events without touching the sim":
-  [toast.ts](../../games/citadel/client/src/ui/toast.ts) `newEventsSince(prevLast, next)` returns
+  [toast.ts](../../../games/citadel/client/src/ui/toast.ts) `newEventsSince(prevLast, next)` returns
   only the newly-appended `recentEvents`; the render loop calls
   `toasts.push(e, performance.now())` per new event. Sound hangs off the very same loop.
 - Render-side, off-sim precedent (RNG for jitter seeded off a constant, never the sim RNG):
   the particle/smoke/fire emitters in
-  [citadel-fx.ts](../../games/citadel/client/src/render/citadel-fx.ts).
+  [citadel-fx.ts](../../../games/citadel/client/src/render/citadel-fx.ts).
 - Subpath-export + headless-injectable pattern: existing `engine/core/src/*/index.ts`
   subsystems + `package.json` `exports`.
 

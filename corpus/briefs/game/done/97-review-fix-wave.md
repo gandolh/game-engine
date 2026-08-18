@@ -1,7 +1,7 @@
 # Brief 97 — Review fix wave (P0/P1 from the 2026-07-02 full-repo review)
 
 status: **done** — wave 1 landed 2026-07-09 (`976f032`); wave 2 (chunks 3, 5, 8) landed 2026-07-10 (`c8ee284`). All 10 chunks complete.
-source: [todos/2026-07-02-full-repo-review-findings.md](../../../todos/2026-07-02-full-repo-review-findings.md) (commit `c2cc78d`) — item numbers below refer to that doc; read it first, it carries the file:line detail and failure scenarios for every item.
+source: [todos/2026-07-02-full-repo-review-findings.md](../../../todos/closed/2026-07-02-full-repo-review-findings.md) (commit `c2cc78d`) — item numbers below refer to that doc; read it first, it carries the file:line detail and failure scenarios for every item.
 execute via: `plan-split-dispatch` (controller opus, chunks classified below). The chunk plan + wave order was already drawn up and approved — reuse it as-is unless the code has drifted.
 
 > **Closed 2026-07-10.** All ten chunks landed. Wave 1 (chunks 1, 2, 4, 6, 7, 9 + 10 inline)

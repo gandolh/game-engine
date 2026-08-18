@@ -8,7 +8,7 @@ tags: [citadel, sim, diplomacy, multiplayer]
 # Citadel 34 — Gift / transfer command
 
 **Spine position: G (needs [28](2026-06-19-citadel-28-playerstate-refactor.md)).**
-Small. Part of the [Citadel MP epic](closed/2026-06-19-citadel-26-multiplayer-presence-bots-emotes.md).
+Small. Part of the [Citadel MP epic](../closed/2026-06-19-citadel-26-multiplayer-presence-bots-emotes.md).
 
 **Lineage:** with per-player stockpiles (brief 28), co-op + soft diplomacy need a way to
 move goods between players. Deliberately kept to a single explicit command — no formal

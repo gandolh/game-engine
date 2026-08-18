@@ -13,7 +13,7 @@ Finish the 3D half: port `shaders/scene3d.wgsl` (115 LOC) and `webgpu/renderer3d
 Port `MeshHandle`, `DrawCall3d`, `Frame3d`, `SceneRendererOptions`, and `SceneRenderer3D` with its
 surface unchanged: `setMaterials(materials)`, `uploadMesh(mesh, materialIndexOf) → MeshHandle`,
 `resize(w, h)`, `render(frame)`. Hollow's
-[app.ts](../../games/hollow/client/src/render3d/app.ts) calls exactly these, and it does one
+[app.ts](../../../games/hollow/client/src/render3d/app.ts) calls exactly these, and it does one
 subtle thing brief 10's audit flagged: it builds a **single combined material table** (world keys
 then agent skin/hair/cloth keys, appended never interleaved, so world indices keep positions
 `0..WORLD_MATERIAL_KEYS.length-1`) and makes **one** `setMaterials` call. Preserve that contract.

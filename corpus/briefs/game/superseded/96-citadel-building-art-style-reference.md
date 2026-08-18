@@ -61,10 +61,10 @@ fences, market stalls, towers; a cohesive multi-step (not flat) palette.**
   committed sun from the upper-left) + a roof. Silhouette, not just colour, must
   distinguish a type (see FORMS below).
 - **Resolution:** 32-based (`ISO_ART_SCALE = 1` in
-  [iso.ts](../../../games/citadel/client/src/render/iso.ts)) — same density as
+  [iso.ts](../../../../games/citadel/client/src/render/iso.ts)) — same density as
   units/terrain. (4× was tried and reverted; 32 is dense enough.)
 - **Palette: EDG32 only**, via the `SWATCH` chars in
-  [palette.ts](../../../games/citadel/client/src/render/sprites/palette.ts) (a
+  [palette.ts](../../../../games/citadel/client/src/render/sprites/palette.ts) (a
   guard test fails on any off-palette colour). Key roles:
   - Terracotta tile roof: `R` rust (shadow) → `r` clay (mid) → `P` salmon (lit);
     ridge cap + dark eave-overhang line in `%` bark / `#` black.
@@ -96,7 +96,7 @@ fences, market stalls, towers; a cohesive multi-step (not flat) palette.**
 - **Per-type FORMS** (builders in
   [iso-draw.ts](../../../games/citadel/client/src/render/sprites/recipes/iso-draw.ts),
   mapped in
-  [buildings.ts](../../../games/citadel/client/src/render/sprites/recipes/buildings.ts)):
+  [buildings.ts](../../../../games/citadel/client/src/render/sprites/recipes/buildings.ts)):
   - `cottage` — half-timber + steep terracotta hip roof + window/door:
     house, bakery, woodcutter, sawmill, smith, healer.
   - `postMill` (tower mill) — tall tapered round stone tower, domed clay cap,
@@ -112,7 +112,7 @@ fences, market stalls, towers; a cohesive multi-step (not flat) palette.**
     well-head, not a building box).
 - **FX:** the night light-pool glow is a soft `fx/diamond` pool on the GROUND
   (below buildings), warm gold/orange, low alpha — lamplight, never a hard box
-  over the sprite ([atmosphere.ts](../../../games/citadel/client/src/render/atmosphere.ts)).
+  over the sprite ([atmosphere.ts](../../../../games/citadel/client/src/render/atmosphere.ts)).
 
 ## Hard constraints
 
@@ -139,12 +139,12 @@ fences, market stalls, towers; a cohesive multi-step (not flat) palette.**
 
 The 2026-06-26 grounding pass was extended to units + terrain, so the look is now
 cohesive across all three surfaces:
-- **Units** ([units.ts](../../../games/citadel/client/src/render/sprites/recipes/units.ts)):
+- **Units** ([units.ts](../../../../games/citadel/client/src/render/sprites/recipes/units.ts)):
   authored as a GREY RAMP (`#`→`S`→`l`→`v`) so the per-instance state/strength tint
   multiplies in. They carry a **`footShadow`** ground anchor (darkest ramp chars, so
   it stays shadow under any tint) and a **3-value body** (lit-left/mid/shaded-right)
   so a tinted figure reads as volume, not a flat cut-out.
-- **Terrain** ([terrain-dither.ts](../../../games/citadel/client/src/render/terrain-dither.ts)):
+- **Terrain** ([terrain-dither.ts](../../../../games/citadel/client/src/render/terrain-dither.ts)):
   the base diamond fill is **elevation-banded** (`elevationFill`: dark accent in
   valleys, light on highs, base in the middle) so the ground reads as gently rolling
   land; the existing sub-tile dither specks share the same elevation field.

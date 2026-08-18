@@ -1,7 +1,7 @@
 # Brief 108 — Citadel live-MP verification pass
 
 status: done (2026-07-10)
-source: the never-verified-live items — [wiki/status.md](../../../wiki/status.md) 2026-06-26 entry (citadel-38 "P1#6/#7/#9 social-layer/RunRegistry/MP-render still need live-MP verification"), [todos/2026-06-18-citadel-00-BUILD-ORDER.md](../../../todos/2026-06-18-citadel-00-BUILD-ORDER.md) items 21/22 (windowed-bake GPU-runtime verification LEFT OPEN), and [2026-07-02 review findings item 35](../../../todos/2026-07-02-full-repo-review-findings.md) (MP render window mixes iso and axis-aligned space — worse than its in-code "deferred" comment implies).
+source: the never-verified-live items — [wiki/status.md](../../../wiki/status.md) 2026-06-26 entry (citadel-38 "P1#6/#7/#9 social-layer/RunRegistry/MP-render still need live-MP verification"), [todos/2026-06-18-citadel-00-BUILD-ORDER.md](../../../todos/closed/2026-06-18-citadel-00-BUILD-ORDER.md) items 21/22 (windowed-bake GPU-runtime verification LEFT OPEN), and [2026-07-02 review findings item 35](../../../todos/closed/2026-07-02-full-repo-review-findings.md) (MP render window mixes iso and axis-aligned space — worse than its in-code "deferred" comment implies).
 
 ## Setup
 
@@ -38,7 +38,7 @@ Ran live: `npm run citadel`, two real browser tabs on `?mp` against the WebSocke
 raw-WS harness where browser tab churn was too coarse to time the reap grace.
 
 **The pass found one root-cause defect that invalidates most of the render checklist, and one
-independent gameplay bug.** The first is filed as [brief 110](../todo/110-citadel-client-world-size.md);
+independent gameplay bug.** The first is filed as [brief 110](110-citadel-client-world-size.md);
 the second is fixed here.
 
 ### Item 1 — room lifecycle: **PASS**
@@ -79,7 +79,7 @@ who FOUNDS an MP room anchors its hall while still alone"), confirmed to go red 
 while its four siblings stayed green. Re-verified against the live server: the founder, alone, now
 reports `keepPresent true` **and** `nextRaidDay 5`.
 
-### Items 2, 4, 5 — **BLOCKED on the root cause; carried into [brief 110](../todo/110-citadel-client-world-size.md)**
+### Items 2, 4, 5 — **BLOCKED on the root cause; carried into [brief 110](110-citadel-client-world-size.md)**
 
 The server runs a **256×256** world; the **client is hardcoded to 96×96** (`generateTerrain(SEED)` with
 no size args; `iso.ts`'s `ISO_ORIGIN_X`/`ISO_WORLD_W`/`ISO_WORLD_H` are compile-time consts). Verified

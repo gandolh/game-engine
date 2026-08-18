@@ -30,15 +30,15 @@ no-ops under a single owner; `keepPresent` is render-only and `town-hall` never
 spawns in solo) — no determinism re-proof run (constrained hardware; reasoning in
 the commit). `@citadel/sim-core` 136/136, `@citadel/server` 7/7, both typecheck clean.
 
-- **P0#1 demolish** — owner guard added ([sim-bootstrap.ts](../../games/citadel/sim-core/src/sim-bootstrap.ts), demolish handler): `if (b.ownerId !== localPlayer(state).id) break;`.
+- **P0#1 demolish** — owner guard added ([sim-bootstrap.ts](../../../games/citadel/sim-core/src/sim-bootstrap.ts), demolish handler): `if (b.ownerId !== localPlayer(state).id) break;`.
 - **P0#2 upgradeBuilding** — owner guard added (same file, upgrade handler): `if (b.ownerId !== localPlayer(state).id) return;`.
-- **P0#3 setActivePlayer** — host drops any client-injected `setActivePlayer` in the `command` case ([sim-host.ts](../../games/citadel/server/src/sim-host.ts)).
+- **P0#3 setActivePlayer** — host drops any client-injected `setActivePlayer` in the `command` case ([sim-host.ts](../../../games/citadel/server/src/sim-host.ts)).
 - **P0#4 pause/resume/speed** — host-only now: `hostPeer` = first attached peer (migrates on host detach); the three control messages gate on `peer === this.hostPeer`. Test/diag getters `isPaused`/`speedMultiplier`/`hostPlayerId` added.
 - **#13 keepPresent** — snapshot now tests `getProductionDef(type)?.isKeep`, so MP's `town-hall` anchor counts.
-- **P1#5 villager owner filter** — `assign()` (both `staffedTypes` and the workplace tier loop) and `firstStore()` now filter by `entity.building.ownerId === v.ownerId` ([villager-system.ts](../../games/citadel/sim-core/src/systems/villager-system.ts)). A player's villagers no longer staff/haul to a rival's buildings. Test: [villager-owner.test.ts](../../games/citadel/sim-core/src/systems/villager-owner.test.ts) (a player-1 villager skips the *nearer* rival farm for its own).
-- **P1#7 reconnect-frozen-sim** — `CitadelSimHost` now arms a **reap-grace timer** on the last departure instead of stopping immediately; if it fires while still empty, `reset()` nulls `sim` (+ clears tick/host/bots/paused/speed/nextPlayerId) so the next `init` starts a clean, ticking room. A reconnect within the grace cancels the reap and rejoins the same live sim. Single-room-per-process kept (keyed multi-room registry stays the documented follow-up). Test: [run-lifecycle.test.ts](../../games/citadel/server/src/run-lifecycle.test.ts) (fake-timer reap → fresh sim; within-grace reconnect → same sim).
-- **P1#8 (windowController.update) — was ALREADY fixed** before this pass: `windowController.update(camera)` runs each frame at [main.ts:792](../../games/citadel/client/src/main.ts#L792). The finding below is **stale**.
-- Tests: [sim-core/systems/mp-authority.test.ts](../../games/citadel/sim-core/src/systems/mp-authority.test.ts) (3), [server/mp-authority.test.ts](../../games/citadel/server/src/mp-authority.test.ts) (2).
+- **P1#5 villager owner filter** — `assign()` (both `staffedTypes` and the workplace tier loop) and `firstStore()` now filter by `entity.building.ownerId === v.ownerId` ([villager-system.ts](../../../games/citadel/sim-core/src/systems/villager-system.ts)). A player's villagers no longer staff/haul to a rival's buildings. Test: [villager-owner.test.ts](../../../games/citadel/sim-core/src/systems/villager-owner.test.ts) (a player-1 villager skips the *nearer* rival farm for its own).
+- **P1#7 reconnect-frozen-sim** — `CitadelSimHost` now arms a **reap-grace timer** on the last departure instead of stopping immediately; if it fires while still empty, `reset()` nulls `sim` (+ clears tick/host/bots/paused/speed/nextPlayerId) so the next `init` starts a clean, ticking room. A reconnect within the grace cancels the reap and rejoins the same live sim. Single-room-per-process kept (keyed multi-room registry stays the documented follow-up). Test: [run-lifecycle.test.ts](../../../games/citadel/server/src/run-lifecycle.test.ts) (fake-timer reap → fresh sim; within-grace reconnect → same sim).
+- **P1#8 (windowController.update) — was ALREADY fixed** before this pass: `windowController.update(camera)` runs each frame at [main.ts:792](../../../games/citadel/client/src/main.ts#L792). The finding below is **stale**.
+- Tests: [sim-core/systems/mp-authority.test.ts](../../../games/citadel/sim-core/src/systems/mp-authority.test.ts) (3), [server/mp-authority.test.ts](../../../games/citadel/server/src/mp-authority.test.ts) (2).
 
 ## ✅ RESOLVED (2026-06-22 — second session) — P2#10 + P2#11 (tier-system balance)
 
@@ -50,10 +50,10 @@ libs), but **system Chrome/Edge work** → backend `webgpu`, iso terrain + build
 - **P2#10 wall-spam tier inflation** — `TierSystem` counted every wall/gate tile as a
   settlement building, so wall-spam alone could climb to Town. Fixed: extracted a pure
   `countsTowardTier(type)` (excludes `isRoad`/`isWall`/`isGate`) and used it in the count
-  ([tiers.ts](../../games/citadel/sim-core/src/systems/tiers.ts)). Walls still feed
+  ([tiers.ts](../../../games/citadel/sim-core/src/systems/tiers.ts)). Walls still feed
   `defensiveStrength`, just not settlement size.
 - **P2#11 demotion message + re-lock** — (a) direction-aware event copy ("risen"/"fallen");
-  (b) added a per-player `peakTier` high-water mark ([sim-state.ts](../../games/citadel/sim-core/src/sim-state.ts));
+  (b) added a per-player `peakTier` high-water mark ([sim-state.ts](../../../games/citadel/sim-core/src/sim-state.ts));
   build/upgrade tier-locks now gate on `unlockTier(p)` = max(tier, peakTier) so a demotion
   (disease/starvation) never re-locks an already-unlocked building type. `peakTier` added to
   the snapshot; client gates buttons + upgrade hint on it, HUD still shows current `tier`.
@@ -62,7 +62,7 @@ libs), but **system Chrome/Edge work** → backend `webgpu`, iso terrain + build
   tier. Solo determinism re-proof NOT run this session (ask-first rule) — **carry forward**:
   fast multi-seed `EXPORT=json` before relying on byte-identity. The change is a deliberate
   balance move regardless (wall-spam no longer climbs tiers).
-- Tests: [phase5.test.ts](../../games/citadel/sim-core/src/systems/phase5.test.ts) +4
+- Tests: [phase5.test.ts](../../../games/citadel/sim-core/src/systems/phase5.test.ts) +4
   (countsTowardTier ×2, peakTier-survives-demotion, risen/fallen copy). `@citadel/sim-core`
   146/146, `@citadel/client` 187/187, `@citadel/server` 9/9; citadel workspaces typecheck clean.
 
@@ -80,7 +80,7 @@ P3 #14 (siege RNG fork — needs a deliberate baseline move), #15/#16/#17/#18/#1
 ---
 
 **Method.** Read-only review (2026-06-19) of `@citadel/sim-core`, `@citadel/client`,
-`@citadel/server` against the [APR](../briefs/citadel-apr.md) and the
+`@citadel/server` against the [APR](../../briefs/citadel-apr.md) and the
 [BUILD-ORDER](2026-06-18-citadel-00-BUILD-ORDER.md). Three subagent passes
 (sim / client+render / server+MP), then the load-bearing findings re-read and
 verified by hand. NO tests / sims / determinism checks were run (constrained
@@ -101,14 +101,14 @@ but never ticked. Two corpus claims turned out **stale** (see *Corpus correction
 ## P0 — MP authority / griefing (breaks a live multiplayer game)
 
 These are all **server-authoritative command handlers that trust the sender**.
-The MP host ([sim-host.ts](../../games/citadel/server/src/sim-host.ts)) enqueues
+The MP host ([sim-host.ts](../../../games/citadel/server/src/sim-host.ts)) enqueues
 any peer's command into the one authoritative stream after a
 `setActivePlayer{peerId}` marker; the handlers in
-[sim-bootstrap.ts](../../games/citadel/sim-core/src/sim-bootstrap.ts) then act on
+[sim-bootstrap.ts](../../../games/citadel/sim-core/src/sim-bootstrap.ts) then act on
 `localPlayer(state)`. Several never check that the *target* belongs to the sender.
 
 1. **`demolish` has no ownership check — any peer can raze any player's city, including their town-hall (= instant elimination).** **[verified]**
-   [sim-bootstrap.ts:397–434](../../games/citadel/sim-core/src/sim-bootstrap.ts#L397-L434).
+   [sim-bootstrap.ts:397–434](../../../games/citadel/sim-core/src/sim-bootstrap.ts#L397-L434).
    The handler finds the first building covering `(x,y)` and despawns it; `b.ownerId`
    is read only for bookkeeping, never compared to the sender. `enforceTerritory`
    gates `placeBuilding` only, not `demolish`. A peer sends
@@ -117,15 +117,15 @@ any peer's command into the one authoritative stream after a
    `b.ownerId === localPlayer(state).id` (or within own territory).
 
 2. **`upgradeBuilding` has no ownership check — a peer can force-upgrade a rival's building, draining the *rival's* stockpiles.** **[verified]**
-   [sim-bootstrap.ts:436–489](../../games/citadel/sim-core/src/sim-bootstrap.ts#L436-L489).
+   [sim-bootstrap.ts:436–489](../../../games/citadel/sim-core/src/sim-bootstrap.ts#L436-L489).
    Costs are deducted from `owner = playerById(state, b.ownerId)`, not the sender —
    so the griefer spends the victim's materials and mutates the victim's building.
    **Fix:** gate on sender == owner.
 
 3. **`setActivePlayer` is in the client-sendable `CitadelCommand` union.** **[verified]**
-   [snapshot/index.ts:149–152](../../games/citadel/sim-core/src/snapshot/index.ts#L149-L152),
-   handler [sim-bootstrap.ts:563–565](../../games/citadel/sim-core/src/sim-bootstrap.ts#L563-L565),
-   server injection [sim-host.ts:99–100](../../games/citadel/server/src/sim-host.ts#L99-L100).
+   [snapshot/index.ts:149–152](../../../games/citadel/sim-core/src/snapshot/index.ts#L149-L152),
+   handler [sim-bootstrap.ts:563–565](../../../games/citadel/sim-core/src/sim-bootstrap.ts#L563-L565),
+   server injection [sim-host.ts:99–100](../../../games/citadel/server/src/sim-host.ts#L99-L100).
    *Live impersonation is largely neutralised* because the server re-injects
    `setActivePlayer{peerId}` before **every** command, so a forged marker is
    overwritten before the next real action runs. But it remains a defense-in-depth
@@ -134,7 +134,7 @@ any peer's command into the one authoritative stream after a
    only), or have the host strip/reject it from inbound `command` messages.
 
 4. **`pause` / `resume` / `speed` are not owner-gated — any peer can freeze or fast-forward the shared room.** **[verified]**
-   [sim-host.ts:103–111](../../games/citadel/server/src/sim-host.ts#L103-L111).
+   [sim-host.ts:103–111](../../../games/citadel/server/src/sim-host.ts#L103-L111).
    They mutate the single shared `paused`/`speed`. Farm's `RunRegistry` gates these
    to the run owner; Citadel has no owner concept. **Fix:** adopt an owner/host
    role (see P1#7) and gate control messages to it.
@@ -145,9 +145,9 @@ any peer's command into the one authoritative stream after a
 
 5. **VillagerSystem ignores `ownerId` → in MP, a player's villagers staff and haul to *rivals'* buildings.** **[verified]**
    `assign()` and `firstStore()` query **all** buildings with no owner filter
-   ([villager-system.ts:218–296](../../games/citadel/sim-core/src/systems/villager-system.ts#L218-L296)).
+   ([villager-system.ts:218–296](../../../games/citadel/sim-core/src/systems/villager-system.ts#L218-L296)).
    Villagers *are* per-player — immigration spawns them with `ownerId: p.id`
-   ([immigration.ts:183](../../games/citadel/sim-core/src/systems/immigration.ts#L183))
+   ([immigration.ts:183](../../../games/citadel/sim-core/src/systems/immigration.ts#L183))
    and the deposit step credits `v.ownerId`. So a player-1 villager gets assigned to
    the nearest player-0 workplace and walks to player-0's storehouse, deposit
    silently lands in player-1's pool, and the FSM paths through enemy territory.
@@ -155,8 +155,8 @@ any peer's command into the one authoritative stream after a
    `entity.building.ownerId === v.ownerId`.
 
 6. **The entire Citadel-36 social layer (presence / emotes / roster) is dead on the client.** **[verified]**
-   The server relays them ([sim-host.ts:120–148](../../games/citadel/server/src/sim-host.ts#L120-L148)),
-   but [server-client.ts:43–55](../../games/citadel/client/src/worker/server-client.ts#L43-L55)
+   The server relays them ([sim-host.ts:120–148](../../../games/citadel/server/src/sim-host.ts#L120-L148)),
+   but [server-client.ts:43–55](../../../games/citadel/client/src/worker/server-client.ts#L43-L55)
    handles only `ready`/`snapshot`/`save-data` — `roster`/`presence`/`emote` fall
    through and are dropped, and there is **no client method to *send*** presence or
    emotes. Nothing renders cursors, team colours, or emotes either. The brief's
@@ -164,22 +164,22 @@ any peer's command into the one authoritative stream after a
    the three inbound types + add send methods + a render layer for cursors/emotes.
 
 7. **Single hard-wired global `CitadelSimHost`, no run registry; a reconnect after everyone leaves yields a frozen sim.** **[verified]**
-   [index.ts](../../games/citadel/server/src/index.ts) creates one host forever.
+   [index.ts](../../../games/citadel/server/src/index.ts) creates one host forever.
    `detach()` → `stop()` clears the interval but never nulls `this.sim`
-   ([sim-host.ts:84–87](../../games/citadel/server/src/sim-host.ts#L84-L87),
-   [197–202](../../games/citadel/server/src/sim-host.ts#L197-L202)). A later peer's
+   ([sim-host.ts:84–87](../../../games/citadel/server/src/sim-host.ts#L84-L87),
+   [197–202](../../../games/citadel/server/src/sim-host.ts#L197-L202)). A later peer's
    `init` hits the `this.sim !== null` branch
-   ([sim-host.ts:91–93](../../games/citadel/server/src/sim-host.ts#L91-L93)) and gets
+   ([sim-host.ts:91–93](../../../games/citadel/server/src/sim-host.ts#L91-L93)) and gets
    a snapshot of a sim whose interval is dead → state with no ticking. Diverges
    from the proven Farm `RunRegistry` (keyed rooms, reap timer, owner). **Fix:** port
    the RunRegistry pattern, or at minimum null `sim` on empty + re-arm on next init.
 
 8. **The render-window / incremental-build-budget renderer (briefs 21/22) is built and tested but never ticked — panning the 256×256 MP world never re-bakes.** **[verified]**
    `RenderWindowController` *is* instantiated and `bakeInitial(camera)` is called at
-   construction ([citadel-renderer.ts:170–171](../../games/citadel/client/src/render/citadel-renderer.ts#L170-L171)),
+   construction ([citadel-renderer.ts:170–171](../../../games/citadel/client/src/render/citadel-renderer.ts#L170-L171)),
    but its per-frame `update(camera)` — the coalesced windowed re-bake on pan
-   ([window-controller.ts:163–179](../../games/citadel/client/src/render/window-controller.ts#L163-L179)) —
-   is **not called anywhere in [main.ts](../../games/citadel/client/src/main.ts)'s
+   ([window-controller.ts:163–179](../../../games/citadel/client/src/render/window-controller.ts#L163-L179)) —
+   is **not called anywhere in [main.ts](../../../games/citadel/client/src/main.ts)'s
    frame loop**. So above the `WINDOW_TEXEL_THRESHOLD` (only the MP world), the
    initial window bakes and the rest of the map never paints as you pan. Solo
    (96×96) is below threshold → whole-world bake → fine. **Fix:** call
@@ -188,8 +188,8 @@ any peer's command into the one authoritative stream after a
 
 9. **No MP-specific render entities.** **[agent-cited]** Buildings carry `ownerId`
    and armies are in the snapshot, but team-colour tinting, other players' presence
-   cursors, and emotes are not drawn ([server-client.ts](../../games/citadel/client/src/worker/server-client.ts),
-   [main.ts](../../games/citadel/client/src/main.ts)). An MP session shows one merged
+   cursors, and emotes are not drawn ([server-client.ts](../../../games/citadel/client/src/worker/server-client.ts),
+   [main.ts](../../../games/citadel/client/src/main.ts)). An MP session shows one merged
    world with no who-owns-what cue. (Confirm whether `armies` are even drawn.)
 
 ---
@@ -197,26 +197,26 @@ any peer's command into the one authoritative stream after a
 ## P2 — sim balance / wrong feedback (single-player visible)
 
 10. ✅ **FIXED 2026-06-22.** **Tier advancement counts every wall tile as a building → wall-spam reaches Citadel/Fortress tier with no real infrastructure.** **[agent-cited]**
-    [tiers.ts:160](../../games/citadel/sim-core/src/systems/tiers.ts#L160) — `if (prod?.isRoad !== true) nonRoadBuildingCount++`; `wall` is `isRoad:false`, so each
+    [tiers.ts:160](../../../games/citadel/sim-core/src/systems/tiers.ts#L160) — `if (prod?.isRoad !== true) nonRoadBuildingCount++`; `wall` is `isRoad:false`, so each
     wall tile counts. `minBuildings` 25/40 can be met by laying walls. **Fix:** also
     exclude `isWall`/`isGate` from the tier building count.
 
 11. ✅ **FIXED 2026-06-22** (direction-aware copy + `peakTier` high-water mark gating). **Tier-change event says "risen from X to Y" even on demotion, and a demotion retroactively re-locks buildings.** **[agent-cited]**
-    [tiers.ts:164–170](../../games/citadel/sim-core/src/systems/tiers.ts#L164-L170).
+    [tiers.ts:164–170](../../../games/citadel/sim-core/src/systems/tiers.ts#L164-L170).
     Losing pop (disease/starvation) drops the tier; the message still says "risen",
     and `TIER_LOCK` then blocks placing keep/garrison until the tier is regained
     mid-game. **Fix:** direction-aware message; decide whether demotion should re-lock
     placement at all.
 
 12. **Tower / garrison / keep / town-hall have `SERVICE_RADII` entries that feed nothing — only `watchpost` provides safety coverage.** **[agent-cited]**
-    [needs-happiness.ts:40–60](../../games/citadel/sim-core/src/systems/needs-happiness.ts#L40-L60).
+    [needs-happiness.ts:40–60](../../../games/citadel/sim-core/src/systems/needs-happiness.ts#L40-L60).
     Building towers/garrisons yields zero `safetyCoverage`/happiness; the radii are
     dead data. (Confirm against the safety-provider classification.) **Fix:** either
     feed these into safety coverage or drop the unused radii.
 
 13. **Snapshot `keepPresent` only matches `type === "keep"`; the MP anchor is `town-hall` → MP players always see "no keep".** **[verified]**
-    [sim-bootstrap.ts:677–680](../../games/citadel/sim-core/src/sim-bootstrap.ts#L677-L680);
-    `town-hall` is `isKeep:true` ([building.ts:298–305](../../games/citadel/sim-core/src/entities/building.ts#L298-L305)).
+    [sim-bootstrap.ts:677–680](../../../games/citadel/sim-core/src/sim-bootstrap.ts#L677-L680);
+    `town-hall` is `isKeep:true` ([building.ts:298–305](../../../games/citadel/sim-core/src/entities/building.ts#L298-L305)).
     Siege/elimination correctly use `isKeep`; only the snapshot export is wrong.
     **Fix:** test the production def's `isKeep`, not the literal type string.
 
@@ -225,7 +225,7 @@ any peer's command into the one authoritative stream after a
 ## P3 — determinism trap + cleanup / robustness
 
 14. **Latent determinism trap: `SiegeResolutionSystem` forks `state.rng` per resolved raid but `resolveSiege` never consumes it.** **[agent-cited]**
-    [siege-resolution.ts:78, 211–214](../../games/citadel/sim-core/src/systems/siege-resolution.ts#L78).
+    [siege-resolution.ts:78, 211–214](../../../games/citadel/sim-core/src/systems/siege-resolution.ts#L78).
     `resolveSiege(raid, defense, _rng)` is pure math; the `state.rng.fork(\`siege-${id}\`)`
     still advances the root RNG one step per raid, so the **dead fork is load-bearing
     for replay** — removing it silently shifts all later RNG (army resolution, etc.)
@@ -233,29 +233,29 @@ any peer's command into the one authoritative stream after a
     fork knowingly (baseline move + determinism re-proof, ask first).
 
 15. **`CitadelServerClient`: no `onerror`/`onclose`, unbounded `queued`.** **[agent-cited]**
-    [server-client.ts:29–56](../../games/citadel/client/src/worker/server-client.ts#L29-L56).
+    [server-client.ts:29–56](../../../games/citadel/client/src/worker/server-client.ts#L29-L56).
     Server unreachable → silent blank screen; pre-connect commands accumulate
     without a cap. **Fix:** error/close handlers + a queue cap + a user-visible
     disconnect state.
 
 16. **`BuildingRuntimeState.inputBuffer` is written-once, never read.** **[agent-cited]**
-    [building.ts:22](../../games/citadel/sim-core/src/entities/building.ts#L22),
-    init [sim-bootstrap.ts:226](../../games/citadel/sim-core/src/sim-bootstrap.ts#L226).
+    [building.ts:22](../../../games/citadel/sim-core/src/entities/building.ts#L22),
+    init [sim-bootstrap.ts:226](../../../games/citadel/sim-core/src/sim-bootstrap.ts#L226).
     Production draws inputs from the shared stockpile, not a per-building buffer.
     Dead field — remove or implement.
 
 17. **`localPlayer()` indexes `players[localId]` with a `find()` fallback — correct only while ids stay contiguous from 0.** **[verified]**
-    [sim-state.ts:261](../../games/citadel/sim-core/src/sim-state.ts#L261). Fine today
+    [sim-state.ts:261](../../../games/citadel/sim-core/src/sim-state.ts#L261). Fine today
     (ids == array index); fragile if a player ever leaves and ids reuse/reorder.
     **Fix:** use `find()` only.
 
 18. **Bot anchor quadrant collides for >4 bots.** **[agent-cited]**
-    [bot.ts:44–45](../../games/citadel/server/src/bot.ts#L44-L45). Bots 4/5… reuse
+    [bot.ts:44–45](../../../games/citadel/server/src/bot.ts#L44-L45). Bots 4/5… reuse
     quadrants of 0/1 → overlapping placements that silently fail. Low (lobbies are
     small). **Fix:** spread anchors by `playerId` over more cells.
 
 19. **`DEFAULT_TICKS_PER_DAY` dead constant kept alive by `void`.** **[agent-cited]**
-    [sim-worker.ts:18,109](../../games/citadel/client/src/worker/sim-worker.ts#L18). Remove it.
+    [sim-worker.ts:18,109](../../../games/citadel/client/src/worker/sim-worker.ts#L18). Remove it.
 
 ---
 
@@ -279,8 +279,8 @@ any peer's command into the one authoritative stream after a
   [21](2026-06-19-citadel-21-render-windowed-grid.md)/[22](2026-06-19-citadel-22-incremental-build-queue.md)
   todos say the engine has "no sub-region/offset parameter." It does now:
   `RendererLike.bakeStaticLayer(..., region?: StaticRegion)`
-  ([renderer.ts:34–39](../../engine/core/src/render/renderer.ts#L34-L39)) + a
-  [`static-region.ts`](../../engine/core/src/render/static-region.ts) module, wired
+  ([renderer.ts:34–39](../../../engine/core/src/render/renderer.ts#L34-L39)) + a
+  [`static-region.ts`](../../../engine/core/src/render/static-region.ts) module, wired
   through both Canvas2D and WebGPU passes and used by `window-controller.ts`. The
   *only* remaining gap is the missing per-frame `update()` call (P1#8) — and GPU
   verification.
