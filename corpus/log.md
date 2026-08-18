@@ -40,10 +40,19 @@ cache survived — it lives in the CPU rasterizer, which the swap never touched.
 measured**: every reading came from headless Chrome on SwiftShader, where absolute fps is meaningless.
 A real-GPU `?profile` export is still outstanding.
 
+**Both open visual checks closed the same day.** A throwaway probe harness (real `createRenderer` +
+`endFrame`, real `makeLightOverlay`, no mocks) confirmed: rain renders as pale slanted streaks and snow
+as round dots (442 drops / 447 frames, no GL errors), and **Farm's night lighting renders — proved by
+A/B**, since the identical frame with the `OverlayFn` omitted is empty. The earlier "no rain visible in
+Farm" note was art, not a defect: Farm draws rain as `EDG.skyBlue` at alpha 0.5, near-invisible over
+blue water at the establishing zoom. Technique worth reusing: tiny page under the client's Vite root,
+real code, contrasting clearColor, **and a control shot with the feature off** — the A/B is what makes
+it evidence instead of an impression.
+
 **Left open deliberately:** [context-loss recovery](todos/2026-08-18-webgl2-followup-context-loss-recovery.md)
 — WebGL2 contexts are lost routinely (WebGPU never exposed us to this); the seam exists and loss
-degrades quietly, but nothing re-creates GPU resources on restore. Also two visual spot-checks with no
-known defect: Farm's restored glows and rain/snow were never caught on camera.
+degrades quietly, but nothing re-creates GPU resources on restore. Plus a **real-GPU `?profile`
+reading**, which cannot be taken in this sandbox.
 
 **Stale blocker cleared as a side effect:** `wiki/animation.md` and `wiki/citadel-hud-and-overlays.md`
 both deferred in-browser checks because "WebGPU won't render headless on the dev box". WebGL2 does —

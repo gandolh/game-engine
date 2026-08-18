@@ -254,7 +254,7 @@ build log: [../todos/closed/2026-08-18-webgl2-BUILD-STATE.md](../todos/closed/20
 | 06 | GPU particles + weather | done |
 | 07 | fBm cloud shadow / haze / vignette | done |
 | 08 | `WebGl2Renderer` assembly, single-backend `createRenderer`, Canvas2D deleted | done |
-| 09 | client switch + unsupported-browser notice + in-browser verification | done (2 visual spot-checks open, below) |
+| 09 | client switch + unsupported-browser notice + in-browser verification | done |
 | 10 | render3d GL device, buffer packing relocation, program cache | done |
 | 11 | `scene3d` GLSL + `SceneRenderer3D` + **materials UBO** | done |
 | 12 | delete both WebGPU backends, purge `@webgpu/types` + `wgsl_reflect` | done |
@@ -279,10 +279,24 @@ bar), MateQuest (map, combat, Triviador quiz, Romanian diacritics), Hollow (flat
 - **A static renderer import broke every Node consumer** (`ERR_UNKNOWN_FILE_EXTENSION` on
   `.glsl`) while typecheck and 689 tests stayed green. See decisions.md → Renderer.
 
-**Still open (visual spot-checks only, no known defect):** Farm's restored night glows and
-rain/snow were never caught on camera — the mechanism is unit-tested (draw order + the
-skip-when-absent path) but nobody has *seen* them. Also outstanding: a **real-GPU
-`?profile` reading**. All perf numbers taken during the migration came from headless
-Chrome on SwiftShader (software rasterisation), where absolute fps is meaningless; the
-JS-side numbers were healthy (`ui.flush` **3.49 ms mean at 7,272 quads**, comfortably
-better than the ~5 ms-at-2,000 bar, so the brief-118 tint cache survived intact).
+**Both remaining visual checks are now CLOSED (2026-08-18).** Verified with a throwaway probe
+harness driving the **real** production code through `createRenderer` + `endFrame` — not mocks:
+- **Rain and snow render.** 442 live drops over 447 frames, no GL errors; rain draws as pale slanted
+  streaks, snow as round dots (they take separate paths in the pass). The earlier "no rain visible in
+  Farm" observation was **art, not a defect**: Farm draws rain as `EDG.skyBlue` at **alpha 0.5**, which
+  over blue water at the wide establishing zoom is close to invisible.
+- **Farm's night lighting is restored, proved by A/B.** Driving Farm's own `makeLightOverlay` through
+  the renderer with `overlay=on` produces a warm amber glow; the identical frame with `overlay=off` is
+  empty. So the glow is unambiguously produced by the `OverlayFn` path — the parameter the WebGPU
+  backend accepted and never invoked. This was the headline bug of the migration.
+
+**The technique is the reusable part** (worth repeating whenever a render feature "should" work but
+nobody has seen it): put a tiny HTML+TS page under the client's Vite root, import the real engine
+entry points and the real game-side helper, render it against a deliberately contrasting clearColor,
+and **take the control shot with the feature switched off**. The A/B is what makes it evidence rather
+than an impression. Delete the harness afterwards.
+
+**Still outstanding:** a **real-GPU `?profile` reading**. All perf numbers came from headless Chrome on
+SwiftShader (software rasterisation), where absolute fps is meaningless; the JS-side numbers were
+healthy (`ui.flush` **3.49 ms mean at 7,272 quads**, comfortably better than the ~5 ms-at-2,000 bar, so
+the brief-118 tint cache survived intact).
