@@ -10,7 +10,7 @@
  * pure core this pipeline's vertex layout mirrors byte-for-byte.
  */
 import shaderSrc from "./shaders/scene3d.wgsl?raw";
-import { FLOATS_PER_INSTANCE, FLOATS_PER_VERTEX } from "./buffers";
+import { FLOATS_PER_INSTANCE, FLOATS_PER_VERTEX } from "../buffers";
 
 /** Everything a frame needs to draw with the scene3d pipeline. */
 export interface Pipeline3d {

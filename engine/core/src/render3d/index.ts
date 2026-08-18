@@ -52,12 +52,11 @@ export {
   pickNearest,
 } from "./pick";
 
-// --- WebGPU 3D render layer (08b) ---------------------------------------
-// GPU orchestration (device3d.ts, pipeline-cache.ts, renderer3d.ts) is
-// thin/typecheck-only — WebGPU cannot run headless here. `buffers.ts` is the
-// tested pure core (CPU-side packing); see its module doc for the
+// --- 3D buffer packing (pure, backend-agnostic) -------------------------
+// CPU-side packing shared by both the WebGPU and WebGL2 3D backends — no
+// GPU calls, fully unit-tested (buffers.test.ts). See its module doc for the
 // material-key -> index ordering contract.
-export type { Material, InstanceInput } from "./webgpu/buffers";
+export type { Material, InstanceInput } from "./buffers";
 export {
   FLOATS_PER_VERTEX,
   FLOATS_PER_INSTANCE,
@@ -68,7 +67,11 @@ export {
   packInstances,
   packMaterials,
   instanceAABB,
-} from "./webgpu/buffers";
+} from "./buffers";
+
+// --- WebGPU 3D render layer (08b) ---------------------------------------
+// GPU orchestration (device3d.ts, pipeline-cache.ts, renderer3d.ts) is
+// thin/typecheck-only — WebGPU cannot run headless here.
 
 export { Device3d, createDevice3d } from "./webgpu/device3d";
 

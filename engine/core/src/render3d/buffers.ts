@@ -15,10 +15,10 @@
  * and GPU-side indices — get the two lists out of sync and materials render
  * wrong (not a crash), so keep them built from the same array.
  */
-import type { Mat4 } from "../mat4";
-import { transformPoint } from "../mat4";
-import { boundsOf } from "../geometry";
-import type { Mesh, Vec3 } from "../types";
+import type { Mat4 } from "./mat4";
+import { transformPoint } from "./mat4";
+import { boundsOf } from "./geometry";
+import type { Mesh, Vec3 } from "./types";
 
 /** A generic material: flat RGB color (0..1 floats) + an emissive flag (for
  *  unlit "glowing window at night" style surfaces). No texture, no PBR terms

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { box, merge, translate } from "../geometry";
-import { identity, translation } from "../mat4";
+import { box, merge, translate } from "./geometry";
+import { identity, translation } from "./mat4";
 import {
   FLOATS_PER_INSTANCE,
   FLOATS_PER_MATERIAL,
