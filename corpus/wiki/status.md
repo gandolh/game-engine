@@ -151,7 +151,7 @@ Current-state **snapshot** (2026-07-17).
 
 **Improvement backlog shipped 2026-06-12** (filed and implemented the same day — one worktree branch per brief, Sonnet executors, merged to main individually, tests + typecheck green after every merge):
 - **Engine 10** WASM allocator fault — root cause: the TS wrapper freed `gridPtr` before `outPtr`, but the AS **stub bump allocator only reclaims the most-recent allocation**, so ~25.6 KB leaked per `findPath` (160×160 grid) → heap exhausted at ~655 calls → `unreachable`. Fix is a two-line free-order swap in [pathfinder.ts](../../engine/core/src/wasm/pathfinder.ts) + an 800-call churn regression test (red pre-fix). TravelSystem's per-intent catch kept but loudened to `console.error`. **Fast diff MATCH ×6** (seeds 0xc0ffee/1/42 × ticks 20/1200), and 3-day output is **byte-identical to pre-fix main** (the leak never bit in short runs) — no baseline move.
-- **Engine 11** WGSL validation guard — `wgsl_reflect` 1.4.0 (pinned devDep) parses every `*.wgsl` in [wgsl-lint.test.ts](../../engine/core/src/render/webgpu/shaders/wgsl-lint.test.ts) (globbed, with throw-fixtures proving it bites); the reserved-keyword regex scan is **kept** — the parser does not catch that class (the original black-screen incident).
+- **Engine 11** WGSL validation guard — `wgsl_reflect` 1.4.0 (pinned devDep) parses every `*.wgsl` in [wgsl-lint.test.ts](../../engine/core/src/render/webgl2/shaders/glsl-lint.test.ts) (globbed, with throw-fixtures proving it bites); the reserved-keyword regex scan is **kept** — the parser does not catch that class (the original black-screen incident).
 - **Engine 12–16** shader wave (all render-only, EDG-safe by construction): **12** GPU day/night tint pass (`tint.wgsl`/`tint-pass.ts`; wash off the 2D overlay, which keeps only the Canvas2D fallback jobs; later passes compose under it) · **13** living water (cell-hash tiling break + value-noise UV-warp + step()-quantized shore foam + Voronoi caustics, masked by an R8 depth-mask texture built game-side from water-depth data) · **14** weather/particle parity (round SDF snow, rain-streak tail taper, per-flake hash variation, true 8-point star, shaped fade; CPU particle pool capped at 512 + swap-remove; ring splashes skipped — no GPU splash instances exist) · **15** fBm cloud-shadow pass, world-anchored, weather-driven coverage (sunny 0.06 → storm 0.72) · **16** per-instance vertex wind sway for crops/trees/bushes (top-vertex shear, deterministic per-tile phase, global gust knob; bridge rope kept its richer two-sine CPU sway).
 - **Game 86** juice — pooled DOM gold popups (per-kind caps), trauma² screen shake (≤3 px, post-smoothing offset, positive beats only), 2–4-frame hitstop via `SimClient.freezeInterp` (snapshot consumption untouched), leaderboard score-bump (easeOutBack), drama-weighted intensity, and a resync/H-skip cursor guard so stale events never replay as a popup burst. 30 new jsdom tests.
 - **Game 87** home/forge-house Stardew restyle — `home` corrected 16×16→32×48 (tests already treated it as 32×48), `forge-house` re-trimmed with chimney kept at the same pixels (`FORGE_CHIMNEY_PX` anchor verified); only the buildings sheet rebuilt (rest cached, brief-71 invariant held).
@@ -237,3 +237,52 @@ Foundational (01–23): personalities, weather/crops, market/shop, observer UI, 
 
 ## Open gaps
 See [open-questions.md](open-questions.md) for the live list.
+
+## WebGL2-only render backend (2026-08-18) — SHIPPED
+
+The engine now has **one** render backend. `Canvas2dRenderer` and both WebGPU backends
+(2D and 3D) are deleted. Design of record: [../todos/closed/2026-08-18-webgl2-00-BUILD-ORDER.md](../todos/closed/2026-08-18-webgl2-00-BUILD-ORDER.md);
+build log: [../todos/closed/2026-08-18-webgl2-BUILD-STATE.md](../todos/closed/2026-08-18-webgl2-BUILD-STATE.md).
+
+| brief | what | state |
+|---|---|---|
+| 01 | shared 2D vocabulary out of `canvas2d/` (`Sprite`, `Ctx2D`, `raster2d.ts`) | done |
+| 02 | GL context + program compilation + GLSL lint guard | done |
+| 03 | atlas store + sprite batch + shadow batch | done |
+| 04 | static terrain layer + animated water | done |
+| 05 | day/night tint + relocated 2D overlay + **additive overlay light** | done |
+| 06 | GPU particles + weather | done |
+| 07 | fBm cloud shadow / haze / vignette | done |
+| 08 | `WebGl2Renderer` assembly, single-backend `createRenderer`, Canvas2D deleted | done |
+| 09 | client switch + unsupported-browser notice + in-browser verification | done (2 visual spot-checks open, below) |
+| 10 | render3d GL device, buffer packing relocation, program cache | done |
+| 11 | `scene3d` GLSL + `SceneRenderer3D` + **materials UBO** | done |
+| 12 | delete both WebGPU backends, purge `@webgpu/types` + `wgsl_reflect` | done |
+| 13 | corpus rewrite (this) | done |
+
+**Verified in a real browser:** Farm (terrain, water, sprites, dense text UI, both zoom
+extremes), Citadel (iso terrain, river, mesh buildings, roads, minimap, goods HUD, build
+bar), MateQuest (map, combat, Triviador quiz, Romanian diacritics), Hollow (flat-shaded
+3D town at 60fps). MateQuest mattered most — it was the only game previously on Canvas2D.
+
+**Bugs this migration found and fixed** (each was invisible to the test suite):
+- **Farm's night lighting had never rendered.** The WebGPU backend took `endFrame`'s
+  `OverlayFn` as `_overlay` and never invoked it, so `makeLightOverlay`'s glows were dead
+  the whole time Farm was WebGPU-only. Now honoured via an offscreen 2D bake composited
+  additively, after sprites and before the wash.
+- **Hollow's 3D demo gated on `navigator.gpu`**, which after the port would refuse to
+  start on exactly the browsers this migration exists to support.
+- **`mat4.perspective` targets WebGPU's z ∈ [0,1]** while GL wants [-1,1] — half the depth
+  buffer went unused. Fixed in the vertex shader, not the shared matrix code.
+- **The palette guard read GLSL `#define` as an off-palette colour** (`#def` is valid hex).
+- **The GLSL lint read comments**, flagging prose as reserved words and colour literals.
+- **A static renderer import broke every Node consumer** (`ERR_UNKNOWN_FILE_EXTENSION` on
+  `.glsl`) while typecheck and 689 tests stayed green. See decisions.md → Renderer.
+
+**Still open (visual spot-checks only, no known defect):** Farm's restored night glows and
+rain/snow were never caught on camera — the mechanism is unit-tested (draw order + the
+skip-when-absent path) but nobody has *seen* them. Also outstanding: a **real-GPU
+`?profile` reading**. All perf numbers taken during the migration came from headless
+Chrome on SwiftShader (software rasterisation), where absolute fps is meaningless; the
+JS-side numbers were healthy (`ui.flush` **3.49 ms mean at 7,272 quads**, comfortably
+better than the ~5 ms-at-2,000 bar, so the brief-118 tint cache survived intact).

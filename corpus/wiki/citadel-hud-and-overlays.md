@@ -129,7 +129,7 @@ Design intent for the diegetic-feedback direction lives in the **cozy pivot** ba
 > controller adjudications in [log.md](../log.md).
 > **Open in the pivot:** only the optional/later phases — F (motivation: emergent goals + diegetic
 > recognition, no score/quests) / E (villager mood polish). The whole structural pivot has shipped.
-> Not yet eyeballed in-browser (WebGPU headless).
+> Not yet eyeballed in-browser. (The old reason — WebGPU would not render headless — no longer applies since the 2026-08-18 WebGL2 migration; headless verification works now.)
 
 > **2026-07-01 — cozy-pivot Phases E + F shipped: the diegetic-signal + motivation finish. ALL
 > PHASES A–I NOW DONE.** Both are render-layer passes reading the keystone (A) snapshot — no new

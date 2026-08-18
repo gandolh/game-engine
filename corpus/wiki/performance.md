@@ -11,6 +11,29 @@ Optimization opportunities for the engine, filtered against what the code **actu
 
 > **Determinism guardrail.** Any of these is a refactor of *how* state moves, never *what* it computes. Prove behavior-preservation with multi-seed `EXPORT=json` diffs, not just `CHECK_DETERMINISM=1` (which only proves reproducibility). See [architecture.md](architecture.md) and the root [CLAUDE.md](../../CLAUDE.md).
 
+## Post-migration reading (2026-08-18, WebGL2) — JS side healthy, fps not yet measurable
+
+First numbers after the WebGL2-only migration, Farm via `?profile`:
+
+| metric | value | note |
+|---|---|---|
+| `ui.flush` | **3.49 ms** mean / 5.10 p95 | at `ui.quads` mean **7,272** |
+| `render.endFrame` | 7.73 ms mean / 9.60 p95 | |
+| `frame` (JS) | 12.09 ms mean / 17.10 p95 | |
+| worker `tick` | 1.22 ms mean | sim unaffected |
+| fps | 10–19 | **not interpretable — see below** |
+
+**The tint-cache win survived the backend swap.** Brief 05's bar was `ui.flush` ≈ 5 ms at
+~2,000 quads; measured 3.49 ms at 7,272 quads — ~3.6× the quads at lower cost. The
+brief-118 per-`(atlas, frame, rgb)` cache lives in the CPU rasterizer
+(`render/raster2d.ts` + `ui-draw.ts`), which the migration did not touch.
+
+**fps from that run is meaningless and must not be compared to the 2026-06-12 baseline.**
+`gpu.renderer` read `ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero)),
+SwiftShader driver)` — headless Chrome, **software rasterisation**. That is the same trap
+documented in the 2026-06-12 banner above. **A real-GPU `?profile` export is still
+required** before claiming perf parity (baseline: fps ~99, `frame` ~5 ms).
+
 ## Tier 0 — 5 fps regression (in-canvas UI glyph tint) — **✅ RESOLVED 2026-07-15 (brief 118, `4fd48dc`)**
 
 > **➡️ Newest banner — read first.** Observed 2026-07-15 on real hardware: **5 fps / ~216 ms frame** (583 entities) vs the 99 fps baseline below. Regression window: the **2026-07-01 in-canvas UI migration**. A new `PROFILE_ENABLED`-gated **`ui.flush` sub-timer** (+ `ui.quads` count) inside `WebGpuRenderer.endFrame` proved the attribution on the affected machine: **`ui.flush` mean 106.0 ms of `frame` 116.6 ms (~91%)** at ~1,950 UI quads/frame — every glyph is a tinted quad and [ui-draw.ts](../../engine/core/src/render/ui-draw.ts) `drawUIQuad` paid a 5-op Canvas2D composite (multiply→destination-in round-trip) **per quad per draw**. `panels` (2.9 ms) and `pushSprites` (5.6 ms) were noise; `_ghostCovered` (F3) sat inside the ~1.3 ms endFrame remainder — dismissed.

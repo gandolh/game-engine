@@ -4,6 +4,51 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-08-18] migration | WebGL2-only render backend — SHIPPED, merged to main
+
+All 13 briefs done. `render/canvas2d/`, `render/webgpu/` and `render3d/webgpu/` are deleted;
+`@webgpu/types` (16 package.json + 16 tsconfig `types` arrays) and `wgsl_reflect` are gone. One
+backend: `render/webgl2/` (2D) + `render3d/webgl2/` (3D). Design of record + full build log:
+[todos/closed/2026-08-18-webgl2-00-BUILD-ORDER.md](todos/closed/2026-08-18-webgl2-00-BUILD-ORDER.md),
+[todos/closed/2026-08-18-webgl2-BUILD-STATE.md](todos/closed/2026-08-18-webgl2-BUILD-STATE.md).
+
+**Verified in a real browser** (all four games, not just tests): Farm, Citadel, MateQuest, Hollow.
+MateQuest mattered most — it was the only game previously on Canvas2D, so it moved onto a GPU
+backend for the first time rather than between two.
+
+**Six bugs found, every one invisible to the test suite:**
+1. **Farm's night lighting had never rendered.** The WebGPU backend took `endFrame`'s `OverlayFn` as
+   `_overlay` and never invoked it. Found by grepping for real callers while deciding whether to keep
+   the parameter. Now honoured (offscreen 2D bake → additive full-screen quad, after sprites, before
+   the wash). Third instance of this project's recurring wired-but-inert pattern.
+2. **A static renderer import broke every Node consumer** — `ERR_UNKNOWN_FILE_EXTENSION` on `.glsl`
+   killed both servers and all headless tools while typecheck and 689 tests stayed green. The old code
+   avoided it via a dynamic `await import()` and nobody had written down why. Now documented in code.
+3. **Hollow's 3D demo gated on `navigator.gpu`** — after the port it would have refused to start on
+   exactly the browsers this migration exists for.
+4. **`mat4.perspective` targets WebGPU's z∈[0,1]** while GL wants [-1,1]; half the depth buffer went
+   unused. Fixed in the vertex shader, never in the shared matrix code.
+5. **The palette guard read GLSL `#define` as a colour** (`#def` is valid hex).
+6. **The GLSL lint read comments**, flagging prose as reserved words and colour literals.
+
+**One suspicion that was wrong, recorded so nobody "fixes" it:** an 11:13 PM night frame still looked
+bright, which read like a dead day/night wash. Measuring pixels showed every region shifting toward
+`EDG.slate` — spring night is slate at alpha 0.3, a moonlight tint, not a blackout. The wash is fine.
+
+**Perf:** `ui.flush` **3.49 ms mean at 7,272 quads** (bar was ~5 ms at ~2,000), so the brief-118 tint
+cache survived — it lives in the CPU rasterizer, which the swap never touched. **fps is not yet
+measured**: every reading came from headless Chrome on SwiftShader, where absolute fps is meaningless.
+A real-GPU `?profile` export is still outstanding.
+
+**Left open deliberately:** [context-loss recovery](todos/2026-08-18-webgl2-followup-context-loss-recovery.md)
+— WebGL2 contexts are lost routinely (WebGPU never exposed us to this); the seam exists and loss
+degrades quietly, but nothing re-creates GPU resources on restore. Also two visual spot-checks with no
+known defect: Farm's restored glows and rain/snow were never caught on camera.
+
+**Stale blocker cleared as a side effect:** `wiki/animation.md` and `wiki/citadel-hud-and-overlays.md`
+both deferred in-browser checks because "WebGPU won't render headless on the dev box". WebGL2 does —
+those checks are now doable without a human at a real GPU.
+
 ## [2026-08-18] decision+plan | WebGL2-only render backend — 13-brief migration planned
 
 User asked what our options were for WebGPU browser compatibility, then chose the maximal one:

@@ -19,7 +19,7 @@ WebGPU compatibility is the trigger. As of 2026-08 WebGPU ships by default in Ch
 Safari 26 (macOS Tahoe 26 / iOS 26), and Firefox 141 (Windows) / 145 (macOS ARM64) — but **Firefox
 on Linux is still not shipped**, Android Firefox is in progress, and the no-hardware-acceleration
 tail (VMs, remote desktops, headless) has already bitten this project twice: the SwiftShader perf
-red herring ([../wiki/performance.md](../wiki/performance.md) 2026-06-11) and Hollow's
+red herring ([../../wiki/performance.md](../../wiki/performance.md) 2026-06-11) and Hollow's
 no-GPU-adapter sandbox path.
 
 Today both 2D clients **hard-force** `backend: "webgpu"`, which makes `createRenderer` rethrow
@@ -38,7 +38,7 @@ that mostly already run WebGL2 fine. One backend that works everywhere is the be
 **What we give up, stated honestly:** compute shaders and storage buffers (neither is used today —
 see the feasibility audit below), and WebGPU's lower per-draw CPU overhead. The engine is
 *far* under frame budget on real hardware (render frame ~1.4–2.3 ms of a 16.6 ms budget,
-[../wiki/performance-measurements.md](../wiki/performance-measurements.md)), so the overhead
+[../../wiki/performance-measurements.md](../../wiki/performance-measurements.md)), so the overhead
 difference is not load-bearing at this scale.
 
 ## Feasibility audit (measured 2026-08-18 — this is why the port is safe)
@@ -50,7 +50,7 @@ difference is not load-bearing at this scale.
 2. **No compute shaders anywhere.** Zero `@compute` in all 7 WGSL files.
 3. **Exactly one WebGL2-incompatible feature in the whole repo:** `var<storage, read> materials:
    array<MaterialEntry>` in
-   [../../engine/core/src/render3d/webgpu/shaders/scene3d.wgsl](../../engine/core/src/render3d/webgpu/shaders/scene3d.wgsl)
+   [../../engine/core/src/render3d/webgpu/shaders/scene3d.wgsl](../../engine/core/src/render3d/webgl2/shaders/scene3d.frag.glsl)
    (line ~27). WebGL2 has no storage buffers → becomes a **UBO with a compile-time
    `MAX_MATERIALS`** (WebGL2 guarantees ≥16 KB UBOs; the table is small — world keys + agent
    skin/hair/cloth keys). Fallback if it ever outgrows a UBO: an `RGBA32F` lookup texture +

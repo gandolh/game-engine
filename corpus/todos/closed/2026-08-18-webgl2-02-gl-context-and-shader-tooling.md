@@ -10,7 +10,7 @@ wave: 1 · blocks: 03, 04, 05, 06, 07, 10
 The foundation every pass brief builds on: one module that owns the `WebGL2RenderingContext`, DPR
 sizing, context-loss handling, and program compilation — plus the build/test plumbing for `.glsl`
 files. **No rendering passes here.** This is the sibling of
-[../../engine/core/src/render/webgpu/gpu-context.ts](../../engine/core/src/render/webgpu/gpu-context.ts)
+[../../engine/core/src/render/webgpu/gpu-context.ts](../../engine/core/src/render/webgl2/gl-context.ts)
 (147 LOC); read that file first and mirror its shape and responsibilities so briefs 03–07 find a
 familiar surface.
 

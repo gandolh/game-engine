@@ -98,7 +98,7 @@ DayClock → [shock] → InboxDispatch → [snoop band] → Perceive → Grow �
 
 ## Render
 
-Canvas2D (`engine/core/src/render/canvas2d/`) — replaced the planned WebGPU renderer in commit `5ac7f8d`.
+**WebGL2** ([engine/core/src/render/webgl2/](../../engine/core/src/render/webgl2/)) — the engine's single render backend since 2026-08-18. It replaced a WebGPU-primary / Canvas2D-fallback pair (which had itself replaced an all-Canvas2D renderer in `5ac7f8d`); see [decisions.md](decisions.md) → Renderer for why one backend won.
 
 Key render features:
 - **Y-sort**: sprites sorted by `(layer, y)` each frame — overlap creates depth. Sprites may carry an optional `sortY` depth key overriding `y` (drawing position unchanged); used by the edge occluders below.

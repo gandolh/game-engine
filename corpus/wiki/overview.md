@@ -9,7 +9,7 @@ A top-down farming sim where a field of AI farmers (each with one of four person
 
 ## What this codebase is
 
-- A **reusable TypeScript game engine** ([engine/core](../../engine/core/)) — ECS, fixed-step deterministic sim, Canvas2D renderer, input, animation, spatial index, WASM bindings.
+- A **reusable TypeScript game engine** ([engine/core](../../engine/core/)) — ECS, fixed-step deterministic sim, **WebGL2 renderer** (2D + 3D), input, animation, spatial index, WASM bindings.
 - **Farm Valley** ([games/farm/client](../../games/farm/client/)) — the first consumer of that engine. Multi-agent farming sim with BDI agents, message bus, market, weather, auctions.
 - A **WASM workspace** ([engine/wasm-modules](../../engine/wasm-modules/)) — AssemblyScript source that compiles to `.wasm` artifacts consumed by the engine.
 - **Tools** ([tools/](../../tools/)) — atlas-builder (sprite atlas), run-sim (headless), world-preview (offline snapshot viewer).

@@ -2,7 +2,7 @@
 
 status: todo (NOT part of the 13-brief WebGL2 migration scope)
 created: 2026-08-18
-context: [2026-08-18-webgl2-00-BUILD-ORDER.md](2026-08-18-webgl2-00-BUILD-ORDER.md) · discovered during brief 02
+context: [2026-08-18-webgl2-00-BUILD-ORDER.md](closed/2026-08-18-webgl2-00-BUILD-ORDER.md) · discovered during brief 02
 
 ## The gap
 

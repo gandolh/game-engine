@@ -1,5 +1,5 @@
 ---
-summary: What MateQuest is (a Romanian-curriculum math roguelike — the FOURTH game on the shared engine) — design-of-record v0.1, PRE-BUILD. Turn-based Pokémon-style + Slay-the-Spire combat where solving a programa-școlară problem (grades I–VIII) IS the action; branching runs, two-layer progression (in-run XP + persistent per-topic mastery), soft-roguelike death, loot that grants math lifelines, Romanian-folklore theme, Resurrect-64 palette, Web-Worker solo build like Citadel. Design settled 2026-07-21; no code yet.
+summary: What MateQuest is (a Romanian-curriculum math roguelike — the FOURTH game on the shared engine) — design-of-record v0.1, PRE-BUILD. Turn-based Pokémon-style + Slay-the-Spire combat where solving a programa-școlară problem (grades I–VIII) IS the action; branching runs, two-layer progression (in-run XP + persistent per-topic mastery), soft-roguelike death, loot that grants math lifelines, Romanian-folklore theme, Resurrect-64 palette, Web-Worker solo build like Citadel; renders on the engine's WebGL2 backend (Canvas2D until 2026-08-18). Design settled 2026-07-21; no code yet.
 updated: 2026-07-21
 ---
 

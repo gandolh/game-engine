@@ -1,5 +1,5 @@
 ---
-summary: What Hollow is (generational social-emergence sim on the shared engine) — M1 headless sim (exit-bar PASSED), M2 3D layer (engine WebGPU renderer + gene-driven cozy town), M3 research surfaces (observe module + chronicle/dashboard + persona authoring + shocks/replay), M4 hollow-12 governance + antagonism arcs, M5 hollow-14 Daily Life (leader-assigned jobs + diurnal routine + one central hearth + rare/private interaction), M6 hollow-15 Mortality & Care (3-day starvation death + persistent corpses + graveyard/grave-digger burial + rot→disease + medic), plus load-bearing decisions + known traits.
+summary: What Hollow is (generational social-emergence sim on the shared engine) — M1 headless sim (exit-bar PASSED), M2 3D layer (engine **WebGL2** renderer + gene-driven cozy town), M3 research surfaces (observe module + chronicle/dashboard + persona authoring + shocks/replay), M4 hollow-12 governance + antagonism arcs, M5 hollow-14 Daily Life (leader-assigned jobs + diurnal routine + one central hearth + rare/private interaction), M6 hollow-15 Mortality & Care (3-day starvation death + persistent corpses + graveyard/grave-digger burial + rot→disease + medic), plus load-bearing decisions + known traits.
 updated: 2026-07-21
 ---
 
@@ -20,7 +20,7 @@ executors). Milestone **M1 is complete** — see the exit-bar results below.
 - **`@hollow/sim-core`** — the transport-agnostic, deterministic sim (systems, agents, world,
   economy, community, family, lineage, social protocols). Render-free.
 - **`@hollow/client`** — browser client. **M2 landed** the living 3D town: it consumes the
-  engine WebGPU renderer, reads the Worker snapshot stream, and draws the cozy scene
+  engine WebGL2 renderer, reads the Worker snapshot stream, and draws the cozy scene
   (`src/render3d/` + `src/main.ts`, worker `src/worker/`). `npm run hollow`.
 - **`@tool/hollow-sim`** — the headless research CLI (hollow-07): drives `bootstrapHollowSim` on the
   main thread, samples metrics, captures the event chronicle, exports for offline study. Since M3 it
@@ -109,13 +109,15 @@ Judged by reading real exported runs (`@tool/hollow-sim`, compressed profile, 12
 
 ## M2 — engine 3D renderer + cozy town (2026-07-20)
 The first true-3D path in the repo. **08** `@engine/core/render3d` (promoted mesh generators — engine
-ships **no palette**; `mat4` at **WebGPU clip z∈[0,1]**, `OrbitCamera`, ray `pick`) + WebGPU
+ships **no palette**; `mat4` still emits **WebGPU-style clip z∈[0,1]**, remapped to GL's [-1,1] in the vertex shader, `OrbitCamera`, ray `pick`) + WebGPU
 device/pipeline/instanced draw + `scene3d.wgsl`. **09** the cozy town: ground/territory tints/
 family-growing homes/stock-scaled nodes/day-night, gene-driven humanoids via the **mesh-variant
 scheme** (skin×hair×pose), overlay glyphs/tags/click-inspect/follow-cam. Headline post-Chrome fix
 (`53bc26c`): the material buffer used an 8-float stride but the WGSL `var<storage>` array is **std430 =
-4-float** → half the palette rendered black. **The live 3D image is human-Chrome-gated** — the sandbox
-has no WebGPU adapter (`requestAdapter()` → null), so only the visual acceptance is unverified here.
+4-float** → half the palette rendered black. ~~**The live 3D image is human-Chrome-gated**~~ — **no longer true as of 2026-08-18.** That gate
+existed because the sandbox has no WebGPU adapter (`requestAdapter()` → null). On WebGL2 the town
+renders here fine (verified in-browser at 60fps via a software/ANGLE path), so 3D visual acceptance
+is now checkable without a human.
 Full slice-by-slice detail in log.md + BUILD-STATE.
 
 ## M3 — research surfaces + director role (2026-07-20)
@@ -127,7 +129,7 @@ byte-identity proof) + a live chronicle (click→camera-jump), dashboard, and in
 `interventionLog` (byte-identical replay), plus the authoring screen, time controls, shock buttons, and
 a URL-hash run descriptor. Determinism lesson: **`Rng.fork()` consumes a parent draw** → new forks must
 be appended after existing ones + created unconditionally. DOM/interaction flow verified headless; the
-3D image stays Chrome-gated.
+3D image is verifiable in-sandbox since the WebGL2 migration (2026-08-18).
 
 ## Known limitations (carried forward)
 - **`steal`/`trade` are largely dormant in natural play** (a fed town has no needy+greedy+low-trust
@@ -162,7 +164,7 @@ be appended after existing ones + created unconditionally. DOM/interaction flow 
   under `games/hollow/client/src/` (`research-store.ts`, `chronicle-*`, `dashboard-panel.ts`,
   `export-panel.ts`, `persona-setup-panel.ts`, `time-control*`, `shock-*`, `run-descriptor.ts`).
 - Engine 3D (M2): [engine/core/src/render3d/](../../engine/core/src/render3d/) — `geometry.ts`,
-  `mat4.ts`, `camera3d.ts`, `pick.ts`, `webgpu/` (`device3d`/`pipeline-cache`/`renderer3d`/
+  `mat4.ts`, `camera3d.ts`, `pick.ts`, `webgl2/` (`device3d`/`pipeline-cache`/`renderer3d`/
   `buffers` + `shaders/scene3d.wgsl`). Generic; names no game.
 - Client 3D (M2): [games/hollow/client/src/](../../games/hollow/client/src/) — `render3d/`
   (`app.ts` render loop, `humanoid.ts`, `agent-anim.ts`, `world-meshes.ts`, `overlay.ts`,
@@ -204,7 +206,7 @@ design-of-record). Five chunks, sim-core then a render pass (`19fa2dc`·`48240fd
 
 ## M6 — Mortality & Care (hollow-15, done 2026-07-21)
 Gave death consequences and a care economy. Sim-core complete + headless-verified; render dispatched
-separately (Chrome-gated visual). Brief: [../todos/2026-07-21-hollow-15-mortality-and-care.md](../todos/2026-07-21-hollow-15-mortality-and-care.md).
+separately (visual; no longer Chrome-gated since 2026-08-18). Brief: [../todos/2026-07-21-hollow-15-mortality-and-care.md](../todos/2026-07-21-hollow-15-mortality-and-care.md).
 - **Starvation is lethal in 3 in-game days.** A starvation-death path already existed
   (`family/lifecycle-system.ts`) but defaulted to a huge 3000 raw ticks; the bootstrap default is now
   day-derived (`STARVATION_DEATH_DAYS * ticksPerDay`), still overridable via `starvationDeathTicks`

@@ -29,7 +29,7 @@ Tech choices that are settled. Listed here so future briefs and reviews don't re
 
 ## Renderer
 
-- **WebGL2 is the single render backend.** *(Decided 2026-08-18 by user directive — supersedes "WebGPU-first, with Canvas2D as the fallback backend" (2026-07-09), which itself superseded "Canvas2D, not WebGPU".)* **⚠️ ADOPTED, MIGRATION IN FLIGHT** — the code still ships WebGPU + Canvas2D as of this entry. Plan and live state: [todos/2026-08-18-webgl2-00-BUILD-ORDER.md](../todos/2026-08-18-webgl2-00-BUILD-ORDER.md) · [todos/2026-08-18-webgl2-BUILD-STATE.md](../todos/2026-08-18-webgl2-BUILD-STATE.md). Brief 13 rewrites this entry in the past tense once the migration lands; until then, **the code wins** — expect to find `render/webgpu/`, `render/canvas2d/`, and `render3d/webgpu/` still present.
+- **WebGL2 is the single render backend.** *(Decided 2026-08-18 by user directive — supersedes "WebGPU-first, with Canvas2D as the fallback backend" (2026-07-09), which itself superseded "Canvas2D, not WebGPU".)* **✅ SHIPPED 2026-08-18.** `render/canvas2d/`, `render/webgpu/` and `render3d/webgpu/` are **deleted**; `@webgpu/types` and `wgsl_reflect` are gone from every package. The only backend is `engine/core/src/render/webgl2/` (2D) + `engine/core/src/render3d/webgl2/` (3D). All four games were verified rendering in a real browser. Build record: [todos/2026-08-18-webgl2-00-BUILD-ORDER.md](../todos/closed/2026-08-18-webgl2-00-BUILD-ORDER.md) · [todos/2026-08-18-webgl2-BUILD-STATE.md](../todos/closed/2026-08-18-webgl2-BUILD-STATE.md).
 
   **Why.** WebGPU compatibility. As of 2026-08 it ships in Chrome/Edge 113+, Safari 26 (macOS Tahoe 26 / iOS 26), and Firefox 141 (Windows) / 145 (macOS ARM64) — but **Firefox on Linux is still unshipped**, Android is in progress, and the no-hardware-acceleration tail (VMs, remote desktops, headless) has bitten this project twice already. Both 2D clients hard-forced `backend: "webgpu"`, so an unsupported browser got a **blank canvas**. WebGL2 is ~98% supported and universal on desktop since ~2017.
 
@@ -39,7 +39,11 @@ Tech choices that are settled. Listed here so future briefs and reviews don't re
 
   **What this gives up, stated plainly:** compute shaders and storage buffers (neither was in use — audited 2026-08-18: zero `@compute` across all 7 WGSL files, and exactly one storage buffer, the `scene3d` materials table, which becomes a `std140` UBO), and WebGPU's lower per-draw CPU overhead — acceptable because the engine runs far under frame budget on real hardware (~1.4–2.3 ms of a 16.6 ms render budget, see [performance-measurements.md](performance-measurements.md)).
 
-  **The replacement standing rule:** one backend, and **every colour in GLSL comes from a palette-role uniform** — no literals in shader source, enforced by `glsl-lint.test.ts`. This is the shader-side arm of the existing palette guard.
+  **The replacement standing rule:** one backend, and **every colour in GLSL comes from a palette-role uniform** — no literals in shader source, enforced by `glsl-lint.test.ts` (one copy per shader directory: the lint globs from its own folder, so `render/webgl2/shaders/` and `render3d/webgl2/shaders/` each need their own).
+
+  **Two non-obvious constraints this migration established — do not "tidy" either away:**
+  1. **The renderer must be imported DYNAMICALLY.** `createRenderer` uses `await import("./webgl2/renderer")`, and `render/index.ts` exports `WebGl2Renderer` as a **type only**. The WebGL2 passes `import … from "*.glsl?raw"`, which only a bundler resolves — a static import or a value export crashes every Node consumer (both game servers, `run-sim`, `world-preview`, `citadel-sim`, `hollow-sim`) with `ERR_UNKNOWN_FILE_EXTENSION`. This happened once during the migration and **typecheck plus 689 passing tests did not catch it.**
+  2. **Verification must include running things.** A green typecheck and a green suite say nothing about whether the app or the headless tools still start. `npm run build`, `sim`, `sim:citadel`, `sim:hollow` and `preview` are part of the gate, not ceremony.
 
 ## Assets
 

@@ -69,7 +69,7 @@ Launch and *look at* each game:
 - `npm run dev` — Farm Valley: terrain, water, sprites, shadows, day/night wash, clouds, weather,
   hover tooltips, hotbar, Pip, and the text-heavy panels. Then `?profile` and read `fps` /
   `frame` / `ui.flush` against the recorded baseline (real-GPU: fps ~99, frame ~5 ms,
-  `ui.flush` ~5.2 ms at ~1,950 quads — [../wiki/performance-measurements.md](../wiki/performance-measurements.md)).
+  `ui.flush` ~5.2 ms at ~1,950 quads — [../../wiki/performance-measurements.md](../../wiki/performance-measurements.md)).
 - `npm run citadel` — terrain bake, iso projection, roads/bridges, 3D-mesh buildings, resource HUD,
   build bar, siege HUD, inspect panel, cloud/haze overlay.
 - MateQuest — combat scene, quiz problem window, map, all in-canvas UI and Romanian diacritics.

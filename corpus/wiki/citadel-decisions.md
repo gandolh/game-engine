@@ -144,9 +144,11 @@ on the page for exactly that reason. Anyone reviving MP starts by reading them, 
 96×96 was never argued for either. 192×192 is chosen on the merits, and specifically as **the smallest
 size that crosses the `4096²` iso-pixel windowing threshold** (`6144×3088`, 76 MB RGBA) — so brief
 110's part 1, and briefs 21/22's windowed bake behind it, stop being dead code. 160×160 would have
-grown the map without triggering windowing; 256×256 sits exactly on WebGPU's default
+grown the map without triggering windowing; 256×256 sits exactly on WebGPU's default (historical)
 `maxTextureDimension2D` of 8192 px with zero margin. The full size table is in
 [brief 110](../briefs/game/done/110-citadel-client-world-size.md).
+
+**Updated 2026-08-18 (WebGL2 migration):** the guard is now `assertTextureWithinLimits`, which reads `gl.getParameter(gl.MAX_TEXTURE_SIZE)` and names the actual limit it found. The WebGL2 limit is driver-dependent rather than a fixed spec default, so the number must never be hardcoded — see `engine/core/src/render/webgl2/static-layer-pass.ts`.
 
 A settlement occupies ~40×40 tiles regardless, so this trades map occupancy (17% → 4%) for longer
 roads to clustered resources — which is #10's "build toward the resource" decision made larger.

@@ -1,5 +1,5 @@
 ---
-summary: Citadel's WebGPU-only render path — sprite-batch quads, baked terrain, iso projection, road/bridge networks, the 3D-mesh building pipeline, and the atlas/asset wiring.
+summary: Citadel's WebGL2 render path — sprite-batch quads, baked terrain, iso projection, road/bridge networks, the 3D-mesh building pipeline, and the atlas/asset wiring.
 updated: 2026-07-16
 ---
 
@@ -63,7 +63,7 @@ scratch as **in-code 3D meshes**:
 
 ## Rendering & assets
 
-Citadel is **WebGPU-only** at runtime (no Canvas2D fallback). Terrain is baked into
+Citadel renders through the engine's single **WebGL2** backend (there is no other backend to fall back to, and none is needed — WebGL2 is ~98% supported). If it cannot start, boot shows a message rather than leaving a blank surface. Terrain is baked into
 the static layer (render-windowed on the large MP map — see the 2026-06-19 log entry);
 buildings / villagers / raiders are `sprite-batch` quads.
 

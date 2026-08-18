@@ -50,7 +50,7 @@ positive, no clip-space conversion) versus the GPU's `scaleY: -sy * 2 / canvasH`
   today.
 - Blend state: additive vs premultiplied differs between the particle and weather pipelines. Read
   each `createRenderPipeline` blend descriptor and translate literally.
-- Historical caution from [../wiki/performance.md](../wiki/performance.md): the CPU weather path had
+- Historical caution from [../../wiki/performance.md](../../wiki/performance.md): the CPU weather path had
   an uncapped spawn and an O(n) `splice` removal. Those were investigated and **deliberately not
   fixed** (they never bit at observed levels). Do not fix them here — a backend port that also
   changes spawn behaviour is unreviewable.
