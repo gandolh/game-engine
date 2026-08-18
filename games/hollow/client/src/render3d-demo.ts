@@ -169,17 +169,23 @@ async function main(): Promise<void> {
   document.body.style.background = HOLLOW_PAL.ink;
   if (hud) hud.style.color = HOLLOW_PAL.cream;
 
-  if (!navigator.gpu) {
+  // No `navigator.gpu` pre-check: `createDevice3d` is WebGL2 now, so gating on a
+  // WebGPU global would refuse to start on exactly the browsers this backend exists
+  // to support (WebGL2 without WebGPU — e.g. Firefox on Linux). Let the device
+  // creation itself be the test, and report whatever it actually failed on.
+  let device3d: Awaited<ReturnType<typeof createDevice3d>>;
+  try {
+    device3d = await createDevice3d(canvas);
+  } catch {
     if (hud) {
       hud.textContent =
-        "WebGPU is not available in this browser.\n" +
-        "Open in a WebGPU-capable Chrome (chrome://flags -> Unsafe WebGPU, " +
-        "or Chrome 113+ which ships it by default).";
+        "This demo needs WebGL2, which could not be started.\n" +
+        "WebGL2 ships in every current browser, so the usual cause is disabled " +
+        "hardware acceleration, or a VM/remote session without a usable GPU.";
     }
     return;
   }
 
-  const device3d = await createDevice3d(canvas);
   const renderer = new SceneRenderer3D(device3d, {
     clearColor: [...toFloatRgb(HOLLOW_PAL.navy), 1],
   });
