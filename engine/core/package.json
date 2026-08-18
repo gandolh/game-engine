@@ -109,8 +109,6 @@
   },
   "devDependencies": {
     "@types/jsdom": "21.1.7",
-    "@webgpu/types": "0.1.70",
-    "jsdom": "29.1.1",
-    "wgsl_reflect": "1.4.0"
+    "jsdom": "29.1.1"
   }
 }

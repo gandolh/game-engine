@@ -17,10 +17,6 @@ interface ImportMeta {
 // renderer explicitly requests the `"canvas2d"` backend (no WebGPU), but
 // this keeps `tsc --noEmit` happy regardless — mirrors Hollow's
 // vite-env.d.ts.
-declare module "*.wgsl?raw" {
-  const src: string;
-  export default src;
-}
 
 // CSS imported for its side effect (Vite injects it). `import "./style.css"`.
 declare module "*.css";

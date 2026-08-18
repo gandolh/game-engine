@@ -4,7 +4,6 @@ export default defineConfig({
   resolve: {
     alias: {
 
-      wgsl_reflect: "wgsl_reflect/wgsl_reflect.module.js",
     },
   },
   test: {

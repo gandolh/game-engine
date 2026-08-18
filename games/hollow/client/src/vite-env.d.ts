@@ -16,10 +16,6 @@ interface ImportMeta {
 // from "./shaders/scene3d.wgsl?raw"` (still present, not yet deleted — brief
 // 12 removes it once every consumer is off it). This keeps `tsc --noEmit`
 // happy, mirroring Citadel's vite-env.d.ts.
-declare module "*.wgsl?raw" {
-  const src: string;
-  export default src;
-}
 
 // GLSL ES 3.00 shader sources imported with Vite's `?raw` suffix (WebGL2
 // migration brief 11). `@hollow/client`'s `render3d/app.ts` now imports

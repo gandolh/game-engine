@@ -12,10 +12,6 @@ interface ImportMeta {
 
 // WGSL shader sources imported with Vite's `?raw` suffix (used once Citadel
 // renders via the @engine WebGL2 stack — brief 27).
-declare module "*.wgsl?raw" {
-  const src: string;
-  export default src;
-}
 
 // CSS imported for its side effect (Vite injects it). `import "./style.css"`.
 declare module "*.css";

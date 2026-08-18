@@ -2,8 +2,7 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "noEmit": true,
-    "rootDir": "./src",
-    "types": ["@webgpu/types"]
-  },
+    "rootDir": "./src"
+    },
   "include": ["src/**/*"]
 }

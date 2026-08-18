@@ -15,7 +15,6 @@
   },
   "devDependencies": {
     "@types/node": "25.9.1",
-    "@webgpu/types": "0.1.70",
     "tsx": "4.22.3",
     "vitest": "4.1.7"
   }

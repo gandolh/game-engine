@@ -12,7 +12,6 @@
     "@engine/core": "0.1.0"
   },
   "devDependencies": {
-    "@webgpu/types": "0.1.70",
     "tsx": "4.22.3"
   }
 }
