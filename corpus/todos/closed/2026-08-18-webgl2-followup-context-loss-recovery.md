@@ -1,6 +1,6 @@
 # WebGL2 follow-up — resource re-creation after context loss
 
-status: todo (NOT part of the 13-brief WebGL2 migration scope)
+status: **DONE 2026-08-18** (implemented after the 13 briefs; see the resolution note at the end)
 created: 2026-08-18
 context: [2026-08-18-webgl2-00-BUILD-ORDER.md](closed/2026-08-18-webgl2-00-BUILD-ORDER.md) · discovered during brief 02
 
@@ -42,3 +42,28 @@ symptom and trivial to fix from this description.
 Chrome's `WEBGL_lose_context` extension can force loss and restore on demand — drive it from the
 console in Farm and Citadel, confirm the world comes back intact (terrain, water, sprites, UI text),
 and confirm the sim never stalled.
+
+
+---
+
+## Resolution (2026-08-18)
+
+Implemented in `engine/core/src/render/webgl2/renderer.ts`.
+
+**Approach: rebuild + replay, not repair.** A restored context hands back the same `gl` object, but
+every texture/buffer/program/VAO it vended is dead and unreadable — so the renderer retains the
+CPU-side inputs as they arrive (`bakeStaticLayer` args, `bakeWaterPattern` args, the depth mask, water
+scroll/swell; atlases were already retained in `_atlases`). On `webglcontextrestored`,
+`_rebuildGpuState()` re-creates all ten GPU-owned passes, drops the stale `WebGLTexture` handles cached
+in the draw groups, re-adds every atlas, and replays the bakes and water state in caller order.
+
+`Overlay2D` is deliberately **not** rebuilt — it is a 2D canvas and unaffected by GL context loss.
+
+**Host-facing:** `isRestoring` and `onContextStateChange(lost)` let a client show a hint; `endFrame`
+skips frames while lost or mid-rebuild instead of issuing dead GL calls.
+
+**Verification:** six unit tests, and the recovery path is **mutation-verified** — deleting the
+`_rebuildGpuState()` call fails two of them, including "renders again after a restore", which is
+exactly the black-canvas-forever symptom. Not yet exercised against a real
+`WEBGL_lose_context` in a browser; that is the one remaining confirmation and it is a console
+one-liner (`gl.getExtension('WEBGL_lose_context').loseContext()`).

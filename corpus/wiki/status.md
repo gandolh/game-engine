@@ -296,6 +296,13 @@ entry points and the real game-side helper, render it against a deliberately con
 and **take the control shot with the feature switched off**. The A/B is what makes it evidence rather
 than an impression. Delete the harness afterwards.
 
+**Context-loss recovery is DONE** (2026-08-18, after the 13 briefs — it was the one genuine regression
+the migration introduced). The renderer retains its CPU-side inputs and, on `webglcontextrestored`,
+re-creates all ten GPU-owned passes, re-uploads the atlases, and replays the bakes + water state.
+Mutation-verified: deleting the rebuild call fails "renders again after a restore". Not yet driven
+against a real `WEBGL_lose_context` in a browser — a console one-liner if you want to confirm it.
+Brief: [../todos/closed/2026-08-18-webgl2-followup-context-loss-recovery.md](../todos/closed/2026-08-18-webgl2-followup-context-loss-recovery.md).
+
 **Still outstanding:** a **real-GPU `?profile` reading**. All perf numbers came from headless Chrome on
 SwiftShader (software rasterisation), where absolute fps is meaningless; the JS-side numbers were
 healthy (`ui.flush` **3.49 ms mean at 7,272 quads**, comfortably better than the ~5 ms-at-2,000 bar, so

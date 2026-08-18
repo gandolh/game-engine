@@ -49,10 +49,16 @@ blue water at the establishing zoom. Technique worth reusing: tiny page under th
 real code, contrasting clearColor, **and a control shot with the feature off** — the A/B is what makes
 it evidence instead of an impression.
 
-**Left open deliberately:** [context-loss recovery](todos/2026-08-18-webgl2-followup-context-loss-recovery.md)
-— WebGL2 contexts are lost routinely (WebGPU never exposed us to this); the seam exists and loss
-degrades quietly, but nothing re-creates GPU resources on restore. Plus a **real-GPU `?profile`
-reading**, which cannot be taken in this sandbox.
+**Context-loss recovery also landed** ([closed brief](todos/closed/2026-08-18-webgl2-followup-context-loss-recovery.md)),
+closing the one genuine regression the migration introduced. WebGL2 contexts are lost routinely and
+WebGPU never exposed us to it; a restored context returns the same `gl` object but every GPU resource is
+dead and unreadable, so recovery is **rebuild + replay**: retain the CPU inputs, then re-create the ten
+GPU-owned passes, re-upload atlases, and replay the bakes and water state on `webglcontextrestored`.
+Mutation-verified — deleting the rebuild fails "renders again after a restore", the black-canvas-forever
+symptom.
+
+**The only thing still outstanding is a real-GPU `?profile` reading**, which cannot be taken in this
+sandbox (SwiftShader only).
 
 **Stale blocker cleared as a side effect:** `wiki/animation.md` and `wiki/citadel-hud-and-overlays.md`
 both deferred in-browser checks because "WebGPU won't render headless on the dev box". WebGL2 does —
