@@ -17,6 +17,8 @@ See [README.md](README.md) for the player-facing pitch and [corpus/](corpus/) fo
 
 `corpus/` is an LLM-maintained wiki and the source of truth for design intent — prefer it over scattered notes, and fold durable, reusable findings back into it (a wiki page + a `log.md` entry) instead of leaving them in chat or personal memory. Before non-trivial work:
 - Start at [corpus/index.md](corpus/index.md), then drill into [corpus/wiki/architecture.md](corpus/wiki/architecture.md), [corpus/wiki/decisions.md](corpus/wiki/decisions.md), and [corpus/wiki/status.md](corpus/wiki/status.md).
+- **Use the project's words.** [corpus/wiki/glossary.md](corpus/wiki/glossary.md) is the vocabulary of record — one name per concept plus the synonyms it displaces (a *tick* is not a *frame*; new work is a *spec* in `corpus/todos/`, not a *brief*; `villager` always gets qualified with the game). A term used against its definition is a finding, not a typo.
+- [corpus/routing.md](corpus/routing.md) says which layer answers which question and how work routes here — including where the personal skills' paths differ from this repo's (the queue is `corpus/todos/`, **not** `corpus/briefs/todo/`).
 - For player-facing / interaction systems (the playable farmer **Pip**, hotbar, hover tooltips, feature collision, bridges, plot layout, world widening), see [corpus/wiki/player-and-interaction.md](corpus/wiki/player-and-interaction.md).
 - Each game has one design-of-record page: [citadel-overview.md](corpus/wiki/citadel-overview.md), [hollow-overview.md](corpus/wiki/hollow-overview.md), [mathquest-overview.md](corpus/wiki/mathquest-overview.md) (Farm's is [overview.md](corpus/wiki/overview.md)).
 - [corpus/CLAUDE.md](corpus/CLAUDE.md) explains the brief/wiki workflow and the source-of-truth ordering (actual code > a `done/` brief > wiki > prototype README).
@@ -29,7 +31,7 @@ npm workspaces, grouped by the dependency seam (`engine/*`, `games/*/*`, `tools/
 ```
 engine/
   core            @engine/core          generic ECS engine (subpath exports: /ecs /render /sim /runtime /input …)
-  ui              @engine/ui            shared in-canvas UI toolkit (text/icons/widgets/layout/theme), used by all four games
+  ui              @engine/ui            shared in-canvas UI toolkit (text/icons/widgets/layout/theme), used by Farm, Citadel and MateQuest (not Hollow)
   wasm-modules    @engine/wasm-modules  AssemblyScript kernels (pathfinder, noise, rng, floodfill)
 games/
   farm/
@@ -96,7 +98,7 @@ Headless sim knobs (env vars on `npm run sim`): `SEED`, `TICKS_PER_DAY` (default
 - **TypeScript strict**, plus `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes` (see [tsconfig.base.json](tsconfig.base.json)). No `any` without a comment.
 - **A fixed palette is enforced per game.** Every color (sprites, tiles, particles, day/night wash, HTML/canvas UI) must come from named palette-role constants, never a raw hex literal. **Engine + Farm use EDG32** (`EDG.*` in [palette.ts](engine/core/src/render/palette.ts)); **Citadel and Hollow use Apollo-46** (`CITADEL_PAL.*` in [citadel-palette.ts](games/citadel/client/src/render/citadel-palette.ts), imported as `CITADEL_PAL as EDG` so role names are shared; `HOLLOW_PAL` in [hollow-palette.ts](games/hollow/client/src/render/hollow-palette.ts)); **MateQuest uses Resurrect-64** (`MATE_PAL` in [mate-palette.ts](games/mathquest/client/src/render/mate-palette.ts)). The guard test ([palette.test.ts](engine/core/src/render/palette.test.ts)) is **per-scope by path**: `games/citadel/` and `games/hollow/` are validated against Apollo, `games/mathquest/` against Resurrect-64, everything else against EDG32. The engine never imports a game, so each non-EDG swatch list is inlined in the engine-side scan and pinned to its game's module by a colocated test there. (Decision 2026-07-13; see corpus citadel-decisions #28.)
 - **WebGL2 is the only render backend.** Canvas2D and WebGPU were both deleted 2026-08-18; `createRenderer` takes no `backend` option. Shaders are **GLSL ES 3.00** (`#version 300 es`, a `precision` qualifier in fragment shaders, no colour literals) and a per-directory `glsl-lint.test.ts` enforces it. Hollow's 3D layer lives in `engine/core/src/render3d/webgl2/`. See corpus [decisions.md](corpus/wiki/decisions.md) (Renderer).
-- **Engine never imports a game; no game imports another game.** `@engine/core` is generic; it is consumed by four independent stacks — Farm (`@farm/sim-core` → `@farm/client`/`@farm/server`), Citadel (`@citadel/sim-core` → `@citadel/client`/`@citadel/server`), Hollow (`@hollow/sim-core` → `@hollow/client`) and MateQuest (`@mathquest/sim-core` → `@mathquest/client`). A layering test enforces it.
+- **Engine never imports a game; no game imports another game.** `@engine/core` is generic; it is consumed by four independent stacks — Farm (`@farm/sim-core` → `@farm/client`/`@farm/server`), Citadel (`@citadel/sim-core` → `@citadel/client`/`@citadel/server`), Hollow (`@hollow/sim-core` → `@hollow/client`) and MateQuest (`@mathquest/sim-core` → `@mathquest/client`). Enforced repo-wide by [engine/core/src/layering.test.ts](engine/core/src/layering.test.ts), which scans every game and tool source root by path.
 
 ## Architecture essentials
 

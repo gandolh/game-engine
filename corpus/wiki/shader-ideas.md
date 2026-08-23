@@ -27,7 +27,7 @@ Source: [The Book of Shaders](https://thebookofshaders.com/) (Vivo & Lowe), chap
 
 ## Ch. 6 — Colors (`mix`)
 
-- [x] **GPU day/night wash.** Realised as `TintPass` (`engine/core/src/render/webgl2/tint-pass.ts`), fed a CPU-computed EDG `WashSpec` via `endFrame(wash, …)`. Used by both games.
+- [x] **GPU day/night wash.** Realised as `TintPass` (`engine/core/src/render/webgl2/tint-pass.ts`), fed a CPU-computed EDG `WashSpec` via `endFrame(wash, …)`. Used by Farm and Citadel (both pass a `WashSpec` to `endFrame`).
 - [ ] **Seasonal grading via per-channel `mix`.** Book shows `mix()` with a `vec3` t — per-channel grading could replace/extend the existing seasonal tint while keeping the target colors EDG-derived.
 
 ## Ch. 7 — Shapes (SDFs, polar coordinates)

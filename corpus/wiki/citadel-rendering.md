@@ -1,6 +1,6 @@
 ---
-summary: Citadel's WebGL2 render path — sprite-batch quads, baked terrain, iso projection, road/bridge networks, the 3D-mesh building pipeline, and the atlas/asset wiring.
-updated: 2026-08-18
+summary: Citadel's WebGL2 render path — sprite-batch quads, the tint-alpha trap that rendered every translucent ground quad opaque, baked terrain, iso projection, road/bridge networks, the 3D-mesh building pipeline, and the atlas/asset wiring.
+updated: 2026-08-23
 ---
 
 # Citadel — rendering & assets
@@ -16,6 +16,32 @@ this page is the render *machinery*.
 > **non-building** sprites (villagers, fx). Prose below that describes `cottage` / `postMill` /
 > `fort` form builders is **historical** — kept for the design rationale (why each type has its own
 > silhouette), not as a map of the current tree.
+
+## The tint-alpha trap (fixed 2026-08-23)
+
+Citadel authors its flat ground quads by packing opacity **into the tint**:
+`packTint(hex, alpha)` returns `0xRRGGBBAA`. The engine does not render that byte —
+`tintFloats` ([webgl2/renderer.ts](../../engine/core/src/render/webgl2/renderer.ts)) takes
+RGB from the tint and **alpha from the sprite's own `alpha` field**, by design, so exactly one
+place controls opacity.
+
+Citadel's `isoFlatSprite` and `quadToSprite` were passing `alpha: 1`, so everything authored
+translucent rendered **fully opaque**: the placement ghost, drag-paint preview, building
+footprint shadows, the cluster/selection diamond, the mood glow, night light pools and fire
+glow. It shipped that way through both backends — WebGPU discarded tint alpha too.
+
+**Why no test caught it:** the render tests asserted on `tintRgba`, the value that never
+reaches the GPU. They were green while the pixels were wrong. The fix lifts the tint's alpha
+byte onto the sprite (`spriteAlphaOf` in `render/quads.ts`, applied in both quad→sprite
+helpers; a 0xff tint multiplies by 1, so roads and bridges are untouched), and the new tests
+assert the **sprite** alpha — they fail on the pre-fix code.
+
+The standing rule: **a quad's opacity must end up in `sprite.alpha`.** Asserting a tint byte
+proves nothing about what renders. Related: the ambient-crowd dim (brief 105) already had to
+be a sprite alpha for this reason — that was the clue that went unfollowed.
+
+**Owed:** a real-browser pass. This changes how several Citadel surfaces look (correctly, per
+their own comments), and no screenshot has been taken since.
 
 ## Mesh building renderer (2026-07-14)
 

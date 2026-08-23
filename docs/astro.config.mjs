@@ -15,7 +15,7 @@ export default defineConfig({
     starlight({
       title: 'Game Engine',
       description:
-        'Two-and-a-bit games on one shared TypeScript ECS engine — deterministic sim, BDI agents, procedural pixel art.',
+        'Four games on one shared TypeScript ECS engine — deterministic sim, BDI agents, procedural pixel art.',
       customCss: ['./src/styles/theme.css'],
       components: {
         ThemeProvider: './src/components/ThemeProvider.astro', // light-only
@@ -47,6 +47,7 @@ export default defineConfig({
           items: [
             { label: 'Architecture', link: '/wiki/architecture/' },
             { label: 'Decisions', link: '/wiki/decisions/' },
+            { label: 'Glossary', link: '/wiki/glossary/' },
             { label: 'System ordering', link: '/wiki/system-ordering/' },
             { label: 'World generation', link: '/wiki/world-generation/' },
             { label: 'Economy', link: '/wiki/economy/' },

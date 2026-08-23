@@ -18,7 +18,7 @@ corpus/
     game/{done,superseded}/
   verify/           evidence attached to a specific verdict (screenshots, data, a rebuildable page)
   wiki/             LLM-curated synthesis pages (the actual knowledge base)
-    overview.md, architecture.md, decisions.md, status.md, open-questions.md, …
+    overview.md, architecture.md, decisions.md, glossary.md, status.md, open-questions.md, …
 ```
 
 **Two archives, one reason:** `briefs/` is the original scheme and is closed to new files;
@@ -98,6 +98,57 @@ A wiki page that names a specific file, function, or commit may have drifted. Be
 - Names a path → check it exists.
 - Names a function/flag → grep for it.
 - Names a commit → `git log --oneline | grep <hash>`.
+
+## Domain modeling — the vocabulary and the calls it encodes
+
+Two spine pages are maintained **during** a session, not swept up afterwards.
+
+### [wiki/glossary.md](wiki/glossary.md) — one name per concept
+
+Add a term the moment it is settled (usually mid-grill), while the wording that made it click is still
+in front of you. Entry shape:
+
+```markdown
+**Snapshot**:
+The immutable, per-tick, render-facing view of the world — the only thing that crosses the sim↔render boundary.
+_Avoid_: world state, game state, payload
+```
+
+- **Definitions, not behavior.** One or two sentences. The moment an entry explains *how* something
+  works it belongs on a concept page — link there instead. A definition that needs a paragraph is a
+  term doing two jobs.
+- **Only project-specific terms.** "Cache", "batch", "retry" do not earn an entry however often the
+  repo says them. "Tick", "baseline" and "spec" do, because this project means something particular.
+- **`_Avoid_` is the load-bearing half.** Listing the displaced synonyms is what actually stops drift;
+  without it the glossary just documents one more option.
+- **Conflicts are findings.** Code or a page using a term against its definition is a real
+  inconsistency — fix one side. Two live meanings is two terms and needs two names. The one
+  cross-game collision (`villager`, Citadel vs Hollow) is handled by **qualifying with the game**,
+  because neither codebase is being renamed; that is the exception, not the pattern.
+
+This monorepo spans four games but keeps **one** glossary with per-game sections. Split into a
+glossary map (per-context pages plus a relationships block) only if a genuinely separate second
+vocabulary appears — a map over one vocabulary is ceremony.
+
+### [wiki/decisions.md](wiki/decisions.md) — record only what earns it
+
+**All three must hold**, or the page fills with obvious choices and stops being read:
+
+1. **Hard to reverse** — changing your mind later has real cost.
+2. **Surprising without context** — a future reader will ask "why this way?"
+3. **A genuine trade-off** — there were real alternatives and one was picked.
+
+Format: the call, the date, the alternatives rejected, and **the reason**. The reason is the
+load-bearing part — an entry with no *why* can only be obeyed or broken, never revisited
+intelligently, so an undefended entry is a lint finding (reconstruct it from `log.md` or mark it for
+revisit). One to three sentences is a complete entry; add `Status: superseded by <entry>` only when
+a decision is actually revisited. What qualifies: architectural shape, integration patterns,
+technology with real lock-in, boundary/scope calls, **deliberate deviations** (the ones that stop the
+next agent from "fixing" something intentional), constraints invisible in the code, and non-obvious
+rejections.
+
+Game-scoped design calls live on the game's own page (e.g. [wiki/citadel-decisions.md](wiki/citadel-decisions.md));
+`decisions.md` holds the repo-wide ones.
 
 ## Spec lifecycle
 

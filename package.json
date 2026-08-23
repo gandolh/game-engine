@@ -32,7 +32,9 @@
     "build-engine": "npm run build -w @engine/core",
     "build-ui": "npm run build -w @engine/ui",
     "docs": "turbo run docs",
-    "docs:dev": "npm run dev -w @game-engine/docs-site"
+    "docs:dev": "npm run dev -w @game-engine/docs-site",
+    "codegraph:init": "codegraph init && codegraph telemetry off && codegraph status",
+    "codegraph:sync": "codegraph sync"
   },
   "devDependencies": {
     "@types/node": "25.9.1",

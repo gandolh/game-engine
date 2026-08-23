@@ -1,6 +1,6 @@
 ---
-summary: The load-bearing map: workspaces, the four-layer dependency rule, the sim loop, ECS, message bus, per-tick data flow, render, audio, WASM, and the library-packaging seam.
-updated: 2026-08-18
+summary: The load-bearing map: all four game stacks and their workspaces, the four-layer dependency rule (and the test that enforces it), the sim loop, ECS, message bus, per-tick data flow, render, audio, WASM, and the library-packaging seam.
+updated: 2026-08-23
 ---
 
 # Architecture
@@ -10,7 +10,7 @@ updated: 2026-08-18
 ```
 engine/
   core/            @engine/core          — reusable engine
-  ui/              @engine/ui            — shared in-canvas UI toolkit (text/icons/widgets/layout/theme), used by both games
+  ui/              @engine/ui            — shared in-canvas UI toolkit (text/icons/widgets/layout/theme); used by Farm, Citadel and MateQuest — Hollow's client does not import it
   wasm-modules/    @engine/wasm-modules  — AssemblyScript sources
 games/
   farm/
@@ -22,18 +22,28 @@ games/
     sim-core/      @citadel/sim-core      — Citadel (settlement/RTS) sim logic
     client/        @citadel/client        — Citadel browser client (sim runs in a Web Worker)
     server/        @citadel/server        — Node WebSocket sim host for Citadel online MP (solo runs in a Worker)
+  hollow/
+    sim-core/      @hollow/sim-core       — Hollow (generational social-emergence sim) sim logic
+    client/        @hollow/client         — Hollow browser client (Web Worker sim + the only 3D layer)
+  mathquest/
+    sim-core/      @mathquest/sim-core    — MateQuest (Romanian-curriculum math roguelike) sim logic
+    client/        @mathquest/client      — MateQuest browser client (sim runs in a Web Worker)
 tools/
   atlas-builder    @tool/atlas-builder   — runtime sprite atlas
   run-sim          @tool/run-sim         — headless Farm sim driver
   world-preview    @tool/world-preview   — offline snapshot viewer
   citadel-sim      @tool/citadel-sim     — headless Citadel sim
+  hollow-sim       @tool/hollow-sim      — headless Hollow sim (+ metrics / chronicle export)
 ```
 
-Root [package.json](../../package.json) is an npm workspaces monorepo (`engine/*`, `games/*/*`, `tools/*`), grouped by the dependency seam; all packages share TS config via [tsconfig.base.json](../../tsconfig.base.json). The engine never imports a game and the two games never import each other.
+Root [package.json](../../package.json) is an npm workspaces monorepo (`engine/*`, `games/*/*`, `tools/*`), grouped by the dependency seam; all packages share TS config via [tsconfig.base.json](../../tsconfig.base.json). **The engine never imports a game, and no game imports another game** — four independent stacks (Farm, Citadel, Hollow, MateQuest) on one engine. Enforced repo-wide by [engine/core/src/layering.test.ts](../../engine/core/src/layering.test.ts), which scans every game and tool source root by path (2026-08-23; before that the guard covered Hollow only).
 
 **`@farm/sim-core` (brief 56)** holds the deterministic simulation — `bootstrapSim` + `systems/**`, `agents/**`, `world/**`, `economy/**`, `protocols/**`, `components/**`, the snapshot layer (`snapshot/`, `snapshot-builder/`), `render-systems/` (pure sprite-frame production, no DOM), and the transport-neutral message contract (`protocol/` — `Sim*` names since brief 115, 2026-07-15, replacing the historical `Worker*` names). It imports `@engine/core` (incl. the render barrel, for the EDG palette + sprite types — Node-safe because nothing instantiates a Canvas at module load) but **never** the renderer. It exposes TS source directly via subpath `exports` (no build step), like `@engine/core`. This was extracted so both the renderer and the future Node WS server (brief 57) can depend on the sim without the renderer in between.
 
 ## Layers
+
+The diagram below is the **Farm** stack; Citadel, Hollow and MateQuest have the same shape with their
+own `sim-core` + client (and a Web Worker instead of a WebSocket server — see *Sim ↔ render* below).
 
 ```
 ┌──────────────────────────────────────────────────────────┐
@@ -52,7 +62,7 @@ Root [package.json](../../package.json) is an npm workspaces monorepo (`engine/*
 └──────────────────────────────────────────────────────────┘
 ```
 
-Engine never imports game; the renderer (`farm-valley`) depends on `@farm/sim-core` for sim logic + the snapshot/message types; `@farm/sim-core` never imports the renderer. WASM artifacts are committed under `games/farm/client/public/wasm/` (the renderer fetches them) and built into `engine/wasm-modules/dist/` (sim-core's `travel.test.ts` + the Node server read the dist copy); fresh clones can `npm run dev` without first running `npm run build-wasm`.
+Engine never imports game; the renderer (`@farm/client`) depends on `@farm/sim-core` for sim logic + the snapshot/message types; `@farm/sim-core` never imports the renderer. WASM artifacts are committed under `games/farm/client/public/wasm/` (the renderer fetches them) and built into `engine/wasm-modules/dist/` (sim-core's `travel.test.ts` + the Node server read the dist copy); fresh clones can `npm run dev` without first running `npm run build-wasm`.
 
 **`@farm/server` (briefs 57–58)** is a second consumer of `@farm/sim-core`: a long-running Node process (`games/farm/server`, `ws` WebSocketServer, `npm run server`) that hosts the sim and bridges the `@farm/sim-core/protocol` message contract over a WebSocket. `SimHost` is the old worker tick-loop ported transport-agnostically (a `send(msg)` callback + `handleInbound(msg)` instead of `postMessage`/`onmessage`); one sim per connection; WASM pathfinder from `wasm-modules/dist`; drop-stale snapshot backpressure. **The renderer's `SimClient` is now a pure WebSocket client of this server** (brief 58) — the in-browser Web Worker is gone. `SimClient`'s public API was preserved, so the `main/*` consumers were untouched; only its transport changed (WebSocket frames instead of `postMessage`). Dev: `npm run dev` starts both the server and Vite; Vite proxies `/sim` → `ws://localhost:8787`. Prod: Caddy reverse-proxies `/farm-valley/sim` → the pm2-managed server (see [decisions.md](decisions.md) → Concurrency + the deploy section).
 
@@ -119,7 +129,7 @@ Atlas: ~220 hand-crafted 16×16 pixel-art frames split across **6 sheets + an `i
 
 ## Audio
 
-[engine/core/src/audio/](../../engine/core/src/audio/) (`@engine/core/audio`, 2026-07-15, engine brief 19) — a **generic, off-sim client subsystem**, same layer as particles/toasts/juice. **Never runs on the deterministic sim path**; `sim-core` is untouched and both games' determinism runs stay byte-identical (that's the acceptance proof audio didn't leak in). Like the rest of the engine it names no game — each game owns its own event→sound map.
+[engine/core/src/audio/](../../engine/core/src/audio/) (`@engine/core/audio`, 2026-07-15, engine brief 19) — a **generic, off-sim client subsystem**, same layer as particles/toasts/juice. **Never runs on the deterministic sim path**; `sim-core` is untouched and both games' determinism runs (Farm + Citadel, the two that existed then) stay byte-identical (that's the acceptance proof audio didn't leak in). Like the rest of the engine it names no game — each game owns its own event→sound map.
 
 - **`AudioEngine`** signal chain: per-voice source → per-voice gain → **master gain** → `destination`; `muted`/`volume` gate at the master. A voice cap (`maxVoices`, default 16) **skips** new voices when saturated (never cuts a playing one); voices are reaped on `onended` plus a scheduled-end backstop so a suspended/stubbed context can't leak them.
 - **The unlock rule:** browsers create an `AudioContext` **suspended** until a user gesture. Clients call `unlock()` on the first pointer/key press; **before that, `play()` is a safe no-op returning `false`** (never throws, builds no node, no autoplay-gate console error). Calling `unlock()` on an already-running context is a no-op, so wiring it to a one-shot listener is safe.
@@ -142,7 +152,7 @@ All kernels export via `@engine/core`. The pathfinder bytes are transferred to t
 
 ## Library packaging (the reusable seam)
 
-2026-07-17 (engine-library-extraction todo). `@engine/core` + `@engine/ui` + `@engine/wasm-modules` are the **reusable seam** — packaged as **MIT libraries, version 0.1.0, without publishing** (the two games stay in-repo as reference consumers). The public npm name is deferred to publish time (one rename commit then).
+2026-07-17 (engine-library-extraction todo). `@engine/core` + `@engine/ui` + `@engine/wasm-modules` are the **reusable seam** — packaged as **MIT libraries, version 0.1.0, without publishing** (the four games stay in-repo as reference consumers). The public npm name is deferred to publish time (one rename commit then).
 
 - **Dual resolution.** Inside the monorepo the packages still resolve **raw TS source** (`exports` → `./src/*.ts`) so Vite/tsx/vitest compile it with zero dev churn. Tarball consumers must resolve emitted `dist/` (ESM `.js` + `.d.ts`). The swap is done by a **prepack/postpack manifest swap** ([scripts/pack-swap.mjs](../../engine/core/scripts/pack-swap.mjs)), **not** `publishConfig.exports` — that field was empirically proven **not to work on npm** and is a dead end; don't reach for it again.
 - **Build.** `tsconfig.build.json` emits `dist/` per package; [scripts/postbuild.mjs](../../engine/core/scripts/postbuild.mjs) rewrites extensionless imports → `.js` (our no-`.js`-suffix convention is a source-only rule) and copies the `.wgsl` shaders. `@engine/wasm-modules` diverges deliberately: no `tsc`, `prepack: npm run build` (asc), and `exports` maps the raw `.wasm` from `dist/` — it ships its wasm artifacts in-package (the games keep their own committed copies as consumers).

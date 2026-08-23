@@ -1,17 +1,18 @@
 ---
 summary: The shared in-canvas UI toolkit (@engine/ui) — the UNSCII text stack, the palette-agnostic icon pipeline, the widget vocabulary, the custom-draw escape hatch, and the layout traps that bite when text metrics change.
-updated: 2026-07-23
+updated: 2026-08-23
 ---
 
 # @engine/ui — the in-canvas UI toolkit
 
 `@engine/ui` (at [engine/ui/](../../engine/ui/)) is the retained-mode, **in-canvas** widget toolkit
-shared by BOTH games. It is *not* listed in the repo-layout table in the root `CLAUDE.md` — it grew
-out of the "all GUI in-game" push (no DOM chrome), and both clients now draw their HUDs through it.
+shared by **Farm, Citadel and MateQuest** — it grew out of the "all GUI in-game" push (no DOM chrome),
+and those three clients draw their HUDs through it. **Hollow does not use it**: its client depends on
+`@engine/core` + `@hollow/sim-core` only, and its research surfaces are their own thing.
 
-Both games consume it, so **it may never import a game**, and it must work under **two different
-palettes** (Citadel = Apollo-46, engine + Farm = EDG32). That single constraint explains most of the
-design below.
+Three games consume it, so **it may never import a game**, and it must work under **three different
+palettes** (engine + Farm = EDG32, Citadel = Apollo-46, MateQuest = Resurrect-64). That single
+constraint explains most of the design below.
 
 ## Text — the UNSCII font stack (2026-07-14)
 

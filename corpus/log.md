@@ -4,6 +4,140 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-08-23] incident | The WebGPU-fossil comments hid a live render bug — Citadel's translucent quads were opaque
+
+Picked up the residual flagged in the previous entry: ~10 source comments justified live behaviour
+on the authority of deleted `webgpu/` files. Verifying the load-bearing one against the real backend
+found the comment right and the **code** wrong.
+
+**The bug.** Citadel authors flat ground quads by packing opacity into the tint
+(`packTint(hex, alpha)` → `0xRRGGBBAA`). The engine's `tintFloats`
+([webgl2/renderer.ts](../engine/core/src/render/webgl2/renderer.ts)) takes RGB from the tint and
+**alpha from the sprite's own `alpha`** — by design, one place owns opacity. But
+`isoFlatSprite` and `quadToSprite` both hardcoded `alpha: 1`, so every quad authored translucent
+rendered **fully opaque**: placement ghost, drag-paint preview, building footprint shadows, the
+cluster/selection diamond, the mood glow, night light pools, fire glow. The `fx/diamond` frame is
+opaque white, so nothing else softened it. It was equally broken on WebGPU, so this is not a
+migration regression — it predates it.
+
+**Why the suite was green:** the render tests asserted `tintRgba`, the value that never reaches the
+GPU — a textbook weak assertion. Brief 105's crowd-dim note (*"apply it as the sprite's own alpha,
+the tint's alpha byte is discarded"*) was the clue nobody generalised.
+
+**The fix** — `spriteAlphaOf(tintRgba, baseAlpha)` in
+[render/quads.ts](../games/citadel/client/src/render/quads.ts), applied in both quad→sprite helpers,
+so a tint's alpha byte is lifted onto the sprite and composes with any explicit alpha. A 0xff tint
+multiplies by 1, so roads, bridges and every opaque quad are byte-identical. Four new tests assert
+the **sprite** alpha; three of them **fail on the pre-fix code** (verified by reverting). Gates:
+`@citadel/client` **553/553**, `@engine/core` render+render3d+layering **354/354**, workspace
+typecheck **19/19**. Sim untouched — render-only, no determinism exposure. Folded into
+[citadel-rendering.md](wiki/citadel-rendering.md) with the standing rule.
+
+**Owed: a real-browser pass.** Several Citadel surfaces now look different (correctly, per their own
+comments), and this session cannot see them.
+
+**The comments themselves.** Three claims re-verified against
+`engine/core/src/render/webgl2/renderer.ts` and rewritten: the wash and weather channels behave as
+documented; the **overlay channel no longer does** — `atmosphere.ts` still said `OverlayFn` is
+"NEVER invoked — a NO-OP", but WebGL2 runs it through `OverlayLightPass` (that no-op was the bug
+that kept Farm's night lighting dark). Citadel's light pool stays on sprite quads, now recorded as a
+choice (they y-sort against buildings; a full-screen additive composite cannot) rather than a forced
+workaround. Four flatly false comments fixed: `render3d/index.ts` claimed `./webgpu/**` "still
+compiles"; Hollow's and MateQuest's `vite-env.d.ts` carried orphaned WGSL paragraphs with no
+declaration attached (MateQuest's also claimed the client "requests the `canvas2d` backend" — that
+option no longer exists); `overlay-2d.ts` cited a corpus brief path deleted with the WebGPU wave.
+The remaining ~45 `../webgpu/*` mentions are genuine port provenance and were **kept** — one note at
+each backend's entry point now says they are git history, not paths to open, which is cheaper and
+more honest than 45 edits. `tintFloats` itself now documents the contract at the point of the trap.
+
+## [2026-08-23] lint | Findings pass — the project codegraph skill removed, and the docs that overclaimed
+
+Follow-up to the 0.29.0 adaptation, on the user's instruction to drop the duplicated skill and fix the
+findings it surfaced.
+
+- **`.claude/skills/codegraph/` deleted.** The personal `codegraph` skill carries the method; what the
+  project copy uniquely held — the measured envelope and the MCP/worktree wiring — is folded into
+  [wiki/code-graph.md](wiki/code-graph.md), and [routing.md](routing.md) now points there.
+  The trade-off, stated plainly: corpus-flow §0b wants a *project* skill so the numbers load
+  automatically with the repo, whereas the wiki page only loads when an agent goes looking. The
+  routing table is what closes that gap, so keep the question→layer row pointed at the page.
+- **The envelope was stale and is now re-derived.** It was measured when this was a two-game repo:
+  **18** symbol names collided across games; with Hollow and MateQuest there are **36**
+  (`APOLLO`, `AudioPlayer`, `DayPhase`, `Inventory`, `PanelPrefs`, `RunDescriptor`, `ShockKind`,
+  `Skills`, `personalityRegistry`, … alongside the original list). The re-derivation script in the page
+  now loops all four games. The `createRng` 16/42 figure is 2026-07-09 and explicitly marked not re-run.
+- **The dependency rule was enforced for one game out of four.** `CLAUDE.md` and the corpus both said
+  "a layering test enforces it", but `games/hollow/sim-core/src/layering.test.ts` scanned **only**
+  `games/hollow/` + `tools/hollow-sim/` — its own header admitted "no repo-wide layering test existed".
+  Farm↛Citadel, Citadel↛Farm, anything↛MateQuest and *engine↛any game* were enforced by review alone.
+  Replaced with [engine/core/src/layering.test.ts](../engine/core/src/layering.test.ts): path-scoped
+  like the palette guard (which sets the precedent for an engine-side test that reads game sources as
+  text without importing them), covering all four games plus the five tools mapped to the game each
+  drives, tests included, with a tripwire so an emptied scope fails loudly instead of passing on
+  nothing. Verified **red before green** — a probe file importing `@farm/sim-core` from
+  `games/mathquest/` fails it with the exact path — then green on the real tree, 2/2, typecheck clean.
+  The Hollow-only test is deleted. **Zero real violations exist today**; the rule was being followed,
+  it just was not being checked.
+- **Four-game drift in live pages.** [architecture.md](wiki/architecture.md)'s workspace tree listed
+  only Farm and Citadel and said "the two games never import each other" — Hollow, MateQuest and
+  `@tool/hollow-sim` added, the rule restated for four stacks, the layers diagram labelled as the Farm
+  stack, and the `farm-valley` package fossil corrected to `@farm/client`.
+- **`@engine/ui` is used by three games, not four.** `CLAUDE.md` and [engine-ui.md](wiki/engine-ui.md)
+  both claimed all four; **Hollow's client does not import it at all** (its deps are `@engine/core` +
+  `@hollow/sim-core`, 0 files matching). engine-ui.md also still said "two different palettes" — it is
+  three (EDG32 / Apollo-46 / Resurrect-64) — and claimed `@engine/ui` is missing from the root
+  `CLAUDE.md` layout table, where it has since been listed. All corrected.
+
+`bash corpus/lint.sh` clean. Nothing committed.
+
+**Left open, deliberately:** ~10 source comments still cite the deleted `webgpu/` / `canvas2d/`
+backends (e.g. `games/citadel/client/src/render/atmosphere.ts:10-11`,
+`render/weather.ts:14`, `render/citadel-renderer.ts:781`, plus port-provenance notes under
+`engine/core/src/render/webgl2/`). Three of them justify **live** behaviour on the authority of a file
+that no longer exists — notably the claim that tint alpha is discarded, which needs re-verifying
+against WebGL2 before the comment is rewritten. That is a code-reading task, not a doc edit.
+
+## [2026-08-23] maintenance | Adapted the repo to personal-skills 0.29.0 — glossary layer, routing spine, codegraph wiring
+
+The skill library the corpus workflow rides on (`my-personal-skills`, now **0.29.0**) grew a
+domain-modeling layer, a wider intent spine and a stricter code-graph contract. Brought the repo up to
+it — four changes, no code touched:
+
+- **New [wiki/glossary.md](wiki/glossary.md)** (corpus-flow §9). One canonical name per concept, each
+  with the synonyms it displaces: corpus/process terms (**spec** vs **brief**, **gate**, **chunk**,
+  **lane**, **wave**, **baseline**), engine/sim terms (**tick** vs **frame**, **day**, **snapshot**,
+  **sim host**, **tile feature**, **palette role**), and per-game nouns. Two findings fell out of
+  writing it: **"chunk" now has exactly one live sense** — the dispatch unit — because engine brief
+  07's chunked tile layer did not survive the WebGL2 migration (no `chunk` anywhere in
+  `engine/core/src/render`); and **"villager" has two** (a Citadel worker, a Hollow inhabitant), both
+  real in code and neither worth renaming, so the corpus rule is to qualify it with the game and never
+  write it bare cross-game. `corpus/CLAUDE.md` gained the §9 rules — when a term earns an entry, the
+  three-part test a `decisions.md` entry must pass, and the standing note that an **undefended
+  decision (no *why*) is a lint finding**.
+- **[routing.md](routing.md) rewritten to the 0.29 intent spine** — audit→`improve`, domain→§9,
+  research/design gates, strict review, docs/diagram lanes — plus an explicit
+  **skill-contract-deviation table**. That table is the load-bearing part: `improve` and
+  `plan-split-dispatch` both write new work into `corpus/briefs/todo/`, which **does not exist here**
+  (the queue is `corpus/todos/`, `briefs/` is a closed archive) and `improve` opens
+  `corpus/wiki/index.md`, which is `corpus/index.md` here. Also recorded the dispatch **review gate /
+  verify gate / ruling ledger**, the no-fable-subagent rule, and that the *only* HTML/CSS surface in
+  the repo is `docs/` — the game UI is `@engine/ui` under a locked palette, so the web-design skills
+  do not apply to it.
+- **Code-graph layer was dead and is now wired to be revivable.** There is no `.codegraph/` on this
+  machine at all, so every structural question has been silently falling back to grep+read fanout
+  since the index was lost. [.mcp.json](../.mcp.json) now registers
+  `codegraph serve --mcp --no-watch --path ${CODEGRAPH_INDEX_PATH:-.}` (probed against 1.3.1 —
+  initializes correctly): `--no-watch` because the watcher is unreliable under WSL2, and the
+  env-overridable path so **worktrees share the main checkout's index** instead of each re-indexing.
+  Added `npm run codegraph:init` / `codegraph:sync` so the rebuild is one line. The wiring and the
+  silent-failure mode are documented in [wiki/code-graph.md](wiki/code-graph.md), which is now the
+  single home for this layer (the duplicate `.claude/skills/codegraph/` project skill was removed the
+  same day — see the next entry). **The index itself still needs building** — `npm run codegraph:init`.
+- **Docs site** picks the glossary up automatically (`sync-corpus.mjs` discovers `wiki/*.md`); added
+  its sidebar entry and fixed the site description, which still said "two-and-a-bit games".
+
+`bash corpus/lint.sh` clean. Nothing committed.
+
 ## [2026-08-18] maintenance | Corpus audit — the queue was fiction, 452 links were dead, and the wiki still described a two-game WebGPU repo
 
 Asked to make the corpus contain only what is relevant to this repository. Nothing foreign was in
