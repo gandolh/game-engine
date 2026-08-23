@@ -7,16 +7,21 @@
  * posts — no sim RNG, no `Math.random`, no `Date.now`. All colors route through
  * `EDG.*` so the palette guard stays clean.
  *
- * ## endFrame-on-WebGPU finding (verified against engine webgpu/renderer.ts)
- * `WebGpuRenderer.endFrame(wash, particles, weather, _overlay)`:
- *   - `wash`   → `TintPass.draw` on the GPU pass — RENDERS on WebGPU.  ✅
- *   - `weather` (a `RainField`) → `WeatherPass.draw` when `useGpuEffects` —
- *     RENDERS on WebGPU.  ✅  (see weather.ts)
- *   - `particles` → `ParticleBatch.draw` — renders, but we don't use it.
- *   - `_overlay` (OverlayFn) → NEVER invoked on WebGPU — a NO-OP.  ❌
- * So the day/night wash is passed straight to `endFrame(wash, …)`. The light
- * pool has no native channel, so it is emitted as sprite-batch quads (the
- * proven path in citadel-renderer.ts) layered above terrain/buildings.
+ * ## What `endFrame` does with each channel
+ * Re-verified 2026-08-23 against the live backend
+ * (`engine/core/src/render/webgl2/renderer.ts`), `endFrame(wash, particles, weather, overlay)`:
+ *   - `wash`    → `TintPass.draw`, last before the 2D overlay.  ✅
+ *   - `weather` (a `RainField`) → `WeatherPass.draw` when `useGpuEffects`.  ✅  (see weather.ts)
+ *   - `particles` → `ParticleBatch.draw` — renders, but Citadel doesn't use it.
+ *   - `overlay` (OverlayFn) → `OverlayLightPass.draw`, additive, after sprites
+ *     and BEFORE the wash.  ✅ — **this changed.** The old WebGPU backend
+ *     accepted the callback and silently dropped it (the same bug that kept
+ *     Farm's night lighting from ever rendering); WebGL2 honours it.
+ * So the day/night wash is passed straight to `endFrame(wash, …)`. The light pool
+ * is still emitted as sprite-batch quads rather than through the overlay channel:
+ * that was originally forced by the no-op, and is now a choice — the quads y-sort
+ * against buildings, which a full-screen additive composite cannot do. Citadel
+ * passes no `overlay` today (see `main/render-loop.ts`).
  */
 import { CITADEL_PAL as EDG } from "./citadel-palette";
 import { TILE_SIZE } from "@citadel/sim-core";

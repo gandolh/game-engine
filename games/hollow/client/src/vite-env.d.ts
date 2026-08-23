@@ -10,19 +10,12 @@ interface ImportMeta {
   readonly url: string;
 }
 
-// WGSL shader sources imported with Vite's `?raw` suffix. `@hollow/client`
-// imports the `@engine/core` root barrel (via @hollow/sim-core), which
-// transitively re-exports `render3d/webgpu/pipeline-cache.ts`'s `import …
-// from "./shaders/scene3d.wgsl?raw"` (still present, not yet deleted — brief
-// 12 removes it once every consumer is off it). This keeps `tsc --noEmit`
-// happy, mirroring Citadel's vite-env.d.ts.
-
 // GLSL ES 3.00 shader sources imported with Vite's `?raw` suffix (WebGL2
-// migration brief 11). `@hollow/client`'s `render3d/app.ts` now imports
+// migration brief 11). `@hollow/client`'s `render3d/app.ts` imports
 // `@engine/core/render3d`'s barrel, which re-exports the WebGL2
 // `SceneRenderer3D` (`render3d/webgl2/renderer3d.ts`), itself importing
-// `"./shaders/scene3d.{vert,frag}.glsl?raw"` — same ambient-declaration need
-// as the WGSL entry above, one file extension over.
+// `"./shaders/scene3d.{vert,frag}.glsl?raw"` — hence this ambient declaration.
+// (A `*.wgsl?raw` twin lived here until 2026-08-18; WGSL is gone with WebGPU.)
 declare module "*.glsl?raw" {
   const src: string;
   export default src;

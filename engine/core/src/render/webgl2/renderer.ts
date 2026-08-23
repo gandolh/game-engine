@@ -54,6 +54,16 @@ function hexToRgbaFloats(hex: string, alpha = 1): [number, number, number, numbe
   ];
 }
 
+/**
+ * Unpack a packed `0xRRGGBBAA` tint into shader floats.
+ *
+ * **The tint's alpha byte is deliberately ignored** — alpha comes from the sprite's
+ * own `alpha` field, so there is exactly one place that controls opacity. A caller
+ * that packs translucency into the tint and leaves `sprite.alpha` at 1 gets an
+ * OPAQUE draw, and no unit test asserting on `tintRgba` will notice (that is
+ * precisely how Citadel's ghost previews, footprint shadows and night light pools
+ * shipped opaque; fixed 2026-08-23 in that client's `spriteAlphaOf`).
+ */
 function tintFloats(tintRgba: number | undefined, spriteAlpha: number): [number, number, number, number] {
   const t = tintRgba !== undefined ? (tintRgba >>> 0) : 0xffffffff;
   const r = ((t >>> 24) & 0xff) / 255;
@@ -70,6 +80,12 @@ function tintFloats(tintRgba: number | undefined, spriteAlpha: number): [number,
  * draw-list. Only the last stretch of `endFrame` talks to GL. That split is why the
  * WebGPU→WebGL2 migration was tractable: the expensive logic never knew which API
  * it was feeding.
+ *
+ * **Provenance references in this directory.** Comments here cite `../webgpu/*.ts`
+ * and `*.wgsl` files ("port of", "literal translation of", "mirrors"). Those files
+ * were this code's source and were **deleted 2026-08-18** with the backend — they
+ * are history recoverable from git, not paths to open. See
+ * corpus/briefs/engine/superseded/webgpu/TOMBSTONE.md.
  *
  * **Draw order is load-bearing.** water → static → shadows → sprites (grouped by
  * atlas) → GPU particles → GPU weather → additive overlay light → cloud → day/night

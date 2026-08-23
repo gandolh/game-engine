@@ -70,13 +70,13 @@ export {
 } from "./buffers";
 
 // --- WebGL2 3D render layer (briefs 10/11) ------------------------------
-// Re-pointed from ./webgpu/* (brief 11) — every exported NAME is kept
-// identical to the WebGPU original so @hollow/client needs no import churn.
+// Re-pointed from the WebGPU implementation (brief 11) — every exported NAME is
+// kept identical to it so @hollow/client needed no import churn.
 // `Device3d`/`createDevice3d` are aliases of the WebGL2 `GlDevice3d`/
 // `createGlDevice3d` (synchronous, unlike WebGPU's device negotiation — see
 // device3d.ts's header); `SceneRenderer3D`'s surface (setMaterials/
-// uploadMesh/resize/render) is unchanged. `./webgpu/**` still compiles (it
-// is deleted by brief 12) but is no longer reachable through this barrel.
+// uploadMesh/resize/render) is unchanged. `./webgpu/**` was deleted by brief 12
+// (2026-08-18); WebGL2 is the only backend.
 
 export { GlDevice3d as Device3d, createGlDevice3d as createDevice3d } from "./webgl2/device3d";
 

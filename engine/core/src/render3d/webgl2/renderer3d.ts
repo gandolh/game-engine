@@ -1,9 +1,14 @@
 /**
- * WebGL2 port of ../webgpu/renderer3d.ts — public GPU facade for the 3D render
+ * WebGL2 port of the WebGPU `renderer3d.ts` — public GPU facade for the 3D render
  * layer. Thin orchestration over the pure packing in `../buffers.ts` (unchanged,
- * tested, shared by both backends); this file's job is strictly "own the GPU
- * objects and issue the draw calls", same as its WebGPU sibling.
+ * tested, and backend-neutral); this file's job is strictly "own the GPU objects
+ * and issue the draw calls", as the WebGPU original's did.
  *
+ * **Provenance references in this directory.** Comments here cite `../webgpu/*.ts`
+ * and `*.wgsl` files ("port of", "literal translation of", "mirrors"). Those files
+ * were this code's source and were **deleted 2026-08-18** with the backend — they
+ * are history recoverable from git, not paths to open. See
+ * corpus/briefs/engine/superseded/webgpu/TOMBSTONE.md.
  * Ported findings (brief 11 — corpus/todos/2026-08-18-webgl2-11-render3d-scene-renderer.md):
  *
  *   - Flat shading: `scene3d.wgsl` derives its per-face normal from screen-space

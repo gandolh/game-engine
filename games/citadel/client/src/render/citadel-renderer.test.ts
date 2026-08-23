@@ -61,7 +61,10 @@ import {
   LAYER_ENTITY,
   LAYER_GHOST,
   LAYER_DISCONNECT,
+  pushGhost,
+  pushLightPool,
 } from "./citadel-renderer";
+import { GHOST_ALPHA, spriteAlphaOf } from "./quads";
 
 /** Brief 110: tests run against the solo 96×96 world's projection. */
 const iso = makeIso(96, 96);
@@ -1030,5 +1033,67 @@ describe("service catchment layering (placement coverage draws under buildings)"
     expect(pushed).toHaveLength(1);
     expect(pushed[0]!.layer).toBe(LAYER_DISCONNECT);
     expect(pushed[0]!.layer).toBeGreaterThan(LAYER_ENTITY);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Rendered translucency (regression, 2026-08-23)
+//
+// Citadel authors flat ground quads by packing their alpha into the TINT
+// (`packTint(hex, alpha)`), but the engine's sprite path takes RGB from the tint
+// and alpha from the sprite's own `alpha` field — a tint's alpha byte never
+// reaches the GPU. Every quad below therefore rendered FULLY OPAQUE while the
+// existing tests, which assert on `tintRgba`, stayed green.
+//
+// These assert the value that actually renders. They fail on the pre-fix code
+// (every alpha was a literal 1).
+// ---------------------------------------------------------------------------
+describe("flat quads render at the alpha they are authored with", () => {
+  const collect = (): { pushed: Sprite[]; renderer: RendererLike } => {
+    const pushed: Sprite[] = [];
+    const renderer = { push: (s: Sprite) => pushed.push(s) } as unknown as RendererLike;
+    return { pushed, renderer };
+  };
+
+  it("the placement ghost is translucent, not a solid diamond", () => {
+    const { pushed, renderer } = collect();
+    pushGhost(renderer, iso, { tileX: 4, tileY: 4, w: 1, h: 1, valid: true }, []);
+
+    expect(pushed.length).toBeGreaterThan(0);
+    const ghost = pushed.find((s) => s.layer === LAYER_GHOST);
+    expect(ghost).toBeDefined();
+    expect(ghost!.alpha).toBeCloseTo(GHOST_ALPHA / 255, 5);
+    expect(ghost!.alpha).toBeLessThan(1);
+  });
+
+  it("a building's footprint shadow is a soft ink pool, not an opaque black diamond", () => {
+    const { pushed, renderer } = collect();
+    const scene: SceneInput = {
+      buildings: [building({ type: "house", x: 6, y: 6, w: 2, h: 2 })],
+      villagers: [],
+      raiders: [],
+    };
+    pushScene(renderer, iso, scene);
+
+    const shadow = pushed.find((s) => s.tintRgba === packTint(EDG.ink, SHADOW_ALPHA));
+    expect(shadow).toBeDefined();
+    expect(shadow!.alpha).toBeCloseTo(SHADOW_ALPHA / 255, 5);
+  });
+
+  it("a night light pool glows through the ground instead of covering it", () => {
+    const { pushed, renderer } = collect();
+    pushLightPool(renderer, iso, [
+      { x: 0, y: 0, width: TILE_SIZE * 2, height: TILE_SIZE * 2, tintRgba: packTint(EDG.gold, 0x40) },
+    ]);
+
+    expect(pushed).toHaveLength(1);
+    expect(pushed[0]!.alpha).toBeCloseTo(0x40 / 255, 5);
+  });
+
+  it("leaves an opaque tint (the default 0xff) alone — roads and bridges are unaffected", () => {
+    expect(spriteAlphaOf(packTint(EDG.white))).toBe(1);
+    expect(spriteAlphaOf(undefined)).toBe(1);
+    // A quad's own alpha still composes with the tint's (mood dim × glow alpha).
+    expect(spriteAlphaOf(packTint(EDG.gold, 0x80), 0.5)).toBeCloseTo(0.5 * (0x80 / 255), 5);
   });
 });

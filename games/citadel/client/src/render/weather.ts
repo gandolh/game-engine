@@ -8,11 +8,12 @@
  * spells), and the falling-drop motion is handled by the engine `RainField`,
  * which keeps its own pooled + swap-removed drop pool (hard-capped at 900).
  *
- * ## endFrame-on-WebGPU finding
- * `RainField` passed as `endFrame(_, _, weather, _)` renders via the engine's
- * `WeatherPass.draw` on the GPU pass when `useGpuEffects` is on (the default) —
- * verified in webgpu/renderer.ts. So weather needs NO sprite-batch fallback on
- * Citadel's WebGPU backend; we pass the RainField straight through.
+ * ## Why there is no sprite-batch fallback
+ * A `RainField` passed as `endFrame(_, _, weather, _)` renders through the engine's
+ * `WeatherPass.draw` whenever `useGpuEffects` is on (the default) — re-verified
+ * 2026-08-23 in `engine/core/src/render/webgl2/renderer.ts`. When it is off, the
+ * renderer draws the field itself on the 2D overlay canvas. Either way Citadel
+ * needs no fallback of its own; we pass the RainField straight through.
  *
  * NOTE on RNG: `RainField` itself uses the global PRNG internally for drop
  * placement — that is ENGINE code, explicitly documented as display-only and

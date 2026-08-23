@@ -169,6 +169,23 @@ export const FALLBACK_VILLAGER_COLOR = EDG.white;
  * `alpha` defaults to fully opaque (0xff). Pure — used by both the renderer
  * and the tests.
  */
+/**
+ * The sprite alpha a packed tint actually renders at.
+ *
+ * The engine's WebGL2 sprite path DISCARDS a tint's alpha byte — `tintFloats`
+ * (engine/core/src/render/webgl2/renderer.ts) takes RGB from the tint and alpha
+ * from the sprite's own `alpha`. So a quad that packs translucency into its tint
+ * (which most of Citadel's flat ground quads do — ghosts, footprint shadows,
+ * light pools, fire glow) renders FULLY OPAQUE unless that byte is lifted onto
+ * the sprite. Every quad→sprite conversion therefore routes through here.
+ *
+ * Tints packed at the default 0xff alpha are unaffected (multiplier = 1).
+ */
+export function spriteAlphaOf(tintRgba: number | undefined, baseAlpha = 1): number {
+  if (tintRgba === undefined) return baseAlpha;
+  return baseAlpha * (((tintRgba >>> 0) & 0xff) / 255);
+}
+
 export function packTint(hex: string, alpha = 0xff): number {
   const [r, g, b] = rgbOf(hex);
   // >>> 0 keeps the result an unsigned 32-bit int.
@@ -228,6 +245,7 @@ export const QUAD_FRAME = "px";
  * cursor).
  */
 export function quadToSprite(q: QuadSpec, layer: number, alpha = 1, sortY?: number): Sprite {
+  // Tint alpha is not rendered by the engine — fold it into the sprite alpha.
   return {
     atlasId: QUAD_ATLAS_ID,
     frame: q.frame ?? QUAD_FRAME,
@@ -237,7 +255,7 @@ export function quadToSprite(q: QuadSpec, layer: number, alpha = 1, sortY?: numb
     height: q.height,
     rotation: 0,
     layer,
-    alpha,
+    alpha: spriteAlphaOf(q.tintRgba, alpha),
     tintRgba: q.tintRgba,
     ...(sortY !== undefined ? { sortY } : {}),
   };

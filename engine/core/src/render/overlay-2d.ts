@@ -11,9 +11,9 @@
  * which only works when composited onto an opaque surface.  On this transparent overlay the
  * multiply mode produces no darkening effect against the world beneath — "multiply" on
  * transparent pixels yields transparent, not a darkened composite.  Shadows are therefore
- * rendered GPU-side (dark translucent quads/ellipses in the sprite pass) by Wave 2.
- * See corpus/briefs/engine/todo/webgpu/wave-1d-overlay-2d.md §"Shadows decision" for
- * the full decision record.
+ * rendered GPU-side instead — `webgl2/shadow-batch.ts`, drawn between the static layer
+ * and the sprites. The original decision record was a WebGPU-wave brief, retired with
+ * that backend; see corpus/briefs/engine/superseded/webgpu/TOMBSTONE.md.
  */
 import type { Ctx2D } from "./sprite-types";
 import type { ViewUniform } from "./view-uniform";

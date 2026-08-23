@@ -44,6 +44,7 @@ import {
   QUAD_FRAME,
   quadToSprite,
   packTint,
+  spriteAlphaOf,
   buildingQuad,
   buildingShadowQuad,
   SHADOW_OFFSET,
@@ -368,7 +369,11 @@ function isoDiamondSprite(x: number, y: number, width: number, height: number, t
  *  here — mirroring `quadToSprite`. Skipping this shifts the diamond up-left by
  *  half its size (the ghost/shadow then sit off the cursor / building base). */
 function isoFlatSprite(x: number, y: number, width: number, height: number, frame: string, tintRgba: number, layer: number, sortY: number): Sprite {
-  return { atlasId: QUAD_ATLAS_ID, frame, x: x + width / 2, y: y + height / 2, width, height, rotation: 0, layer, alpha: 1, tintRgba, sortY };
+  // `alpha` comes from the tint's alpha byte via `spriteAlphaOf`, NOT a literal 1:
+  // the engine discards a tint's alpha channel, so every translucent flat quad here
+  // (ghost, footprint shadow, cluster border, light pool, fire glow) would otherwise
+  // render fully opaque. Road/bridge tiles pack 0xff and are unaffected.
+  return { atlasId: QUAD_ATLAS_ID, frame, x: x + width / 2, y: y + height / 2, width, height, rotation: 0, layer, alpha: spriteAlphaOf(tintRgba), tintRgba, sortY };
 }
 
 /** Push one building's sprite quad, applying the optional placement ease-in fx. */
@@ -776,10 +781,12 @@ export function pushFire(
  * background crowd is scenery, not population. Pairs with `ambient-crowd.ts`'s
  * shrunk `PED_SIZE` (smaller silhouette than a villager): this alpha further
  * washes them out so a dense street doesn't inflate the perceived population.
- * Applied as the sprite's own `alpha` (NOT baked into the tint's alpha byte —
- * the WebGPU tint path discards a tint's alpha channel and always draws opaque
- * at the sprite's `alpha`; see `tintFloats` in webgpu/renderer.ts), so it holds
- * on both backends.
+ * Applied as the sprite's own `alpha`, never baked into the tint's alpha byte:
+ * `tintFloats` (`engine/core/src/render/webgl2/renderer.ts`) takes RGB from the
+ * tint and alpha from the sprite, so a tint-alpha dim renders fully opaque.
+ * Flat ground quads that DO author alpha into the tint get it lifted back onto
+ * the sprite by `spriteAlphaOf` (quads.ts) — this constant skips that path by
+ * being a sprite alpha to begin with.
  */
 export const AMBIENT_CROWD_ALPHA = 0.55;
 
