@@ -1,0 +1,18 @@
+# Farm Valley's sim server. Build context is the repo root (..).
+#
+# Caddy proxies the single URL /farm-valley/sim to this container's port; the
+# game's static files are served from disk, not from here.
+services:
+  farm-valley-sim:
+    build:
+      context: ..
+      dockerfile: infrastructure/Dockerfile
+      target: prod
+    image: farm-valley-sim:1.0
+    ports:
+      # LOOPBACK ONLY — the WebSocket reaches this through Caddy, which
+      # upgrades the connection on its way past.
+      - "127.0.0.1:${PORT:-8787}:${PORT:-8787}"
+    env_file:
+      - .env
+    restart: unless-stopped
