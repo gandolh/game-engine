@@ -1,0 +1,267 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "The four-layer rule, and the seam that enforces it",
+    "viewBox": [
+      1120,
+      780
+    ],
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "layers",
+        "label": "The four layers",
+        "focus": [
+          "client",
+          "simcore",
+          "core",
+          "wasm"
+        ],
+        "note": "Engine never imports game; sim-core never imports the renderer."
+      },
+      {
+        "id": "transport",
+        "label": "Sim ↔ render",
+        "focus": [
+          "client",
+          "server",
+          "simcore"
+        ],
+        "note": "Farm hosts its sim in a Node process over a WebSocket; the other games use a Worker."
+      },
+      {
+        "id": "shared",
+        "label": "What the games share",
+        "focus": [
+          "core",
+          "ui",
+          "wasm"
+        ],
+        "note": "One engine, one in-canvas UI toolkit, one set of WASM kernels."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "client",
+      "type": "frontend",
+      "label": "@farm/client",
+      "sublabel": "WebGL2 renderer, DOM panels",
+      "tag": "layer 1",
+      "pos": [
+        330,
+        120
+      ],
+      "size": [
+        220,
+        62
+      ]
+    },
+    {
+      "id": "ui",
+      "type": "frontend",
+      "label": "@engine/ui",
+      "sublabel": "in-canvas UI toolkit",
+      "tag": "Hollow opts out",
+      "pos": [
+        700,
+        120
+      ],
+      "size": [
+        200,
+        62
+      ]
+    },
+    {
+      "id": "simcore",
+      "type": "backend",
+      "label": "@farm/sim-core",
+      "sublabel": "deterministic sim, Node + browser safe",
+      "tag": "layer 2",
+      "pos": [
+        330,
+        320
+      ],
+      "size": [
+        220,
+        62
+      ]
+    },
+    {
+      "id": "server",
+      "type": "backend",
+      "label": "@farm/server",
+      "sublabel": "Node ws host, one sim per connection",
+      "pos": [
+        700,
+        320
+      ],
+      "size": [
+        200,
+        62
+      ]
+    },
+    {
+      "id": "core",
+      "type": "cloud",
+      "label": "@engine/core",
+      "sublabel": "ecs · sim · render · input · assets",
+      "tag": "layer 3",
+      "pos": [
+        330,
+        500
+      ],
+      "size": [
+        220,
+        62
+      ]
+    },
+    {
+      "id": "wasm",
+      "type": "cloud",
+      "label": "@engine/wasm-modules",
+      "sublabel": "pathfinding.wasm (AssemblyScript)",
+      "tag": "layer 4",
+      "pos": [
+        330,
+        660
+      ],
+      "size": [
+        220,
+        62
+      ]
+    },
+    {
+      "id": "games",
+      "type": "external",
+      "label": "Citadel · Hollow · MateQuest",
+      "sublabel": "same shape, own sim-core + client",
+      "pos": [
+        40,
+        320
+      ],
+      "size": [
+        200,
+        62
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "reusable — no game may be imported from here",
+      "wraps": [
+        "core",
+        "wasm",
+        "ui"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "c-s",
+      "from": "client",
+      "to": "simcore",
+      "label": "snapshot + message types",
+      "variant": "emphasis",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [
+        440,
+        240
+      ]
+    },
+    {
+      "id": "s-c",
+      "from": "simcore",
+      "to": "core",
+      "label": "ecs, sim loop",
+      "variant": "emphasis",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [
+        440,
+        430
+      ]
+    },
+    {
+      "id": "c-w",
+      "from": "core",
+      "to": "wasm",
+      "label": "native-speed kernels",
+      "variant": "emphasis",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [
+        440,
+        600
+      ]
+    },
+    {
+      "id": "cl-ui",
+      "from": "client",
+      "to": "ui",
+      "label": "text, icons, widgets"
+    },
+    {
+      "id": "cl-srv",
+      "from": "client",
+      "to": "server",
+      "label": "WebSocket frames",
+      "variant": "security",
+      "fromSide": "right",
+      "toSide": "top",
+      "labelAt": [
+        640,
+        220
+      ]
+    },
+    {
+      "id": "srv-sim",
+      "from": "server",
+      "to": "simcore",
+      "label": "hosts the sim",
+      "fromSide": "left",
+      "toSide": "right"
+    },
+    {
+      "id": "g-core",
+      "from": "games",
+      "to": "core",
+      "label": "same four layers",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "left"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "The rule, and the test that enforces it",
+      "items": [
+        "Engine never imports game. sim-core never imports the renderer.",
+        "The renderer depends on sim-core for logic and the message contract",
+        "This is checked by a test, not by convention — which is why it has held"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Sim and render are separated by a transport",
+      "items": [
+        "Farm hosts its sim in a Node process and speaks WebSocket frames",
+        "The in-browser Worker is gone; SimClient's public API was preserved",
+        "The other three games still run their sim in a Web Worker"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Determinism is the point",
+      "items": [
+        "sim-core is Node-safe and browser-safe, so the same tick runs in a test",
+        "WASM artifacts are committed, so a fresh clone runs without build-wasm",
+        "One sim per connection, with drop-stale snapshot backpressure"
+      ]
+    }
+  ]
+}

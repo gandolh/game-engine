@@ -6,11 +6,19 @@ description: The load-bearing map — the four-layer dependency rule, determinis
 import { Card, CardGrid, Aside, Badge } from '@astrojs/starlight/components'
 import Metrics from '../../components/Metrics.astro'
 import LayerStack from '../../components/LayerStack.astro'
+import Diagram from '../../components/Diagram.astro'
 
 `@engine/core` is an in-house, game-agnostic TypeScript engine: an ECS, a
 fixed-step deterministic sim loop, a dual-backend renderer, input, animation, a
 spatial index, audio, and WASM bindings. It is consumed by three games and knows
 about none of them.
+
+<Diagram
+  name="layers"
+  title="The four-layer rule, and the seam that enforces it"
+  caption="The two arrows that do NOT exist are the point: nothing goes upward. Engine never imports game, and sim-core never imports the renderer — and a test enforces both"
+  height={820}
+/>
 
 ## The four-layer dependency rule
 

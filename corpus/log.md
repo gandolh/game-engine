@@ -2408,3 +2408,29 @@ Trimmed to keep this log minimal. **Full entry text is in git history** (`git lo
 - **06-08 → 06-09 — 21 farmers + organic procgen + more islands + radial reorg.** Service NPCs lightly deliberate; scaled to 21 farmers; brief 49 organic procgen (fBm + domain-warp, clustered features, open-water props; Simplex deferred); briefs 50–54 islands (shrine, heritage, waterfall, camping; 53 superseded); spectator-UX audit P1a–d; **the 160×160 radial map reorg.**
 - **06-10 — Client/server split + polish + perf re-measure.** Briefs 55–58 (extract `@farm/sim-core` → Node WS server → renderer-as-WS-client → deploy); brief 59 peer-interaction fix (price-bug + `OFFER_CROP`); briefs 60–65 render-polish wave; brief 70 +30 startgold; brief 71 per-asset atlas recipes + cached builds; edge depth-sorting; perf re-measure; brief 09 closed; the FPS-regression triage that became performance.md Tier 0.
 - **06-22 — Citadel HUD declutter.** Bottom bars were eating laptop vertical space and the HUD reflowed (canvas-shift) whenever an event appeared. Fixes: events → transient top-center toasts (`ui/toast.ts`, out-of-flow overlay); new top-right minimap drawn in tile-space with click-to-recenter (`ui/minimap.ts`); condensed icon-only build bar + `nowrap` HUD row; trader panel floated out of the HUD flex row. See [citadel-overview.md](wiki/citadel-overview.md) "HUD & overlays".
+
+## [2026-09-06] change | The docs moved to `/game-engine/docs`, and gained an archify diagram
+
+**The URL changed; nothing on disk did.** The estate adopted a `/<project>/docs`
+convention, so these docs moved from `/game-engine-docs` to `/game-engine/docs`.
+A clean cut — the old prefix is gone, not redirected. The served directory
+(`/var/www/game-engine-docs`) is what the convention produces anyway.
+
+This is one of only two docs sites in the estate with **no app route above it**
+(the other being just-a-bot, which binds no port at all). The engine is a
+library, and Farm Valley, Citadel and Hollow each route separately — so
+`/game-engine/docs` is the only block under that prefix, and it names the thing
+being documented rather than a deployment that does not exist. It is also one of
+the two entries the estate's catch-all 404 still offers, since the hint now drops
+any route nested under another.
+
+**One archify diagram added** — the four-layer rule and the seam that enforces
+it. It is drawn so the *absent* arrows are the point: nothing goes upward.
+Engine never imports game, sim-core never imports the renderer, and a test
+enforces both. The Farm transport is on it too, since "the sim runs in a Node
+process and speaks WebSocket frames, and the in-browser Worker is gone" is the
+detail most likely to be out of date in a reader's head.
+
+Sources are typed JSON in `docs/diagrams/`, compiled and validated before they
+ship; the artifact is committed because archify is a per-machine agent skill
+rather than an npm dependency. Docs build clean: 26 pages.

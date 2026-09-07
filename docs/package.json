@@ -5,10 +5,11 @@
   "type": "module",
   "scripts": {
     "sync-corpus": "node scripts/sync-corpus.mjs",
-    "predev": "npm run sync-corpus",
+    "predev": "npm run sync-corpus && npm run diagrams",
     "dev": "astro dev",
-    "docs": "npm run sync-corpus && astro build",
-    "preview": "astro preview"
+    "docs": "npm run sync-corpus && npm run diagrams && astro build",
+    "preview": "astro preview",
+    "diagrams": "node scripts/build-diagrams.mjs"
   },
   "devDependencies": {
     "@astrojs/starlight": "0.41.3",

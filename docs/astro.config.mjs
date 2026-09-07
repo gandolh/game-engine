@@ -1,13 +1,17 @@
 import { defineConfig } from 'astro/config'
 import starlight from '@astrojs/starlight'
 
-// Light-only Starlight over the game-engine corpus. The authored pages (index,
-// architecture, patterns, games/*) are the showcase; the /wiki/* pages are
-// synced from corpus/ (see scripts/sync-corpus.mjs) as browsable depth.
+// The deployed base path, baked in rather than injected at deploy time.
 //
-// Sub-path base for a Caddy sub-path deploy (e.g. /game-engine-docs/). Left at
-// "/" for `astro preview` and local dev; the vps-deploy build sets DOCS_BASE.
-const base = process.env.DOCS_BASE ?? '/'
+// vps-deploy ships what this repo already built and VERIFIES this base — it does
+// not set it. That is the estate's rule for the case that matters most (Ward's
+// UI does the same, see vps-deploy/stacks/ward.ts): a variable the deploy passes
+// that changes nothing is a variable that can silently disagree, whereas a value
+// baked here and checked there cannot. Build with `npm run docs`; a wrong base
+// fails the deploy by name instead of shipping a page whose every asset 404s.
+//
+// DOCS_BASE still overrides it, for building a copy to serve from somewhere else.
+const base = process.env.DOCS_BASE ?? '/game-engine/docs/'
 
 export default defineConfig({
   base,
