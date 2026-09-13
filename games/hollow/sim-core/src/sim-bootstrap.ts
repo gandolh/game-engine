@@ -630,6 +630,17 @@ export interface BootedHollowSim {
    *  any `loadInterventionLog`-seeded ones), in schedule order — the
    *  replayable record (chunk hollow-11a). */
   readonly interventionLog: readonly Intervention[];
+  /**
+   * The current tick count (chunk audit-04) — exactly the same value
+   * `getSnapshot().tick` returns, without building the full agent/corpse/
+   * community/resource payload. Named `tickCount` rather than `tick`
+   * because `tick()` (below) is already that key on this object — see the
+   * closure-local `let tickCount` in `bootstrapHollowSim`'s body, which
+   * this getter reads directly. Callers that only need the integer (a
+   * batched tick loop, click-to-inspect) should use this instead of
+   * `getSnapshot().tick`.
+   */
+  readonly tickCount: number;
   /** Advances the sim by exactly one tick. */
   tick(): void;
   /** Returns a snapshot of the current sim state (render/transport boundary). */
@@ -989,6 +1000,14 @@ export function bootstrapHollowSim(opts: HollowSimOptions): BootedHollowSim {
     },
     get interventionLog(): readonly Intervention[] {
       return shockSystem.interventionLog;
+    },
+    // chunk audit-04: exposes the same integer `getSnapshot().tick` returns,
+    // without paying for a full snapshot build. `tickCount` here resolves to
+    // the closure-local `let tickCount` declared above — this getter's own
+    // key (`tickCount`) is a distinct namespace from that binding, same as
+    // `interventionLog` above reads `shockSystem.interventionLog`.
+    get tickCount(): number {
+      return tickCount;
     },
     tick(): void {
       scheduler.tick({ tick: tickCount });

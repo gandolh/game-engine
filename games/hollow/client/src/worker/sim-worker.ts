@@ -268,7 +268,11 @@ function tickBatch(count: number): void {
   if (simResult === null) return;
   for (let i = 0; i < count; i++) {
     simResult.tick();
-    const tick = simResult.getSnapshot().tick;
+    // chunk audit-04: was `simResult.getSnapshot().tick` — building the whole
+    // agent/corpse/community/resource payload just to read one integer, up to
+    // 8x per interval fire at speed 8. `tickCount` is the same value without
+    // the build (see BootedHollowSim.tickCount's header).
+    const tick = simResult.tickCount;
     if (ticksPerDay > 0 && tick % ticksPerDay === 0) sampleAndPostMetrics(tick / ticksPerDay);
   }
 }
@@ -318,10 +322,11 @@ self.onmessage = (event: MessageEvent<WorkerInbound>) => {
     }
     case "inspect": {
       if (simResult === null) break;
-      // Read-only — `getSnapshot().tick` just reads the tick counter this
-      // loop already maintains; `buildInspectDetail` itself never mutates
-      // `simResult` (see worker/inspect.ts's header).
-      const currentTick = simResult.getSnapshot().tick;
+      // Read-only — `tickCount` just reads the tick counter this loop already
+      // maintains, without building a full snapshot (chunk audit-04);
+      // `buildInspectDetail` itself never mutates `simResult` (see
+      // worker/inspect.ts's header).
+      const currentTick = simResult.tickCount;
       const detail = buildInspectDetail(simResult, currentTick, msg.agentId);
       self.postMessage({ type: "inspectResult", agentId: msg.agentId, detail } satisfies WorkerOutbound);
       break;
