@@ -1,7 +1,7 @@
 {
   "name": "@engine/wasm-modules",
   "version": "0.1.0",
-  "description": "AssemblyScript compute kernels for @engine/core — pathfinding, noise, RNG, and flood-fill — compiled to standalone .wasm with a tiny raw export surface (numbers + linear memory, no runtime). Ships only the compiled artifacts; the JS wrappers that instantiate and call them (Pathfinder, NoiseGenerator) live in @engine/core/wasm.",
+  "description": "AssemblyScript compute kernels for @engine/core \u2014 pathfinding, noise, RNG, and flood-fill \u2014 compiled to standalone .wasm with a tiny raw export surface (numbers + linear memory, no runtime). Ships only the compiled artifacts; the JS wrappers that instantiate and call them (Pathfinder, NoiseGenerator) live in @engine/core/wasm.",
   "license": "MIT",
   "type": "module",
   "sideEffects": false,
@@ -19,7 +19,7 @@
   "scripts": {
     "build": "node build/compile.mjs",
     "prepack": "npm run build",
-    "typecheck": "asc --noEmit src/pathfinding.ts --config asconfig.json"
+    "typecheck": "node build/typecheck.mjs"
   },
   "devDependencies": {
     "assemblyscript": "0.28.17"
