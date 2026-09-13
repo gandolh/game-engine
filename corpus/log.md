@@ -4,6 +4,71 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-09-13] audit | Repo-wide audit (`improve`): 42 candidates → 30 specs, and the verify gate itself was lying
+
+Whole-monorepo audit scoped to performance, good practices and code structure — five lens-scoped finders
+(performance on opus; structure / practices / coverage / DX on Sonnet) plus controller-side sweeps, all
+vetted against the code before landing. **42 raw candidates → 30 specs** in [todos/](todos/)
+(`2026-09-13-audit-01..30`). Three dropped outright, seven demoted to Watch (below).
+
+**The headline finding is that `npm run typecheck` reports success for packages it never checked.**
+`typecheck`/`test` in [turbo.json](../turbo.json) are `dependsOn: []` with no upstream `inputs`, and since
+every internal package exports raw TS source, a downstream package's cache key never includes its
+dependencies' source. Proven by experiment: adding a required field to `Personality` in
+[ecs/components.ts](../engine/core/src/ecs/components.ts) produced `18 successful, 1 failed`, while
+`--force` showed **8 packages genuinely broken** — `@hollow/sim-core` and `@hollow/client` among them, both
+reporting *cached success while broken*. The `dependsOn: []` rationale in the file (parallelism +
+independent failure reporting) is sound and is not being relitigated; what it missed is that `^task` is also
+what folds upstream hashes into the cache key. This matters beyond tidiness: [routing.md](routing.md) makes
+this command the verify gate between dispatch waves, so **every "verified" claim made through a warm cache
+since turbo was adopted is weaker than it looked** — including this audit's own, which is why spec 01 goes first.
+Related: there is no CI at all (no `.github`, no git hooks), and four workspaces (`@tool/run-sim`,
+`@tool/citadel-sim`, `@tool/world-preview`, `@engine/wasm-modules`, ~4,700 lines including the determinism
+checker) declare no `test` script, so `npm run test` silently skips them.
+
+**Second: the determinism checker is blind to a class of divergence it exists to catch.**
+`fingerprint = JSON.stringify(result)` ([run-sim/run-core.ts](../tools/run-sim/src/run-core.ts)) —
+demonstrated that `Infinity`/`-Infinity`, `NaN`/`Infinity` and `-0`/`0` all compare **equal**. Since the
+metrics it hashes are division-derived floats, a float-drift bug prints `DETERMINISM CHECK PASSED`.
+
+**Third: the message-bus seam is the one place strict TS is defeated.** The repo otherwise holds a
+remarkable line — 0 `@ts-ignore`, 0 real `as any`, 0 empty `catch`, all versions pinned, and **zero**
+`Math.random`/`Date.now` violations in any sim path (every hit in a `sim-core` is a comment restating the
+rule). But `ontology: string` + `body: Record<string, unknown>` yields 53 send-side double casts and ~100
+receive-side, and **11 systems independently re-declare `msg.body as { day: number }`** though
+`DayStartBody` is exported. Renaming that field typechecks everywhere and silently kills every day-boundary
+hook; a typo'd ontology string compiles and delivers to nobody.
+
+**Newer games have no performance record at all.** [wiki/performance.md](wiki/performance.md) is thorough but
+Farm-only, and its "engine far under budget" conclusion was measured at Farm's ~300 entities. Citadel, Hollow
+and MateQuest were never profiled. Biggest single item found: Citadel's minimap re-submits **36,864
+`fillRect`s per frame** (one per tile of the 192×192 world, at a fitted tile size of ~0.9 px) for terrain that
+never changes after boot. Also: MateQuest pumps a full snapshot 20×/sec for a turn-based game whose own sim
+docs say `step()` changes nothing; Hollow calls `getSnapshot()` 8× per tick to read one integer; Citadel
+re-runs the 17-scan assignment ladder per idle villager per tick and rebuilds all 36,864 walkable cells per
+placed tile; Hollow's home-footprint list and chronicle both grow unbounded.
+
+**Vetting notes — three dropped:**
+- *Citadel MP command validation (no input checks → process crash).* Real code, but `@citadel/server` is
+  deprecated per [decision #21](wiki/citadel-decisions.md) and documented as unmaintained with nothing
+  running it ([citadel-mp-deprecated.md](wiki/citadel-mp-deprecated.md)). Not worth a spec; it is a
+  precondition for any MP revival, recorded in Watch.
+- *`World.query()` cache-key allocation* (spread+sort+join on every call, 261 call sites). **Measured: 18 µs
+  per tick**, ~0.04% of the 50 ms budget. Not worth doing — recorded so nobody "optimizes" it later.
+- *Stale `packages/` workspace entries in the lockfile.* `npm ci --dry-run` exits 0; inert.
+
+**Watch (named, not spec'd):** `RunRegistry`'s `host: null as unknown as SimHost` placeholder (safe today,
+type-system no longer protects the invariant) · Citadel's `[1,2,4]` speed list duplicated across two UI files
+· the day/night wash colour asserted only as `/^#[0-9a-f]{6}$/`, so a channel swap or reversed lerp would pass
+· no `engines` field or `.nvmrc` despite README's "Node 20+" (Docker pins node:24, `@types/node` is 25) ·
+`@tool/world-preview` declares an unused `@farm/client` dependency · Citadel MP validation (above) · 9 root
+`package.json` scripts CLAUDE.md never documents, including the whole docs-site and packaging path.
+
+**One corpus correction.** [wiki/performance.md](wiki/performance.md) states `@farm/sim-core`'s
+`isolate: false` has its "module-state safety rationale in the file" — it does not; that config carries no
+comment at all. The setting is still believed deliberate and measured (don't re-split the shared runs), but
+the reasoning lives only here and in that page, not at the call site.
+
 ## [2026-08-23] incident | The WebGPU-fossil comments hid a live render bug — Citadel's translucent quads were opaque
 
 Picked up the residual flagged in the previous entry: ~10 source comments justified live behaviour
