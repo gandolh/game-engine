@@ -18,15 +18,36 @@
  * both affine (independent x/y scale + translate, no rotation), that viewport is
  * axis-aligned in face px and so strokes as four thin `surface.rect` edges.
  *
- * `UISurface` only takes axis-aligned rects/quads — it cannot fill diamonds or
- * stroke a rotated polygon, and it cannot blit a baked canvas. So:
- *   - Terrain (static) is PRECOMPUTED ONCE in the constructor as a flat array of
- *     face-local `{x,y,w,h,color}` quads (approach (b)): each tile becomes a
- *     small axis-aligned rect at its iso centre, sized to roughly cover the
- *     diamond. Per-frame cost is then just emitting the cached rects offset by
- *     the host origin — no per-tile re-projection. (Tradeoff: tiles read as tiny
- *     squares, not diamonds; at ~168px face this is barely perceptible and gaps
- *     are masked by the dark backing panel.)
+ * `UISurface` only takes axis-aligned rects/quads — it cannot fill diamonds,
+ * stroke a rotated polygon, or blit a baked canvas as a texture (that would need
+ * an atlas registered with the renderer, which this render-only widget is never
+ * handed — see audit-02). So:
+ *   - Terrain (static) is PRECOMPUTED ONCE in the constructor, but NOT as one
+ *     quad per tile (that was 36,864 `surface.rect` calls EVERY FRAME — audit-02,
+ *     2026-09-13 repo audit — almost all sub-pixel overdraw at ~0.9px/tile).
+ *     Because the iso projection makes a tile ROW a *diagonal* in face-px space
+ *     (moving one tile in `x` shifts both face-x AND face-y), same-terrain tiles
+ *     don't sit in a mergeable straight line in TILE space — only once they are
+ *     flattened onto actual face PIXELS do same-colour runs become axis-aligned
+ *     and mergeable. So the bake now:
+ *       1. rasters a `faceSize × faceSize` grid of terrain colours by inverting
+ *          each face pixel's centre back through the fit + iso projection to a
+ *          continuous tile coord ({@link rasterTerrainColors}) — the same
+ *          nearest-tile read the old per-tile squares approximated, just done
+ *          from the pixel's side instead of the tile's;
+ *       2. collapses that raster into a small set of same-colour axis-aligned
+ *          rects via a greedy scanline merge ({@link mergeRowsToRects}: RLE each
+ *          row, then extend a run into the row below when the span and colour
+ *          still match).
+ *     Per-frame cost is then just emitting the cached (few, large) rects offset
+ *     by the host origin — no per-tile re-projection, and no antialiasing
+ *     artifacts to reproduce because this is a fresh classification, not a
+ *     replay of overlapping fills. (Tradeoff, same as before: terrain reads as
+ *     blocky regions, not diamonds — at ~168px face this is barely perceptible
+ *     and gaps are masked by the dark backing panel. The one visible difference
+ *     from the old per-tile-square bake: the outer world boundary is now the
+ *     exact mathematical diamond edge instead of the old squares' fuzzier
+ *     overshoot — a crisper edge, not a different shape.)
  *   - Entities + viewport are dynamic, computed per frame.
  *
  * Render-only: reads snapshots + the camera transform, never the sim clock/RNG.
@@ -39,11 +60,7 @@ import type { UISurface } from "@engine/ui/render";
 import type { TerrainGrid, BuildingSnapshot, VillagerSnapshot, RaiderSnapshot } from "@citadel/sim-core";
 import { TerrainType } from "@citadel/sim-core";
 import { screenToWorld, type CameraTransform } from "../render/transform";
-import {
-  ISO_HW,
-  ISO_TILE_W,
-  ISO_TILE_H,
-} from "../render/iso";
+import { ISO_HW } from "../render/iso";
 import type { IsoProjection } from "../render/iso";
 
 /** Default CSS-px size of the square minimap face (matches the old `width=168`). */
@@ -67,6 +84,111 @@ interface FaceQuad {
   readonly w: number;
   readonly h: number;
   readonly color: string;
+}
+
+/**
+ * Raster a `gridSize × gridSize` grid of terrain colours, one entry per face pixel: invert
+ * the pixel's centre back through the fit + iso projection to a continuous tile coord and
+ * read that tile's colour. `null` marks a pixel outside the world's diamond footprint (the
+ * letterboxed corners of the square face) — left unpainted so the dark backing panel shows
+ * through, same as today.
+ */
+function rasterTerrainColors(
+  iso: IsoProjection,
+  terrain: TerrainGrid,
+  gridSize: number,
+  fitScale: number,
+  fitOffX: number,
+  fitOffY: number,
+): (string | null)[][] {
+  const gw = terrain.width;
+  const gh = terrain.height;
+  const rows: (string | null)[][] = [];
+  for (let py = 0; py < gridSize; py++) {
+    const row: (string | null)[] = new Array(gridSize);
+    for (let px = 0; px < gridSize; px++) {
+      const isoX = (px + 0.5 - fitOffX) / fitScale;
+      const isoY = (py + 0.5 - fitOffY) / fitScale;
+      const { tileX, tileY } = iso.isoToTileContinuous(isoX, isoY);
+      const tx = Math.floor(tileX);
+      const ty = Math.floor(tileY);
+      row[px] = tx >= 0 && tx < gw && ty >= 0 && ty < gh
+        ? terrainColor(terrain.cells[ty * gw + tx] ?? 0)
+        : null;
+    }
+    rows.push(row);
+  }
+  return rows;
+}
+
+/** One contiguous same-colour run within a single raster row (`x1` exclusive). */
+interface RowSegment {
+  readonly x0: number;
+  readonly x1: number;
+  readonly color: string;
+}
+
+function rowSegments(row: readonly (string | null)[]): RowSegment[] {
+  const segs: RowSegment[] = [];
+  let i = 0;
+  while (i < row.length) {
+    const color = row[i];
+    if (color === null || color === undefined) {
+      i++;
+      continue;
+    }
+    let j = i + 1;
+    while (j < row.length && row[j] === color) j++;
+    segs.push({ x0: i, x1: j, color });
+    i = j;
+  }
+  return segs;
+}
+
+/** A same-colour rectangle still being grown by {@link mergeRowsToRects} (bottom edge `y1`
+ *  exclusive; stays open across rows until a row fails to extend it). */
+interface OpenRect {
+  readonly x0: number;
+  readonly x1: number;
+  readonly y0: number;
+  y1: number;
+  readonly color: string;
+}
+
+/**
+ * Collapse a `gridSize × gridSize` per-pixel colour raster into a small set of axis-aligned
+ * same-colour rectangles: a greedy scanline merge — RLE each row into same-colour runs, then
+ * extend any run into the row below whose span and colour match exactly, closing (emitting)
+ * anything that stops matching. This is what turns 36,864 one-per-tile quads into a handful
+ * of quads per terrain region; see the file header for why the raster has to be flattened to
+ * face PIXELS first (a tile row is a diagonal in face space, not mergeable directly).
+ */
+function mergeRowsToRects(rows: readonly (readonly (string | null)[])[]): FaceQuad[] {
+  let open: OpenRect[] = [];
+  const done: OpenRect[] = [];
+  for (let y = 0; y < rows.length; y++) {
+    const segs = rowSegments(rows[y] ?? []);
+    const stillOpen: OpenRect[] = [];
+    const usedOpen = new Set<OpenRect>();
+    for (const seg of segs) {
+      const match = open.find(
+        (o) => !usedOpen.has(o) && o.x0 === seg.x0 && o.x1 === seg.x1 && o.color === seg.color && o.y1 === y,
+      );
+      if (match !== undefined) {
+        match.y1 = y + 1;
+        usedOpen.add(match);
+        stillOpen.push(match);
+      } else {
+        stillOpen.push({ x0: seg.x0, x1: seg.x1, y0: y, y1: y + 1, color: seg.color });
+      }
+    }
+    for (const o of open) {
+      if (!usedOpen.has(o)) done.push(o);
+    }
+    open = stillOpen;
+  }
+  done.push(...open);
+  return done.map((r) => ({ x: r.x0, y: r.y0, w: r.x1 - r.x0, h: r.y1 - r.y0, color: r.color }));
 }
 
 /** What the minimap needs from the live frame to stamp entities + viewport. */
@@ -125,28 +247,15 @@ export class CitadelMinimap {
     this.fitOffX = (faceSize - iso.worldPxW * this.fitScale) / 2;
     this.fitOffY = (faceSize - iso.worldPxH * this.fitScale) / 2;
 
-    // Precompute terrain once (approach (b)): each tile → one small axis-aligned
-    // rect centred on its iso position. Size = the diamond's fitted footprint so
-    // adjacent tiles tile together with no visible gaps. UISurface can't fill
-    // diamonds, so we approximate; at ~168px the squares read as solid terrain.
-    const gw = terrain.width;
-    const gh = terrain.height;
-    const tileW = ISO_TILE_W * this.fitScale; // fitted full diamond width
-    const tileH = ISO_TILE_H * this.fitScale; // fitted full diamond height
-    const quads: FaceQuad[] = [];
-    for (let y = 0; y < gh; y++) {
-      for (let x = 0; x < gw; x++) {
-        const c = iso.tileToIso(x + 0.5, y + 0.5); // diamond centre in iso world-px
-        quads.push({
-          x: this.fx(c.x) - tileW / 2,
-          y: this.fy(c.y) - tileH / 2,
-          w: tileW,
-          h: tileH,
-          color: terrainColor(terrain.cells[y * gw + x] ?? 0),
-        });
-      }
-    }
-    this.terrainQuads = quads;
+    // Precompute terrain once — audit-02: this used to be one axis-aligned quad PER TILE
+    // (36,864 on the 192×192 world), cached but re-submitted through `surface.rect` every
+    // frame. Now it's baked to a small set of quads: raster the face to per-pixel colours
+    // (nearest-tile lookup through the SAME fit + iso inversion `trySeek` uses) then merge
+    // same-colour runs into rects. UISurface still can't fill diamonds, so this keeps the
+    // same square approximation — see the file header for the full rationale.
+    const gridSize = Math.max(1, Math.round(faceSize));
+    const rows = rasterTerrainColors(iso, terrain, gridSize, this.fitScale, this.fitOffX, this.fitOffY);
+    this.terrainQuads = mergeRowsToRects(rows);
 
     // Fold into the widget tree: a face-sized custom node that draws the live frame at its
     // laid-out rect origin. Created last so `faceSize`/terrain are ready when it first draws.

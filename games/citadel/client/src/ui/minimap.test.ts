@@ -15,8 +15,10 @@
  */
 import { describe, it, expect } from "vitest";
 import type { TerrainGrid } from "@citadel/sim-core";
+import { generateTerrain, WORLD_WIDTH, WORLD_HEIGHT } from "@citadel/sim-core";
 import { makeIso } from "../render/iso";
-import { CitadelMinimap, MINIMAP_FACE } from "./minimap";
+import type { UISurface } from "@engine/ui/render";
+import { CitadelMinimap, MINIMAP_FACE, type MinimapFrame } from "./minimap";
 
 const WORLD = 40;
 const proj = makeIso(WORLD, WORLD);
@@ -101,5 +103,62 @@ describe("CitadelMinimap geometry", () => {
     expect(seeked).not.toBeNull();
     expect(seeked!.tx).toBeCloseTo(255, 0);
     expect(seeked!.ty).toBeCloseTo(255, 0);
+  });
+});
+
+/** A `surface.rect(...)`-counting stand-in for `UISurface` (same pattern as
+ *  `engine/ui/src/widget/custom.test.ts`'s `fakeSurface`) — this is how audit-02's
+ *  before/after per-frame quad count is measured: not estimated, counted. */
+function countingSurface(): { surface: UISurface; count: () => number } {
+  let calls = 0;
+  const surface = {
+    begin: () => {},
+    end: () => {},
+    push: () => { calls++; },
+    rect: () => { calls++; },
+    sprite: () => { calls++; },
+  } as unknown as UISurface; // structurally a UISurface for what `draw()` actually calls (rect only)
+  return { surface, count: () => calls };
+}
+
+const EMPTY_FRAME: MinimapFrame = {
+  buildings: [],
+  villagers: [],
+  raiders: [],
+  transform: { centerX: 0, centerY: 0, worldUnitsX: 100, worldUnitsY: 100, canvasW: 800, canvasH: 600 },
+};
+
+describe("CitadelMinimap per-frame quad count (audit-02)", () => {
+  it("a uniform-terrain face draws far fewer quads than one per tile", () => {
+    // All-grass 40x40 world (fakeTerrain from the geometry tests above): the OLD per-tile
+    // scheme would submit 1600 terrain quads every frame; the merged bake should collapse
+    // the whole (single-colour) diamond into a small number of rows/rects instead.
+    const mm = new CitadelMinimap(proj, fakeTerrain(), () => {});
+    const { surface, count } = countingSurface();
+    mm.draw(surface, 0, 0, EMPTY_FRAME);
+    // 1 backing panel + 4 viewport edges = 5 non-terrain quads for an empty frame.
+    const terrainQuads = count() - 5;
+    expect(terrainQuads).toBeGreaterThan(0);
+    expect(terrainQuads).toBeLessThan(1600 / 4); // measured well under a quarter of the old count
+  });
+
+  it("the live 192x192 generated world drops from 36,864 tile-quads to a small merged set", () => {
+    // Real terrain (deterministic seed, no sim tick loop — a single pure generateTerrain
+    // call, same as the sim-core unit tests use), at the actual default world size.
+    const world = generateTerrain(1, WORLD_WIDTH, WORLD_HEIGHT);
+    const worldIso = makeIso(WORLD_WIDTH, WORLD_HEIGHT);
+    const mm = new CitadelMinimap(worldIso, world, () => {});
+    const { surface, count } = countingSurface();
+    mm.draw(surface, 0, 0, EMPTY_FRAME);
+
+    const OLD_PER_TILE_COUNT = WORLD_WIDTH * WORLD_HEIGHT; // 36,864 — the audit-02 defect
+    const totalQuads = count();
+    const terrainQuads = totalQuads - 5; // minus backing panel + 4 viewport edges
+
+    expect(terrainQuads).toBeGreaterThan(0);
+    // The real acceptance bar (audit-02): a small fraction of one-per-tile, not a bespoke
+    // "close enough" number — assert an order-of-magnitude cut, and let the test failure
+    // message report the exact measured counts for the audit trail.
+    expect(terrainQuads).toBeLessThan(OLD_PER_TILE_COUNT / 10);
   });
 });
