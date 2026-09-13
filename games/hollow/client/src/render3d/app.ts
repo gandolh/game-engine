@@ -43,8 +43,8 @@ import { GRID_SIZE } from "@hollow/sim-core/world";
 import { SnapshotBuffer } from "./interp";
 import { groundHeightAt } from "./terrain";
 import { buildGroundMesh, buildTerritoryTileMesh, TERRITORY_TINT_Z_OFFSET } from "./world-meshes";
-import { householdLayout, householdMemberCounts, homeMeshFor, MAX_HOME_FOOTPRINT, type HouseholdPosition } from "./household-layout";
-import { findFreePlacement, footprintRect, HOME_MARGIN, type Rect } from "./home-placement";
+import { householdLayout, householdMemberCounts, homeMeshFor, MAX_HOME_FOOTPRINT } from "./household-layout";
+import { HomeRegistry, HOME_MARGIN } from "./home-placement";
 import { baseNodeMeshFor, fullnessScale, resourceNodeFullness } from "./node-mesh";
 import { buildHearthMesh } from "./hearth-mesh";
 import { buildGraveyardMesh } from "./graveyard-mesh";
@@ -277,18 +277,31 @@ export function startHollowApp(canvas: HTMLCanvasElement, worker: Worker, opts: 
       return handle;
     }
 
-    // A home's ground position is FROZEN on first sighting of its household
-    // (keyed by household id). `householdLayout` re-derives an anchor from the
-    // community territory centroid every frame, which JUMPS when a community
-    // forms/splits/merges/dissolves or the household's community vote flips —
-    // that jump is the "houses teleport" artifact. A dwelling is fixed: once
-    // placed, it stays put for the life of the run.
-    const homePosByHousehold = new Map<number, HouseholdPosition>();
-    // The reserved footprint ("hitbox") of every home placed so far — new homes
-    // are nudged outward from their community anchor until they clear these, so
-    // houses never overlap (home-placement.ts). Each reserves its MAX-growth
-    // footprint up front so growing a family never causes a late overlap.
-    const placedHomeRects: Rect[] = [];
+    // A home's ground position is FROZEN on first sighting of its household.
+    // `householdLayout` re-derives an anchor from the community territory
+    // centroid every frame, which JUMPS when a community forms/splits/merges/
+    // dissolves or the household's community vote flips — that jump is the
+    // "houses teleport" artifact. A dwelling is fixed: once placed, it stays
+    // put for the life of the household. Each home also reserves its
+    // MAX-growth footprint ("hitbox") up front, nudged outward from its
+    // anchor until it clears every other LIVE home's hitbox, so growing a
+    // family never causes a late overlap (home-placement.ts).
+    //
+    // `HomeRegistry` (chunk audit-11 fix) owns this lifecycle end-to-end,
+    // INCLUDING release: Hollow is generational — households dissolve
+    // continuously — so a household id that drops out of this frame's
+    // `layout` has its frozen position + reserved hitbox released, instead
+    // of leaking forever (the old bug: a plain `Map`/array here were only
+    // ever grown). Releasing a dissolved neighbour never re-places a
+    // survivor — see `HomeRegistry`'s doc comment for why.
+    //
+    // Search rings are capped to the 64x64 town's real extent (~diagonal /
+    // largest footprint dimension) rather than the generic default of 48 —
+    // on a fully saturated map an impossible search should give up in O(10)
+    // rings, not burn ~9,400 samples every frame for every stuck household.
+    const HOME_SEARCH_MAX_RINGS =
+      Math.ceil((Math.SQRT2 * GRID_SIZE) / Math.max(MAX_HOME_FOOTPRINT.w, MAX_HOME_FOOTPRINT.d)) + 2;
+    const homeRegistry = new HomeRegistry(MAX_HOME_FOOTPRINT, HOME_MARGIN, { maxRings: HOME_SEARCH_MAX_RINGS });
 
     // Agent humanoid mesh-variants (skin x hair x pose), memoized — each
     // distinct variant is built + uploaded exactly once (see humanoid.ts's
@@ -456,18 +469,11 @@ export function startHollowApp(canvas: HTMLCanvasElement, worker: Worker, opts: 
         // house size gets exactly one instanced draw call.
         const memberCounts = householdMemberCounts(latest);
         const layout = householdLayout(latest);
+        // Reconciles freeze/place/release against THIS frame's live ids —
+        // see `homeRegistry`'s construction above for why.
+        const homePositions = homeRegistry.positionsFor(layout);
         const byHomeMesh = new Map<MeshHandle, Instance[]>();
-        for (const [householdId, freshPos] of layout) {
-          // Freeze position on first sighting; reuse it forever (anti-teleport).
-          // On first placement, nudge outward from the community anchor until
-          // the home's footprint clears every already-placed home (anti-overlap).
-          let pos = homePosByHousehold.get(householdId);
-          if (!pos) {
-            const { w, d } = MAX_HOME_FOOTPRINT;
-            pos = findFreePlacement(freshPos, w, d, HOME_MARGIN, placedHomeRects);
-            homePosByHousehold.set(householdId, pos);
-            placedHomeRects.push(footprintRect(pos.x, pos.y, w, d, HOME_MARGIN));
-          }
+        for (const [householdId, pos] of homePositions) {
           const count = memberCounts.get(householdId) ?? 1;
           const handle = homeMeshHandleFor(count);
           const z = groundHeightAt(Math.round(pos.x), Math.round(pos.y));
