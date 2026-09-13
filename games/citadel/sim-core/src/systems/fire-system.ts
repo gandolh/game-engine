@@ -42,11 +42,34 @@ const STONE_TYPES = new Set([
  * `woodenPositions` preserves the same relative order as a fresh
  * `buildingWorld.query("building")` scan filtered to this owner's wooden
  * buildings; `stoneTiles` is every footprint tile of this owner's stone
- * (fireproof) buildings, for O(1) firebreak lookups.
+ * (fireproof) buildings, for O(1) firebreak lookups. `wellCentres` is every
+ * one of this owner's well centres (audit-15: was a fresh O(B)
+ * `buildingWorld.query("building")` scan per call to `_hasWellNear`, called
+ * per BURNING building per tick — the dominant cost at 8+ concurrent fires).
+ * `byId` is an O(1) id→building lookup for this owner's buildings (audit-15:
+ * replaces `_entityById`'s O(B) linear scan, called per burning id from
+ * `_spreadFire` and every `_extinguishBuilding`).
+ *
+ * Mid-day invalidation (audit-15 decision — see `_getIndex`): a well built or
+ * destroyed mid-day must help/stop-helping starting the very next read, not
+ * "tomorrow". `_getIndex` compares the buildingWorld's live "building"-query
+ * entity count (an O(1) read of the cached Query's `.entities.length`, no
+ * scan) against a watermark taken at the last rebuild; any change drops the
+ * cached index for every player, forcing a fresh O(B) rebuild on next use.
+ * This is a set-membership heuristic, not an exact diff: a placement and a
+ * despawn landing in the exact same inter-check window with equal counts
+ * would cancel out and be missed for one extra check. FireSystem has no
+ * signal in this file for placement/demolish/siege-destroy events (those
+ * live in sim-bootstrap.ts / siege-resolution.ts / army.ts, out of this
+ * spec's owned files) short of a full rescan every tick, so this is the
+ * cheapest fully self-contained approximation; it is exact for the common
+ * case the acceptance test exercises (build one well while a fire burns).
  */
 interface FireDailyIndex {
   readonly woodenPositions: ReadonlyArray<{ id: number; type: string; cx: number; cy: number }>;
   readonly stoneTiles: ReadonlySet<number>;
+  readonly wellCentres: ReadonlyArray<{ x: number; y: number }>;
+  readonly byId: ReadonlyMap<number, { type: string; x: number; y: number; w: number; h: number }>;
 }
 
 /**
@@ -109,6 +132,21 @@ export class FireSystem implements System {
    * gate short-circuits BEFORE any RNG draw so the sequence is untouched.
    */
   private readonly deferUntilBuildings: number;
+
+  /**
+   * Per-player cached {@link FireDailyIndex}, persisted across ticks within a
+   * day (not just within one `_buildDailyIndex` call) so `_tickBurning` —
+   * which runs every tick, not just on the daily boundary — can read
+   * `wellCentres`/`byId` without rescanning. See `_getIndex`.
+   */
+  private readonly dailyIndex = new Map<number, FireDailyIndex>();
+
+  /**
+   * Mid-day invalidation watermark: the buildingWorld's live "building"-query
+   * entity count as of the last index rebuild. -1 = never built. See the
+   * {@link FireDailyIndex} doc comment for what this does and doesn't catch.
+   */
+  private buildingCountWatermark = -1;
 
   constructor(private readonly state: SimState, opts: { cozy?: boolean; deferUntilBuildings?: number } = {}) {
     this.cozy = opts.cozy ?? true;
@@ -174,12 +212,17 @@ export class FireSystem implements System {
         this.firstBuildDay.set(p.id, this.state.day);
       }
       // Perf: index this player's wooden-building positions + stone-tile
-      // footprints ONCE per day (was: a fresh O(buildings) scan of
-      // `buildingWorld.query("building")` for every candidate × line-step pair
-      // inside _spreadFire/_checkIgnition/_hasFirebreak — O(n²)-ish once/day).
+      // footprints (+ well centres + id map, audit-15) ONCE per day (was: a
+      // fresh O(buildings) scan of `buildingWorld.query("building")` for
+      // every candidate × line-step pair inside
+      // _spreadFire/_checkIgnition/_hasFirebreak — O(n²)-ish once/day).
       // Same filters, same relative order as the scans it replaces, so the
       // sequence of RNG draws below is unchanged (behaviour-preserving).
+      // Always rebuilt here regardless of the mid-day watermark (below) —
+      // this is the guaranteed once-per-day refresh the watermark only
+      // supplements, never replaces.
       const index = this._buildDailyIndex(p);
+      this.dailyIndex.set(p.id, index);
       // Spread is always allowed (a fire already underway must propagate); only
       // fresh ignition is held off during the founding grace.
       this._spreadFire(p, index);
@@ -192,23 +235,62 @@ export class FireSystem implements System {
       // extinguish-not-destroy half of the contract).
       if (this.cozy) this._dentNearbyMood(p);
     }
+    // Re-baseline the mid-day invalidation watermark against what every
+    // player's index was JUST rebuilt from above, so a placement/despawn
+    // that happens later today is measured against today's true count.
+    this.buildingCountWatermark = this._liveBuildingCount();
+  }
+
+  /** O(1): the cached Query's live entity-array length, no scan. */
+  private _liveBuildingCount(): number {
+    return this.state.buildingWorld.query("building").entities.length;
+  }
+
+  /**
+   * Per-player fire index, persisted across ticks (not rebuilt every call).
+   * Audit-15 mid-day invalidation: if the buildingWorld's live "building"
+   * count has moved since the last rebuild — a placement or a despawn
+   * (demolish, siege, army, fire's own extinguish-path never despawns) —
+   * drop every player's cached index so the next read gets a fresh O(B)
+   * scan instead of stale wells/positions. See the {@link FireDailyIndex}
+   * doc comment for exactly what this does and doesn't catch.
+   */
+  private _getIndex(p: PlayerState): FireDailyIndex {
+    const count = this._liveBuildingCount();
+    if (count !== this.buildingCountWatermark) {
+      this.buildingCountWatermark = count;
+      this.dailyIndex.clear();
+    }
+    let index = this.dailyIndex.get(p.id);
+    if (index === undefined) {
+      index = this._buildDailyIndex(p);
+      this.dailyIndex.set(p.id, index);
+    }
+    return index;
   }
 
   /** Per-player, once-per-day fire index: wooden building positions + a stone
-   * (firebreak) tile lookup. Built with a single pass over
-   * `buildingWorld.query("building")`, filtering ownerId/type the exact same
-   * way the scans it replaces did — so the SET and RELATIVE ORDER of wooden
-   * candidates is unchanged (the RNG-draw sequence in _spreadFire/_checkIgnition
-   * depends on iterating this list, not on how it was built). */
+   * (firebreak) tile lookup + well centres + an id→building map (audit-15).
+   * Built with a single pass over `buildingWorld.query("building")`,
+   * filtering ownerId/type the exact same way the scans it replaces did — so
+   * the SET and RELATIVE ORDER of wooden candidates is unchanged (the
+   * RNG-draw sequence in _spreadFire/_checkIgnition depends on iterating
+   * this list, not on how it was built). `wellCentres`/`byId` are new
+   * (audit-15) but come from this SAME pass — no extra scan. Neither has an
+   * order dependency: `_hasWellNear` only tests set membership (OR of
+   * `coversRect` checks) and `byId` is only ever `.get()`, never iterated. */
   private _buildDailyIndex(p: PlayerState): FireDailyIndex {
     const state = this.state;
     const woodenPositions: Array<{ id: number; type: string; cx: number; cy: number }> = [];
     const stoneTiles = new Set<number>();
+    const wellCentres: Array<{ x: number; y: number }> = [];
+    const byId = new Map<number, { type: string; x: number; y: number; w: number; h: number }>();
     for (const entity of state.buildingWorld.query("building")) {
       if (entity.building.ownerId !== p.id) continue;
       const id = entity.id;
       if (id === undefined) continue;
       const b = entity.building;
+      byId.set(id, b);
       if (WOODEN_TYPES.has(b.type)) {
         woodenPositions.push({
           id,
@@ -222,9 +304,11 @@ export class FireSystem implements System {
             stoneTiles.add((b.y + dy) * state.width + (b.x + dx));
           }
         }
+      } else if (b.type === "well") {
+        wellCentres.push({ x: b.x + Math.floor(b.w / 2), y: b.y + Math.floor(b.h / 2) });
       }
     }
-    return { woodenPositions, stoneTiles };
+    return { woodenPositions, stoneTiles, wellCentres, byId };
   }
 
   /**
@@ -276,6 +360,10 @@ export class FireSystem implements System {
     const toDestroy: number[] = [];
     const toExtinguish: number[] = [];
     const burningCentres: Array<{ x: number; y: number }> = [];
+    // Audit-15: fetch (or lazily build) this player's cached index ONCE for
+    // the whole tick, instead of `_hasWellNear` rescanning `buildingWorld`
+    // per burning building below.
+    const index = this._getIndex(p);
     for (const entity of state.buildingWorld.query("building")) {
       if (entity.building.ownerId !== p.id) continue;
       const id = entity.id;
@@ -299,7 +387,7 @@ export class FireSystem implements System {
       // Cozy pivot: a well near this building's centre burns it out faster —
       // an extra deterministic step on top of the normal -1/tick decay.
       let decay = 1;
-      if (this.cozy && this._hasWellNear(p, bcx, bcy)) decay += COZY_WELL_EXTINGUISH_BONUS;
+      if (this.cozy && this._hasWellNear(index.wellCentres, bcx, bcy)) decay += COZY_WELL_EXTINGUISH_BONUS;
       fs.burnTicksLeft = Math.max(0, fs.burnTicksLeft - decay);
       if (fs.burnTicksLeft === 0) {
         if (this.cozy) {
@@ -340,7 +428,7 @@ export class FireSystem implements System {
       this._destroyBuilding(p, id, tick);
     }
     for (const id of toExtinguish) {
-      this._extinguishBuilding(p, id);
+      this._extinguishBuilding(p, id, index);
     }
   }
 
@@ -348,14 +436,16 @@ export class FireSystem implements System {
    * Cozy pivot: clear a burnt-out building's fire state without destroying it —
    * the building, its tiles, popCap, and roadGrid entry are all untouched.
    */
-  private _extinguishBuilding(p: PlayerState, id: number): void {
+  private _extinguishBuilding(p: PlayerState, id: number, index: FireDailyIndex): void {
     const state = this.state;
     const fs = p.fireState.get(id);
     if (fs === undefined) return;
     fs.burning = false;
     fs.burnTicksLeft = 0;
-    const b = this._entityById(id);
-    if (b !== null) pushEvent(state, `Day ${state.day}: the fire in a ${b.type} was put out.`);
+    // Audit-15: O(1) id→building lookup (was `_entityById`'s O(B) scan). Safe:
+    // extinguish never despawns the building, so it's always still in `byId`.
+    const b = index.byId.get(id);
+    if (b !== undefined) pushEvent(state, `Day ${state.day}: the fire in a ${b.type} was put out.`);
   }
 
   /** Spread fire from burning buildings to nearby wooden neighbors (daily). */
@@ -372,8 +462,9 @@ export class FireSystem implements System {
     if (burningIds.length === 0) return;
 
     for (const srcId of burningIds) {
-      const srcEntity = this._entityById(srcId);
-      if (srcEntity === null) continue;
+      // Audit-15: O(1) id→building lookup (was `_entityById`'s O(B) scan).
+      const srcEntity = index.byId.get(srcId);
+      if (srcEntity === undefined) continue;
       const sb = srcEntity;
       const scx = sb.x + Math.floor(sb.w / 2);
       const scy = sb.y + Math.floor(sb.h / 2);
@@ -389,7 +480,7 @@ export class FireSystem implements System {
         if (this._hasFirebreak(scx, scy, w.cx, w.cy, index.stoneTiles)) continue;
 
         let spreadChance = 0.6;
-        const wellNear = this._hasWellNear(p, w.cx, w.cy);
+        const wellNear = this._hasWellNear(index.wellCentres, w.cx, w.cy);
         if (wellNear) spreadChance *= 0.3;
 
         if (this.rngFor(p).nextFloat() < spreadChance) {
@@ -411,7 +502,7 @@ export class FireSystem implements System {
       let chance = (nearbyWooden - 2) * 0.20;
       chance = Math.min(0.70, chance);
 
-      if (this._hasWellNear(p, w.cx, w.cy)) chance *= 0.2;
+      if (this._hasWellNear(index.wellCentres, w.cx, w.cy)) chance *= 0.2;
 
       if (this.rngFor(p).nextFloat() < chance) {
         this._igniteBuilding(p, w.id, w.type, "ignition");
@@ -525,26 +616,18 @@ export class FireSystem implements System {
   /**
    * Check if a Well owned by p covers position (cx, cy). A well's reach is an
    * 8×6 RECTANGLE centred on the well (see SERVICE_RECTS / coversRect), not a
-   * Manhattan radius.
+   * Manhattan radius. Audit-15: takes the once-per-day (or mid-day-invalidated,
+   * see `_getIndex`) precomputed well-centre list instead of scanning
+   * `buildingWorld` fresh — was a full O(B) scan per call, called once per
+   * BURNING building per tick (the dominant cost at several concurrent fires).
+   * Order-independent: this is an OR over `coversRect` checks, so the list's
+   * order (whatever `_buildDailyIndex`'s scan produced it in) doesn't matter.
    */
-  private _hasWellNear(p: PlayerState, cx: number, cy: number): boolean {
-    for (const entity of this.state.buildingWorld.query("building")) {
-      if (entity.building.ownerId !== p.id) continue;
-      if (entity.building.type !== "well") continue;
-      const b = entity.building;
-      const wx = b.x + Math.floor(b.w / 2);
-      const wy = b.y + Math.floor(b.h / 2);
-      if (coversRect("well", wx, wy, cx, cy)) return true;
+  private _hasWellNear(wellCentres: ReadonlyArray<{ x: number; y: number }>, cx: number, cy: number): boolean {
+    for (const w of wellCentres) {
+      if (coversRect("well", w.x, w.y, cx, cy)) return true;
     }
     return false;
-  }
-
-  /** Look up a building entity's component by ECS id. */
-  private _entityById(id: number): { type: string; x: number; y: number; w: number; h: number } | null {
-    for (const entity of this.state.buildingWorld.query("building")) {
-      if (entity.id === id) return entity.building;
-    }
-    return null;
   }
 }
 
