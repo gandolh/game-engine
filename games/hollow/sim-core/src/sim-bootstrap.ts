@@ -250,6 +250,7 @@ import {
   NORM_CLASH_THRESHOLD,
 } from "./governance";
 import { HollowJobAssignmentSystem, JOBS_ASSIGN_INTERVAL_TICKS } from "./jobs";
+import { getSnapshot as buildSnapshot } from "./snapshot-builder";
 
 export type { HollowEntity } from "./components";
 
@@ -1023,96 +1024,11 @@ export function bootstrapHollowSim(opts: HollowSimOptions): BootedHollowSim {
       tickCount++;
     },
     getSnapshot(): HollowSnapshot {
-      const agents: HollowAgentSnapshot[] = [];
-      for (const entity of world.query(
-        "agent",
-        "needs",
-        "inventory",
-        "personality",
-        "beliefs",
-        "communityId",
-        "lifecycle",
-        "genome",
-        "householdId",
-        "occupation",
-      )) {
-        const needs: Record<string, number> = {};
-        for (const [kind, need] of Object.entries(entity.needs.byKind)) {
-          needs[kind] = need.value;
-        }
-        agents.push({
-          id: entity.id ?? -1,
-          kind: entity.personality.kind,
-          gx: entity.agent.gx,
-          gy: entity.agent.gy,
-          needs,
-          inventory: { ...entity.inventory.goods },
-          starving: entity.beliefs.data.starving === true,
-          communityId: entity.communityId,
-          ageTicks: entity.lifecycle.ageTicks,
-          stage: entity.lifecycle.stage,
-          householdId: entity.householdId,
-          appearance: {
-            height: entity.genome.appearance.height,
-            build: entity.genome.appearance.build,
-            skinTone: entity.genome.appearance.skinTone,
-            hairTone: entity.genome.appearance.hairTone,
-          },
-          action: entity.agent.currentAction ?? "idle",
-          occupation: entity.occupation.role,
-          diseased: entity.disease !== undefined,
-        });
-      }
-      const corpses: HollowCorpseSnapshot[] = [];
-      for (const entity of world.query("corpse")) {
-        const c = entity.corpse;
-        corpses.push({
-          id: entity.id ?? -1,
-          deceasedId: c.deceasedId,
-          gx: c.gx,
-          gy: c.gy,
-          buried: c.buried,
-          rotting: c.rotting,
-          carriedBy: c.carriedBy,
-        });
-      }
-      corpses.sort((a, b) => a.id - b.id);
-      const resourceNodes: HollowResourceNodeSnapshot[] = resources.nodes.map((node) => ({
-        id: node.id,
-        kind: node.kind,
-        gx: node.gx,
-        gy: node.gy,
-        stock: node.stock,
-        maxStock: node.maxStock,
-      }));
-      const communitiesSnapshot: HollowCommunitySnapshot[] = communities.all().map((c) => ({
-        id: c.id,
-        members: [...c.members],
-        territory: c.territory.map((t) => ({ gx: t.gx, gy: t.gy })),
-        stockpile: { ...c.stockpile },
-        norms: {
-          shareRate: c.norms.shareRate,
-          cooperationExpectation: c.norms.cooperationExpectation,
-          admissionPolicy: c.norms.admissionPolicy ?? COMMUNITY_DEFAULT_ADMISSION_POLICY,
-        },
-        leaderId: c.leaderId,
-        standing: { ...c.standing },
-      }));
-      return {
-        tick: tickCount,
-        aliveCount: agents.length,
-        agents,
-        resourceNodes,
-        communities: communitiesSnapshot,
-        bornCount,
-        diedCount,
-        householdCount: households.all().length,
-        socialCounts: { ...socialCounts },
-        hearth: { gx: HEARTH_TILE.gx, gy: HEARTH_TILE.gy },
-        corpses,
-        graveyard: { gx: GRAVEYARD_TILE.gx, gy: GRAVEYARD_TILE.gy },
-        buriedCount,
-      };
+      // audit-24: extracted to snapshot-builder.ts. `tickCount` is passed by
+      // value from this SAME closure-local variable `tick()` increments and
+      // the `tickCount` getter above reads — see that getter's doc and
+      // snapshot-builder.ts's header for the single-source contract (audit-04).
+      return buildSnapshot(world, resources, communities, households, bornCount, diedCount, buriedCount, socialCounts, tickCount);
     },
   };
 }

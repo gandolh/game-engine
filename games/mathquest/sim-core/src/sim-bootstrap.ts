@@ -62,6 +62,7 @@ import { createCombat, type Combat } from "./combat/combat";
 import { WARRIOR_MAX_HP } from "./combat/constants";
 import type { AnswerResponse, CombatAction, CombatSnapshot } from "./combat/types";
 import { DEFAULT_LOCALE, type Locale } from "./i18n";
+import { buildGameSnapshot } from "./snapshot-builder";
 import { enemyFor } from "./run/enemies";
 import { generateMap, type MapNode, type NodeType, type RunMap } from "./run/map";
 import { REST_HEAL } from "./run/constants";
@@ -508,7 +509,11 @@ export function bootstrapMathquestSim(opts: MathquestSimOptions): BootedMathques
   }
 
   function getSnapshot(): GameSnapshot {
-    const run: RunView = {
+    // audit-24: built by ./snapshot-builder. Every value it needs is passed
+    // explicitly rather than closed over, so a snapshot can be constructed from
+    // hand-built state in a test without booting the sim.
+    return buildGameSnapshot({
+      mode,
       map,
       currentId,
       reachableIds,
@@ -517,32 +522,15 @@ export function bootstrapMathquestSim(opts: MathquestSimOptions): BootedMathques
       warriorMaxHp: maxHp(),
       level,
       xp,
-      xpToNext: xpToNext(level),
       stats,
-      inventory: inventory.map((it) => toItemView(it, locale)),
-      lifelines: { ...lifelines },
+      inventory,
+      lifelines,
       mastery: masteryStore,
-    };
-    switch (mode) {
-      case "combat":
-        // Invariant: mode is "combat" iff combat is non-null (set together in chooseNode, both
-        // cleared together in resolveCombatIfOver) — see those two functions.
-        return { mode: "combat", run, combat: combat!.snapshot() };
-      case "level_up":
-        // Invariant: mode is "level_up" iff levelUpOffers is non-null (set together in `proceed`,
-        // cleared together in `chooseLevelUp`).
-        return { mode: "level_up", run, offers: levelUpOffers!.map((k) => describeUpgrade(k, locale)) };
-      case "loot":
-        // Invariant: mode is "loot" iff lootOffers is non-null (set together in `proceed`,
-        // cleared together in `chooseLoot`).
-        return { mode: "loot", run, offers: lootOffers!.map((it) => toItemView(it, locale)) };
-      case "map":
-        return { mode: "map", run };
-      case "run_won":
-        return { mode: "run_won", run };
-      case "run_lost":
-        return { mode: "run_lost", run };
-    }
+      locale,
+      combat,
+      levelUpOffers,
+      lootOffers,
+    });
   }
 
   return {
