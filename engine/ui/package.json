@@ -1,7 +1,7 @@
 {
   "name": "@engine/ui",
   "version": "0.1.0",
-  "description": "In-canvas UI toolkit for @engine/core — a retained widget tree, flex layout, bitmap-font text, shade-mask icons, screen-space input dispatch, and a DOM a11y mirror. Renders through the same 2D renderer as the game scene (WebGPU + Canvas2D), fully themeable, game-agnostic.",
+  "description": "In-canvas UI toolkit for @engine/core — a retained widget tree, flex layout, bitmap-font text, shade-mask icons, screen-space input dispatch, and a DOM a11y mirror. Renders through the same WebGL2 renderer as the game scene, fully themeable, game-agnostic.",
   "license": "MIT",
   "type": "module",
   "sideEffects": false,

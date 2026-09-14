@@ -1,18 +1,18 @@
 /**
- * Citadel WebGPU renderer module.
+ * Citadel WebGL2 renderer module.
  *
- * Owns the engine-renderer setup (WebGPU backend, forced) and the per-frame
- * scene draw. The Canvas2D draw path (terrain-renderer / building-renderer) is
- * gone from the citadel client — terrain is baked once via the engine's
- * static-layer pass, and buildings / villagers / raiders are solid colored
- * `sprite-batch` quads drawn from a generated 1×1 white atlas. The placement
- * ghost + drag-paint preview are also sprite-batch quads (translucent, top
- * layer) — NOT the `endFrame` overlay callback, which the WebGPU backend
- * ignores (see `ghostQuad` / `pushGhost`).
+ * Owns the engine-renderer setup and the per-frame scene draw. The old Canvas2D
+ * draw path (terrain-renderer / building-renderer) is gone from the citadel
+ * client — terrain is baked once via the engine's static-layer pass, and
+ * buildings / villagers / raiders are solid colored `sprite-batch` quads drawn
+ * from a generated 1×1 white atlas. The placement ghost + drag-paint preview
+ * are also sprite-batch quads (translucent, top layer) — NOT the `endFrame`
+ * overlay callback, which the WebGL2 backend ignores (see `ghostQuad` /
+ * `pushGhost`).
  *
  * Pure helpers (color/footprint mapping, terrain decorate, the Camera2D
  * screen→tile transform) are EXPORTED and unit-tested headlessly — they never
- * touch the GPU, so jsdom (no WebGPU) can exercise them.
+ * touch the GPU, so jsdom (no WebGL2) can exercise them.
  *
  * All colors route through `EDG.*`; quad tints are packed `0xRRGGBBAA` ints
  * built from `rgbOf(EDG.*)`, so the palette guard stays clean.
@@ -246,12 +246,13 @@ export interface CitadelRenderer {
 }
 
 /**
- * Create the WebGPU-backed citadel renderer: force the WebGPU backend (the FV
- * pattern), register the generated quad atlas, set the clear color, and bake
- * the terrain backdrop. On the large MP world the bake is render-windowed (only
- * the camera window is textured, re-baked on pan via the controller); on the
- * small solo world it bakes whole-world once (identical to before). Throws if
- * WebGPU is unavailable (no silent Canvas2D fallback — Citadel is WebGPU-only).
+ * Create the citadel renderer: create the engine's WebGL2 renderer (the only
+ * backend — no `backend` option to pass), register the generated quad atlas,
+ * set the clear color, and bake the terrain backdrop. On the large MP world the
+ * bake is render-windowed (only the camera window is textured, re-baked on pan
+ * via the controller); on the small solo world it bakes whole-world once
+ * (identical to before). Throws if a WebGL2 context is unavailable — no silent
+ * fallback.
  */
 export async function createCitadelRenderer(
   canvas: HTMLCanvasElement,

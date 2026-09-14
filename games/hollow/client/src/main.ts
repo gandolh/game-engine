@@ -446,7 +446,7 @@ function startRun(input: { seed: number; persona?: PersonaSeed; replayLog?: Inte
   const overlayCtx = overlayCanvas.getContext("2d");
   if (!overlayCtx) {
     // eslint-disable-next-line no-console -- surfaced to the dev console, same
-    // convention as app.ts's WebGPU-unavailable message; the overlay is a
+    // convention as app.ts's renderer-unavailable message; the overlay is a
     // legibility layer on top of the 3D scene, not something the app hard-fails
     // without.
     console.error("[hollow] 2D overlay canvas context unavailable — glyphs/tags will not render.");
@@ -455,7 +455,7 @@ function startRun(input: { seed: number; persona?: PersonaSeed; replayLog?: Inte
   function overlayFrame(): void {
     // Perf HUD — updated every display frame (its fps/ms come from the
     // wall-clock delta between these calls). Runs even before the first
-    // snapshot / when WebGPU is absent, so it's always a live readout.
+    // snapshot / when the renderer is unavailable, so it's always a live readout.
     if (showPerfHud) {
       const frameReport = app.getRenderReport();
       if (frameReport) debugOverlay.setFrameReport(frameReport);

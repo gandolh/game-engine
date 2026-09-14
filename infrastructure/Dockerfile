@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1-labs
-# Farm Valley's sim server — the Node half of the WebGPU game.
+# Farm Valley's sim server — the Node half of the WebGL2 game.
 #
 # Build context is the REPO ROOT. `npm ci` validates the lockfile against the
 # FULL workspace set the root package.json declares ("engine/*", "games/*/*",

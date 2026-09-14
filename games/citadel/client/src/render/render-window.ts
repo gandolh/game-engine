@@ -8,9 +8,10 @@
  * render-object memory stays flat as the logical grid grows.
  *
  * Windowing is **mandatory** on the MP world, not an optimisation: its iso extent
- * is 8192 × 4112 px ⇒ ~134.7 MB of RGBA static-layer texture, and the width sits
- * exactly on WebGPU's default `maxTextureDimension2D` (8192). A whole-world bake
- * would fail to allocate. Small worlds (solo's 96×96 ⇒ 3072 × 1552) bake whole.
+ * is 8192 × 4112 px ⇒ ~134.7 MB of RGBA static-layer texture, and 8192 sits right at
+ * the WebGL2 `MAX_TEXTURE_SIZE` many drivers report (checked at the real per-driver
+ * limit by `static-layer-pass.ts`, never hardcoded). A whole-world bake risks
+ * failing to allocate. Small worlds (solo's 96×96 ⇒ 3072 × 1552) bake whole.
  *
  * This module is the PURE, testable core (window math + virtualisation); the
  * engine wiring lives in `window-controller.ts`.
