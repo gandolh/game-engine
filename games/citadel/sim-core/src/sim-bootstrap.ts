@@ -1,29 +1,24 @@
-import { Scheduler, World, CommandQueue, CommandSystem, OccupancyGrid, checkPlacement, rebuildWalkable, createRng } from "@engine/core";
+import { Scheduler, World, CommandQueue, CommandSystem, OccupancyGrid, createRng } from "@engine/core";
 import type { System, SimContext } from "@engine/core";
-import type { CitadelCommand, BuildingSnapshot, VillagerSnapshot, RenderSnapshot, CitadelSave } from "./snapshot/index";
+import type { CitadelCommand, BuildingSnapshot, RenderSnapshot, CitadelSave } from "./snapshot/index";
 import { DayClockSystem } from "./systems/day-clock";
-import { TierSystem, TIER_LOCK, tierAtLeast, unlockTier } from "./systems/tiers";
-import { generateTerrain, isWalkable, TerrainType, findCoreBox, CORE_BOX_W, CORE_BOX_H, WORLD_WIDTH as DEFAULT_WORLD_WIDTH, WORLD_HEIGHT as DEFAULT_WORLD_HEIGHT } from "./world/terrain";
+import { TierSystem, tierAtLeast, unlockTier } from "./systems/tiers";
+import { generateTerrain, findCoreBox, CORE_BOX_W, CORE_BOX_H, WORLD_WIDTH as DEFAULT_WORLD_WIDTH, WORLD_HEIGHT as DEFAULT_WORLD_HEIGHT } from "./world/terrain";
 import type { TerrainGrid } from "./world/terrain";
 import type { BuildingEntity, BuildingRuntimeState, GoodType } from "./entities/building";
 import {
-  getBuildingDef,
   getProductionDef,
   effectiveHousingCapacity,
   upgradeCost,
-  buildCost,
   BUILDING_MAX_LEVEL,
-  jobForBuildingType,
-  JOB_IDLE,
 } from "./entities/building";
 import type { VillagerEntity } from "./entities/villager";
-import { isTravellingFsm } from "./entities/villager";
 import type { SimState, Stockpiles, ArmyState } from "./sim-state";
-import { pushEvent, totalGoods, makePlayerState, localPlayer, playerById, releaseWorkersAt } from "./sim-state";
+import { pushEvent, makePlayerState, localPlayer, playerById, releaseWorkersAt } from "./sim-state";
 import { RoadConnectivitySystem } from "./systems/road-connectivity";
-import { TerritorySystem, canBuildAt, DEFAULT_TERRITORY_RADIUS } from "./systems/territory";
-import { ProductionSystem, SERVICE_BONUS_BAND } from "./systems/production";
-import { VillagerSystem, villagerPos } from "./systems/villager-system";
+import { TerritorySystem, DEFAULT_TERRITORY_RADIUS } from "./systems/territory";
+import { ProductionSystem } from "./systems/production";
+import { VillagerSystem } from "./systems/villager-system";
 import { ImmigrationSystem } from "./systems/immigration";
 import { NeedsHappinessSystem } from "./systems/needs-happiness";
 import { TraderSystem } from "./systems/trader";
@@ -31,9 +26,18 @@ import { RaidSpawnSystem, computeRaiderPath } from "./systems/raid-spawn";
 import { ArmySystem } from "./systems/army";
 import { RaiderMovementSystem } from "./systems/raider-movement";
 import { SiegeResolutionSystem } from "./systems/siege-resolution";
-import { FireSystem, countActiveFires } from "./systems/fire-system";
+import { FireSystem } from "./systems/fire-system";
 import { DiseaseSystem } from "./systems/disease-system";
-import { getSeason } from "./world/seasons";
+import {
+  placeOne,
+  placeDragged,
+  describeReject,
+  actsAsKeepAnchor,
+  createPlacementContext,
+  rebakeWalkable,
+  removeBuildingTiles,
+} from "./systems/placement";
+import { getBuildings, getSnapshot } from "./snapshot-builder";
 
 export interface CitadelSimOptions {
   seed: number;
@@ -128,21 +132,6 @@ export interface CitadelSimOptions {
    * are byte-identical and unaffected. Persisted so a save re-applies the same gate.
    */
   deferThreatsUntilBuildings?: number;
-}
-
-/** True if `stock` holds at least every good in `cost`. */
-function canAfford(stock: Stockpiles, cost: Partial<Record<GoodType, number>>): boolean {
-  for (const g of Object.keys(cost) as GoodType[]) {
-    if (stock[g] < (cost[g] ?? 0)) return false;
-  }
-  return true;
-}
-
-/** Subtract `cost` from `stock` in place (caller has already checked {@link canAfford}). */
-function debitStock(stock: Stockpiles, cost: Partial<Record<GoodType, number>>): void {
-  for (const g of Object.keys(cost) as GoodType[]) {
-    stock[g] -= cost[g] ?? 0;
-  }
 }
 
 /** Add `grant` to `stock` in place (the founding `startingStock` grant). */
@@ -309,19 +298,6 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
 
   const occupancy = new OccupancyGrid(WORLD_WIDTH, WORLD_HEIGHT);
 
-  const buildable = (tx: number, ty: number): boolean => isWalkable(terrain, tx, ty);
-
-  // Walkability for the path/raider grid: buildable terrain OR a road/bridge
-  // tile. Bridges sit on (non-buildable) water but are crossable once decked, so
-  // they must read as walkable here. Placement validity still uses `buildable`.
-  // (defined as a function so it can reference `state`, assigned just below,
-  // without a temporal-dead-zone hazard at the initial bake — no roads exist yet.)
-  function walkablePred(tx: number, ty: number): boolean {
-    return buildable(tx, ty) || state.roadGrid[ty * WORLD_WIDTH + tx] === 1;
-  }
-
-  let walkable = rebuildWalkable(WORLD_WIDTH, WORLD_HEIGHT, occupancy, buildable);
-
   // ---------------------------------------------------------------------------
   // Shared sim state
   // ---------------------------------------------------------------------------
@@ -357,45 +333,18 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
     for (const p of state.players) creditStock(p.stockpiles, startingStock);
   }
 
-  /** Mark a building's footprint tiles in the buildingTiles set. */
-  function addBuildingTiles(x: number, y: number, w: number, h: number): void {
-    for (let dy = 0; dy < h; dy++) {
-      for (let dx = 0; dx < w; dx++) {
-        const tx = x + dx;
-        const ty = y + dy;
-        if (tx >= 0 && ty >= 0 && tx < WORLD_WIDTH && ty < WORLD_HEIGHT) {
-          state.buildingTiles.add(ty * WORLD_WIDTH + tx);
-        }
-      }
-    }
-  }
-  function removeBuildingTiles(x: number, y: number, w: number, h: number): void {
-    for (let dy = 0; dy < h; dy++) {
-      for (let dx = 0; dx < w; dx++) {
-        const tx = x + dx;
-        const ty = y + dy;
-        if (tx >= 0 && ty >= 0 && tx < WORLD_WIDTH && ty < WORLD_HEIGHT) {
-          state.buildingTiles.delete(ty * WORLD_WIDTH + tx);
-        }
-      }
-    }
-  }
-
-  function freshRuntime(): BuildingRuntimeState {
-    return {
-      outputBuffer: 0,
-      workerCount: 0,
-      connected: false,
-      productionTick: 0,
-      level: 1,
-      // Per-house needs/mood (house-only; NeedsHappinessSystem overwrites for houses).
-      // Neutral defaults: fully-lacking, base mood 40 (the no-needs-met floor).
-      lacksFaith: true,
-      lacksSafety: true,
-      lacksGoods: true,
-      mood: 40,
-    };
-  }
+  // ---------------------------------------------------------------------------
+  // Placement (audit-23): validity/cost/tile-bookkeeping lives in
+  // systems/placement.ts, which needs SimState + the terrain grid + the three
+  // bootstrap-time option flags it branches on (chargeBuildCost / enforceTerritory
+  // / multiplayer). `placementCtx.walkable` is the live walkable bake — the
+  // returned sim result's `walkable` getter reads it directly (see below).
+  //
+  // This performs the SAME initial bake the old closure did (`buildable`-only —
+  // no roads exist yet); moving it to after `state` exists doesn't change the
+  // computed grid since neither `occupancy` nor `terrain` depend on `state`.
+  // ---------------------------------------------------------------------------
+  const placementCtx = createPlacementContext({ state, terrain, chargeBuildCost, enforceTerritory, multiplayer });
 
   // ---------------------------------------------------------------------------
   // Command queue + system
@@ -418,242 +367,20 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
     });
   }
 
-  /** Whether tile (tx,ty) is in-bounds and water. */
-  function isWaterTile(tx: number, ty: number): boolean {
-    if (tx < 0 || ty < 0 || tx >= WORLD_WIDTH || ty >= WORLD_HEIGHT) return false;
-    return terrain.cells[ty * WORLD_WIDTH + tx] === TerrainType.Water;
-  }
-
-    // Why a placement was rejected — lets callers emit ONE descriptive message
-    // (P1-live: silent rejects gave the player no feedback) and coalesce a
-    // drag's per-tile rejections into a single summary (P2: tier-locked drags
-    // dumped ~20 near-identical toasts). "ok" means the building was placed.
-    type PlaceReason = "ok" | "tier" | "territory" | "occupied" | "terrain" | "bounds" | "invalid" | "cost";
-    /**
-     * Does placing this `isKeep` building adopt the keep/raid anchor (sets `keepPosition`,
-     * sacking it ends the player's run)?
-     *
-     * The `keep` always anchors (the solo siege game). The **town-hall** is each MP player's
-     * match anchor (Citadel 29) — but under the cozy-pivot Phase-G direction the town-hall in
-     * SOLO is a purely *civic* coverage building (rations/work-hours within its radius), NOT
-     * the keep/raid anchor: a player should be able to place one without starting a siege. So
-     * the town-hall anchors only in MULTIPLAYER; in solo it's civic-only. Raids are gated
-     * entirely on `keepPosition` (raid-spawn), so not adopting it ⇒ no raids.
-     *
-     * The mode is the bootstrap-time `multiplayer` flag, NOT a live `players.length > 1`
-     * count. An MP room is founded by ONE peer and grows: counting players made the founder's
-     * hall skip the anchor forever (`keepPosition` is assigned once, at placement), while the
-     * snapshot's `keepPresent` — recomputed from the same predicate every tick — flipped to
-     * true the moment a second peer joined. The founder read "Keep: standing" and was never
-     * raided. Found by the brief-108 live-MP pass.
-     */
-    function actsAsKeepAnchor(buildingType: string): boolean {
-      if (getProductionDef(buildingType)?.isKeep !== true) return false;
-      if (buildingType === "town-hall" && !multiplayer) return false;
-      return true;
-    }
-
-    function placeOne(buildingType: string, x: number, y: number, charge = true): PlaceReason {
-    // A road dragged onto water becomes a bridge (a walkable span). This is the
-    // ONLY way bridges are created, so a "road" command across a river auto-decks
-    // the water tiles and lays plain road on the land tiles. (A bridge command
-    // off-water falls through to the normal water/occupancy rejection below.)
-    if (buildingType === "road" && isWaterTile(x, y)) buildingType = "bridge";
-
-    const def = getBuildingDef(buildingType);
-    if (def === undefined) return "invalid";
-
-    // Citadel 28: solo commands act on the local player. (Brief 35 will route
-    // each command to its sender's player; for now there is one writer.)
-    const lp = localPlayer(state);
-
-    // Tier-lock: some building types are gated behind a minimum settlement tier.
-    const required = TIER_LOCK[buildingType];
-    if (required !== undefined && !tierAtLeast(unlockTier(lp), required)) {
-      return "tier";
-    }
-
-    // Build cost (opt-in). Check affordability UP FRONT so an unaffordable click is rejected
-    // cleanly without mutating; the DEBIT happens only on success (below), so a placement that
-    // fails a later validity check (occupied/terrain/…) is never charged. Stockpiles don't
-    // change between here and the debit (one writer per tick), so the two stay consistent.
-    // `charge` lets the founding seed (a gift, not a purchase) bypass the debit even when
-    // chargeBuildCost is on — every other caller leaves it defaulted true (unchanged behavior).
-    const cost = chargeBuildCost && charge ? buildCost(buildingType) : undefined;
-    if (cost !== undefined && !canAfford(lp.stockpiles, cost)) {
-      return "cost";
-    }
-
-    // Citadel 30: territory build-gating (MP). Place only within your territory
-    // ∪ adjacent-unclaimed; never into a rival's claim. Off in solo.
-    if (enforceTerritory && !canBuildAt(state, lp, x, y, def.w, def.h)) {
-      return "territory";
-    }
-
-    const prod = getProductionDef(buildingType);
-    const fp = { x, y, w: def.w, h: def.h };
-
-    const isGate = prod?.isGate === true;
-    const isBridge = prod?.isBridge === true;
-
-    if (isBridge) {
-      // A bridge decks exactly one water tile. It must BE water (else it would
-      // just be a road), and must not overlap any existing building/road/bridge
-      // footprint — bridges cannot overlap.
-      if (!isWaterTile(x, y)) return "terrain";
-      if (occupancy.isOccupied(x, y)) return "occupied";
-      if (state.buildingTiles.has(y * WORLD_WIDTH + x)) return "occupied";
-      occupancy.apply(fp);
-      // Mark the deck as road BEFORE rebuilding so walkablePred (which ORs in
-      // road tiles) keeps the bridged water tile walkable; the generic isRoad
-      // block below re-sets the same cell, harmlessly.
-      state.roadGrid[y * WORLD_WIDTH + x] = 1;
-      walkable = rebuildWalkable(WORLD_WIDTH, WORLD_HEIGHT, occupancy, walkablePred);
-    } else if (isGate) {
-      // Gates stay walkable: bounds + terrain check only, no occupancy entry.
-      for (let dy = 0; dy < def.h; dy++) {
-        for (let dx = 0; dx < def.w; dx++) {
-          const tx = x + dx;
-          const ty = y + dy;
-          if (tx < 0 || ty < 0 || tx >= WORLD_WIDTH || ty >= WORLD_HEIGHT) return "bounds";
-          if (!buildable(tx, ty)) return "terrain";
-          // Can't place a gate on an already-occupied tile.
-          if (state.buildingTiles.has(ty * WORLD_WIDTH + tx)) return "occupied";
-        }
-      }
-    } else {
-      const result = checkPlacement(fp, occupancy, buildable);
-      if (!result.valid) {
-        return result.reason !== undefined && result.reason.includes("bounds") ? "bounds" : "occupied";
-      }
-
-      // Terrain requirement (forest / stone): at least one footprint tile matches.
-      if (prod?.terrainReq === "forest") {
-        let onForest = false;
-        for (let dy = 0; dy < def.h && !onForest; dy++) {
-          for (let dx = 0; dx < def.w; dx++) {
-            const t = terrain.cells[(y + dy) * WORLD_WIDTH + (x + dx)];
-            if (t === TerrainType.Forest) { onForest = true; break; }
-          }
-        }
-        if (!onForest) return "terrain";
-      }
-      if (prod?.terrainReq === "stone") {
-        let onStone = false;
-        for (let dy = 0; dy < def.h && !onStone; dy++) {
-          for (let dx = 0; dx < def.w; dx++) {
-            const t = terrain.cells[(y + dy) * WORLD_WIDTH + (x + dx)];
-            if (t === TerrainType.Stone) { onStone = true; break; }
-          }
-        }
-        if (!onStone) return "terrain";
-      }
-
-      occupancy.apply(fp);
-      walkable = rebuildWalkable(WORLD_WIDTH, WORLD_HEIGHT, occupancy, buildable);
-    }
-
-    addBuildingTiles(x, y, def.w, def.h);
-
-    const entity = buildingWorld.spawn({
-      building: { type: buildingType, x, y, w: def.w, h: def.h, ownerId: lp.id },
-    });
-    if (entity.id !== undefined) {
-      state.buildingState.set(entity.id, freshRuntime());
-    }
-    if (prod?.isRoad === true) {
-      state.roadGrid[y * WORLD_WIDTH + x] = 1;
-    }
-    if (prod?.isHousing === true && prod.housingCapacity !== undefined) {
-      // New buildings are L1 → base capacity (unchanged behavior).
-      lp.popCap += effectiveHousingCapacity(prod, 1);
-    }
-    // Phase 4: special tile tracking (per-player)
-    if (prod?.isGate === true) {
-      lp.gateTiles.add(y * WORLD_WIDTH + x);
-    }
-    if (prod?.isWall === true) {
-      lp.wallTiles.add(y * WORLD_WIDTH + x);
-    }
-    if (actsAsKeepAnchor(buildingType)) {
-      // Center of the 3×3 footprint.
-      lp.keepPosition = { x: x + Math.floor(def.w / 2), y: y + Math.floor(def.h / 2) };
-    }
-    // Charge the build cost now that placement has succeeded (affordability was checked above).
-    if (cost !== undefined) debitStock(lp.stockpiles, cost);
-    state.connectivityDirty = true;
-    return "ok";
-  }
-
-  /** Human-readable reason for a single-building rejection (P1-live feedback). */
-  function describeReject(buildingType: string, reason: PlaceReason): string | null {
-    switch (reason) {
-      case "tier": {
-        const req = TIER_LOCK[buildingType];
-        return `Day ${state.day}: a ${buildingType} needs ${req ?? "a higher"} tier — unlock it first.`;
-      }
-      case "territory":
-        return `Day ${state.day}: can't build a ${buildingType} there — outside your territory.`;
-      case "occupied":
-        return `Day ${state.day}: can't build a ${buildingType} there — those tiles are taken.`;
-      case "terrain":
-        return `Day ${state.day}: a ${buildingType} can't sit on that ground.`;
-      case "bounds":
-        return `Day ${state.day}: can't build a ${buildingType} there — off the map.`;
-      case "cost": {
-        const need = Object.entries(buildCost(buildingType)).map(([g, q]) => `${q} ${g}`).join(", ");
-        return `Day ${state.day}: can't afford a ${buildingType} — need ${need}.`;
-      }
-      default:
-        return null; // "invalid" (unknown type) — no actionable message.
-    }
-  }
-
   logged("placeBuilding", (cmd) => {
-    const r = placeOne(cmd.payload.buildingType, cmd.payload.x, cmd.payload.y);
+    const r = placeOne(placementCtx, cmd.payload.buildingType, cmd.payload.x, cmd.payload.y);
     if (r !== "ok") {
-      const msg = describeReject(cmd.payload.buildingType, r);
+      const msg = describeReject(state, cmd.payload.buildingType, r);
       if (msg !== null) pushEvent(state, msg);
     }
   });
 
-  // Road/wall drags stamp many tiles; rather than one toast per rejected tile
-  // (P2: a tier-locked wall drag dumped ~20 near-identical messages), tally the
-  // rejection reasons and emit at most one coalesced summary per reason.
-  function placeDragged(buildingType: string, tiles: ReadonlyArray<{ x: number; y: number }>): void {
-    const counts = new Map<PlaceReason, number>();
-    let placed = 0;
-    for (const tile of tiles) {
-      const r = placeOne(buildingType, tile.x, tile.y);
-      if (r === "ok") placed++;
-      else counts.set(r, (counts.get(r) ?? 0) + 1);
-    }
-    const tierBlocked = counts.get("tier") ?? 0;
-    if (tierBlocked > 0) {
-      const req = TIER_LOCK[buildingType];
-      pushEvent(
-        state,
-        `Day ${state.day}: ${tierBlocked} ${buildingType}${tierBlocked === 1 ? "" : "s"} need ${req ?? "a higher"} tier — unlock it first.`,
-      );
-    }
-    // Tiles blocked by occupancy/terrain/bounds — the drag gapped here. Only
-    // worth a word if some of the drag actually landed (a fully-rejected tier
-    // drag is already explained above).
-    const blocked = (counts.get("occupied") ?? 0) + (counts.get("terrain") ?? 0) + (counts.get("bounds") ?? 0);
-    if (blocked > 0 && (placed > 0 || tierBlocked === 0)) {
-      pushEvent(
-        state,
-        `Day ${state.day}: ${blocked} ${buildingType} tile${blocked === 1 ? "" : "s"} blocked — the run has a gap.`,
-      );
-    }
-  }
-
   logged("placeRoad", (cmd) => {
-    placeDragged("road", cmd.payload.tiles);
+    placeDragged(placementCtx, "road", cmd.payload.tiles);
   });
 
   logged("placeWall", (cmd) => {
-    placeDragged("wall", cmd.payload.tiles);
+    placeDragged(placementCtx, "wall", cmd.payload.tiles);
   });
 
   // Cozy-pivot Phase G: the `setDecree` player lever is GONE. Rations/work-hours
@@ -699,16 +426,16 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
         const prod = getProductionDef(b.type);
         // Per-player fields belong to the building's owner.
         const owner = playerById(state, b.ownerId);
-        removeBuildingTiles(b.x, b.y, b.w, b.h);
+        removeBuildingTiles(state, b.x, b.y, b.w, b.h);
         // Clear the road/bridge tile BEFORE rebuilding walkable so a demolished
-        // bridge stops reading as walkable (walkablePred ORs in road tiles).
+        // bridge stops reading as walkable (the "roads" predicate ORs in road tiles).
         if (prod?.isRoad === true) {
           state.roadGrid[b.y * WORLD_WIDTH + b.x] = 0;
         }
         // Gates were never applied to occupancy; everything else was.
         if (prod?.isGate !== true) {
           occupancy.remove({ x: b.x, y: b.y, w: b.w, h: b.h });
-          walkable = rebuildWalkable(WORLD_WIDTH, WORLD_HEIGHT, occupancy, walkablePred);
+          rebakeWalkable(placementCtx, "roads");
         }
         if (owner !== undefined && prod?.isHousing === true && prod.housingCapacity !== undefined) {
           // Subtract the building's level-effective capacity (read level before rs is deleted).
@@ -956,201 +683,10 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
   scheduler.stage("tiers").add(tierSystem);
 
   // ---------------------------------------------------------------------------
-  // Snapshot helpers
+  // Snapshot building (audit-23): getBuildings / getVillagers / getSnapshot now
+  // live in snapshot-builder.ts, taking `state` (+ `dayClock`/`multiplayer` for
+  // getSnapshot) explicitly. Bound into the returned CitadelSimResult below.
   // ---------------------------------------------------------------------------
-  function getBuildings(): readonly BuildingSnapshot[] {
-    // Per-building occupancy (render/HUD): tally STATIONARY villagers onto the
-    // building they're at — idle residents at their home tile, workers at their
-    // workplace tile. Travelling villagers (the walk states) are on the road and
-    // counted nowhere here, so Σ occupancy + in-transit == population. Build a
-    // footprint tile→entityId index once, then one pass over villagers.
-    const occByBuilding = new Map<number, number>();
-    const tileToBuilding = new Map<number, number>();
-    for (const entity of buildingWorld.query("building")) {
-      if (entity.id === undefined) continue;
-      const b = entity.building;
-      for (let dy = 0; dy < b.h; dy++) {
-        for (let dx = 0; dx < b.w; dx++) {
-          const tx = b.x + dx;
-          const ty = b.y + dy;
-          if (tx < 0 || ty < 0 || tx >= WORLD_WIDTH || ty >= WORLD_HEIGHT) continue;
-          tileToBuilding.set(ty * WORLD_WIDTH + tx, entity.id);
-        }
-      }
-    }
-    for (const entity of villagerWorld.query("villager")) {
-      const v = entity.villager;
-      if (isTravellingFsm(v.fsm)) continue; // on the road, not at a building
-      // idle → at home; work → at workplace. (Other stationary cases fall back
-      // to home so a villager is always attributed somewhere it's standing.)
-      const at = v.fsm === "work" ? { x: v.workX, y: v.workY } : { x: v.homeX, y: v.homeY };
-      const bid = tileToBuilding.get(at.y * WORLD_WIDTH + at.x);
-      if (bid === undefined) continue;
-      occByBuilding.set(bid, (occByBuilding.get(bid) ?? 0) + 1);
-    }
-
-    const result: BuildingSnapshot[] = [];
-    for (const entity of buildingWorld.query("building")) {
-      const b = entity.building;
-      const rs = entity.id !== undefined ? state.buildingState.get(entity.id) : undefined;
-      const owner = playerById(state, b.ownerId);
-      const fs = entity.id !== undefined ? owner?.fireState.get(entity.id) : undefined;
-      result.push({
-        type: b.type,
-        x: b.x,
-        y: b.y,
-        w: b.w,
-        h: b.h,
-        ownerId: b.ownerId,
-        connected: rs?.connected ?? false,
-        outputBuffer: rs?.outputBuffer ?? 0,
-        workerCount: rs?.workerCount ?? 0,
-        occupancy: entity.id !== undefined ? occByBuilding.get(entity.id) ?? 0 : 0,
-        // Phase 4.5: fire state
-        onFire: fs?.burning ?? false,
-        burning: fs?.burning ?? false,
-        // Citadel 08: upgrade level
-        level: rs?.level ?? 1,
-        // Phase A cozy pivot: per-house diegetic signal
-        lacksFaith: rs?.lacksFaith ?? true,
-        lacksSafety: rs?.lacksSafety ?? true,
-        lacksGoods: rs?.lacksGoods ?? true,
-        mood: rs?.mood ?? 40,
-        // Brief 100: is this producer sustainedly well-served (earning the output
-        // bonus)? Render-only; the sim never reads it back. `false` for anything that
-        // isn't a staffed producer, so the cue can only ever appear on a building the
-        // bonus actually applies to.
-        wellServed: (rs?.serviceEma ?? 0) > SERVICE_BONUS_BAND && (rs?.workerCount ?? 0) > 0,
-      });
-    }
-    return result;
-  }
-
-  function getVillagers(): readonly VillagerSnapshot[] {
-    // Read-only job derivation: an assigned villager's workX/workY is the centre
-    // tile of the workplace the VillagerSystem staffed it to. Index every
-    // building footprint tile → its type once, then look up each villager's
-    // workplace type. An `idle` villager has no current workplace → "idle".
-    // This is a pure projection; no sim state is mutated.
-    // Phase E: a PARALLEL index footprint tile → building ENTITY ID lets us look
-    // up a villager's HOME house runtime mood (Phase A per-house `mood`). Built in
-    // the same pass with the exact same bounds checks + key as `tileToType`.
-    const tileToType = new Map<number, string>();
-    const tileToBuildingId = new Map<number, number>();
-    for (const entity of buildingWorld.query("building")) {
-      const b = entity.building;
-      for (let dy = 0; dy < b.h; dy++) {
-        for (let dx = 0; dx < b.w; dx++) {
-          const tx = b.x + dx;
-          const ty = b.y + dy;
-          if (tx < 0 || ty < 0 || tx >= WORLD_WIDTH || ty >= WORLD_HEIGHT) continue;
-          tileToType.set(ty * WORLD_WIDTH + tx, b.type);
-          if (entity.id !== undefined) tileToBuildingId.set(ty * WORLD_WIDTH + tx, entity.id);
-        }
-      }
-    }
-    const result: VillagerSnapshot[] = [];
-    for (const entity of villagerWorld.query("villager")) {
-      const v = entity.villager;
-      const pos = villagerPos(v);
-      const workType = v.fsm === "idle" ? undefined : tileToType.get(v.workY * WORLD_WIDTH + v.workX);
-      const job = workType === undefined ? JOB_IDLE : jobForBuildingType(workType);
-      // Phase E: mood from the HOME house's per-house runtime mood; default 40
-      // (neutral seed) for a villager whose home tile resolves to no building.
-      const homeBid = tileToBuildingId.get(v.homeY * WORLD_WIDTH + v.homeX);
-      const mood = (homeBid !== undefined ? state.buildingState.get(homeBid)?.mood : undefined) ?? 40;
-      result.push({ id: v.id, x: pos.x, y: pos.y, fsm: v.fsm, carryGood: v.carryGood, job, mood });
-    }
-    return result;
-  }
-
-  function getSnapshot(tick = 0): RenderSnapshot {
-    // Citadel 28: the snapshot shows the LOCAL player's view (solo = player 0).
-    // A later brief (36) adds a per-player roster; the top-level fields stay the
-    // local player's so the existing HUD + headless digest are unchanged.
-    const lp = localPlayer(state);
-    const stock: Record<string, number> = {};
-    for (const k of Object.keys(lp.stockpiles) as GoodType[]) stock[k] = lp.stockpiles[k];
-    // citadel-38 P2#13: count the keep/raid ANCHOR, not just any isKeep type — the MP anchor
-    // is `town-hall` (also isKeep), so a literal "keep" string match made MP players see "no
-    // keep" even with a standing town-hall. `actsAsKeepAnchor` also excludes a SOLO town-hall
-    // (civic-only, cozy-pivot) so a placed civic hall doesn't falsely report "Keep: standing".
-    let keepPresent = false;
-    for (const entity of buildingWorld.query("building")) {
-      if (entity.building.ownerId === lp.id && actsAsKeepAnchor(entity.building.type)) {
-        keepPresent = true;
-        break;
-      }
-    }
-    const nextRaidDay = lp.nextRaidTick < 0 ? -1 : Math.floor(lp.nextRaidTick / state.ticksPerDay);
-    // Phase F (motivation): compute over the SAME buildings the snapshot exposes,
-    // reading the SAME per-house `lacks*` flags. A house is "covered" when it lacks
-    // none of faith/safety/goods; "no houses owned" ⇒ not content (false).
-    const buildings = getBuildings();
-    let ownedHouses = 0;
-    let coveredHouses = 0;
-    for (const b of buildings) {
-      if (b.type !== "house" || b.ownerId !== lp.id) continue;
-      ownedHouses++;
-      if (!b.lacksFaith && !b.lacksSafety && !b.lacksGoods) coveredHouses++;
-    }
-    const allHomesCovered = ownedHouses > 0 && coveredHouses === ownedHouses;
-    return {
-      tick,
-      localPlayerId: lp.id,
-      // Citadel 97/13: pacing/authority defaults. `getSnapshot` is transport-agnostic and
-      // knows nothing of hosts or wall-clock pacing, so it emits the headless/solo defaults —
-      // the local player is trivially the host, running at 1× and unpaused. The server host
-      // (per-peer) and the solo Worker OVERRIDE isHost/speed/paused with their authoritative
-      // values before sending; nothing reads these off a directly-driven headless snapshot.
-      isHost: true,
-      day: dayClock.day,
-      season: getSeason(dayClock.day, DAYS_PER_YEAR),
-      speed: 1,
-      paused: false,
-      buildings,
-      villagers: getVillagers(),
-      stockpiles: stock,
-      population: lp.population,
-      popCap: lp.popCap,
-      foodSurplus: lp.foodSurplus,
-      gameOver: lp.gameOver,
-      recentEvents: [...state.events],
-      eventsSeq: state.eventsSeq,
-      // Phase 3
-      happiness: lp.happiness,
-      faithCoverage: lp.faithCoverage,
-      safetyCoverage: lp.safetyCoverage,
-      goodsCoverage: lp.goodsCoverage,
-      activeDecrees: [...lp.activeDecrees],
-      traderPresent: lp.traderPresent,
-      traderOffers: [...lp.traderOffers],
-      // Phase 4
-      raiders: lp.raiders.map((r) => ({ id: r.id, x: r.x, y: r.y, strength: r.strength })),
-      // Citadel 32: in-flight PvP armies (global; empty in solo)
-      armies: state.armies.map((a) => ({
-        id: a.id, x: a.x, y: a.y, strength: a.strength,
-        attackerId: a.attackerId, targetPlayerId: a.targetPlayerId,
-      })),
-      threatLevel: lp.threatLevel,
-      nextRaidDay,
-      defensiveStrength: lp.defensiveStrength,
-      keepPresent,
-      keepSacked: lp.keepSacked,
-      // Phase 4.5: hazards
-      sickVillagers: lp.sickVillagers,
-      outbreakActive: lp.outbreakActive,
-      activeFires: countActiveFires(state),
-      // Phase 5: tier — `tier` is the current (display) tier; `peakTier` is the
-      // high-water mark the client gates build/upgrade buttons on (audit 38 P2#11).
-      tier: lp.tier,
-      peakTier: lp.peakTier,
-      // Citadel 09: relief reserve total (tithe payoff buffer)
-      reliefReserve: totalGoods(lp.reliefReserve),
-      // Phase F (motivation): every owned home has all three needs met (≥1 house)
-      allHomesCovered,
-    };
-  }
 
   // ---------------------------------------------------------------------------
   // Cozy cold-open: pre-seed a connected "alive core" (opt-in via seedTown).
@@ -1222,8 +758,8 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
     // Roads first so the spine exists, then the buildings hang off it. Order is
     // immaterial for connectivity (recomputed lazily) but keeps roadGrid coherent.
     // charge=false: the seed is a gift, never debited from the stockpile.
-    for (const t of layout.roads) placeOne("road", t.x, t.y, false);
-    for (const b of layout.buildings) placeOne(b.type, b.x, b.y, false);
+    for (const t of layout.roads) placeOne(placementCtx, "road", t.x, t.y, false);
+    for (const b of layout.buildings) placeOne(placementCtx, b.type, b.x, b.y, false);
   }
 
   // Apply the seed now that its layout helpers (const-scoped) are initialized.
@@ -1251,8 +787,8 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
       // the connectivity system inside a full tick).
       roadConnSystem.run(ctx);
     },
-    getBuildings,
-    getSnapshot,
+    getBuildings: () => getBuildings(state),
+    getSnapshot: (tick?: number) => getSnapshot(state, dayClock, multiplayer, tick),
     get stockpiles() {
       return localPlayer(state).stockpiles;
     },
@@ -1266,7 +802,7 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
       return state.roadGrid;
     },
     get walkable() {
-      return walkable;
+      return placementCtx.walkable;
     },
     state,
     serializeSave(currentTick: number): CitadelSave {
