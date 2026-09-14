@@ -136,6 +136,10 @@ export function checkPlacement(
  * Returns a fresh Uint8Array (1 = walkable, 0 = blocked).
  * Caller caches and invalidates as needed.
  *
+ * O(width*height) — only cheap for a one-off full bake (e.g. bootstrap). A
+ * single placement/demolition should use {@link patchWalkable} instead, which
+ * recomputes only the cells a footprint actually touched (audit-10).
+ *
  * @param width       Grid width in tiles.
  * @param height      Grid height in tiles.
  * @param occ         Current occupancy grid.
@@ -156,4 +160,44 @@ export function rebuildWalkable(
     }
   }
   return grid;
+}
+
+/**
+ * Patch a walkable grid IN PLACE for exactly the cells a single footprint
+ * covers, instead of re-evaluating all `width*height` cells (audit-10).
+ *
+ * Correct as a drop-in replacement for a full {@link rebuildWalkable} call
+ * whenever the caller can name the one footprint whose occupancy just
+ * changed (a placement or a demolition): every cell OUTSIDE that footprint
+ * has an unchanged `occ.isOccupied` result and an unchanged `terrainWalkable`
+ * result (terrain is static; a caller-supplied predicate that also reads
+ * dynamic state — e.g. a road grid — must only vary within the same
+ * footprint, which holds for Citadel's road/bridge tiles: 1×1 footprints
+ * whose road-grid cell is the footprint's own origin tile).
+ *
+ * Mutates `walkable` and returns nothing — same convention as
+ * {@link OccupancyGrid.apply}/`.remove`.
+ *
+ * @param walkable    The live walkable buffer to patch (same layout as
+ *                    {@link rebuildWalkable}'s return: `ty*width+tx`, 1/0).
+ * @param occ         Current occupancy grid (post-apply/-remove for this footprint).
+ * @param fp          The footprint whose occupancy just changed.
+ * @param terrainWalkable  (tx, ty) → true if the tile's terrain is walkable.
+ */
+export function patchWalkable(
+  walkable: Uint8Array,
+  occ: OccupancyGrid,
+  fp: Footprint,
+  terrainWalkable: (tx: number, ty: number) => boolean,
+): void {
+  const { width, height } = occ;
+  for (let dy = 0; dy < fp.h; dy++) {
+    for (let dx = 0; dx < fp.w; dx++) {
+      const tx = fp.x + dx;
+      const ty = fp.y + dy;
+      if (tx < 0 || ty < 0 || tx >= width || ty >= height) continue;
+      const idx = ty * width + tx;
+      walkable[idx] = terrainWalkable(tx, ty) && !occ.isOccupied(tx, ty) ? 1 : 0;
+    }
+  }
 }

@@ -12,7 +12,8 @@
  * they return, and which predicate each walkable re-bake uses are all as they were
  * inside bootstrap.
  */
-import { checkPlacement, rebuildWalkable } from "@engine/core";
+import { checkPlacement, rebuildWalkable, patchWalkable } from "@engine/core";
+import type { Footprint } from "@engine/core";
 import type { TerrainGrid } from "../world/terrain";
 import { isWalkable, TerrainType } from "../world/terrain";
 import type { BuildingRuntimeState, GoodType } from "../entities/building";
@@ -97,15 +98,26 @@ export function isWalkableTile(state: SimState, terrain: TerrainGrid, tx: number
  * - `"roads"` — terrain OR road/bridge tiles, so a decked bridge stays crossable
  *   and a demolished one stops being.
  *
- * Every re-bake goes through here, which is the seam a batched/dirty-region
- * rebuild (audit-10) should replace.
+ * Every re-bake goes through here.
+ *
+ * audit-10: pass `fp` — the ONE footprint whose occupancy (and, for `"roads"`,
+ * road-grid cell) just changed — and this patches `ctx.walkable` in place for
+ * just that footprint's cells instead of re-scanning the whole grid. Every
+ * caller below can name that footprint (a placement's own `fp`, or a
+ * demolition's freed footprint), so `fp` is omitted only for the one-off
+ * initial bake in {@link createPlacementContext}, where `ctx.walkable` starts
+ * as a zero-length array and there is nothing yet to patch.
  */
-export function rebakeWalkable(ctx: PlacementContext, mode: "buildable" | "roads"): void {
+export function rebakeWalkable(ctx: PlacementContext, mode: "buildable" | "roads", fp?: Footprint): void {
   const { state, terrain } = ctx;
   const pred = mode === "roads"
     ? (tx: number, ty: number): boolean => isWalkableTile(state, terrain, tx, ty)
     : (tx: number, ty: number): boolean => isBuildableTile(terrain, tx, ty);
-  ctx.walkable = rebuildWalkable(state.width, state.height, state.occupancy, pred);
+  if (fp === undefined) {
+    ctx.walkable = rebuildWalkable(state.width, state.height, state.occupancy, pred);
+  } else {
+    patchWalkable(ctx.walkable, state.occupancy, fp, pred);
+  }
 }
 
 /**
@@ -278,7 +290,9 @@ export function placeOne(
     // in road tiles) keeps the bridged water tile walkable; the generic isRoad
     // block below re-sets the same cell, harmlessly.
     state.roadGrid[y * width + x] = 1;
-    rebakeWalkable(ctx, "roads");
+    // audit-10: a bridge's footprint is always 1×1 (BUILDING_DEFS.bridge), and its
+    // road-grid write above lands on that same single tile — patching fp covers it.
+    rebakeWalkable(ctx, "roads", fp);
   } else if (isGate) {
     // Gates stay walkable: bounds + terrain check only, no occupancy entry.
     for (let dy = 0; dy < def.h; dy++) {
@@ -320,7 +334,8 @@ export function placeOne(
     }
 
     occupancy.apply(fp);
-    rebakeWalkable(ctx, "buildable");
+    // audit-10: patch just this footprint instead of re-scanning the whole grid.
+    rebakeWalkable(ctx, "buildable", fp);
   }
 
   addBuildingTiles(state, x, y, def.w, def.h);

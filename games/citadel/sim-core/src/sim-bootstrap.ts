@@ -434,8 +434,13 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
         }
         // Gates were never applied to occupancy; everything else was.
         if (prod?.isGate !== true) {
-          occupancy.remove({ x: b.x, y: b.y, w: b.w, h: b.h });
-          rebakeWalkable(placementCtx, "roads");
+          const freedFp = { x: b.x, y: b.y, w: b.w, h: b.h };
+          occupancy.remove(freedFp);
+          // audit-10: patch just the freed footprint instead of a full-grid rebuild.
+          // A demolished road/bridge's road-grid cell (cleared above) is the
+          // footprint's own origin tile (roads/bridges are always 1×1), so it's
+          // inside freedFp too.
+          rebakeWalkable(placementCtx, "roads", freedFp);
         }
         if (owner !== undefined && prod?.isHousing === true && prod.housingCapacity !== undefined) {
           // Subtract the building's level-effective capacity (read level before rs is deleted).
