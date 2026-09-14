@@ -1,11 +1,28 @@
 ---
 summary: The current-state snapshot: one terse line per brief, architecture milestones, current sim/determinism behaviour, and open gaps. The single source for brief state.
-updated: 2026-08-18
+updated: 2026-09-14
 ---
 
 # Project Status
 
-Current-state **snapshot** (2026-08-18). Banners below are newest-first.
+Current-state **snapshot** (2026-08-18, banner below 2026-09-14). Banners below are newest-first.
+
+> **2026-09-14 CI exists now (audit-06) — push/PR runs `npm ci` → typecheck → test → a startup-smoke
+> gate, where before nothing ran the gates except a human remembering to.** New
+> [.github/workflows/ci.yml](../../.github/workflows/ci.yml): after the standard typecheck/test pair,
+> five more steps prove the real entry points still *start* (`build`, `sim`, `sim:citadel`,
+> `sim:hollow`, `preview`) at tiny budgets — the gate class that would have caught the `.glsl`
+> dynamic-import break decisions.md records (typecheck + 689 tests didn't). `sim:hollow`'s smoke step
+> uses `MAX_YEARS=1`, not `MAX_DAYS=1`/`TICKS_PER_DAY` like the other two sims — `tools/hollow-sim`
+> reads a different env var for run length (see `tools/hollow-sim/src/env.ts`); passing `MAX_DAYS` to
+> it silently no-ops. No `.turbo` cache is restored across CI runs (deliberate — see the workflow's own
+> comment for the condition to revisit). Root `package.json` gained an `engines.node: ">=24"` field —
+> README said "Node 20+", `infrastructure/Dockerfile` pins `node:24-alpine`, `@types/node` is pinned
+> 25.9.1, and nothing settled it; 24 matches the Dockerfile (the one pin backed by a real deploy
+> constraint) and clears both vite's and vitest's own `engines` ranges. Pairs with
+> [audit-01](../todos/2026-09-13-audit-01-turbo-cache-false-green.md)'s topological-cache fix,
+> which is why CI can use turbo normally instead of avoiding it. Spec:
+> [audit-06](../todos/2026-09-13-audit-06-ci-gate.md).
 
 > **2026-08-18 Corpus audit — the work queue was fiction and 452 links were dead.** `todos/` held 29
 > files while their own trackers recorded **24 as done**; those moved to `todos/closed/`, leaving a
