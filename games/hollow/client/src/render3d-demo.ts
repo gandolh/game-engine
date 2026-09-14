@@ -1,8 +1,8 @@
 /**
- * Standalone smoke-test harness for the 08b WebGPU 3D render layer
+ * Standalone smoke-test harness for the WebGL2 3D render layer
  * (@engine/core/render3d). NOT wired into main.ts / the sim worker — open
  * render3d-demo.html directly (see the "demo3d" package script) in a
- * WebGPU-capable Chrome to exercise this end to end.
+ * browser to exercise this end to end.
  *
  * Builds a small deterministic village from engine primitives (ground,
  * houses = box + gable roof + an emissive window quad, a cylinder well, and
@@ -10,7 +10,7 @@
  * SceneRenderer3D, wires an OrbitCamera to mouse drag/wheel, and resolves
  * clicks to a picked instance via rayFromScreen + pickNearest over each
  * instance's world-space AABB (instanceAABB) — proving the pure render3d
- * core (geometry/mat4/camera3d/pick) and the new WebGPU packing/orchestration
+ * core (geometry/mat4/camera3d/pick) and the WebGL2 packing/orchestration
  * work together, without ever needing Math.random or a sim tick (all motion
  * here is render/wall-clock only, via performance.now()).
  */

@@ -1,6 +1,6 @@
 /**
  * The screen-projection glyph/`[T]`-tag overlay (chunk hollow-09c) — a 2D
- * canvas layered above the WebGPU `#scene` canvas (cheaper for a crowd of
+ * canvas layered above the WebGL2 `#scene` canvas (cheaper for a crowd of
  * agents than a DOM node per agent — matches Citadel's overlay idiom, see
  * this brief's header). `app.ts` publishes `getAgentRenderState()`/
  * `getViewProj()` every frame; `main.ts` feeds this module the CURRENT
@@ -243,9 +243,9 @@ export function drawAgentOverlay(ctx: OverlayCtx, agents: readonly OverlayAgentI
 // ---------------------------------------------------------------------------
 
 /** Creates the overlay `<canvas>`, absolutely positioned to fill `container`
- *  and click-through (`pointer-events: none` — the WebGPU canvas beneath
+ *  and click-through (`pointer-events: none` — the WebGL2 canvas beneath
  *  still receives the click-to-inspect ray-pick). Appended as the LAST
- *  child so it paints above the WebGPU canvas. */
+ *  child so it paints above the WebGL2 canvas. */
 export function createOverlayCanvas(container: HTMLElement): HTMLCanvasElement {
   const canvas = document.createElement("canvas");
   canvas.style.position = "absolute";
