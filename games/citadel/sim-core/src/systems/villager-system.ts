@@ -24,7 +24,7 @@
  */
 import type { System, SimContext } from "@engine/core";
 import { getProductionDef } from "../entities/building";
-import type { BuildingEntity } from "../entities/building";
+import type { BuildingEntity, GoodType } from "../entities/building";
 import type { VillagerComponent } from "../entities/villager";
 import type { SimState } from "../sim-state";
 import { villagerWalkable, playerById } from "../sim-state";
@@ -65,6 +65,35 @@ const WORK_TICKS = 5;
  */
 const REPLAN_BUDGET_PER_TICK = 8;
 
+/**
+ * Audit-09: static per-building classification cached for `assign()`'s
+ * candidate scan. Deliberately excludes `workerCount`/`connected` — those
+ * stay mutable per-tick facts read LIVE via `state.buildingState.get(id)` at
+ * use time, never cached. That is what lets the cache invalidate on a plain
+ * building-count watermark (mirrors `FireSystem`'s `FireDailyIndex`, commit
+ * 892844e) without also needing a hook at every `workerCount` mutation site
+ * (`assign()`'s own `rs.workerCount++` and `removeOneVillager`'s `rs.workerCount--`
+ * in sim-state.ts, both outside this file for the increment/decrement to matter):
+ * since the count itself is never cached, both sites are already correct by
+ * construction. See `getCandidates` for the full invalidation argument.
+ */
+interface AssignCandidate {
+  readonly id: number;
+  readonly ownerId: number;
+  readonly type: string;
+  readonly cx: number;
+  readonly cy: number;
+  readonly workerSlots: number;
+  readonly outputGood: GoodType | undefined;
+}
+
+/** The four `[wantGoods, wantPrimary]` buckets `getCandidates()` groups by. */
+type TierBucketKey = "GP" | "GC" | "SP" | "SC";
+
+function tierBucketKey(wantGoods: boolean, wantPrimary: boolean): TierBucketKey {
+  return wantGoods ? (wantPrimary ? "GP" : "GC") : (wantPrimary ? "SP" : "SC");
+}
+
 export class VillagerSystem implements System {
   readonly name = "VillagerSystem";
 
@@ -76,6 +105,32 @@ export class VillagerSystem implements System {
    * command log through a fresh bootstrap, reconstructing this set identically.
    */
   private readonly pendingReplan = new Set<number>();
+
+  /**
+   * Audit-09: sim day on which an idle villager's most recent `assign()` call
+   * FAILED (no open slot found anywhere), keyed by villager id. A villager
+   * absent from this map — never yet attempted, or its last attempt
+   * SUCCEEDED (the entry is deleted on success below) — always attempts on
+   * its very next idle tick, exactly like today: only a REPEAT try after a
+   * failure is throttled, to once per sim day, so a permanently-unplaceable
+   * villager's ~17-scan search no longer reruns every tick forever. Instance
+   * state, not serialized: `loadFromSave` replays the command log through a
+   * fresh bootstrap, so this reconstructs identically from the same tick
+   * sequence (mirrors `pendingReplan` above).
+   */
+  private readonly lastFailedAssignDay = new Map<number, number>();
+
+  /**
+   * Audit-09 candidate cache (see {@link AssignCandidate}), keyed by the four
+   * `[wantGoods, wantPrimary]` buckets. `null` until first built.
+   */
+  private candidatesCache: Map<TierBucketKey, AssignCandidate[]> | null = null;
+
+  /**
+   * The `buildingWorld` "building"-query live entity count as of the last
+   * `candidatesCache` rebuild. -1 = never built. See `getCandidates`.
+   */
+  private buildingCountWatermark = -1;
 
   constructor(private readonly state: SimState) {}
 
@@ -176,9 +231,21 @@ export class VillagerSystem implements System {
 
   private step(v: VillagerComponent, ctx: SimContext): void {
     switch (v.fsm) {
-      case "idle":
-        this.assign(v);
+      case "idle": {
+        // Audit-09 backoff: skip the retry entirely if this villager already
+        // failed to place TODAY — see `lastFailedAssignDay`. A villager whose
+        // last (or only) attempt was on an earlier day, or who has never
+        // attempted, always proceeds — so a freshly-idled villager (e.g. via
+        // `releaseWorkersAt`) is never delayed by a stale entry from a
+        // previous idle spell.
+        if (this.lastFailedAssignDay.get(v.id) === this.state.day) break;
+        if (this.assign(v)) {
+          this.lastFailedAssignDay.delete(v.id);
+        } else {
+          this.lastFailedAssignDay.set(v.id, this.state.day);
+        }
         break;
+      }
       case "walkToWork":
         if (this.advance(v)) {
           v.fsm = "work";
@@ -243,21 +310,12 @@ export class VillagerSystem implements System {
    *   3. goods, primary, open slot              7. service, primary, open slot
    *   4. goods, converter, open slot            8. service, converter, open slot
    */
-  private assign(v: VillagerComponent): void {
+  private assign(v: VillagerComponent): boolean {
     const state = this.state;
 
-    // Pre-compute which building types have at least one worker.
-    // Citadel 38 P1#5: scope to the villager's OWN buildings — in MP a player's
-    // assignment priority must not be perturbed by a rival's staffing, and a
-    // villager must never assign to / haul into a rival workplace. Solo no-op.
-    const staffedTypes = new Set<string>();
-    for (const entity of state.buildingWorld.query("building")) {
-      if (entity.building.ownerId !== v.ownerId) continue;
-      const id = entity.id;
-      if (id === undefined) continue;
-      const rs = state.buildingState.get(id);
-      if (rs !== undefined && rs.workerCount > 0) staffedTypes.add(entity.building.type);
-    }
+    // Audit-09: was a full `buildingWorld.query("building")` scan (every road
+    // tile included) here PLUS one per tier per pass below — see `getCandidates`.
+    const staffedTypes = this.computeStaffedTypes(v.ownerId);
 
     // Tiers defined by [wantGoods, wantPrimary, wantUnstaffedType]. Goods-first
     // so the food/production chain always out-prioritises pure services.
@@ -278,15 +336,120 @@ export class VillagerSystem implements System {
     // skips glutted already-staffed producers; if that leaves the villager unplaced (every
     // candidate was glutted), the second pass ignores the glut so it never idles for it.
     const owner = playerById(state, v.ownerId);
-    if (this.tryAssignPass(v, staffedTypes, tiers, owner, true)) return;
-    this.tryAssignPass(v, staffedTypes, tiers, owner, false);
+    if (this.tryAssignPass(v, staffedTypes, tiers, owner, true)) return true;
     // No open slot found anywhere — remain idle.
+    return this.tryAssignPass(v, staffedTypes, tiers, owner, false);
+  }
+
+  /**
+   * Audit-09: which of the villager's own building TYPES have at least one
+   * worker (`workerCount > 0`). Scans only the cached candidate buckets
+   * (buildings with `workerSlots > 0`) instead of every `buildingWorld`
+   * entity (which also holds one per road tile). Safe to narrow the scan this
+   * way: `workerCount` is only ever incremented here in `tryAssignPass`
+   * (gated on `rs.workerCount < def.workerSlots`, so only reachable when
+   * `workerSlots >= 1`) or decremented in `sim-state.ts`'s `removeOneVillager`
+   * (which only decrements an already-positive count on a building a villager
+   * was actually stationed at, i.e. one that was staffed the same way) — no
+   * site sets `workerCount` on a `workerSlots <= 0` building (a road, a house,
+   * …), so the set of types this can ever add is identical to the original
+   * unfiltered scan's. `Set` membership doesn't care about insertion order,
+   * so this needs no order-preservation argument (unlike `tryAssignPass`).
+   */
+  private computeStaffedTypes(ownerId: number): Set<string> {
+    const state = this.state;
+    const staffed = new Set<string>();
+    for (const bucket of this.getCandidates().values()) {
+      for (const c of bucket) {
+        if (c.ownerId !== ownerId) continue;
+        const rs = state.buildingState.get(c.id);
+        if (rs !== undefined && rs.workerCount > 0) staffed.add(c.type);
+      }
+    }
+    return staffed;
+  }
+
+  /**
+   * Audit-09 candidate cache. Builds (or reuses) the static per-building
+   * classification `tryAssignPass` scans, bucketed by `[wantGoods,
+   * wantPrimary]` — the two top discriminators every tier is keyed on — so a
+   * tier pass only iterates buildings that could possibly match instead of
+   * re-filtering the whole `buildingWorld` (including every road tile) 8
+   * times per pass.
+   *
+   * Invalidation: a plain watermark on the buildingWorld's live "building"
+   * entity count (same technique as `FireSystem`'s `FireDailyIndex`, commit
+   * 892844e) — any placement or demolish changes that count and forces a full
+   * rebuild on the very next read. This is EXACT here (stronger than
+   * FireSystem's documented same-tick-place+despawn gap): the only building
+   * facts this cache holds are ones that are fixed for the building's whole
+   * lifetime (id, ownerId, type, footprint centre, workerSlots, outputGood —
+   * none of these are ever mutated post-placement), so the cache can only go
+   * stale by a building appearing or disappearing, which the count watermark
+   * catches unconditionally. `workerCount`/`connected` are NEVER cached —
+   * every read goes through `state.buildingState.get(id)` live at call time
+   * (an O(1) map lookup) — so a worker-slot filling/freeing or a road
+   * connecting/breaking is visible immediately, with no invalidation needed
+   * for it at all.
+   *
+   * Order-preservation: each bucket is appended to in the SAME order this
+   * function's single `buildingWorld.query("building")` pass encounters
+   * entities, filtered only by `[wantGoods, wantPrimary]` plus the
+   * `id`/`def`/`workerSlots` checks the original per-tier scan ALSO applied
+   * before ever comparing `wantGoods`/`wantPrimary` — so a bucket's contents,
+   * in order, are exactly what the original scan would have yielded up to
+   * that point for that tier's top two discriminators. `tryAssignPass` below
+   * applies the remaining per-tier filters (ownerId, connected, open slot,
+   * staffed/glut) as it walks the bucket, in the same order it always did —
+   * an AND of independent conditions applied in a different order selects
+   * the identical SET, and iterating that set in the bucket's (= the original
+   * scan's) order preserves the exact "first-seen wins ties" distance
+   * tie-break `tryAssignPass` depends on.
+   */
+  private getCandidates(): ReadonlyMap<TierBucketKey, readonly AssignCandidate[]> {
+    const state = this.state;
+    const liveCount = state.buildingWorld.query("building").entities.length;
+    if (this.candidatesCache === null || liveCount !== this.buildingCountWatermark) {
+      this.buildingCountWatermark = liveCount;
+      const cache = new Map<TierBucketKey, AssignCandidate[]>([
+        ["GP", []], ["GC", []], ["SP", []], ["SC", []],
+      ]);
+      for (const entity of state.buildingWorld.query("building")) {
+        const id = entity.id;
+        if (id === undefined) continue;
+        const b = entity.building;
+        const def = getProductionDef(b.type);
+        if (def === undefined || def.workerSlots <= 0) continue;
+        const producesGoods = def.outputGood !== undefined || def.inputGood !== undefined;
+        const isPrimary = def.inputGood === undefined;
+        const bucket = cache.get(tierBucketKey(producesGoods, isPrimary));
+        bucket?.push({
+          id,
+          ownerId: b.ownerId,
+          type: b.type,
+          cx: b.x + Math.floor(b.w / 2),
+          cy: b.y + Math.floor(b.h / 2),
+          workerSlots: def.workerSlots,
+          outputGood: def.outputGood,
+        });
+      }
+      this.candidatesCache = cache;
+    }
+    return this.candidatesCache;
   }
 
   /**
    * One assignment attempt over the tier ladder. `skipGlut` steers a SECOND worker away
    * from a producer whose output good is already abundant (bounded to already-staffed
    * types so bootstrap is untouched). Returns true iff the villager was assigned.
+   *
+   * Audit-09: each tier now walks only its `[wantGoods, wantPrimary]` bucket from
+   * `getCandidates()` instead of re-filtering the whole `buildingWorld` (including
+   * every road tile) — see that method's doc comment for the order-preservation
+   * argument this relies on. `workerCount`/`connected` are read LIVE off
+   * `state.buildingState.get(c.id)` exactly as before (never cached), so a slot that
+   * filled or a road that connected/broke earlier this same tier-pass, or on a
+   * previous call, is always seen correctly.
    */
   private tryAssignPass(
     v: VillagerComponent,
@@ -296,24 +459,18 @@ export class VillagerSystem implements System {
     skipGlut: boolean,
   ): boolean {
     const state = this.state;
+    const candidates = this.getCandidates();
     for (const [wantGoods, wantPrimary, wantUnstaffedType] of tiers) {
-      let best: BuildingEntity | null = null;
+      const bucket = candidates.get(tierBucketKey(wantGoods, wantPrimary)) ?? [];
+      let best: AssignCandidate | null = null;
       let bestDist = Infinity;
-      for (const entity of state.buildingWorld.query("building")) {
+      for (const c of bucket) {
         // Citadel 38 P1#5: a villager only staffs its OWN player's buildings. Solo no-op.
-        if (entity.building.ownerId !== v.ownerId) continue;
-        const id = entity.id;
-        if (id === undefined) continue;
-        const rs = state.buildingState.get(id);
+        if (c.ownerId !== v.ownerId) continue;
+        const rs = state.buildingState.get(c.id);
         if (rs === undefined || !rs.connected) continue;
-        const def = getProductionDef(entity.building.type);
-        if (def === undefined || def.workerSlots <= 0) continue;
-        if (rs.workerCount >= def.workerSlots) continue;
-        const producesGoods = def.outputGood !== undefined || def.inputGood !== undefined;
-        if (wantGoods !== producesGoods) continue;
-        const isPrimary = def.inputGood === undefined;
-        if (wantPrimary !== isPrimary) continue;
-        const typeStaffed = staffedTypes.has(entity.building.type);
+        if (rs.workerCount >= c.workerSlots) continue;
+        const typeStaffed = staffedTypes.has(c.type);
         if (wantUnstaffedType !== !typeStaffed) continue;
         // Glut-skip: a SECOND worker on an already-stocked producer is wasted labour.
         // Only for already-staffed types (bootstrap's first-of-type always staffs) and
@@ -321,30 +478,24 @@ export class VillagerSystem implements System {
         if (
           skipGlut &&
           typeStaffed &&
-          def.outputGood !== undefined &&
+          c.outputGood !== undefined &&
           owner !== undefined &&
-          owner.stockpiles[def.outputGood] >= GLUT_WORKER_DAYS * Math.max(1, owner.population)
+          owner.stockpiles[c.outputGood] >= GLUT_WORKER_DAYS * Math.max(1, owner.population)
         ) {
           continue;
         }
-        const b = entity.building;
-        const cx = b.x + Math.floor(b.w / 2);
-        const cy = b.y + Math.floor(b.h / 2);
-        const d = Math.abs(cx - v.homeX) + Math.abs(cy - v.homeY);
+        const d = Math.abs(c.cx - v.homeX) + Math.abs(c.cy - v.homeY);
         if (d < bestDist) {
           bestDist = d;
-          best = entity;
+          best = c;
         }
       }
       if (best !== null) {
-        const id = best.id;
-        if (id === undefined) return false;
-        const rs = state.buildingState.get(id);
+        const rs = state.buildingState.get(best.id);
         if (rs === undefined) return false;
         rs.workerCount++;
-        const b = best.building;
-        v.workX = b.x + Math.floor(b.w / 2);
-        v.workY = b.y + Math.floor(b.h / 2);
+        v.workX = best.cx;
+        v.workY = best.cy;
         const store = this.firstStore(v.ownerId);
         if (store !== null) {
           v.storeX = store.x;
