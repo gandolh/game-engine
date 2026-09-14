@@ -14,4 +14,5 @@ export type {
   SimSnapshotMsg,
   SimProfileMsg,
   SimAttachMsg,
+  SimFaultMsg,
 } from "./messages";

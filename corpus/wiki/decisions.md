@@ -77,6 +77,41 @@ Tech choices that are settled. Listed here so future briefs and reviews don't re
 - **AssemblyScript** for native-speed kernels — TypeScript-shaped, no native toolchain, ships as an npm package. See [engine/wasm-modules/README.md](../../engine/wasm-modules/README.md).
 - **Built artifacts committed** under `games/farm/client/public/wasm/` so fresh clones don't need to build wasm first.
 
+## Farm sim-host tick-fault policy
+
+**On a mid-tick fault, the run halts and the client is told — it does not log-and-continue.**
+(audit-17, 2026-09-13.) [`SimHost.runOneTick`](../../games/farm/server/src/sim-host.ts) used to wrap
+the whole tick body — `scheduler.tick(...)` included — in a `try` whose `catch` only logged and nulled
+`pendingShock`, after which `tick += 1` ran unconditionally. Systems run in a fixed, dependency-ordered
+sequence ([system-ordering.md](system-ordering.md)); if system N throws, systems `1..N-1` already wrote
+their mutations for that tick and `N..last` never ran — a world state no clean tick could ever produce
+(e.g. inboxes written but never drained, since `PerceiveSystem` clears them and `MarketSystem` drains
+them, both late in the order). The old code fed that corrupted state into the next tick forever, with one
+console line as the only signal, on the one game whose sim runs unattended server-side (one per WebSocket
+connection, under pm2, for 100 in-game days). `this.stop()` also lived inside that same `try`, above the
+catch, so a throw before the `gameOver` check meant a *finished* run failed to stop too.
+
+Two policies were rejected: **keep going** (a corrupted world is never better than a stopped one for an
+unattended spectator sim — nothing downstream can tell a valid trajectory from a post-fault one, and
+`CHECK_DETERMINISM` can't catch this class of bug since it compares two runs of the *same* seed that
+would fault identically), and **halt silently** (a dead run with no client-visible signal is
+indistinguishable from a frozen/stalled connection — worse than either working or loudly broken).
+
+**What shipped:** the catch now mirrors what `start()` already does on a startup fault — it logs, calls
+`this.stop()` (clears the interval, sets `stopped`), and returns without incrementing `tick`, so the
+faulted tick's partial mutations are never turned into a snapshot and no further tick runs. It also sends
+a new terminal `SimFaultMsg` (`{ type: "fault", tick, message }`, in `@farm/sim-core/protocol`) so a
+connected client knows the run crashed rather than seeing a screen that has merely stopped moving.
+`SimClient` ([net/sim-client/client.ts](../../games/farm/client/src/net/sim-client/client.ts)) exposes
+this as `faulted` / `faultMessage` / `onFault(cb)` (same shape as `owner`/`onAttach`) and shows a small
+self-contained banner ([fault-banner.ts](../../games/farm/client/src/net/sim-client/fault-banner.ts)) —
+deliberately *not* wired into `main/render-loop.ts`'s canvas UI panels, so the signal doesn't depend on
+the render loop still running.
+
+A test seam, `SimHostOptions.onSchedulerReady` (test-only; never set in production), lets tests
+`scheduler.add(...)` a throwing system without touching any real `@farm/sim-core` system — this is a
+policy fix, not a claim that any real system throws today.
+
 ## Source-of-truth for gameplay
 
 The Python SPADE prototype (XMPP + FIPA-ACL + BDI + FSM) is the gameplay spec. The TS rewrite ports the agent semantics — performative + ontology + body, BDI components, FSM states, day-clock — onto the ECS engine. When the Python design and the TS implementation disagree, the Python design wins unless explicitly overridden here.
