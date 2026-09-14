@@ -91,6 +91,7 @@ import { personaSeedToSimOptions, applyPersonaSeed, type PersonaSeed } from "@ho
 import { ONT_SHOCK, type Shock, type Intervention } from "@hollow/sim-core/protocols";
 import type { InspectDetail } from "../inspect-detail";
 import { buildInspectDetail } from "./inspect";
+import { advanceChronicleCursor } from "./chronicle-cursor";
 import { normalizeSpeedMultiplier, type SpeedMultiplier } from "../time-control";
 
 export interface WorkerInitMessage {
@@ -232,8 +233,19 @@ function postSnapshot(): void {
 function postNewEvents(): void {
   if (chronicle === null) return;
   const chronicleEvents = chronicle.events();
-  const newChronicle = chronicleEvents.length > postedEventCount ? chronicleEvents.slice(postedEventCount) : [];
-  postedEventCount = chronicleEvents.length;
+  // `postedEventCount` counts events CUMULATIVELY CAPTURED, not the live buffer
+  // length. The chronicle is a ring buffer (audit-12): past CHRONICLE_CAP its
+  // `events().length` plateaus, so comparing against the raw length would make
+  // `length > postedEventCount` permanently false and this worker would stop
+  // posting chronicle events for the rest of the session -- deterministically,
+  // on exactly the long runs the cap exists to serve.
+  const cursor = advanceChronicleCursor(
+    chronicleEvents.length,
+    chronicle.droppedCount(),
+    postedEventCount,
+  );
+  const newChronicle = chronicleEvents.slice(cursor.startIndex);
+  postedEventCount = cursor.captured;
 
   const newShock = shockEventBuffer.length > postedShockEventCount ? shockEventBuffer.slice(postedShockEventCount) : [];
   postedShockEventCount = shockEventBuffer.length;

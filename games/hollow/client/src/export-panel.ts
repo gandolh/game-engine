@@ -14,8 +14,16 @@
  * by `main.ts`'s `"requestLineage"`/`"lineage"` round trip on
  * `worker/sim-worker.ts`, the one read-only worker addition this chunk
  * makes) rather than reaching into worker plumbing itself.
- */
-import { getEvents, getMetrics } from "./research-store";
+ *
+ * `events.jsonl` honesty (audit-12): `research-store.ts`'s event buffer is
+ * capped (`CHRONICLE_CAP`) — a long or fast-forwarded run can outlive it, in
+ * which case `getEvents()` no longer holds the complete history. This panel
+ * does NOT alter `events.jsonl`'s own bytes to say so (that would break its
+ * byte-identical-with-the-CLI contract, this file's whole reason to reuse
+ * `eventsJsonl` rather than reformat anything) — instead it renders a
+ * visible, live-updating note next to the button so a drop is never silent,
+ * and it's the UI, not the export format, that's the honest place for it. */
+import { getEvents, getMetrics, getDroppedEventCount, onEvents } from "./research-store";
 import { metricsCsv, eventsJsonl, lineageJson } from "@hollow/sim-core/observe";
 import type { LineageEntry } from "@hollow/sim-core/lineage";
 import { HOLLOW_PAL } from "./render/hollow-palette";
@@ -63,18 +71,45 @@ export function triggerDownload(filename: string, content: string, mime: string,
   URL.revokeObjectURL(url);
 }
 
+/** Text for the dropped-events note — empty (nothing rendered) while the
+ *  buffer has never been capped, otherwise an explicit count of what
+ *  `events.jsonl` will be missing. Exported for direct unit coverage
+ *  without needing to drive `getDroppedEventCount()` past real ingestion. */
+export function droppedEventsNoteText(droppedCount: number): string {
+  if (droppedCount === 0) return "";
+  return `events.jsonl is missing the oldest ${droppedCount} event${droppedCount === 1 ? "" : "s"} (chronicle buffer cap reached)`;
+}
+
 /** Builds the (unattached) export-buttons row. Each button reads the
  *  CURRENT accumulated state at click time (not a snapshot taken at mount),
- *  so exporting mid-run always reflects everything captured so far. */
+ *  so exporting mid-run always reflects everything captured so far.
+ *
+ *  The events.jsonl button is paired with a live dropped-events note (audit-
+ *  12) — hidden while `getDroppedEventCount()` is 0, otherwise stating
+ *  exactly how many of the oldest events the export is missing. Updated on
+ *  mount and on every subsequent ingest (dropped count can only grow once a
+ *  run outlives the cap), so the note is never stale by the time the button
+ *  is actually clicked. */
 export function createExportPanel(opts: ExportPanelOptions): HTMLElement {
   const root = el("div", "hollow-export-panel");
 
   const metricsBtn = exportButton("Export metrics.csv", () => {
     triggerDownload("metrics.csv", metricsCsv(getMetrics()), "text/csv");
   });
+
   const eventsBtn = exportButton("Export events.jsonl", () => {
     triggerDownload("events.jsonl", eventsJsonl(getEvents()), "application/jsonl");
   });
+  const droppedNote = el("div", "hollow-export-dropped-note");
+  droppedNote.style.color = HOLLOW_PAL.rust;
+  function refreshDroppedNote(): void {
+    const text = droppedEventsNoteText(getDroppedEventCount());
+    droppedNote.textContent = text;
+    droppedNote.hidden = text === "";
+  }
+  refreshDroppedNote();
+  onEvents(refreshDroppedNote);
+
   const lineageBtn = exportButton("Export lineage.json", () => {
     void opts.requestLineage().then((entries) => {
       triggerDownload("lineage.json", lineageJson(entries), "application/json");
@@ -83,6 +118,7 @@ export function createExportPanel(opts: ExportPanelOptions): HTMLElement {
 
   root.appendChild(metricsBtn);
   root.appendChild(eventsBtn);
+  root.appendChild(droppedNote);
   root.appendChild(lineageBtn);
   return root;
 }

@@ -26,6 +26,7 @@ export {
 export {
   createChronicle,
   countByOntology,
+  CHRONICLE_CAP,
   type ChronicleEvent,
   type DeathsByCause,
   type Chronicle,
