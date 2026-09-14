@@ -127,6 +127,13 @@ function postSnapshot(): void {
 
 self.onmessage = (event: MessageEvent<WorkerInbound>) => {
   const msg = event.data;
+  // Diagnostic only (audit-28): every handler below already silently drops via `sim?.method()`
+  // (and `postSnapshot()` early-returns on `sim === null`) — that policy is UNCHANGED and is
+  // pinned by sim-worker.test.ts. This just makes a stray pre-"init" command visible instead of a
+  // totally silent no-op; it never reads/writes `sim` itself, so it can't affect state or ordering.
+  if (sim === null && msg.type !== "init") {
+    console.warn(`[mathquest worker] dropping "${msg.type}" received before "init"`);
+  }
   switch (msg.type) {
     case "init": {
       sim = bootstrapMathquestSim({ seed: msg.seed, mastery: msg.mastery, locale: msg.locale });
