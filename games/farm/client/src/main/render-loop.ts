@@ -1,19 +1,17 @@
-import { Keyboard, ParticleSystem, Profiler, RainField, expSmooth, MAX_ZOOM } from "@engine/core";
+import { Keyboard, ParticleSystem, Profiler, RainField, expSmooth } from "@engine/core";
 import { EDG } from "@engine/core";
-import type { WeatherKind, RendererLike, Camera2D } from "@engine/core";
-import { computeLayout, renderTree } from "@engine/ui";
-import type { UINode } from "@engine/ui";
+import type { RendererLike } from "@engine/core";
 import type { UIHost } from "../ui/canvas/ui-host";
-import { pushSnapshotSprites, pushOccluderSprites, pushBuildingSprites, pushBridgeSprites, frameToAtlasId, FORGE_OVEN_TILE, FORGE_CHIMNEY_PX, WEATHER_BEACON_PX, sampleCycle, cycleIndex, walkStepsBetween, ACTION_POSE, FORGE_FIRE_CLIP, FORGE_SMOKE_CLIP, WATERFALL_FALL_CLIP, CAMPFIRE_CLIP, WEATHER_BEACON_CLIP } from "@farm/sim-core/render-systems";
+import { pushSnapshotSprites, pushOccluderSprites, pushBuildingSprites, pushBridgeSprites, frameToAtlasId, walkStepsBetween, ACTION_POSE } from "@farm/sim-core/render-systems";
 import type { JuiceLayer } from "./juice";
-import { WATERFALL_TILE, CAMPFIRE_TILE, VOLCANO_CRATER_TILE, NOTICE_BOARD_TILE, AUCTION_PODIUM_TILE, isWalkable } from "@farm/sim-core/world/regions";
-import { dayFraction } from "@farm/sim-core/systems/day-phase";
-import { fractionToTimeLabel } from "../ui/canvas/world-clock";
+import { isWalkable } from "@farm/sim-core/world/regions";
+import { pushWorldDecor, spawnCropPollenParticles } from "./render-world-decor";
+import { renderUiPanels, createLayoutCache } from "./render-ui-panels";
 import { washFor, nightnessFor } from "../render/day-night";
 import { makeLightOverlay } from "../render/lights";
 import { seasonForDay } from "@farm/sim-core/protocols/weather";
 import { HOTBAR_SIZE } from "@farm/sim-core/systems/player-control";
-import { TILE, DEFAULT_ZOOM, PROFILE_ENABLED } from "./config";
+import { TILE, PROFILE_ENABLED } from "./config";
 import {
   focusedFarmerId,
   panOffset,
@@ -31,19 +29,17 @@ import {
   setLastPlayerMoveY,
   applyFocusAndPan,
 } from "./camera";
-import { screenToTile, worldToCanvasCss } from "./screen-to-tile";
+import { screenToTile } from "./screen-to-tile";
 import { createPipFarmMarker } from "./pip-farm-marker";
 import { pushWaterDecor } from "../render/water-decor";
 import { pushFishSchools } from "../render/fish-decor";
 import { frameDataUrl } from "./sprite-icon";
 import type { Panels } from "./panels";
 import type { ParticleDirector } from "./particles";
-import { hoveredSprite } from "./tooltip";
-import { TOOLTIP_CURSOR_OFFSET } from "../ui/canvas/tooltip";
-import { playbackState } from "./playback";
 import type { SimClient } from "../net/sim-client";
 import type { AmbientLayer } from "./ambient";
 import { setupProfileExport } from "./profile-export";
+import { renderWeather } from "./render-weather";
 
 
 const HELD_TOOL_ANCHOR: Record<"down" | "up" | "side", { dx: number; dy: number; behind: boolean }> = {
@@ -110,11 +106,12 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
   });
 
   let firstFrameSignaled = false;
+  // Only the panel refs render-loop.ts itself still touches directly (hotkeys, the *Ctl wrapper
+  // casts) are destructured here — every panel renderUiPanels drives now reads straight off the
+  // `panels` bundle it's passed each frame (see render-ui-panels.ts).
   const {
-    overlay, worldClock, clockRoot, hotbar, hotbarRoot, tooltip, rightColumn, rightColumnRoot,
-    leaderboard, leaderboardRoot, playback, playbackRoot, helpRoot, relationshipMatrix,
-    wealthToggle, gameOverPanel, gameOverRoot, inventory,
-    inspectPanel, inspectRoot, noticeBoard, noticeBoardRoot, standingsPost, standingsPostRoot,
+    overlay, rightColumn, leaderboard, playback, relationshipMatrix,
+    wealthToggle, gameOverPanel, inventory, inspectPanel,
   } = panels;
 
   const inspectCtl = inspectPanel as typeof inspectPanel & { setVisible(v: boolean): void };
@@ -156,8 +153,7 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
   let gameOverShown = false;
   // Layout caches: relayout a fixed-content panel on canvas-size change even when refresh() is
   // unchanged (its screen anchor depends on canvas dimensions).
-  let rcLaidOutW = -1;
-  let hbLaidOutSize = "";
+  const layoutCache = createLayoutCache();
   // Keys typed BEFORE the first game frame (home-screen seed input, loading screen) accumulate
   // in Keyboard.justPressed — nothing calls endFrame() until this loop runs — and would fire
   // hotkeys (E/J/Tab + the panel toggles) spuriously on frame 1, write-through persisting bogus
@@ -338,169 +334,20 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
     const viewTop = _camera!.centerY - _camera!.worldUnitsY / 2 - TILE;
     const viewBottom = _camera!.centerY + _camera!.worldUnitsY / 2 + TILE;
 
-    const fireFrame = sampleCycle(FORGE_FIRE_CLIP, nowMs);
-    renderer.push({
-      x: FORGE_OVEN_TILE.x * TILE + TILE / 2,
-      y: FORGE_OVEN_TILE.y * TILE + TILE / 2,
-      width: TILE,
-      height: TILE,
-      frame: fireFrame,
-      atlasId: "buildings",
-      rotation: 0,
-      layer: 41,
-      alpha: 1,
-    });
-
-    const smokeIdx = cycleIndex(FORGE_SMOKE_CLIP, nowMs);
-    const smokeFrame = sampleCycle(FORGE_SMOKE_CLIP, nowMs);
-    renderer.push({
-      x: FORGE_CHIMNEY_PX.x,
-      y: FORGE_CHIMNEY_PX.y - smokeIdx * 2,
-      width: TILE,
-      height: TILE,
-      frame: smokeFrame,
-      atlasId: "buildings",
-      rotation: 0,
-      layer: 6,
-      alpha: 0.55,
-    });
-
-    const WATERFALL_FALL_ROWS = 2;
-    for (let r = 0; r < WATERFALL_FALL_ROWS; r++) {
-
-      const frame = sampleCycle(WATERFALL_FALL_CLIP, nowMs, (3 - (r % 3)) % 3);
-      renderer.push({
-        x: WATERFALL_TILE.x * TILE + TILE / 2,
-        y: (WATERFALL_TILE.y + r) * TILE + TILE / 2,
-        width: TILE,
-        height: TILE,
-        frame,
-        atlasId: frameToAtlasId(frame),
-        rotation: 0,
-        layer: 41,
-        alpha: 1,
-      });
-    }
-
-    {
-      const wfX = WATERFALL_TILE.x * TILE + TILE / 2;
-      const wfFootY = (WATERFALL_TILE.y + WATERFALL_FALL_ROWS + 1) * TILE;
-      const wfInView =
-        wfX >= viewLeft && wfX <= viewRight && wfFootY >= viewTop && wfFootY <= viewBottom;
-      if (wfInView) {
-        if (Math.random() < 0.5) {
-          particles.emit({
-            x: wfX + (Math.random() - 0.5) * TILE * 0.8,
-            y: wfFootY,
-            count: 1, shape: "circle",
-            color: EDG.white, color2: EDG.skyBlue,
-            speedMin: 10, speedMax: 26,
-            angleMin: -Math.PI * 0.85, angleMax: -Math.PI * 0.15, 
-            lifetimeMin: 0.3, lifetimeMax: 0.6,
-            sizeMin: 0.5, sizeMax: 1.1,
-            gravity: 90, 
-          });
-        }
-        if (Math.random() < 0.25) {
-          particles.emit({
-            x: wfX + (Math.random() - 0.5) * TILE,
-            y: wfFootY - TILE * 0.3,
-            count: 1, shape: "circle",
-            color: EDG.white, color2: EDG.silver,
-            speedMin: 4, speedMax: 10,
-            angleMin: -Math.PI * 0.6, angleMax: -Math.PI * 0.4,
-            lifetimeMin: 0.8, lifetimeMax: 1.4,
-            sizeMin: 1, sizeMax: 2,
-            gravity: -6, 
-          });
-        }
-      }
-    }
-
-    const campfireFrame = sampleCycle(CAMPFIRE_CLIP, nowMs);
-    renderer.push({
-      x: CAMPFIRE_TILE.x * TILE + TILE / 2,
-      y: CAMPFIRE_TILE.y * TILE + TILE / 2,
-      width: TILE,
-      height: TILE,
-      frame: campfireFrame,
-      atlasId: "buildings",
-      rotation: 0,
-      layer: 41,
-      alpha: 1,
-    });
-
-    const beaconFrame = sampleCycle(WEATHER_BEACON_CLIP, nowMs);
-    renderer.push({
-      x: WEATHER_BEACON_PX.x,
-      y: WEATHER_BEACON_PX.y,
-      width: TILE,
-      height: TILE,
-      frame: beaconFrame,
-      atlasId: "buildings",
-      rotation: 0,
-      layer: 42,
-      alpha: 1,
-    });
-
-    {
-      const vX = VOLCANO_CRATER_TILE.x * TILE + TILE / 2;
-      const vY = VOLCANO_CRATER_TILE.y * TILE + TILE / 2;
-      const inView = vX >= viewLeft - TILE && vX <= viewRight + TILE && vY >= viewTop - TILE * 4 && vY <= viewBottom + TILE;
-      if (inView && Math.random() < 0.6) {
-        particles.emit({
-          x: vX + (Math.random() - 0.5) * TILE * 0.7,
-          y: vY,
-          count: 1, shape: "circle",
-          color: EDG.steel, color2: EDG.slate, 
-          speedMin: 6, speedMax: 16,
-          angleMin: -Math.PI * 0.62, angleMax: -Math.PI * 0.38, 
-          lifetimeMin: 1.6, lifetimeMax: 2.8,
-          sizeMin: 1.2, sizeMax: 2.6,
-          gravity: -10, 
-        });
-      }
-    }
+    pushWorldDecor(renderer, particles, nowMs, { left: viewLeft, right: viewRight, top: viewTop, bottom: viewBottom });
 
     particleDirector.emitFromDiff(farmerPositions);
 
-    if (Math.random() < 0.15) {
-      const snap = client.latestSnapshot();
-      if (snap) {
-        for (const s of snap.sprites) {
-          if (s.id === null && s.frame.includes("/mature") && Math.random() < 0.05) {
-            particles.emit({
-              x: s.x + (Math.random() - 0.5) * 8,
-              y: s.y - 4,
-              count: 1,
-              shape: "circle",
-              color: EDG.green, color2: EDG.green,
-              speedMin: 3, speedMax: 8,
-              angleMin: -Math.PI * 0.8, angleMax: -Math.PI * 0.2,
-              lifetimeMin: 0.8, lifetimeMax: 1.4,
-              sizeMin: 1, sizeMax: 2,
-              gravity: -5,
-            });
-          }
-        }
-      }
-    }
+    spawnCropPollenParticles(particles, client.latestSnapshot());
 
     frameProfiler.time("weather", () => {
-      const w = client.latestSnapshot()?.weather;
-      const isWinter = w?.season === "winter";
-      const isWet = w?.condition === "rainy" || w?.condition === "storm";
-      const isStorm = w?.condition === "storm";
-      let kind: WeatherKind = "none";
-      let intensity = 0;
-      let color: string = EDG.skyBlue;
-      if (isWet && isWinter) {
-        kind = "snow"; intensity = isStorm ? 1.0 : 0.6; color = EDG.white;
-      } else if (isWet) {
-        kind = "rain"; intensity = isStorm ? 1.3 : 0.8; color = EDG.skyBlue;
-      }
-      rain.setConfig({ kind, intensity, color, alpha: kind === "snow" ? 0.85 : 0.5 });
-      rain.update(dt, { left: viewLeft, right: viewRight, top: viewTop, bottom: viewBottom }, spawnRainSplash);
+      renderWeather(
+        client.latestSnapshot()?.weather,
+        rain,
+        { left: viewLeft, right: viewRight, top: viewTop, bottom: viewBottom },
+        dt,
+        spawnRainSplash,
+      );
     });
 
     frameProfiler.time("particles.update", () => particles.update(dt));
@@ -714,247 +561,12 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
     // after renderTree (they need up-to-date rects) and before surface.end(). This mirrors the
     // Citadel main.ts UI-driving block (one surface, many roots, each anchored independently).
     frameProfiler.time("panels", () => {
-      const surface = uiHost.surface;
-      surface.begin();
-
-      // World clock — top-centre.
-      if (worldClock.refresh({ tick: client.tick, ticksPerDay, day: client.day })) {
-        computeLayout(worldClock.root, 0, 0);
-        const cx = Math.max(0, (canvas.clientWidth - worldClock.root.rect.width) / 2);
-        computeLayout(worldClock.root, cx, 0);
-        clockRoot.mirror?.update(worldClock.root);
-      }
-      renderTree(surface, worldClock.root);
-
-      // Right column (observer + slate + event feed) — pinned top-right.
-      const obs = client.observer;
-      if (obs !== null) {
-        const rcChanged = rightColumn.refresh({
-          observer: obs,
-          slate: client.slate,
-          events: client.events,
-          relationships: client.relationships,
-          wealthSeries: client.wealthSeries,
-        });
-        if (rcChanged || rcLaidOutW !== canvas.clientWidth) {
-          computeLayout(rightColumn.root, 0, 0);
-          rcLaidOutW = canvas.clientWidth;
-          const rx = Math.max(0, canvas.clientWidth - rightColumn.root.rect.width - 8);
-          computeLayout(rightColumn.root, rx, 40);
-          rightColumnRoot.mirror?.update(rightColumn.root);
-        }
-        renderTree(surface, rightColumn.root);
-        // (Slate crop icons + stock-bar fills now paint via an overlay custom node inside the tree,
-        // so `renderTree` above already drew them — no separate icon pass here.)
-      }
-
-      // (Relationship matrix + wealth graph/toggle are DOCKED inside the right column now — they
-      // refresh + render + a11y-mirror through rightColumn above, so there is no separate bottom-left
-      // pass here. The R/G hotkeys below still drive their own collapse toggles.)
-
-      // Hotbar — bottom-centre.
-      if (hotbar.refresh(client.playerHotbar)) {
-        computeLayout(hotbar.root, 0, 0);
-        const hx = Math.max(0, (canvas.clientWidth - hotbar.root.rect.width) / 2);
-        const hy = Math.max(0, canvas.clientHeight - hotbar.root.rect.height - 8);
-        computeLayout(hotbar.root, hx, hy);
-        hotbarRoot.mirror?.update(hotbar.root);
-      } else if (hbLaidOutSize !== `${canvas.clientWidth}x${canvas.clientHeight}`) {
-        computeLayout(hotbar.root, 0, 0);
-        const hx = Math.max(0, (canvas.clientWidth - hotbar.root.rect.width) / 2);
-        const hy = Math.max(0, canvas.clientHeight - hotbar.root.rect.height - 8);
-        computeLayout(hotbar.root, hx, hy);
-        hbLaidOutSize = `${canvas.clientWidth}x${canvas.clientHeight}`;
-      }
-      renderTree(surface, hotbar.root);
-      // (Slot icons, selected border, and drag ghost paint via the hotbar's overlay custom node,
-      // already drawn by renderTree above — no separate icon/ghost pass here.)
-      applyToolCursor();
-
-      // Playback controls — bottom-right (owner only; the a11y root is inert while hidden).
-      if (client.owner) {
-        if (playback.refresh({ paused: playbackState.paused, speed: playbackState.speed })) {
-          computeLayout(playback.root, 0, 0);
-          const px = Math.max(0, canvas.clientWidth - playback.root.rect.width - 8);
-          const py = Math.max(0, canvas.clientHeight - playback.root.rect.height - 8);
-          computeLayout(playback.root, px, py);
-          playbackRoot.mirror?.update(playback.root);
-        }
-        renderTree(surface, playback.root);
-      }
-
-      // Leaderboard — centred overlay, open on Tab.
-      if (leaderboardCtl.isOpen()) {
-        if (leaderboard.refresh(client.leaderboard)) {
-          computeLayout(leaderboard.root, 0, 0);
-          const lx = Math.max(0, (canvas.clientWidth - leaderboard.root.rect.width) / 2);
-          const ly = Math.max(0, (canvas.clientHeight - leaderboard.root.rect.height) / 2);
-          computeLayout(leaderboard.root, lx, ly);
-          leaderboardRoot.mirror?.update(leaderboard.root);
-        }
-        renderTree(surface, leaderboard.root);
-      }
-
-      // Inventory modal — centred (its own drag listeners live in the panel).
-      const invRoot = inventory.getRoot();
-      if (invRoot !== null) {
-        if (inventory.refresh(client.playerInventory)) {
-          computeLayout(invRoot, 0, 0);
-          const ix = Math.max(0, (canvas.clientWidth - invRoot.rect.width) / 2);
-          const iy = Math.max(0, (canvas.clientHeight - invRoot.rect.height) / 2);
-          computeLayout(invRoot, ix, iy);
-          inventory.rootHandle.mirror?.update(invRoot);
-        }
-        renderTree(surface, invRoot);
-        // (Slot icons, selected borders, and drag ghost paint via the inventory's overlay custom
-        // node, already drawn by renderTree above — no separate icon/ghost pass here.)
-      }
-
-      // Hover tooltip — anchored near the cursor, drawn late so it sits over other panels.
-      // Reuses this frame's interpolatedSprites; a second getInterpolatedSprites() call here would
-      // double-decrement hitstopFramesLeft and halve the intended hitstop duration.
-      const hovered = hoveredSprite(canvas, interpolatedSprites, _camera);
-      if (tooltip.refresh({ label: hovered?.label ?? null, description: hovered?.description ?? null })) {
-        // laid out below, unconditionally, since its anchor tracks the moving cursor.
-      }
-      if (tooltip.isVisible()) {
-        computeLayout(tooltip.root, mousePos.x + TOOLTIP_CURSOR_OFFSET.dx, mousePos.y + TOOLTIP_CURSOR_OFFSET.dy);
-        renderTree(surface, tooltip.root);
-      }
-
-      // World-anchored inspect card (reinvention): while a farmer is followed, float a live detail
-      // card ABOVE them, tracking their world position each frame (world → canvas CSS px). Data from
-      // the observer snapshot (no new sim state). Hidden when nothing is followed or the followed
-      // farmer isn't in the observer set / not on-screen.
-      {
-        const obsData = client.observer;
-        const followed = focusedFarmerId !== null ? farmerPositions.get(focusedFarmerId) : undefined;
-        const farmerRow = obsData?.farmers.find((f) => f.id === focusedFarmerId);
-        // The floating inspect card only reads well when the subject sprite is large, so show it
-        // ONLY near the max zoom-in (within 5% of MAX_ZOOM); at any wider zoom it's hidden. Below
-        // that threshold the farmer detail still lives in the (openable) Farmers panel.
-        const nearMaxZoom = zoom >= MAX_ZOOM * 0.95;
-        if (_camera !== null && followed !== undefined && farmerRow !== undefined && nearMaxZoom) {
-          inspectCtl.setVisible(true);
-          const changed = inspectPanel.refresh({
-            name: farmerRow.name,
-            personality: farmerRow.personality,
-            gold: farmerRow.gold,
-            fsm: farmerRow.fsm,
-            apCurrent: farmerRow.apCurrent,
-            apMax: farmerRow.apMax,
-            region: farmerRow.region,
-            currentIntention: farmerRow.currentIntention,
-          });
-          // Scale the card with the camera zoom so it stays proportional to its subject sprite —
-          // a fixed screen-size card dwarfs a tiny zoomed-out farmer and reads as detached (the
-          // "inspect card too big / offset" report). `k = 1` at the default zoom; clamped to a
-          // legibility floor and a not-gigantic ceiling.
-          const k = Math.max(0.6, Math.min(1.2, 0.85 * (zoom / DEFAULT_ZOOM)));
-          inspectPanel.setScale(k);
-          // Anchor above the farmer's head: measure, then place centred over the subject. The
-          // vertical gap is expressed in WORLD units (converted through the SAME worldToCanvasCss
-          // as the anchor), so the card hugs the sprite's head at every zoom instead of floating a
-          // fixed pixel gap that detaches when zoomed out.
-          computeLayout(inspectPanel.root, 0, 0);
-          const headAnchor = worldToCanvasCss(_camera, canvas, followed.x, followed.y - TILE * 1.3);
-          const ax = headAnchor.x - inspectPanel.root.rect.width / 2;
-          const ay = headAnchor.y - inspectPanel.root.rect.height;
-          computeLayout(inspectPanel.root, ax, ay);
-          if (changed) inspectRoot.mirror?.update(inspectPanel.root);
-          renderTree(surface, inspectPanel.root);
-        } else {
-          inspectCtl.setVisible(false);
-        }
-      }
-
-      // Diegetic HUD (reinvention): the notice-board (events) + standings post (day/time + top-3)
-      // live in the world — anchored over their structures (world → canvas CSS px) so they read as
-      // in-world signage and track the camera. Pressing J summons both to screen-centre instead.
-      {
-        const noticeChanged = noticeBoard.refresh({ events: client.events });
-        const timeLabel = fractionToTimeLabel(dayFraction(client.tick, ticksPerDay));
-        const standingsChanged = standingsPost.refresh({
-          day: client.day,
-          timeLabel,
-          rows: client.leaderboard,
-        });
-
-        if (hudSummoned) {
-          // Summoned: stack both centred (measure → re-anchor), notice-board above standings.
-          computeLayout(noticeBoard.root, 0, 0);
-          computeLayout(standingsPost.root, 0, 0);
-          const totalH = noticeBoard.root.rect.height + standingsPost.root.rect.height + 8;
-          const topY = Math.max(0, (canvas.clientHeight - totalH) / 2);
-          const nx = Math.max(0, (canvas.clientWidth - noticeBoard.root.rect.width) / 2);
-          computeLayout(noticeBoard.root, nx, topY);
-          const sx = Math.max(0, (canvas.clientWidth - standingsPost.root.rect.width) / 2);
-          computeLayout(standingsPost.root, sx, topY + noticeBoard.root.rect.height + 8);
-        } else if (_camera !== null) {
-          // World-anchored: float each panel above its structure's tile centre.
-          computeLayout(noticeBoard.root, 0, 0);
-          const nb = worldToCanvasCss(
-            _camera, canvas,
-            NOTICE_BOARD_TILE.x * TILE + TILE / 2, NOTICE_BOARD_TILE.y * TILE,
-          );
-          computeLayout(noticeBoard.root, nb.x - noticeBoard.root.rect.width / 2, nb.y - noticeBoard.root.rect.height - TILE);
-          computeLayout(standingsPost.root, 0, 0);
-          const sp = worldToCanvasCss(
-            _camera, canvas,
-            AUCTION_PODIUM_TILE.x * TILE + TILE / 2, AUCTION_PODIUM_TILE.y * TILE,
-          );
-          computeLayout(standingsPost.root, sp.x - standingsPost.root.rect.width / 2, sp.y - standingsPost.root.rect.height - TILE);
-        }
-        if (noticeChanged) noticeBoardRoot.mirror?.update(noticeBoard.root);
-        if (standingsChanged) standingsPostRoot.mirror?.update(standingsPost.root);
-        renderTree(surface, noticeBoard.root);
-        renderTree(surface, standingsPost.root);
-      }
-
-      // Pip's-farm marker — a screen-space pin above Pip's home plot, shown only once the camera
-      // is zoomed out enough that the 21 farms are otherwise indistinguishable (todo
-      // pip-farm-zoom-out-highlight). Now folded into the widget tree as a custom node: it still
-      // draws in absolute screen-space from the live camera (the node rect is vestigial), but flows
-      // through renderTree like every other panel instead of a bespoke post-pass.
-      if (_camera !== null) {
-        pipMarker.setFrame(_camera, canvas, zoom, nowMs);
-        computeLayout(pipMarker.root, 0, 0);
-        renderTree(surface, pipMarker.root);
-      }
-
-      // Help modal — centred, top-most non-terminal overlay.
-      const helpRootNode = playback.getHelpRoot();
-      if (helpRootNode !== null) {
-        computeLayout(helpRootNode, 0, 0);
-        const hx = Math.max(0, (canvas.clientWidth - helpRootNode.rect.width) / 2);
-        const hy = Math.max(0, (canvas.clientHeight - helpRootNode.rect.height) / 2);
-        computeLayout(helpRootNode, hx, hy);
-        helpRoot.mirror?.update(helpRootNode);
-        renderTree(surface, helpRootNode);
-      }
-
-      // Game over — centred, drawn LAST so it overlays everything when the run ends.
-      if (gameOverCtl.isOpen()) {
-        const final = client.finalSummary;
-        if (final !== null) {
-          if (gameOverPanel.refresh({
-            rows: final,
-            finalDay: snap?.day ?? 0,
-            seed,
-            recap: client.recap,
-            shareStatus: getShareStatus(),
-          })) {
-            computeLayout(gameOverPanel.root, 0, 0);
-            const gx = Math.max(0, (canvas.clientWidth - gameOverPanel.root.rect.width) / 2);
-            const gy = Math.max(0, (canvas.clientHeight - gameOverPanel.root.rect.height) / 2);
-            computeLayout(gameOverPanel.root, gx, gy);
-            gameOverRoot.mirror?.update(gameOverPanel.root);
-          }
-          renderTree(surface, gameOverPanel.root);
-        }
-      }
-
-      surface.end();
+      renderUiPanels(panels, {
+        surface: uiHost.surface, canvas, camera: _camera, zoom, nowMs, ticksPerDay, seed,
+        mousePos, interpolatedSprites, focusedFarmerId, farmerPositions, hudSummoned,
+        client, snap, getShareStatus, applyToolCursor, layoutCache,
+        leaderboardCtl, gameOverCtl, inspectCtl, pipMarker,
+      });
     });
 
     frameProfiler.time("render.endFrame", () => renderer.endFrame(wash, particles, rain, lightOverlay));
