@@ -15,6 +15,7 @@ import {
   easeQuad,
   syncAppearMap,
   buildingKey,
+  appearTileKey,
   bobOffset,
   BOB_AMPLITUDE_PX,
   gaitOffset,
@@ -108,27 +109,45 @@ describe("placementScale", () => {
 
 describe("syncAppearMap", () => {
   it("records first-seen ms for new buildings only", () => {
-    const map = new Map<string, number>();
+    const map = new Map<number, number>();
     const a = building({ type: "house", x: 1, y: 1 });
     syncAppearMap(map, [a], 100);
-    expect(map.get(buildingKey(a))).toBe(100);
+    expect(map.get(appearTileKey(a))).toBe(100);
     // Re-seen at a later time keeps the original timestamp.
     syncAppearMap(map, [a], 500);
-    expect(map.get(buildingKey(a))).toBe(100);
+    expect(map.get(appearTileKey(a))).toBe(100);
   });
 
   it("drops keys for demolished buildings (so rebuild re-triggers)", () => {
-    const map = new Map<string, number>();
+    const map = new Map<number, number>();
     const a = building({ type: "house", x: 1, y: 1 });
     syncAppearMap(map, [a], 100);
     syncAppearMap(map, [], 200);
-    expect(map.has(buildingKey(a))).toBe(false);
+    expect(map.has(appearTileKey(a))).toBe(false);
     // Rebuild at the same cell gets a fresh timestamp.
     syncAppearMap(map, [a], 300);
-    expect(map.get(buildingKey(a))).toBe(300);
+    expect(map.get(appearTileKey(a))).toBe(300);
   });
 
-  it("keys distinguish position and type", () => {
+  it("drops the key the instant demolish removes the building, even mid-batch (build then demolish in the same sync is a demolish)", () => {
+    // audit-13 regression: the memoized appear-map is keyed by TILE, not
+    // type, so a demolish+different-type-rebuild across separate snapshots
+    // must still be treated as a fresh appearance (not a stale carry-over).
+    const map = new Map<number, number>();
+    const road = building({ type: "road", x: 4, y: 4 });
+    syncAppearMap(map, [road], 100);
+    expect(map.get(appearTileKey(road))).toBe(100);
+    // Demolished (tile now empty).
+    syncAppearMap(map, [], 200);
+    expect(map.has(appearTileKey(road))).toBe(false);
+    // A DIFFERENT building type rebuilt at the same tile gets a fresh ease-in.
+    const house = building({ type: "house", x: 4, y: 4 });
+    syncAppearMap(map, [house], 300);
+    expect(map.get(appearTileKey(house))).toBe(300);
+  });
+
+  it("packed tile keys distinguish position (buildingKey, the string form used by capped emitter maps, additionally distinguishes type)", () => {
+    expect(appearTileKey({ x: 1, y: 2 })).not.toBe(appearTileKey({ x: 2, y: 2 }));
     expect(buildingKey({ x: 1, y: 2, type: "farm" })).not.toBe(buildingKey({ x: 1, y: 2, type: "mill" }));
     expect(buildingKey({ x: 1, y: 2, type: "farm" })).not.toBe(buildingKey({ x: 2, y: 2, type: "farm" }));
   });

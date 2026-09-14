@@ -26,6 +26,7 @@ import type { ParticleSystem, Rng } from "@engine/core";
 import { TILE_SIZE } from "@citadel/sim-core";
 import type { BuildingSnapshot, VillagerSnapshot } from "@citadel/sim-core";
 import { villagerQuad, packTint, type QuadSpec } from "./citadel-renderer";
+import { tileKey } from "./autotile";
 
 // ---------------------------------------------------------------------------
 // Placement ease-in (pure, tested)
@@ -66,19 +67,42 @@ export function buildingKey(b: Pick<BuildingSnapshot, "x" | "y" | "type">): stri
 }
 
 /**
+ * Packed integer identity for a building's ORIGIN tile (audit-13). A drop-in,
+ * allocation-free replacement for `buildingKey` in the two per-frame,
+ * town-size-scaling trackers below (`syncAppearMap`'s appear map and
+ * render-loop.ts's burning-since map): those built a fresh
+ * `` `${x},${y},${type}` `` template string per building per frame — ~800+800
+ * string allocations/sec in a mature town. Reuses autotile.ts's `tileKey`
+ * (already proven safe against the off-grid-probe collision bug documented
+ * there), so this is the SAME packing idiom, not a new one.
+ *
+ * `type` is deliberately dropped from the key: only one building can occupy a
+ * given origin tile at a time, and both trackers already delete a tile's entry
+ * the instant no building covers it (demolish) — so a later build of a
+ * DIFFERENT type at that tile still gets a fresh timestamp via the
+ * delete-then-add cycle, without needing `type` to disambiguate. (`buildingKey`
+ * above keeps the string x,y,type form for `CitadelSmoke`/`CitadelFire`'s
+ * emitter maps, which are internally capped and don't scale with town size.)
+ */
+export function appearTileKey(b: Pick<BuildingSnapshot, "x" | "y">): number {
+  return tileKey(b.x, b.y);
+}
+
+/**
  * Diff this frame's buildings against the appear-timestamp map, recording a
  * `nowMs` timestamp for any building key not seen before, and dropping keys for
  * buildings that no longer exist (so demolish→rebuild re-triggers the ease).
- * Mutates `appearAt` in place. Render-only — no sim, no RNG.
+ * Mutates `appearAt` in place. Render-only — no sim, no RNG. Keyed by
+ * {@link appearTileKey} (a packed int, not a template string — audit-13).
  */
 export function syncAppearMap(
-  appearAt: Map<string, number>,
+  appearAt: Map<number, number>,
   buildings: readonly BuildingSnapshot[],
   nowMs: number,
 ): void {
-  const present = new Set<string>();
+  const present = new Set<number>();
   for (const b of buildings) {
-    const key = buildingKey(b);
+    const key = appearTileKey(b);
     present.add(key);
     if (!appearAt.has(key)) appearAt.set(key, nowMs);
   }

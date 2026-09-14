@@ -41,14 +41,18 @@ export const raiderInterp = new EntityInterpolator(scaleTicks(RAIDER_MOVE_INTERV
 //  - particles: chimney smoke, rendered by the GPU particle pass via endFrame
 //  - fxRng: render-side RNG (seeded off a constant) for smoke jitter ONLY —
 //    never the sim RNG, never Math.random in sim-construable code.
-//  - appearAt: building-key → first-seen render-clock ms, for the placement ease.
+//  - appearAt: packed origin-tile key (citadel-fx.ts's appearTileKey) →
+//    first-seen render-clock ms, for the placement ease.
 export const particles = new ParticleSystem();
 const fxRng = createRng(0x5117_c0de);
 export const smoke = new CitadelSmoke(particles, fxRng);
 // art-07: fire ember + fire-smoke emitter (its own render-side RNG fork so its
 // jitter never perturbs the smoke emitter's stream). Render-only, off-sim.
 export const fire = new CitadelFire(particles, createRng(0xf1_2e_00d5));
-export const appearAt = new Map<string, number>();
-//  - burningSince: building-key → render-clock ms a fire first started, so the
-//    brief-24 soot overlay can ramp ("accumulate") while a building burns.
-export const burningSince = new Map<string, number>();
+// audit-13: keyed by packed int (appearTileKey), not a `${x},${y},${type}`
+// template string — was ~800 string allocations/sec in a mature town.
+export const appearAt = new Map<number, number>();
+//  - burningSince: packed origin-tile key → render-clock ms a fire first
+//    started, so the brief-24 soot overlay can ramp ("accumulate") while a
+//    building burns. Same audit-13 packed-int keying as appearAt.
+export const burningSince = new Map<number, number>();
