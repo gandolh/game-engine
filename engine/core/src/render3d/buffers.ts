@@ -123,15 +123,31 @@ export function packMesh(
   return { vertices, indices, vertexCount, indexCount: indices.length };
 }
 
+/** Write one instance's model matrix + tint directly into `out` at `offset`
+ *  (16 model floats + 4 tint floats, matching {@link FLOATS_PER_INSTANCE}) —
+ *  no intermediate allocation. This is the shared core {@link packInstance}
+ *  and {@link packInstances} both call. */
+export function writeInstanceInto(
+  out: Float32Array,
+  offset: number,
+  model: Mat4,
+  tint: readonly [number, number, number, number],
+): void {
+  out.set(model, offset);
+  out[offset + 16] = tint[0];
+  out[offset + 17] = tint[1];
+  out[offset + 18] = tint[2];
+  out[offset + 19] = tint[3];
+}
+
 /** Pack one instance's model matrix + tint into a 20-float row (16 model +
- *  4 tint, matching {@link FLOATS_PER_INSTANCE}). */
+ *  4 tint, matching {@link FLOATS_PER_INSTANCE}). Kept for the
+ *  single-instance/test path — {@link packInstances} writes straight into its
+ *  own output buffer via {@link writeInstanceInto} instead of allocating one
+ *  of these per instance. */
 export function packInstance(model: Mat4, tint: readonly [number, number, number, number]): Float32Array {
   const out = new Float32Array(FLOATS_PER_INSTANCE);
-  out.set(model, 0);
-  out[16] = tint[0];
-  out[17] = tint[1];
-  out[18] = tint[2];
-  out[19] = tint[3];
+  writeInstanceInto(out, 0, model, tint);
   return out;
 }
 
@@ -141,12 +157,14 @@ export interface InstanceInput {
   readonly tint: readonly [number, number, number, number];
 }
 
-/** Concatenate `packInstance` rows for a list of instances into one buffer,
- *  ready to upload as the per-instance vertex buffer. */
+/** Concatenate packed instance rows for a list of instances into one buffer,
+ *  ready to upload as the per-instance vertex buffer. Writes each instance
+ *  directly into the shared output buffer (via {@link writeInstanceInto})
+ *  instead of allocating and copying a throwaway row per instance. */
 export function packInstances(list: readonly InstanceInput[]): Float32Array {
   const out = new Float32Array(list.length * FLOATS_PER_INSTANCE);
   list.forEach((inst, i) => {
-    out.set(packInstance(inst.model, inst.tint), i * FLOATS_PER_INSTANCE);
+    writeInstanceInto(out, i * FLOATS_PER_INSTANCE, inst.model, inst.tint);
   });
   return out;
 }
