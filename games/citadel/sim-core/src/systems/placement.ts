@@ -143,20 +143,25 @@ export function createPlacementContext(args: {
   return ctx;
 }
 
-/** Mark a building's footprint tiles in the buildingTiles set. */
-export function addBuildingTiles(state: SimState, x: number, y: number, w: number, h: number): void {
+/**
+ * Mark a building's footprint tiles in the `buildingTiles` tile→building index,
+ * pointing every covered tile at `id` (audit-14: `buildingTiles` is now
+ * `Map<tileIdx, buildingId>`, not a bare occupancy `Set`). `id` is the ECS id
+ * `state.buildingWorld.spawn(...)` just assigned — call this AFTER spawning.
+ */
+export function addBuildingTiles(state: SimState, x: number, y: number, w: number, h: number, id: number): void {
   for (let dy = 0; dy < h; dy++) {
     for (let dx = 0; dx < w; dx++) {
       const tx = x + dx;
       const ty = y + dy;
       if (tx >= 0 && ty >= 0 && tx < state.width && ty < state.height) {
-        state.buildingTiles.add(ty * state.width + tx);
+        state.buildingTiles.set(ty * state.width + tx, id);
       }
     }
   }
 }
 
-/** Clear a building's footprint tiles from the buildingTiles set (demolition). */
+/** Clear a building's footprint tiles from the buildingTiles index (demolition). */
 export function removeBuildingTiles(state: SimState, x: number, y: number, w: number, h: number): void {
   for (let dy = 0; dy < h; dy++) {
     for (let dx = 0; dx < w; dx++) {
@@ -338,13 +343,15 @@ export function placeOne(
     rebakeWalkable(ctx, "buildable", fp);
   }
 
-  addBuildingTiles(state, x, y, def.w, def.h);
-
   const entity = state.buildingWorld.spawn({
     building: { type: buildingType, x, y, w: def.w, h: def.h, ownerId: lp.id },
   });
   if (entity.id !== undefined) {
     state.buildingState.set(entity.id, freshRuntime());
+    // audit-14: needs the id, so this can only happen after spawn (was
+    // unconditional before spawn existed; entity.id is always assigned by
+    // World.spawn, so this guard is never actually false in practice).
+    addBuildingTiles(state, x, y, def.w, def.h, entity.id);
   }
   if (prod?.isRoad === true) {
     state.roadGrid[y * width + x] = 1;

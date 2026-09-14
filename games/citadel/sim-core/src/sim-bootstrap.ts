@@ -310,7 +310,7 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
     villagerWorld,
     occupancy,
     roadGrid: new Uint8Array(WORLD_WIDTH * WORLD_HEIGHT),
-    buildingTiles: new Set<number>(),
+    buildingTiles: new Map<number, number>(),
     buildingState: new Map<number, BuildingRuntimeState>(),
     nextVillagerId: 1,
     connectivityDirty: true,

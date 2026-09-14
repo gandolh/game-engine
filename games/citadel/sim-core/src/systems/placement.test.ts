@@ -39,7 +39,7 @@ function makeState(width = 32, height = 32): SimState {
     villagerWorld: new World<VillagerEntity>(),
     occupancy: new OccupancyGrid(width, height),
     roadGrid: new Uint8Array(width * height),
-    buildingTiles: new Set<number>(),
+    buildingTiles: new Map<number, number>(),
     buildingState: new Map(),
     nextVillagerId: 1,
     connectivityDirty: true,

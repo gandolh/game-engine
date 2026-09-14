@@ -12,6 +12,7 @@ import { jobForBuildingType } from "../entities/building";
 import type { BuildingRuntimeState } from "../entities/building";
 import type { SimState } from "../sim-state";
 import { NeedsHappinessSystem } from "./needs-happiness";
+import { addBuildingTiles } from "./placement";
 import type { CitadelCommand } from "../snapshot/index";
 
 const SEED = 0xc17ade1;
@@ -34,6 +35,11 @@ function addTestBuilding(state: SimState, type: string, x: number, y: number, ow
     level: 1,
   };
   state.buildingState.set(entity.id!, rs);
+  // audit-14: this bypasses placeOne (the only production path), so it must do
+  // placeOne's other job itself — register the footprint in the persistent
+  // buildingTiles tile→id index, or this building is invisible to
+  // getVillagers'/getBuildings' occupancy/job/mood lookups.
+  addBuildingTiles(state, x, y, 2, 2, entity.id!);
   return entity.id!;
 }
 

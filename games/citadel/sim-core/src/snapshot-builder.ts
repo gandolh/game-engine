@@ -12,11 +12,16 @@
  * occupancy/mood/job derivations, and every field on the returned snapshots
  * are exactly as they were inside `bootstrapSim`.
  *
- * Handoff for audit-14 (persistent tile→building index): `getBuildings` and
- * `getVillagers` each rebuild a footprint tile→id `Map` from scratch every
- * call (the `tileToBuilding` / `tileToType` + `tileToBuildingId` passes below)
- * — that's the seam to replace with one persistent index maintained by
- * `placeOne`/demolish instead of three rebuilt maps per snapshot.
+ * audit-14: `getBuildings` and `getVillagers` used to each rebuild a footprint
+ * tile→id `Map` from scratch every call (the `tileToBuilding` / `tileToType` +
+ * `tileToBuildingId` passes this file used to have). Both now read
+ * `state.buildingTiles` — a single persistent tile→building-id index
+ * maintained incrementally in `systems/placement.ts` (`addBuildingTiles`/
+ * `removeBuildingTiles`) and at every destroy site (army/fire/siege), see the
+ * doc comment on `SimState.buildingTiles` in `sim-state.ts` for how those
+ * destroy sites needed zero edits. `getVillagers` still does one O(buildings)
+ * pass (not O(footprint tiles)) to map id→type, since type isn't stored
+ * per-tile or on `BuildingRuntimeState`.
  */
 import type { DayClockSystem } from "./systems/day-clock";
 import type { BuildingSnapshot, VillagerSnapshot, RenderSnapshot } from "./snapshot/index";
@@ -35,29 +40,18 @@ export function getBuildings(state: SimState): readonly BuildingSnapshot[] {
   // Per-building occupancy (render/HUD): tally STATIONARY villagers onto the
   // building they're at — idle residents at their home tile, workers at their
   // workplace tile. Travelling villagers (the walk states) are on the road and
-  // counted nowhere here, so Σ occupancy + in-transit == population. Build a
-  // footprint tile→entityId index once, then one pass over villagers.
+  // counted nowhere here, so Σ occupancy + in-transit == population.
+  // audit-14: `state.buildingTiles` is the persistent tile→building-id index
+  // (see its doc comment in sim-state.ts) — one O(1) lookup per villager,
+  // no per-snapshot footprint walk.
   const occByBuilding = new Map<number, number>();
-  const tileToBuilding = new Map<number, number>();
-  for (const entity of state.buildingWorld.query("building")) {
-    if (entity.id === undefined) continue;
-    const b = entity.building;
-    for (let dy = 0; dy < b.h; dy++) {
-      for (let dx = 0; dx < b.w; dx++) {
-        const tx = b.x + dx;
-        const ty = b.y + dy;
-        if (tx < 0 || ty < 0 || tx >= state.width || ty >= state.height) continue;
-        tileToBuilding.set(ty * state.width + tx, entity.id);
-      }
-    }
-  }
   for (const entity of state.villagerWorld.query("villager")) {
     const v = entity.villager;
     if (isTravellingFsm(v.fsm)) continue; // on the road, not at a building
     // idle → at home; work → at workplace. (Other stationary cases fall back
     // to home so a villager is always attributed somewhere it's standing.)
     const at = v.fsm === "work" ? { x: v.workX, y: v.workY } : { x: v.homeX, y: v.homeY };
-    const bid = tileToBuilding.get(at.y * state.width + at.x);
+    const bid = state.buildingTiles.get(at.y * state.width + at.x);
     if (bid === undefined) continue;
     occByBuilding.set(bid, (occByBuilding.get(bid) ?? 0) + 1);
   }
@@ -101,36 +95,30 @@ export function getBuildings(state: SimState): readonly BuildingSnapshot[] {
 
 export function getVillagers(state: SimState): readonly VillagerSnapshot[] {
   // Read-only job derivation: an assigned villager's workX/workY is the centre
-  // tile of the workplace the VillagerSystem staffed it to. Index every
-  // building footprint tile → its type once, then look up each villager's
-  // workplace type. An `idle` villager has no current workplace → "idle".
-  // This is a pure projection; no sim state is mutated.
-  // Phase E: a PARALLEL index footprint tile → building ENTITY ID lets us look
-  // up a villager's HOME house runtime mood (Phase A per-house `mood`). Built in
-  // the same pass with the exact same bounds checks + key as `tileToType`.
-  const tileToType = new Map<number, string>();
-  const tileToBuildingId = new Map<number, number>();
+  // tile of the workplace the VillagerSystem staffed it to. An `idle` villager
+  // has no current workplace → "idle". This is a pure projection; no sim state
+  // is mutated.
+  // audit-14: `state.buildingTiles` (persistent, see sim-state.ts) gives the
+  // work/home tile's building id in O(1) — no per-snapshot footprint walk.
+  // Type isn't stored per-tile or on BuildingRuntimeState, so one O(buildings)
+  // (not O(footprint tiles)) pass over buildingWorld builds id→type; still far
+  // cheaper than the footprint-tile Map this replaced (one entry per building,
+  // not one per footprint tile).
+  const idToType = new Map<number, string>();
   for (const entity of state.buildingWorld.query("building")) {
-    const b = entity.building;
-    for (let dy = 0; dy < b.h; dy++) {
-      for (let dx = 0; dx < b.w; dx++) {
-        const tx = b.x + dx;
-        const ty = b.y + dy;
-        if (tx < 0 || ty < 0 || tx >= state.width || ty >= state.height) continue;
-        tileToType.set(ty * state.width + tx, b.type);
-        if (entity.id !== undefined) tileToBuildingId.set(ty * state.width + tx, entity.id);
-      }
-    }
+    if (entity.id === undefined) continue;
+    idToType.set(entity.id, entity.building.type);
   }
   const result: VillagerSnapshot[] = [];
   for (const entity of state.villagerWorld.query("villager")) {
     const v = entity.villager;
     const pos = villagerPos(v);
-    const workType = v.fsm === "idle" ? undefined : tileToType.get(v.workY * state.width + v.workX);
+    const workBid = v.fsm === "idle" ? undefined : state.buildingTiles.get(v.workY * state.width + v.workX);
+    const workType = workBid === undefined ? undefined : idToType.get(workBid);
     const job = workType === undefined ? JOB_IDLE : jobForBuildingType(workType);
     // Phase E: mood from the HOME house's per-house runtime mood; default 40
     // (neutral seed) for a villager whose home tile resolves to no building.
-    const homeBid = tileToBuildingId.get(v.homeY * state.width + v.homeX);
+    const homeBid = state.buildingTiles.get(v.homeY * state.width + v.homeX);
     const mood = (homeBid !== undefined ? state.buildingState.get(homeBid)?.mood : undefined) ?? 40;
     result.push({ id: v.id, x: pos.x, y: pos.y, fsm: v.fsm, carryGood: v.carryGood, job, mood });
   }
