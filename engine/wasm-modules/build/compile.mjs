@@ -6,6 +6,7 @@ import { mkdir, readdir, copyFile } from "node:fs/promises";
 import { resolve, dirname, basename } from "node:path";
 import { fileURLToPath } from "node:url";
 import asc from "assemblyscript/asc";
+import { writeManifest } from "./manifest.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const pkgRoot = resolve(__dirname, "..");
@@ -49,3 +50,9 @@ for (const entry of entries) {
 }
 
 if (failed) process.exit(1);
+
+// Record the source hash each kernel was just built from, so
+// build/check-drift.mjs (audit-29) can catch a src/*.ts edit that never got
+// rebuilt. Only runs after every kernel compiled successfully.
+await writeManifest();
+console.log(`[asc] wrote ${resolve(distDir, "manifest.json")}`);

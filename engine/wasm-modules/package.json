@@ -19,7 +19,8 @@
   "scripts": {
     "build": "node build/compile.mjs",
     "prepack": "npm run build",
-    "typecheck": "node build/typecheck.mjs"
+    "typecheck": "node build/typecheck.mjs",
+    "test": "node build/check-drift.mjs"
   },
   "devDependencies": {
     "assemblyscript": "0.28.17"

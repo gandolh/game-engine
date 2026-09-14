@@ -127,9 +127,10 @@ So `bootstrapSim()` (in [@farm/sim-core](games/farm/sim-core/src/sim-bootstrap.t
 
 Vitest, `node` env for `@engine/core`, `jsdom` env for the browser clients (UI/DOM). Tests live beside their source as `*.test.ts`. System and agent tests live in `@farm/sim-core` and drive `bootstrapSim()` directly — the canonical way to exercise sim behavior without a browser or server.
 
-**A workspace with no `test` script is silently skipped** by `npm run test` — turbo only runs the task where it is declared, with no warning. Two are deliberately test-less, and this is the record of that choice:
+**A workspace with no `test` script is silently skipped** by `npm run test` — turbo only runs the task where it is declared, with no warning. One is deliberately test-less, and this is the record of that choice:
 
 - **`@tool/world-preview`** — a thin PNG renderer over `@farm/sim-core`; its logic is covered where it lives, and its output is judged by eye.
-- **`@engine/wasm-modules`** — the AssemblyScript kernels are exercised from the consumer side by `engine/core/src/wasm/pathfinder.test.ts`, and all four are type-checked by `npm run typecheck -w @engine/wasm-modules`.
+
+`@engine/wasm-modules` **does** declare `test` — `node build/check-drift.mjs` (audit-29), a fast, toolchain-free sha256 comparison that fails if a `src/*.ts` kernel was edited without a rebuild, or if the two committed artifact locations (`dist/` vs `games/farm/client/public/wasm/`) have drifted apart. It is not a behavioral test of the kernels themselves — that coverage is still consumer-side, via `engine/core/src/wasm/pathfinder.test.ts` (uses the compiled `.wasm`) and `npm run typecheck -w @engine/wasm-modules` (type-checks all four AssemblyScript sources).
 
 Every other workspace declares `test`. If you add one, declare a `test` script even if the suite starts thin, or it will not be gated. Tests in `@tool/run-sim` / `@tool/citadel-sim` must stay unit-scoped — **no test in those packages may boot a sim** (constrained hardware).
