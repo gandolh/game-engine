@@ -6,13 +6,15 @@
   "scripts": {
     "start": "tsx src/index.ts",
     "check-determinism": "tsx src/index.ts --check-determinism",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@engine/core": "0.1.0",
     "@farm/sim-core": "0.0.0"
   },
   "devDependencies": {
-    "tsx": "4.22.3"
+    "tsx": "4.22.3",
+    "vitest": "4.1.7"
   }
 }
