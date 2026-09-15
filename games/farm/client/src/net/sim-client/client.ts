@@ -17,7 +17,8 @@ import type {
 } from "@farm/sim-core/snapshot";
 import type { ProfileReport } from "@engine/core";
 import type { ShopOffer } from "@farm/sim-core/agents/shop-slate";
-import { clamp, lerp, smoothstep, copySprite } from "./interp";
+import { computeSnapshotAlpha, lerp } from "@engine/core/render";
+import { smoothstep, copySprite } from "./interp";
 import { showFaultBanner } from "./fault-banner";
 
 const MAX_LERP_DIST_PX = 2 * 16;
@@ -258,10 +259,11 @@ export class SimClient {
   freezeInterp(frames: number): void {
     if (frames <= 0) return;
     const now = performance.now();
-    const rawAlpha = clamp(
-      (now - this.lastSnapshotArrivalMs - this.renderDelayMs) / this.msPerTick,
-      0,
-      1,
+    const rawAlpha = computeSnapshotAlpha(
+      now,
+      this.lastSnapshotArrivalMs,
+      this.msPerTick,
+      this.renderDelayMs,
     );
     this.hitstopAlpha = smoothstep(rawAlpha);
     this.hitstopFramesLeft = frames;
@@ -282,10 +284,11 @@ export class SimClient {
     } else {
       const now = performance.now();
 
-      const rawAlpha = clamp(
-        (now - this.lastSnapshotArrivalMs - this.renderDelayMs) / this.msPerTick,
-        0,
-        1,
+      const rawAlpha = computeSnapshotAlpha(
+        now,
+        this.lastSnapshotArrivalMs,
+        this.msPerTick,
+        this.renderDelayMs,
       );
       alpha = smoothstep(rawAlpha);
     }

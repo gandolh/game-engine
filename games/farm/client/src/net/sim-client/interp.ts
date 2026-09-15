@@ -1,12 +1,11 @@
 import type { SnapshotSprite } from "@farm/sim-core/snapshot";
 
-export function clamp(v: number, lo: number, hi: number): number {
-  return v < lo ? lo : v > hi ? hi : v;
-}
-
-export function lerp(a: number, b: number, t: number): number {
-  return a + (b - a) * t;
-}
+// audit-18: the alpha-clamp and numeric lerp that used to live here are now
+// `@engine/core/render`'s generic `computeSnapshotAlpha`/`lerp` — see
+// client.ts, the one consumer of this module. `smoothstep` (the easing
+// curve applied to that raw alpha) and `copySprite` (SnapshotSprite-specific
+// field copying) stay here: neither is part of the generic snapshot-interp
+// primitive's contract.
 
 export function smoothstep(t: number): number {
   return t * t * (3 - 2 * t);

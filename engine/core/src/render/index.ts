@@ -23,6 +23,14 @@ export { showUnsupportedNotice, WEBGL2_UNAVAILABLE_MESSAGE } from "./unsupported
 export type { UnsupportedNoticeColors } from "./unsupported-notice";
 export { resolveStaticRegion, staticBlitRect } from "./static-region";
 export type { StaticRegion, StaticBlit } from "./static-region";
+export {
+  lerp,
+  clampAlpha,
+  computeSnapshotAlpha,
+  lerpEntityPositions,
+  SnapshotInterpBuffer,
+} from "./snapshot-interp";
+export type { InterpEntityLike, InterpPosition } from "./snapshot-interp";
 // TYPE-ONLY on purpose: a value export would statically pull the WebGL2 passes — and
 // their `*.glsl?raw` imports — into every consumer of this barrel, including the Node
 // servers and headless tools, which crash on `.glsl`. Renderers are constructed
