@@ -57,7 +57,7 @@ export class DayClockSystem implements System {
           ontology: ONT_SIMULATION.DAY_START,
           sender: "world",
           recipient: "broadcast",
-          body: body as unknown as Record<string, unknown>,
+          body,
         },
         ctx.tick,
       );

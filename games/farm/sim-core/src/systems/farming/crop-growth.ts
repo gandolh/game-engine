@@ -1,4 +1,5 @@
 import type { SimContext, System, World, MessageBus, With } from "@engine/core";
+import { bodyOf } from "@engine/core";
 import type { GameEntity } from "../../components";
 import { PLOT_DECAY_DAYS } from "../../components";
 import { ONT_SIMULATION, PERFORMATIVE, type CropDeathBody } from "../../protocols";
@@ -23,8 +24,9 @@ export class CropGrowthSystem implements System {
     let newDay: number | null = null;
     for (const station of stations) {
       for (const msg of station.inbox.messages) {
-        if (msg.ontology === ONT_SIMULATION.DAY_START) {
-          const day = (msg.body as { day: number }).day;
+        const dayStart = bodyOf(msg, ONT_SIMULATION.DAY_START);
+        if (dayStart !== null) {
+          const day = dayStart.day;
           if (day > this.lastDayProcessed) {
             newDay = day;
           }

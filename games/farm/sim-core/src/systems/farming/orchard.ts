@@ -1,6 +1,7 @@
 // Runs once per day. Matures trees after ORCHARD_MATURATION_DAYS (no watering needed),
 // then drops FRUIT_YIELD_PER_HARVEST once per 25-day season block into fruitReady.
 import type { SimContext, System, World, With } from "@engine/core";
+import { bodyOf } from "@engine/core";
 import type { GameEntity } from "../../components";
 import { ONT_SIMULATION } from "../../protocols";
 import { seasonForDay } from "../../protocols/weather";
@@ -24,8 +25,9 @@ export class OrchardSystem implements System {
     let newDay: number | null = null;
     for (const station of stations) {
       for (const msg of station.inbox.messages) {
-        if (msg.ontology === ONT_SIMULATION.DAY_START) {
-          const day = (msg.body as { day: number }).day;
+        const dayStart = bodyOf(msg, ONT_SIMULATION.DAY_START);
+        if (dayStart !== null) {
+          const day = dayStart.day;
           if (day > this.lastDayProcessed) newDay = day;
         }
       }
