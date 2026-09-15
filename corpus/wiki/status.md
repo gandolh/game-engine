@@ -7,6 +7,21 @@ updated: 2026-09-15
 
 Current-state **snapshot** (2026-08-18, banner below 2026-09-14). Banners below are newest-first.
 
+> **2026-09-15 audit-36 is built, and it exposed that `pack-smoke` was not actually a gate.** The
+> packed `@engine/core` shipped **zero shaders** (`postbuild.mjs` still copied `*.wgsl`, deleted with
+> WebGPU in 2026-08-18) — fixed, and the fixture's blind spot closed with a new `smoke-assets.mjs`
+> asserting the `.glsl` files ship and every `?raw` specifier resolves inside the tarball. Two further
+> defects surfaced while fixing it. **A regression from audit-35's own review fix** put stale-`dist/`
+> cleanup at the start of `pack-swap --to-dist`, which runs *after* `npm run build` in `prepack` — so
+> it deleted what the build had just produced and **the real tarball became 3 files with no code**.
+> Cleanup moved to `--clean-dist` at the front of `build`. And **`pack-smoke` could not see any of
+> it**: the fixture's `file:` deps have fixed filenames and no lockfile, so npm never re-extracted and
+> the gate asserted against a *previous good install* while the tarball on disk was empty — green all
+> the while. It now wipes the fixture's `node_modules` before installing. Both proven red-then-green.
+> **The lesson: a gate that does not reinstall is not a gate**, and only unpacking a real artifact
+> caught it. Still open: [audit-37](../todos/2026-09-15-audit-37-partial-wasm-build-invisible-to-guard.md),
+> hollow-13, engine-ui item 2.
+
 > **2026-09-15 audit-32/33/34/35 are built** on branch `audit-followups-2026-09-15`, one commit each,
 > all now in [todos/closed/](../todos/closed/). The wasm promise is true at last —
 > `engine/wasm-modules/dist/` is tracked, CI's `build-wasm` step is gone, and audit-29's drift guard
@@ -17,7 +32,7 @@ Current-state **snapshot** (2026-08-18, banner below 2026-09-14). Banners below 
 > audit-35's `postpack` cleanup structurally could not cover a **failed** prepack, which is the case
 > that actually strands a stale `dist/`. audit-32's wiring was also inert-testable — stubbing the one
 > line that implements it kept every test green — now closed by an injectable `chronicleCap`.
-> **Two new specs filed, not fixed:** [audit-36](../todos/2026-09-15-audit-36-packed-engine-core-ships-no-shaders.md)
+> **Two new specs filed, not fixed:** [audit-36](../todos/closed/2026-09-15-audit-36-packed-engine-core-ships-no-shaders.md)
 > (the packed `@engine/core` ships **no shaders** — `postbuild.mjs` copies `*.wgsl`, zero of which
 > exist; the fixture skips `/render`, so the publish gate has a hole exactly where the bug is) and
 > [audit-37](../todos/2026-09-15-audit-37-partial-wasm-build-invisible-to-guard.md) (a partial wasm

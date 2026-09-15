@@ -143,6 +143,25 @@ The fixture is also outside the root `workspaces` on purpose, which is why it pa
 `npm pack -w <pkg>` — `npm pack --prefix <dir>` from the repo root packs the **whole monorepo**.
 If a lockfile reappears in that directory, it is a mistake.
 
+**A verify gate that does not re-read its input is not a gate.** (audit-36, 2026-09-15.)
+`pack-smoke` ran green through an entire audit while the `@engine/core` tarball it validates
+contained three files and no code. The fixture's dependencies are `file:` tarballs with **fixed
+filenames**, and once audit-35 correctly deleted the lockfile there was no integrity hash left to
+compare — so npm treated the already-unpacked copy in `node_modules` as satisfying the spec and never
+re-extracted. The assertions passed against a *previous good install*. `pack-smoke` therefore removes
+the fixture's `node_modules` before installing, and that step is load-bearing: without it the gate
+reports on whatever it unpacked last, not on what was just built. The same caution generalises — when
+a gate's input is an artifact rather than source, prove the gate can still go red by corrupting the
+artifact, not by reasoning about the script.
+
+**Stale-`dist/` cleanup belongs at the front of `build`, never in `prepack`'s second half.**
+(audit-36, 2026-09-15.) `prepack` is `npm run build && pack-swap --to-dist`, so anything that removes
+`dist/` inside `--to-dist` deletes what the build just produced and npm packs an empty tarball. The
+cleanup exists because `noEmitOnError` is unset — a failing `tsc` still **emits** into `dist/` then
+exits 1, aborting the pack before `postpack`/`--restore` can run — so it has to happen before `tsc`
+does, in a `--clean-dist` mode wired ahead of the build. `postpack` still removes `dist/` on the
+success path.
+
 ## WASM
 
 - **AssemblyScript** for native-speed kernels — TypeScript-shaped, no native toolchain, ships as an npm package. See [engine/wasm-modules/README.md](../../engine/wasm-modules/README.md).

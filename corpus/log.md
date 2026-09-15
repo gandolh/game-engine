@@ -4,6 +4,49 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-09-15] build | audit-36, and the discovery that pack-smoke was never a gate
+
+Built audit-36 (the packed `@engine/core` shipping no shaders) and found two
+worse things behind it. The headline is not the shader bug.
+
+**`pack-smoke` was green while the artifact it validates was empty.** The
+fixture's dependencies are `file:` tarballs with fixed filenames. With the
+lockfile deleted (audit-35, correctly), npm has no integrity to compare, treats
+an already-installed copy as satisfying the spec, and **never re-extracts**. So
+the gate ran its assertions against a *previous good install* in `node_modules`
+while the tarball on disk contained three files and no code — and reported "all
+smokes passed". It now removes the fixture's `node_modules` before installing.
+Proven: with `dist` dropped from `files[]`, `pack-smoke` exits 1; before the
+change, exit 0.
+
+**The empty tarball was a regression from audit-35's own review fix**, made
+hours earlier in this same session. That fix moved stale-`dist/` cleanup to the
+start of `pack-swap --to-dist`. But `prepack` is `npm run build && pack-swap
+--to-dist` — `--to-dist` runs *after* the build, so it deleted the artifacts the
+build had just produced. Cleanup now lives in a `--clean-dist` mode wired to the
+front of `build`, the only point that runs before `tsc` emits, which still
+covers the failure path it was written for (`noEmitOnError` is unset, so a
+failing build emits then exits 1 and `postpack` never runs).
+
+The chain is worth stating plainly: a review fix introduced a catastrophic
+packaging bug, and the gate that exists to catch exactly that stayed green,
+because a *different* correct fix in the same session removed the only thing
+making the gate re-read its input. Neither defect was visible in any test suite.
+What exposed it was unpacking a real tarball — which audit-36's acceptance
+demanded ("demonstrate by unpacking one, not by reading the script") purely
+because the shader claim seemed too clean to trust.
+
+**The shader fix itself**: `postbuild.mjs` selects `.glsl` (22 copied) instead of
+`*.wgsl`, of which zero have existed since WebGPU was deleted. The fixture's
+blind spot is closed by asserting presence rather than adding a bundler — `?raw`
+is a bundler specifier plain Node cannot resolve, which is *why* `smoke-ui.mjs`
+skips `/render`. `smoke-assets.mjs` checks both that `.glsl` files ship and that
+every `?raw` specifier in the packed JS resolves inside the tarball.
+
+Gates: cold typecheck 19/19, `@engine/core` 528, `@engine/ui` 173,
+`@hollow/client` 327, and all three `pack-smoke` teeth-checks (missing dist,
+removed export subpath, reverted shader predicate) go red then green.
+
 ## [2026-09-15] build | audit-32/33/34/35 land, and the review gate earns its keep twice
 
 Four follow-ups built on branch `audit-followups-2026-09-15`, one commit each,
