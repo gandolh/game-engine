@@ -120,14 +120,19 @@
       "outputs": []
     },
 
-    // build exists only in @farm/client, @tool/atlas-builder, @engine/wasm-modules.
-    // Two of them write CROSS-PACKAGE outputs (atlas-builder -> client/public/atlas,
-    // wasm-modules -> client/public/wasm) that an in-package `outputs` glob cannot
-    // capture, so caching would risk serving an artifact missing its cross-package
-    // side effects. Build is not a value target here (JIT packages have no library
-    // builds to cache; the win is parallel/cached typecheck+test) and the root
-    // build/atlas/build-wasm scripts invoke these directly, NOT through turbo.
-    // So the build task is defined for graph completeness but left uncached.
+    // build exists in @farm/client, @tool/atlas-builder, @engine/wasm-modules, AND
+    // @engine/core / @engine/ui (audit-30: the latter two build a real dist/ for
+    // `npm pack`/`npm publish`, via prepack -> build -> pack-swap.mjs --to-dist).
+    // Two of the first three write CROSS-PACKAGE outputs (atlas-builder ->
+    // client/public/atlas, wasm-modules -> client/public/wasm) that an in-package
+    // `outputs` glob cannot capture, so caching would risk serving an artifact
+    // missing its cross-package side effects. Build is not a value target here
+    // (JIT packages have no *internal* library builds to cache -- every in-repo
+    // consumer reads source directly; the packed dist/ is for EXTERNAL consumers
+    // only, exercised by `npm run pack-smoke`, not by this task) and the root
+    // build/atlas/build-wasm/build-engine/build-ui scripts invoke these directly,
+    // NOT through turbo. So the build task is defined for graph completeness but
+    // left uncached.
     "build": {
       "dependsOn": [],
       "cache": false

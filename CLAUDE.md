@@ -79,6 +79,12 @@ npm run sim:citadel    # headless Citadel sim
 npm run sim:hollow     # headless Hollow sim (+ metrics / chronicle export)
 npm run preview        # render the Farm world to a PNG (world-preview)
 npm run atlas          # rebuild the sprite atlas
+npm run build-engine   # build @engine/core's dist/ (for npm pack/publish; not needed for in-repo dev)
+npm run build-ui       # build @engine/ui's dist/ (for npm pack/publish; not needed for in-repo dev)
+npm run pack-smoke     # npm-pack @engine/core + @engine/ui + @engine/wasm-modules, install the tarballs
+                        # into examples/library-consumer (outside the workspaces, so it resolves from
+                        # tarballs, not source) and run its Node smoke — proves the publish contract, not
+                        # just that `npm pack` exits 0. ~7-12s; runs in CI on every push.
 ```
 
 Single test / single workspace (tests live in the package that owns the code):
