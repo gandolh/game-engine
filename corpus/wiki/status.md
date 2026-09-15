@@ -7,6 +7,23 @@ updated: 2026-09-15
 
 Current-state **snapshot** (2026-08-18, banner below 2026-09-14). Banners below are newest-first.
 
+> **2026-09-15 hollow-13 is built — the LLM seam exists, is anchored, and fires ~4% of the time.**
+> The BDI substrate enumerates the feasible options; the model picks one and explains why; anything
+> else is rejected in code. Seam **OFF by default and byte-identical**; record/replay reproduces a run
+> exactly; a real `claude-haiku-4-5` provider sits in `tools/hollow-sim`, never in sim-core, so no API
+> key can reach the browser Worker. **Two findings outweigh the code.** The spec's literal anchoring
+> rule — remember the candidate *set*, accept an index — rejects **100%** of answers here
+> (`SOCIAL_COOLDOWN_TICKS` is 40 while trust decays every tick), and would have shipped an inert seam
+> behind a green suite; anchoring is now per-choice by identity in the live set, which is stronger.
+> And, measured through the CLI with a provider that disagrees on *every* decision: **1 adoption in 27
+> decisions**, median answer-lag 40–46 ticks, with one seed's world trajectory byte-identical to seam
+> OFF. Not provider latency — an answer can only be applied at the agent's next social deliberation,
+> by which point the chosen option has genuinely left the candidate set. Filed as
+> [hollow-16](../todos/2026-09-15-hollow-16-rationalizer-adoption-latency.md), a **design decision,
+> not a bug fix**: the obvious remedy buys adoption by spending the anchoring property the seam exists
+> to protect. `wiki/hollow-overview.md` deliberately not yet updated — hollow-16 will change what
+> there is to describe.
+
 > **2026-09-15 audit-37 is built — the wasm build is all-or-nothing, and the audit queue is empty.**
 > `compile.mjs` published each kernel inside the compile loop, so a build where one kernel failed for
 > a reason unrelated to its source left the successful ones modified in **both tracked locations**
@@ -15,7 +32,7 @@ Current-state **snapshot** (2026-08-18, banner below 2026-09-14). Banners below 
 > introduced by making `dist/` tracked. Kernels now compile into a staging dir outside the repo and
 > nothing is published until all four succeed. Measured before: **8 tracked binaries dirty, guard
 > exit 0**; after: both locations untouched. **Nothing is left in the audit queue** — the only open
-> work is [hollow-13](../todos/2026-07-17-hollow-13-llm-rationalizer-seam.md) (needs a design
+> work is [hollow-13](../todos/closed/2026-07-17-hollow-13-llm-rationalizer-seam.md) (needs a design
 > session before it can be dispatched) and engine-ui item 2 (deliberately deferred).
 
 > **2026-09-15 audit-36 is built, and it exposed that `pack-smoke` was not actually a gate.** The

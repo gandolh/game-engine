@@ -4,6 +4,57 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-09-15] build | hollow-13: the LLM seam works, and almost never fires
+
+The optional LLM layer Hollow was built to support. BDI produces the grounded,
+feasible option set; the model chooses among those options and explains why; it
+cannot propose anything else, enforced in code. Off by default and byte-identical
+when off. Four chunks (`755313a`, `e7e06ce`): the seam + anchoring, a prompt-keyed
+record/replay cache, chronicle rationales carrying `bdiKind` and `chosenKind` in
+one row, and a `claude-haiku-4-5` provider in `tools/hollow-sim` — never in
+sim-core, because Hollow's sim runs in a browser Worker and an SDK call there
+would ship an API key to the client.
+
+**The spec's literal anchoring rule does not work here, and fails silently.**
+Remembering the candidate *set* and accepting an index into it rejected **100%**
+of answers: `SOCIAL_COOLDOWN_TICKS` is 40, trust decays every tick, and the set is
+never the same set when the answer lands. An inert seam behind a green suite —
+the third instance of that shape today. Anchoring is now per-choice by identity in
+the **live** set, which is stronger: the action taken is provably the one reasoned
+about, and presence in the live set is what proves it still feasible.
+
+**Then the more uncomfortable number.** With a `contrarian` provider that
+disagrees on every single decision: **1 adoption in 27 decisions** across three
+seeds, median answer-lag 40–46 ticks, and on seed 7 the world trajectory
+(`metrics.json`, `lineage.json`, `events.jsonl` minus the rationalize rows) is
+**byte-identical to seam OFF**. Not provider latency — the stub answers instantly.
+An answer can only be applied at the agent's next social deliberation, 40 ticks
+later, by which point the chosen option has genuinely left the candidate set and
+is correctly rejected as stale. So the seam is architecturally correct,
+unit-provably live, and operationally ~4% effective at default settings. All three
+are true at once, which is precisely why it had to be measured.
+
+Filed as hollow-16 — a **design decision, not a bug fix**. The obvious remedy,
+loosening choice identity to the verb alone, buys adoption by spending the exact
+property that stops this reproducing the prior agent-society study's failure.
+
+**Method note, because it is the transferable part.** Two closeout checks were
+*vacuous on the first attempt*: record-vs-replay using the stub (which agrees, so
+both runs equal seam OFF), and contrarian-vs-OFF comparing whole export
+directories (`events.jsonl` differs trivially because it now carries the
+rationalize rows). Both initially looked like success. Asking "would this pass if
+the feature did nothing?" is what produced the real finding. The
+`RATIONALIZER=contrarian` diagnostic was added for exactly this reason — `stub`
+agrees by construction and `claude` is billed, so neither could ever have
+exercised the adoption path end-to-end.
+
+Also recorded: `turbo run test --force` across all 19 packages produces **false
+failures** on this hardware — four heavy sim tests time out at 5000ms under
+parallel load, including a Farm test nothing had touched. Both suites pass scoped
+(`@farm/sim-core` 888/888, `@hollow/sim-core` 322/322). The mirror image of the
+`pack-smoke` false green earlier the same day: a full-repo cold run is not a
+trustworthy gate here, scoped runs are.
+
 ## [2026-09-15] build | audit-37 closes the audit queue, and a lesson about reproductions
 
 `compile.mjs` wrote each kernel into both tracked locations inside the compile

@@ -183,6 +183,15 @@ is the intended reading of "adopts the LLM's choice when it returns", and studyi
 stated and revealed reasoning is the seam's whole research purpose. If this ever needs tightening,
 add a score-floor check; do not reintroduce positional matching.
 
+**A full-repo `turbo run test --force` is not a trustworthy gate on this hardware.** (2026-09-15.)
+Running all 19 packages' vitest suites in parallel times out four heavy sim tests at 5000ms —
+including a `@farm/sim-core` test that the change under test had not touched — while every one of
+them passes when run scoped (`@farm/sim-core` 888/888, `@hollow/sim-core` 322/322). Treat a
+full-repo cold red as *contention until proven otherwise*: re-run the failing workspace scoped
+before believing it. The inverse trap is real too — see *A verify gate that does not re-read its
+input is not a gate* above — so the rule is not "trust scoped runs", it is **make the gate's failure
+mode explicit before trusting either colour**.
+
 **Agreement is not an instruction.** If the model returns the index the request presented as the BDI
 default, that is concurrence, not an override: the **current** default runs, never the stale one the
 request was built from. Without this the echoing stub visibly changed the run, because a
