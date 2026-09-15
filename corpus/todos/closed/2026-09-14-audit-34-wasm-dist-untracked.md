@@ -1,15 +1,15 @@
 # audit-34 — Make `engine/wasm-modules/dist/` the tracked, canonical artifact location
 
-status: ready to build
+status: closed 2026-09-15
 created: 2026-09-14
 ruled: 2026-09-15 (grill-me session) — the option is chosen; see **The ruling**. Do not re-open it.
-context: found by [audit-29](closed/2026-09-13-audit-29-wasm-artifact-drift-check.md) while building the drift
-guard. It made the CI added in [audit-06](closed/2026-09-13-audit-06-ci-gate.md) fail on a fresh runner until a
+context: found by [audit-29](2026-09-13-audit-29-wasm-artifact-drift-check.md) while building the drift
+guard. It made the CI added in [audit-06](2026-09-13-audit-06-ci-gate.md) fail on a fresh runner until a
 `build-wasm` step was added — which in turn blinded audit-29's guard in CI.
 
 ## The gap
 
-CLAUDE.md and [decisions.md](../wiki/decisions.md) both say the wasm artifacts are committed so a
+CLAUDE.md and [decisions.md](../../wiki/decisions.md) both say the wasm artifacts are committed so a
 fresh clone does not need to build them. That is **half true**:
 
 - `games/farm/client/public/wasm/*.wasm` — **tracked** (4 files). The browser copy.
@@ -48,7 +48,7 @@ files total **3.8 KB** (pathfinding 1671, floodfill 836, noise 671, rng 603). Th
 repo-size question.
 
 **`games/farm/client/public/wasm/` stays tracked too, and is not a redundant duplicate.**
-[main.ts:52](../../games/farm/client/src/main.ts#L52) loads
+[main.ts:52](../../../games/farm/client/src/main.ts#L52) loads
 `${import.meta.env.BASE_URL}wasm/noise.wasm` at runtime — a Vite **public-dir URL contract**, so the
 file must physically sit under `games/farm/client/public/`. **Do not move, symlink, or consolidate
 it.** Two locations stay; `dist/` is canonical; audit-29's location-comparison check is what keeps
@@ -60,11 +60,11 @@ them honest, and that check becomes load-bearing rather than redundant.
    `dist/*.wasm` and `dist/manifest.json` (the drift guard's input) and ignores `dist/*.wat` — ~31 KB
    of generated WebAssembly text dumps with no consumer.
 2. `git add` the four `.wasm` files and `manifest.json`.
-3. **Remove the `npm run build-wasm` step from [.github/workflows/ci.yml](../../.github/workflows/ci.yml)**
+3. **Remove the `npm run build-wasm` step from [.github/workflows/ci.yml](../../../.github/workflows/ci.yml)**
    (~lines 39-57), including the comment block that explains why it was needed — that explanation is
    now wrong and would mislead.
 4. **Update CLAUDE.md's WASM paragraph** so the "fresh clones don't need to build wasm" promise is
-   true without qualification. [decisions.md](../wiki/decisions.md) → *WASM* is already rewritten
+   true without qualification. [decisions.md](../../wiki/decisions.md) → *WASM* is already rewritten
    with this ruling; align CLAUDE.md to it, don't re-word the decision.
 5. **Drift is a hard CI failure, not a warning.** Editing an AssemblyScript kernel becomes a two-step
    commit: change the source, `npm run build-wasm`, commit both. Deliberate — those kernels change
@@ -83,7 +83,7 @@ them honest, and that check becomes load-bearing rather than redundant.
   where its inputs live
 - the seven consumer call sites — they already read the right place
 - `games/farm/client/public/wasm/` — Vite public-dir contract
-- [decisions.md](../wiki/decisions.md) — the ruling is already recorded there
+- [decisions.md](../../wiki/decisions.md) — the ruling is already recorded there
 
 ## Acceptance
 - **Demonstrate** `npm ci && npm run test` passing with **no** manual wasm build. A fresh clone into a

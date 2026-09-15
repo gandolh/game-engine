@@ -1,9 +1,9 @@
 # audit-32 — Make the Hollow CLI export honest about the chronicle cap
 
-status: ready to build
+status: closed 2026-09-15
 created: 2026-09-14
 ruled: 2026-09-15 (grill-me session) — "report vs raise the cap" is settled: **both**, plus exit 0.
-context: follow-up from [audit-12](closed/2026-09-13-audit-12-hollow-chronicle-bounded.md) (landed `c750e06`),
+context: follow-up from [audit-12](2026-09-13-audit-12-hollow-chronicle-bounded.md) (landed `c750e06`),
 which the implementing agent flagged rather than working around.
 
 ## The gap
@@ -12,7 +12,7 @@ audit-12 made the chronicle a ring buffer capped at `CHRONICLE_CAP` (50,000) and
 **honest** everywhere it owned: `droppedCount()` on the chronicle, `getDroppedEventCount()` on the
 client store, and a live note beside the export button stating the exact dropped count.
 
-[`tools/hollow-sim/src/run-core.ts`](../../tools/hollow-sim/src/run-core.ts) (~line 120) was outside
+[`tools/hollow-sim/src/run-core.ts`](../../../tools/hollow-sim/src/run-core.ts) (~line 120) was outside
 that ownership and still does:
 
 ```ts
@@ -40,12 +40,12 @@ The spec left "report the drop **or** raise the cap" open. **Do both, in that or
    `CHRONICLE_CAP`, which the client depends on.
 3. **Do NOT make it unbounded.** Trading a truncated export for an OOM-killed run is the worse
    failure, and this project runs on constrained hardware
-   (see [status.md](../wiki/status.md) and the sim resource limits in [routing.md](../routing.md)).
+   (see [status.md](../../wiki/status.md) and the sim resource limits in [routing.md](../../routing.md)).
 4. **Dropping events does not fail the run — warn, record, exit 0.** Refusing to hand over the data a
    run *did* collect helps nobody. The honesty bar is "impossible to analyse a truncated export
    unaware", which a summary line plus an export field meets.
 
-Recorded in [decisions.md](../wiki/decisions.md) → *Hollow chronicle & headless export*.
+Recorded in [decisions.md](../../wiki/decisions.md) → *Hollow chronicle & headless export*.
 
 ## Where the drop count goes in the export
 
@@ -54,12 +54,12 @@ deliberately preserved it, so a per-line format change is out. A header line in 
 in the JSON summary both qualify; say which you chose and why in the closeout.
 
 ## Files you OWN
-- [`tools/hollow-sim/src/run-core.ts`](../../tools/hollow-sim/src/run-core.ts) and its export/summary path
+- [`tools/hollow-sim/src/run-core.ts`](../../../tools/hollow-sim/src/run-core.ts) and its export/summary path
 - the new CLI cap constant
 - `tools/hollow-sim` tests
 
 ## Files you must NOT touch
-- [`games/hollow/sim-core/src/observe/chronicle.ts`](../../games/hollow/sim-core/src/observe/chronicle.ts)
+- [`games/hollow/sim-core/src/observe/chronicle.ts`](../../../games/hollow/sim-core/src/observe/chronicle.ts)
   — the ring buffer and `droppedCount()` are correct as landed; **consume** them
 - `CHRONICLE_CAP` itself — the client depends on its current value
 - the per-event `events.jsonl` line format

@@ -1,9 +1,9 @@
 # audit-35 — Fix the publish fixture's workflow: README, lockfile, and pack cleanup
 
-status: ready to build
+status: closed 2026-09-15
 created: 2026-09-15
 ruled: 2026-09-15 (grill-me session) — the lockfile question is settled: **delete it**.
-context: found by [audit-30](closed/2026-09-13-audit-30-library-consumer-smoke.md) while wiring `pack-smoke`.
+context: found by [audit-30](2026-09-13-audit-30-library-consumer-smoke.md) while wiring `pack-smoke`.
 audit-30 deliberately fixed none of it — the fixture must not be edited to make itself pass, and the
 publish machinery was out of its scope.
 
@@ -13,7 +13,7 @@ publish machinery was out of its scope.
 workflow a human would follow has three real breaks.
 
 **1. The README's pack command packs the wrong thing.**
-[`examples/library-consumer/README.md`](../../examples/library-consumer/README.md) documents
+[`examples/library-consumer/README.md`](../../../examples/library-consumer/README.md) documents
 `npm pack --prefix engine/core …`. In this npm-workspaces setup, `--prefix` from the repo root packs
 the **entire monorepo** (`game-engine-monorepo`), not the target workspace — confirmed by dry-run.
 The working form is `npm pack -w @engine/core …`, which is what `pack-smoke` already uses. The manual
@@ -50,7 +50,7 @@ Also state in the README that **the fixture is outside the root `workspaces` on 
 *why* defect 1 exists. Correcting the command without explaining the cause just means the next person
 re-derives it.
 
-Recorded in [decisions.md](../wiki/decisions.md) → *Build & verify gates*.
+Recorded in [decisions.md](../../wiki/decisions.md) → *Build & verify gates*.
 
 ## What to do
 
@@ -70,7 +70,7 @@ Recorded in [decisions.md](../wiki/decisions.md) → *Build & verify gates*.
 
 ## Files you must NOT touch
 - `examples/library-consumer/src/**` and the `smoke-*.mjs` assertions — changing them to pass defeats
-  the fixture; same rule [audit-30](closed/2026-09-13-audit-30-library-consumer-smoke.md) worked under
+  the fixture; same rule [audit-30](2026-09-13-audit-30-library-consumer-smoke.md) worked under
 - the `exports` maps and `publishConfig` — if a real export break shows up, report it separately
 - `.github/workflows/ci.yml`'s step ordering — `pack-smoke` runs last deliberately.
   (Note: [audit-34](2026-09-14-audit-34-wasm-dist-untracked.md) removes the `build-wasm` step from the
@@ -82,5 +82,5 @@ Recorded in [decisions.md](../wiki/decisions.md) → *Build & verify gates*.
   — or the lockfile is gone and the README says why (this is the expected outcome).
 - After `npm run pack-smoke`, **no `dist/` remains**.
 - `npm run pack-smoke` still goes **red** when a subpath is removed from `@engine/core`'s exports —
-  the [audit-30](closed/2026-09-13-audit-30-library-consumer-smoke.md) proof must keep working.
+  the [audit-30](2026-09-13-audit-30-library-consumer-smoke.md) proof must keep working.
   Demonstrate this too; it is the one assertion that proves the gate still has teeth.

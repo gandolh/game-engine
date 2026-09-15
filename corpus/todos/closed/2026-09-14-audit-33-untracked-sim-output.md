@@ -1,10 +1,10 @@
 # audit-33 — Untrack `tools/hollow-sim/hollow-out/`; running the Hollow sim must not dirty the tree
 
-status: ready to build (trivial — no code change)
+status: closed 2026-09-15
 created: 2026-09-14
 ruled: 2026-09-15 (grill-me session) — the spec's open question is answered below from git evidence.
 context: found 2026-09-14 while running startup smoke checks during the audit build; directly affects
-[audit-06](closed/2026-09-13-audit-06-ci-gate.md)'s smoke step.
+[audit-06](2026-09-13-audit-06-ci-gate.md)'s smoke step.
 
 ## The gap
 
@@ -26,13 +26,13 @@ It was not skipped. It was answered, and **the answer is nothing.**
 Evidence gathered 2026-09-15:
 
 1. **Nothing reads them.** The only reference to the path anywhere in the repo is the tool's own
-   default: [`tools/hollow-sim/src/env.ts:57`](../../tools/hollow-sim/src/env.ts#L57) →
+   default: [`tools/hollow-sim/src/env.ts:57`](../../../tools/hollow-sim/src/env.ts#L57) →
    `EXPORT_DIR ?? "./hollow-out"`. No test, doc, corpus page or docs-site build reads those files.
 2. **They were committed by accident.** `git log --diff-filter=A` on the path returns exactly one
    commit: **`df9919f` — "engine: delete both WebGPU backends and purge @webgpu/types (brief 12)"**,
    which added all 11,304 lines of them alongside an unrelated renderer deletion. They were swept in
    by a `git add -A` — precisely the trap this spec was filed about.
-3. **It was already known.** [hollow BUILD-STATE](2026-07-17-hollow-BUILD-STATE.md) line 312 lists
+3. **It was already known.** [hollow BUILD-STATE](../2026-07-17-hollow-BUILD-STATE.md) line 312 lists
    *"ensure `hollow-out/` (CLI EXPORT_DIR) is gitignored"* as outstanding housekeeping.
 
 They are not a fixture. **Untrack them and gitignore the directory.**
@@ -40,7 +40,7 @@ They are not a fixture. **Untrack them and gitignore the directory.**
 **Keep the default output path where it is** (`./hollow-out`, beside the tool). Defaulting to an OS
 temp dir was considered and rejected: writing next to the tool is discoverable, it matches the
 existing precedent of `world-preview.png` (generated at the repo root, gitignored at
-[.gitignore:175](../../.gitignore)), and a temp-dir default just trades a dirty tree for a new
+[.gitignore:175](../../../.gitignore)), and a temp-dir default just trades a dirty tree for a new
 "where did my 100-day export go?" papercut.
 
 **Consequence: this spec needs no code change.** The ruling keeps `env.ts` as-is, so the work is
@@ -67,8 +67,8 @@ paragraph, but do not go "fixing" them**:
 - `tools/hollow-sim/hollow-out/**` (untracking only)
 
 ## Files you must NOT touch
-- [`tools/hollow-sim/src/env.ts`](../../tools/hollow-sim/src/env.ts) — the default path stays
-- the export FORMAT — [audit-12](closed/2026-09-13-audit-12-hollow-chronicle-bounded.md) deliberately kept
+- [`tools/hollow-sim/src/env.ts`](../../../tools/hollow-sim/src/env.ts) — the default path stays
+- the export FORMAT — [audit-12](2026-09-13-audit-12-hollow-chronicle-bounded.md) deliberately kept
   `events.jsonl` byte-compatible with the CLI, and
   [audit-32](2026-09-14-audit-32-hollow-cli-export-drop-report.md) builds on that
 - the other tools' output paths
