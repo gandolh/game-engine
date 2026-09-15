@@ -3,26 +3,43 @@
   "ui": "stream",
 
   // ---------------------------------------------------------------------------
-  // Task graph rationale (Engine Brief 21)
+  // Task graph rationale (Engine Brief 21; CORRECTED 2026-09-13, audit-01)
   //
   // Every internal package exports RAW TS SOURCE ("Just-in-Time packages", no
-  // build step). tsc/vitest read a dependency's .ts directly, so there is NO
-  // upstream build artifact that a task must wait for. Therefore typecheck and
-  // test use `dependsOn: []` (NO `^topological`):
-  //   * Correctness: a downstream package's own typecheck/test reads upstream
-  //     source directly, so it does not need the upstream task to run first.
-  //   * Parallelism: topological deps would serialize the DAG
-  //     (engine/core -> sim-core -> client), killing the parallel speedup that
-  //     is the entire point of adopting turbo here.
-  //   * Independent failure reporting: with `^typecheck`, a failure in an
-  //     upstream package would mark all dependents as "skipped due to failed
-  //     dependency" and never run their own checks -- hiding red packages,
-  //     exactly the past-incident behaviour we are replacing. Flat deps run all
-  //     14 workspaces and report EVERY failure.
+  // build step), so tsc/vitest read a dependency's .ts directly and there is no
+  // upstream *artifact* a task must wait for. Brief 21 concluded from that that
+  // typecheck/test should use `dependsOn: []`, for parallelism and independent
+  // failure reporting.
+  //
+  // That reasoning was half right and it cost us cache CORRECTNESS. `^task` is
+  // not only an ordering constraint -- it is also what folds an upstream
+  // package's hash into the dependent's cache key. With `dependsOn: []` a
+  // downstream package's key contained only its OWN files, so editing
+  // @engine/core left every consumer's hash unchanged and turbo replayed a
+  // cached green WITHOUT RUNNING tsc AT ALL.
+  //
+  // Measured 2026-09-13: adding a required field to `Personality` in
+  // engine/core/src/ecs/components.ts produced `18 successful, 1 failed`, while
+  // `--force` showed EIGHT packages genuinely broken -- @hollow/sim-core and
+  // @hollow/client among them, both reporting *cached success while broken*.
+  // This matters beyond tidiness: corpus/routing.md makes `npm run typecheck`
+  // the verify gate between dispatch waves.
+  //
+  // So typecheck/test now use `^topological` deps, and the two properties brief
+  // 21 wanted are preserved as follows:
+  //   * Independent failure reporting: the root scripts pass `--continue=always`
+  //     (turbo >= 2), which runs EVERY task even when a dependency failed -- so
+  //     all 19 workspaces still report their own result instead of being marked
+  //     "skipped due to failed dependency". This is the flag brief 21 lacked;
+  //     plain `--continue` defaults to `dependencies-successful`, which does NOT
+  //     give that.
+  //   * Parallelism: a fully uncached `turbo run typecheck --force` across all
+  //     19 workspaces takes ~12s. The serialization cost of a correct DAG is
+  //     seconds, so it is not worth trading correctness for.
   // ---------------------------------------------------------------------------
   "tasks": {
     "typecheck": {
-      "dependsOn": [],
+      "dependsOn": ["^typecheck"],
       "outputs": []
     },
 
@@ -42,7 +59,7 @@
     // parallelism. typecheck has no such nesting (tsc is single-process) and runs
     // fully parallel (14-way).
     "test": {
-      "dependsOn": [],
+      "dependsOn": ["^test"],
       "outputs": []
     },
 
@@ -59,6 +76,8 @@
     // committed wasm binaries. @engine/core declares no deps, so none of this is
     // covered by the graph.
     "@engine/core#test": {
+      // @engine/core has no workspace dependencies, so [] is genuinely correct
+      // here -- there is no upstream hash to fold in. (audit-01)
       "dependsOn": [],
       "inputs": [
         "$TURBO_DEFAULT$",
@@ -77,7 +96,9 @@
     // (systems/travel.test.ts). sim-core depends only on @engine/core, so neither
     // the client atlas nor @engine/wasm-modules is in its dependency graph.
     "@farm/sim-core#test": {
-      "dependsOn": [],
+      // Topological, like the base task: sim-core reads @engine/core source
+      // directly, so its hash must include it. (audit-01)
+      "dependsOn": ["^test"],
       "inputs": [
         "$TURBO_DEFAULT$",
         "../client/public/atlas/**",
@@ -90,7 +111,8 @@
     // @farm/server depends on @engine/core + @farm/sim-core + ws, NOT on
     // @engine/wasm-modules.
     "@farm/server#test": {
-      "dependsOn": [],
+      // Topological, like the base task. (audit-01)
+      "dependsOn": ["^test"],
       "inputs": [
         "$TURBO_DEFAULT$",
         "../../../engine/wasm-modules/dist/**"
@@ -98,14 +120,19 @@
       "outputs": []
     },
 
-    // build exists only in @farm/client, @tool/atlas-builder, @engine/wasm-modules.
-    // Two of them write CROSS-PACKAGE outputs (atlas-builder -> client/public/atlas,
-    // wasm-modules -> client/public/wasm) that an in-package `outputs` glob cannot
-    // capture, so caching would risk serving an artifact missing its cross-package
-    // side effects. Build is not a value target here (JIT packages have no library
-    // builds to cache; the win is parallel/cached typecheck+test) and the root
-    // build/atlas/build-wasm scripts invoke these directly, NOT through turbo.
-    // So the build task is defined for graph completeness but left uncached.
+    // build exists in @farm/client, @tool/atlas-builder, @engine/wasm-modules, AND
+    // @engine/core / @engine/ui (audit-30: the latter two build a real dist/ for
+    // `npm pack`/`npm publish`, via prepack -> build -> pack-swap.mjs --to-dist).
+    // Two of the first three write CROSS-PACKAGE outputs (atlas-builder ->
+    // client/public/atlas, wasm-modules -> client/public/wasm) that an in-package
+    // `outputs` glob cannot capture, so caching would risk serving an artifact
+    // missing its cross-package side effects. Build is not a value target here
+    // (JIT packages have no *internal* library builds to cache -- every in-repo
+    // consumer reads source directly; the packed dist/ is for EXTERNAL consumers
+    // only, exercised by `npm run pack-smoke`, not by this task) and the root
+    // build/atlas/build-wasm/build-engine/build-ui scripts invoke these directly,
+    // NOT through turbo. So the build task is defined for graph completeness but
+    // left uncached.
     "build": {
       "dependsOn": [],
       "cache": false

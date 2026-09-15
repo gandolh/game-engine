@@ -7,6 +7,7 @@ const DOM_FILES = [
   "src/ui/canvas/hotbar.test.ts",
   "src/ui/canvas/inventory.test.ts",
   "src/net/sim-client/client.visibility.test.ts",
+  "src/net/sim-client/client.fault.test.ts",
   "src/main/juice.test.ts",
   "src/main/audio.test.ts",
 ];

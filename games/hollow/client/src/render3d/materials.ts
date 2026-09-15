@@ -5,7 +5,7 @@
  * setMaterials`. `WORLD_MATERIAL_KEYS` is the ordered key list every
  * `uploadMesh` call in this app must resolve `Tri.material` strings against
  * (via `worldMaterialIndexOf`, built with the engine's `materialIndexMap`)
- * — see `webgpu/buffers.ts`'s header for the index-ordering contract this
+ * — see `webgl2/gl-buffers.ts`'s header for the index-ordering contract this
  * app must not break.
  *
  * SEAM for chunk hollow-09b: agent humanoids will need their own material

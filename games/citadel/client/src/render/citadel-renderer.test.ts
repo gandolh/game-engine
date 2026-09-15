@@ -53,6 +53,8 @@ import {
   clusterBorderQuads,
   type SceneInput,
   pushScene,
+  pushNetworks,
+  LAYER_NETWORK,
   pushAmbientCrowd,
   AMBIENT_CROWD_ALPHA,
   pushCatchment,
@@ -63,6 +65,8 @@ import {
   LAYER_DISCONNECT,
   pushGhost,
   pushLightPool,
+  visibleTileWindow,
+  type TileWindow,
 } from "./citadel-renderer";
 import { GHOST_ALPHA, spriteAlphaOf } from "./quads";
 
@@ -1095,5 +1099,148 @@ describe("flat quads render at the alpha they are authored with", () => {
     expect(spriteAlphaOf(undefined)).toBe(1);
     // A quad's own alpha still composes with the tint's (mood dim × glow alpha).
     expect(spriteAlphaOf(packTint(EDG.gold, 0x80), 0.5)).toBeCloseTo(0.5 * (0x80 / 255), 5);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// audit-13 — per-snapshot memoization (network autotiling + house clustering)
+// and camera-window culling.
+// ---------------------------------------------------------------------------
+
+describe("pushNetworks memoizes on the buildings array identity (audit-13)", () => {
+  it("a newly-built adjacent road (a NEW buildings array) fuses into the run instead of staying stale", () => {
+    const pushed: Sprite[] = [];
+    const renderer: RendererLike = { push: (s: Sprite) => pushed.push(s) } as unknown as RendererLike;
+
+    pushNetworks(renderer, iso, [building({ type: "road", x: 2, y: 2, w: 1, h: 1 })]);
+    const beforeCount = pushed.filter((s) => s.layer === LAYER_NETWORK).length;
+
+    pushed.length = 0;
+    // A brand-new array (a real snapshot never reuses the old reference) with
+    // an added neighbouring road tile — must produce the fused two-tile run's
+    // extra arm quads, not the stale single-tile memo.
+    pushNetworks(renderer, iso, [
+      building({ type: "road", x: 2, y: 2, w: 1, h: 1 }),
+      building({ type: "road", x: 3, y: 2, w: 1, h: 1 }),
+    ]);
+    const afterCount = pushed.filter((s) => s.layer === LAYER_NETWORK).length;
+
+    expect(afterCount).toBeGreaterThan(beforeCount);
+  });
+
+  it("a demolished road (a NEW, emptied buildings array) stops drawing", () => {
+    const pushed: Sprite[] = [];
+    const renderer: RendererLike = { push: (s: Sprite) => pushed.push(s) } as unknown as RendererLike;
+
+    pushNetworks(renderer, iso, [building({ type: "road", x: 5, y: 5, w: 1, h: 1 })]);
+    expect(pushed.some((s) => s.layer === LAYER_NETWORK)).toBe(true);
+
+    pushed.length = 0;
+    pushNetworks(renderer, iso, []); // demolished — a fresh empty array, not a mutation
+    expect(pushed.some((s) => s.layer === LAYER_NETWORK)).toBe(false);
+  });
+
+  it("caches on array IDENTITY: the exact same reference across two calls yields the exact same output", () => {
+    const pushed: Sprite[] = [];
+    const renderer: RendererLike = { push: (s: Sprite) => pushed.push(s) } as unknown as RendererLike;
+    const buildings: BuildingSnapshot[] = [building({ type: "road", x: 7, y: 7, w: 1, h: 1 })];
+
+    pushNetworks(renderer, iso, buildings);
+    const first = pushed.filter((s) => s.layer === LAYER_NETWORK).length;
+
+    pushed.length = 0;
+    pushNetworks(renderer, iso, buildings); // SAME reference as the sim would reuse across frames
+    const second = pushed.filter((s) => s.layer === LAYER_NETWORK).length;
+
+    expect(second).toBe(first);
+    expect(second).toBeGreaterThan(0);
+  });
+});
+
+describe("pushScene house clustering memoizes on the buildings array identity (audit-13)", () => {
+  it("a newly-adjacent house (a NEW buildings array) is re-clustered, not stuck as a stale singleton", () => {
+    const pushed: Sprite[] = [];
+    const renderer: RendererLike = { push: (s: Sprite) => pushed.push(s) } as unknown as RendererLike;
+
+    pushScene(renderer, iso, { buildings: [building({ type: "house", x: 10, y: 10, w: 1, h: 1 })], villagers: [], raiders: [] });
+    pushed.length = 0;
+
+    // A brand-new array adding a neighbour — the memo must re-derive the
+    // cluster, or the second house (never seen by the stale cache) wouldn't draw.
+    pushScene(renderer, iso, {
+      buildings: [
+        building({ type: "house", x: 10, y: 10, w: 1, h: 1 }),
+        building({ type: "house", x: 11, y: 10, w: 1, h: 1 }),
+      ],
+      villagers: [],
+      raiders: [],
+    });
+    expect(pushed.filter((s) => s.frame === "bld/house").length).toBe(2);
+  });
+
+  it("a demolished house (a NEW, emptied buildings array) stops drawing", () => {
+    const pushed: Sprite[] = [];
+    const renderer: RendererLike = { push: (s: Sprite) => pushed.push(s) } as unknown as RendererLike;
+
+    pushScene(renderer, iso, { buildings: [building({ type: "house", x: 20, y: 20, w: 1, h: 1 })], villagers: [], raiders: [] });
+    expect(pushed.some((s) => s.frame === "bld/house")).toBe(true);
+
+    pushed.length = 0;
+    pushScene(renderer, iso, { buildings: [], villagers: [], raiders: [] }); // demolished
+    expect(pushed.some((s) => s.frame === "bld/house")).toBe(false);
+  });
+});
+
+describe("pushScene culls off-screen buildings against the visible tile window (audit-13)", () => {
+  it("draws nothing for a building outside the window, then draws it again once panned back into view", () => {
+    const pushed: Sprite[] = [];
+    const renderer: RendererLike = { push: (s: Sprite) => pushed.push(s) } as unknown as RendererLike;
+    const farHouse = building({ type: "house", x: 90, y: 90, w: 1, h: 1 });
+    const scene: SceneInput = { buildings: [farHouse], villagers: [], raiders: [] };
+
+    const elsewhere: TileWindow = { minTx: 0, minTy: 0, maxTx: 5, maxTy: 5 };
+    pushScene(renderer, iso, scene, undefined, undefined, 0, elsewhere);
+    expect(pushed.some((s) => s.frame === "bld/house")).toBe(false);
+
+    // Same `scene.buildings` ARRAY reference (a cache hit on the memoized
+    // clustering) but a window that now covers (90,90) — proves the per-call
+    // cull isn't itself stuck/memoized alongside the cluster derivation.
+    pushed.length = 0;
+    const backInView: TileWindow = { minTx: 85, minTy: 85, maxTx: 95, maxTy: 95 };
+    pushScene(renderer, iso, scene, undefined, undefined, 0, backInView);
+    expect(pushed.some((s) => s.frame === "bld/house")).toBe(true);
+  });
+
+  it("keeps a building whose ORIGIN tile is outside the window but whose footprint still overlaps it", () => {
+    const pushed: Sprite[] = [];
+    const renderer: RendererLike = { push: (s: Sprite) => pushed.push(s) } as unknown as RendererLike;
+    // A 3×3 keep at origin (6,6) covers tiles (6..8, 6..8). A window starting
+    // at (8,8) does NOT contain the origin tile (6,6) — a naive "is the
+    // origin tile in the window" cull would wrongly drop this building — but
+    // DOES overlap the footprint's far corner tile (8,8), so the full-AABB
+    // check must keep it.
+    const keep = building({ type: "keep", x: 6, y: 6, w: 3, h: 3 });
+    const scene: SceneInput = { buildings: [keep], villagers: [], raiders: [] };
+    const w: TileWindow = { minTx: 8, minTy: 8, maxTx: 15, maxTy: 15 };
+    pushScene(renderer, iso, scene, undefined, undefined, 0, w);
+    expect(pushed.length).toBeGreaterThan(0);
+  });
+
+  it("omitting `visible` draws every building unculled (opt-in, not a behaviour change for existing callers)", () => {
+    const pushed: Sprite[] = [];
+    const renderer: RendererLike = { push: (s: Sprite) => pushed.push(s) } as unknown as RendererLike;
+    const farHouse = building({ type: "house", x: 90, y: 90, w: 1, h: 1 });
+    pushScene(renderer, iso, { buildings: [farHouse], villagers: [], raiders: [] });
+    expect(pushed.some((s) => s.frame === "bld/house")).toBe(true);
+  });
+});
+
+describe("visibleTileWindow / buildingInWindow integration sanity (audit-13)", () => {
+  it("a window derived from a camera centred on a building includes it", () => {
+    const w = visibleTileWindow(iso, iso.tileCenterToIso(50, 50).x, iso.tileCenterToIso(50, 50).y, 400, 300, 1, 2);
+    expect(w.minTx).toBeLessThanOrEqual(50);
+    expect(w.maxTx).toBeGreaterThanOrEqual(50);
+    expect(w.minTy).toBeLessThanOrEqual(50);
+    expect(w.maxTy).toBeGreaterThanOrEqual(50);
   });
 });

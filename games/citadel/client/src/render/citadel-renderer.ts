@@ -1,18 +1,18 @@
 /**
- * Citadel WebGPU renderer module.
+ * Citadel WebGL2 renderer module.
  *
- * Owns the engine-renderer setup (WebGPU backend, forced) and the per-frame
- * scene draw. The Canvas2D draw path (terrain-renderer / building-renderer) is
- * gone from the citadel client — terrain is baked once via the engine's
- * static-layer pass, and buildings / villagers / raiders are solid colored
- * `sprite-batch` quads drawn from a generated 1×1 white atlas. The placement
- * ghost + drag-paint preview are also sprite-batch quads (translucent, top
- * layer) — NOT the `endFrame` overlay callback, which the WebGPU backend
- * ignores (see `ghostQuad` / `pushGhost`).
+ * Owns the engine-renderer setup and the per-frame scene draw. The old Canvas2D
+ * draw path (terrain-renderer / building-renderer) is gone from the citadel
+ * client — terrain is baked once via the engine's static-layer pass, and
+ * buildings / villagers / raiders are solid colored `sprite-batch` quads drawn
+ * from a generated 1×1 white atlas. The placement ghost + drag-paint preview
+ * are also sprite-batch quads (translucent, top layer) — NOT the `endFrame`
+ * overlay callback, which the WebGL2 backend ignores (see `ghostQuad` /
+ * `pushGhost`).
  *
  * Pure helpers (color/footprint mapping, terrain decorate, the Camera2D
  * screen→tile transform) are EXPORTED and unit-tested headlessly — they never
- * touch the GPU, so jsdom (no WebGPU) can exercise them.
+ * touch the GPU, so jsdom (no WebGL2) can exercise them.
  *
  * All colors route through `EDG.*`; quad tints are packed `0xRRGGBBAA` ints
  * built from `rgbOf(EDG.*)`, so the palette guard stays clean.
@@ -56,10 +56,13 @@ import {
 import { ISO_TILE_W, ISO_TILE_H, makeIso } from "./iso";
 import type { IsoProjection } from "./iso";
 import { isoNetworkTiles } from "./autotile";
+import type { IsoNetworkTile } from "./autotile";
 import { FRAME_DIAMOND, FRAME_ROAD, FRAME_BRIDGE, flameFrameAt } from "./sprites/recipes";
 import { clusterBuildings, clusterBorderQuads } from "./clustering";
+import type { Cluster } from "./clustering";
 import { makeTerrainDecorate } from "./terrain-dither";
 import { RenderWindowController } from "./window-controller";
+import type { TileWindow } from "./render-window";
 import { createCitadelSpriteAtlas } from "./sprites/atlas";
 import { disconnectedBuildings } from "./road-feedback";
 // Phase A cozy pivot: pure mood→cue mappings (warm glow strength + sprite dim).
@@ -81,6 +84,7 @@ export * from "./transform";
 export * from "./terrain-dither";
 export * from "./hillshade";
 export * from "./window-controller";
+export * from "./render-window";
 
 import type { TerrainGrid } from "@citadel/sim-core";
 
@@ -246,12 +250,13 @@ export interface CitadelRenderer {
 }
 
 /**
- * Create the WebGPU-backed citadel renderer: force the WebGPU backend (the FV
- * pattern), register the generated quad atlas, set the clear color, and bake
- * the terrain backdrop. On the large MP world the bake is render-windowed (only
- * the camera window is textured, re-baked on pan via the controller); on the
- * small solo world it bakes whole-world once (identical to before). Throws if
- * WebGPU is unavailable (no silent Canvas2D fallback — Citadel is WebGPU-only).
+ * Create the citadel renderer: create the engine's WebGL2 renderer (the only
+ * backend — no `backend` option to pass), register the generated quad atlas,
+ * set the clear color, and bake the terrain backdrop. On the large MP world the
+ * bake is render-windowed (only the camera window is textured, re-baked on pan
+ * via the controller); on the small solo world it bakes whole-world once
+ * (identical to before). Throws if a WebGL2 context is unavailable — no silent
+ * fallback.
  */
 export async function createCitadelRenderer(
   canvas: HTMLCanvasElement,
@@ -319,6 +324,63 @@ export interface SceneFx {
   villagerYOffset?: (v: VillagerSnapshot) => number;
   villagerPos?: (v: VillagerSnapshot) => { x: number; y: number };
   raiderPos?: (r: RaiderSnapshot) => { x: number; y: number };
+}
+
+// ---------------------------------------------------------------------------
+// audit-13: per-snapshot memoization for the network/cluster derivation.
+//
+// `pushNetworks` and `pushScene`'s house-cluster pass used to recompute the
+// road/wall autotile list and the BFS house clustering EVERY render frame
+// (60 Hz), even though both are pure functions of `scene.buildings` — data
+// that only changes when a new sim snapshot lands (building/demolish, ≤ the
+// sim tick rate, usually far less). On a mature 192×192 town that was ~600
+// `IsoNetworkTile` allocations + ~1,200 `Set.add` calls + a fresh BFS `Map`
+// every frame for unchanged data.
+//
+// The memo key is `scene.buildings`'s ARRAY IDENTITY, not a hand-rolled
+// revision counter: `getBuildings` (sim-core's snapshot builder) rebuilds a
+// brand-new array of brand-new `BuildingSnapshot` objects from scratch on
+// every snapshot, and `currentBuildings` (main/sim-client.ts) is reassigned to
+// that new reference only when a snapshot arrives — the SAME reference is
+// reused across every render frame in between. So `buildings === cached`
+// already IS "has the current snapshot changed", with no extra bookkeeping —
+// this is the file's existing memo idiom (cache-by-identity, recompute on
+// mismatch), just applied here instead of a hand-authored revision counter.
+// Module-level singletons (mirrors `villagerHeading` below): there is exactly
+// one Citadel renderer per process.
+// ---------------------------------------------------------------------------
+let networkTileCache: { buildings: readonly BuildingSnapshot[]; tiles: IsoNetworkTile[] } | null = null;
+
+/** Memoized `isoNetworkTiles` — recomputes only when `buildings`'s array
+ *  reference changes (i.e. at most once per snapshot). */
+function memoNetworkTiles(buildings: readonly BuildingSnapshot[]): IsoNetworkTile[] {
+  if (networkTileCache === null || networkTileCache.buildings !== buildings) {
+    networkTileCache = {
+      buildings,
+      tiles: isoNetworkTiles(buildings, { road: FRAME_ROAD, bridge: FRAME_BRIDGE }),
+    };
+  }
+  return networkTileCache.tiles;
+}
+
+let clusterCache: { buildings: readonly BuildingSnapshot[]; clusters: Cluster[] } | null = null;
+
+/** Memoized `clusterBuildings(buildings, "house")` — same identity-keyed cache. */
+function memoHouseClusters(buildings: readonly BuildingSnapshot[]): Cluster[] {
+  if (clusterCache === null || clusterCache.buildings !== buildings) {
+    clusterCache = { buildings, clusters: clusterBuildings(buildings, "house") };
+  }
+  return clusterCache.clusters;
+}
+
+/**
+ * Does building `b`'s footprint (its tile AABB) overlap the visible tile
+ * window `w`? Checks the full footprint, not just the origin tile — a
+ * multi-tile building (e.g. a 3×3 keep) can have its origin outside the
+ * window while still covering tiles inside it. Pure.
+ */
+function buildingInWindow(b: BuildingSnapshot, w: TileWindow): boolean {
+  return b.x <= w.maxTx && b.x + b.w - 1 >= w.minTx && b.y <= w.maxTy && b.y + b.h - 1 >= w.minTy;
 }
 
 /**
@@ -482,8 +544,19 @@ const villagerHeading = new VillagerHeadingTracker();
  * begin/endFrame — the caller owns the frame lifecycle so it can attach the
  * overlay. Pure-ish: only calls `renderer.push`. The optional `fx` hooks apply
  * the placement ease-in (building scale/alpha) and idle bob (villager Y).
+ *
+ * `visible` (audit-13) is an OPTIONAL camera-tile-window cull: when given, a
+ * building whose footprint doesn't overlap it submits no quads at all (no
+ * shadow, no border/glow, no sprite, no fx callback). Omit it (as every
+ * existing caller/test does) to draw every building unculled — this is a pure
+ * opt-in, not a behaviour change for anyone not passing it. Clustering itself
+ * still runs over the FULL, un-culled `scene.buildings` (via the memoized
+ * `memoHouseClusters`) so a cluster's identity/shape never depends on what's
+ * currently on-screen — only the per-member PUSH is culled. Networks
+ * (`pushNetworks`) are pulled from the memoized `memoNetworkTiles`, not
+ * culled here — see that function's own doc comment.
  */
-export function pushScene(renderer: RendererLike, iso: IsoProjection, scene: SceneInput, fx?: SceneFx, clockMs?: number, nightFactor = 0): void {
+export function pushScene(renderer: RendererLike, iso: IsoProjection, scene: SceneInput, fx?: SceneFx, clockMs?: number, nightFactor = 0, visible?: TileWindow): void {
   // Roads + walls draw as autotiled connected networks (brief 11), not per-tile
   // through buildingQuad. Gates still draw their distinct gold block here.
   pushNetworks(renderer, iso, scene.buildings);
@@ -495,8 +568,9 @@ export function pushScene(renderer: RendererLike, iso: IsoProjection, scene: Sce
   // hook applies to every house sprite.
   // House cluster borders draw as a flat iso diamond ring under each member,
   // just below it in depth (so the sprite lands on top).
-  for (const cluster of clusterBuildings(scene.buildings, "house")) {
+  for (const cluster of memoHouseClusters(scene.buildings)) {
     for (const m of cluster.members) {
+      if (visible !== undefined && !buildingInWindow(m, visible)) continue; // audit-13 cull
       const d = iso.isoFootprintDiamondBox(m.x, m.y, m.w, m.h, 0);
       renderer.push(isoDiamondSprite(d.x, d.y, d.width, d.height, packTint(EDG.cream, Math.round(0xff * 0.18)), LAYER_ENTITY, d.depth - 0.0002));
       // Phase A cozy pivot: a warm hearth light-pool whose strength scales with
@@ -512,6 +586,7 @@ export function pushScene(renderer: RendererLike, iso: IsoProjection, scene: Sce
       }
     }
     for (const b of cluster.members) {
+      if (visible !== undefined && !buildingInWindow(b, visible)) continue; // audit-13 cull
       pushBuilding(renderer, iso, b, fx, clockMs, nightFactor);
     }
   }
@@ -519,6 +594,7 @@ export function pushScene(renderer: RendererLike, iso: IsoProjection, scene: Sce
   for (const b of scene.buildings) {
     if (b.type === "road" || b.type === "wall" || b.type === "bridge") continue; // handled by pushNetworks
     if (b.type === "house") continue; // handled by the cluster path above
+    if (visible !== undefined && !buildingInWindow(b, visible)) continue; // audit-13 cull
     pushBuilding(renderer, iso, b, fx, clockMs, nightFactor);
   }
   for (const v of scene.villagers) {
@@ -578,8 +654,23 @@ export function pushScene(renderer: RendererLike, iso: IsoProjection, scene: Sce
 
 /**
  * Push the road + wall autotile networks (brief 11). Pulls the network quads
- * via `networkQuads` and pushes them on the network layer (above terrain, below
- * buildings). Recomputes per frame — cheap at this world size.
+ * via {@link memoNetworkTiles} and pushes them on the network layer (above
+ * terrain, below buildings).
+ *
+ * audit-13 (2026-09-14): this USED TO say "Recomputes per frame — cheap at
+ * this world size", written when the world was 96×96. It is now 192×192
+ * (~600 road/wall tiles), and recomputing two membership `Set`s plus one
+ * `IsoNetworkTile` allocation per tile on EVERY 60 Hz render frame was no
+ * longer cheap — the classic GC-sawtooth-in-a-rAF-loop shape. The tile list
+ * is now pulled from `memoNetworkTiles`, which caches on `buildings`'s array
+ * identity and only recomputes when a new sim snapshot actually lands (see
+ * that cache's doc comment above `SceneFx`) — i.e. at most once per snapshot,
+ * not once per frame. Not culled to the camera window: the network is a
+ * connected graph a single road/wall run can span most of a town, so a
+ * per-tile cull here would need the SAME footprint-overlap test `pushScene`
+ * already applies to buildings for comparatively little win (autotiled
+ * network tiles are cheap flat-diamond pushes, not the shadow+sprite+fx stack
+ * a building costs) — left as a possible follow-up, not done here.
  */
 export function pushNetworks(renderer: RendererLike, iso: IsoProjection, buildings: readonly BuildingSnapshot[]): void {
   // Iso: each road/wall/bridge tile draws as a flat diamond filling (a band
@@ -587,7 +678,7 @@ export function pushNetworks(renderer: RendererLike, iso: IsoProjection, buildin
   // continuous without arm geometry. Roads stamp a cobblestone texture and
   // bridges a plank-deck texture (white-tinted so the recipe colors show); walls
   // keep the solid tinted diamond. Drawn on the network layer above terrain.
-  for (const t of isoNetworkTiles(buildings, { road: FRAME_ROAD, bridge: FRAME_BRIDGE })) {
+  for (const t of memoNetworkTiles(buildings)) {
     const d = iso.isoFootprintDiamondBox(t.tx, t.ty, 1, 1, 0);
     // Shrink the diamond toward its centre by the band fraction (roads thinner).
     const insetX = (d.width * (1 - t.band)) / 2;

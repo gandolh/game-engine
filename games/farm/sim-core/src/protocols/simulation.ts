@@ -54,3 +54,14 @@ export interface CropDeathBody {
   ownerId: number;
   crop: import("../components").CropKind;
 }
+
+// Bind ontology -> body shape onto the engine's message-bus registry (audit-08).
+// The engine ships `OntologyBodies` empty and game-agnostic; this declaration
+// merge is how Farm registers its own ontologies without the engine ever
+// importing a game. Only `DAY_START` is bound so far (staged conversion) —
+// see corpus/todos/2026-09-13-audit-08-message-bus-typed-ontology.md.
+declare module "@engine/core/sim" {
+  interface OntologyBodies {
+    [ONT_SIMULATION.DAY_START]: DayStartBody;
+  }
+}

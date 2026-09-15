@@ -15,8 +15,9 @@
  * threshold and bake the whole world ONCE at boot — byte-identical to the
  * pre-windowing `createCitadelRenderer`, and `update()` is a no-op. The 256×256
  * MP world (brief 29) crosses it and **must** window: its iso extent is
- * 8192×4112 ⇒ ~134.7 MB of RGBA, with the width exactly on WebGPU's default
- * `maxTextureDimension2D`. Windowing is what makes that world renderable at all.
+ * 8192×4112 ⇒ ~134.7 MB of RGBA, with the width sitting right at the WebGL2
+ * `MAX_TEXTURE_SIZE` many drivers report. Windowing is what makes that world
+ * renderable at all.
  *
  * Both paths bake ISO DIAMONDS into iso world-px space (brief 110). They used to
  * disagree: the windowed path handed the engine an AXIS-ALIGNED `tile·TILE_SIZE`
@@ -46,8 +47,9 @@ export const REBAKE_BUDGET = 1;
 /** Bake the whole world in one texture below this texel area; window above it.
  *  Measured on the ISO extents, which is the space the texture actually lives in:
  *  solo 96×96 ⇒ 3072×1552 ≈ 4.8 M texels (whole-world); MP 256×256 ⇒ 8192×4112
- *  ≈ 33.7 M texels ≈ 134.7 MB RGBA, and 8192 is WebGPU's default
- *  `maxTextureDimension2D` — so the MP world MUST window. 16 M sits between them. */
+ *  ≈ 33.7 M texels ≈ 134.7 MB RGBA, and 8192 sits right at the WebGL2
+ *  `MAX_TEXTURE_SIZE` many drivers report — so the MP world MUST window. 16 M
+ *  sits between them. */
 export const WINDOW_TEXEL_THRESHOLD = 4096 * 4096;
 
 /** The minimal camera view the window math needs (structural — keeps this

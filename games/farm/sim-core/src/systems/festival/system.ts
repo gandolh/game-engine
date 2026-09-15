@@ -1,6 +1,7 @@
 
 
 import type { SimContext, System, World, MessageBus, Rng } from "@engine/core";
+import { bodyOf } from "@engine/core";
 import type { GameEntity, CropQuality } from "../../components";
 import {
   ONT_SIMULATION,
@@ -41,9 +42,10 @@ export class FestivalSystem implements System {
     let newDay: number | null = null;
     for (const station of this.world.query("weatherStation", "inbox")) {
       for (const msg of station.inbox.messages) {
-        if (msg.ontology === ONT_SIMULATION.DAY_START) {
+        const dayStart = bodyOf(msg, ONT_SIMULATION.DAY_START);
+        if (dayStart !== null) {
           this.bus.markRead(ONT_SIMULATION.DAY_START);
-          const day = (msg.body as { day: number }).day;
+          const day = dayStart.day;
           if (newDay === null || day > newDay) newDay = day;
         }
       }

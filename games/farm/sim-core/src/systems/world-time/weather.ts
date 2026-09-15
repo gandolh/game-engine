@@ -1,4 +1,5 @@
 import type { SimContext, System, World, MessageBus, Rng } from "@engine/core";
+import { bodyOf } from "@engine/core";
 import type { GameEntity } from "../../components";
 import {
   ONT_WEATHER,
@@ -91,8 +92,9 @@ export class WeatherSystem implements System {
     for (const station of stations) {
       let newDay: number | null = null;
       for (const msg of station.inbox.messages) {
-        if (msg.ontology === ONT_SIMULATION.DAY_START) {
-          const day = (msg.body as { day: number }).day;
+        const dayStart = bodyOf(msg, ONT_SIMULATION.DAY_START);
+        if (dayStart !== null) {
+          const day = dayStart.day;
           if (day > this.lastDayProcessed) {
             newDay = day;
           }

@@ -10,6 +10,9 @@
     "docs"
   ],
   "packageManager": "npm@11.4.2",
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "dev:client": "npm run dev -w @farm/client",
@@ -19,8 +22,8 @@
     "hollow": "npm run dev -w @hollow/client",
     "mathquest": "npm run dev -w @mathquest/client",
     "build": "npm run build -w @farm/client",
-    "test": "turbo run test --continue --concurrency=1",
-    "typecheck": "turbo run typecheck --continue",
+    "test": "turbo run test --continue=always --concurrency=1",
+    "typecheck": "turbo run typecheck --continue=always",
     "atlas": "npm run build -w @tool/atlas-builder",
     "sim": "npm start -w @tool/run-sim",
     "sim:citadel": "npm start -w @tool/citadel-sim",
@@ -31,6 +34,7 @@
     "build-wasm": "npm run build -w @engine/wasm-modules",
     "build-engine": "npm run build -w @engine/core",
     "build-ui": "npm run build -w @engine/ui",
+    "pack-smoke": "mkdir -p examples/library-consumer/tarballs && npm pack -w @engine/core --pack-destination examples/library-consumer/tarballs && npm pack -w @engine/ui --pack-destination examples/library-consumer/tarballs && npm pack -w @engine/wasm-modules --pack-destination examples/library-consumer/tarballs && npm install --package-lock=false --prefix examples/library-consumer && npm run smoke --prefix examples/library-consumer",
     "docs": "turbo run docs",
     "docs:dev": "npm run dev -w @game-engine/docs-site",
     "codegraph:init": "codegraph init && codegraph telemetry off && codegraph status",

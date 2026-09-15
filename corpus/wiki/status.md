@@ -1,11 +1,44 @@
 ---
 summary: The current-state snapshot: one terse line per brief, architecture milestones, current sim/determinism behaviour, and open gaps. The single source for brief state.
-updated: 2026-08-18
+updated: 2026-09-15
 ---
 
 # Project Status
 
-Current-state **snapshot** (2026-08-18). Banners below are newest-first.
+Current-state **snapshot** (2026-08-18, banner below 2026-09-14). Banners below are newest-first.
+
+> **2026-09-15 The 2026-09-13 audit backlog is built — 30 of 30 specs landed** on branch
+> `audit-2026-09-13`, one commit per spec, all now in [todos/closed/](../todos/closed/). Five
+> follow-ups found during the build stay open as `audit-31..35`. Spec 01 (the turbo cache) went first
+> and immediately reclassified the verify gate: the same `Personality` probe that had printed "18
+> successful, 1 failed" printed **8 genuinely failed packages** afterwards. Engine gained three
+> promotions — a typed ontology→body registry on the message bus, `snapshot-interp.ts`, and
+> `tick-pump.ts` — plus a settled speed model (fixed period, variable batch, **cap and drop the debt**
+> on overrun; see [decisions.md](decisions.md)). **Citadel deliberately keeps its own
+> `entity-interp.ts`**: its jitter buffer fixed a real diagnosed bug (~41% → ~2% of gaps) and sharing
+> would have degraded it. **Two verification gaps are open, not closed:** no sim runs were made this
+> session, so behaviour preservation for audit-08/09/10/14/15/23/24 rests on typecheck + scoped suites
+> (and **audit-09 is known to diverge on a fixed seed** — it is the one deliberately
+> non-behaviour-preserving commit); and browser verification was unavailable after Wave 2, leaving
+> audit-13 culling, audit-25 draw order, Farm's fault banner, and the browser-visible acceptance
+> criteria on audit-18 and audit-26 **unverified by eye**. Full narrative: [log.md](../log.md).
+
+> **2026-09-14 CI exists now (audit-06) — push/PR runs `npm ci` → typecheck → test → a startup-smoke
+> gate, where before nothing ran the gates except a human remembering to.** New
+> [.github/workflows/ci.yml](../../.github/workflows/ci.yml): after the standard typecheck/test pair,
+> five more steps prove the real entry points still *start* (`build`, `sim`, `sim:citadel`,
+> `sim:hollow`, `preview`) at tiny budgets — the gate class that would have caught the `.glsl`
+> dynamic-import break decisions.md records (typecheck + 689 tests didn't). `sim:hollow`'s smoke step
+> uses `MAX_YEARS=1`, not `MAX_DAYS=1`/`TICKS_PER_DAY` like the other two sims — `tools/hollow-sim`
+> reads a different env var for run length (see `tools/hollow-sim/src/env.ts`); passing `MAX_DAYS` to
+> it silently no-ops. No `.turbo` cache is restored across CI runs (deliberate — see the workflow's own
+> comment for the condition to revisit). Root `package.json` gained an `engines.node: ">=24"` field —
+> README said "Node 20+", `infrastructure/Dockerfile` pins `node:24-alpine`, `@types/node` is pinned
+> 25.9.1, and nothing settled it; 24 matches the Dockerfile (the one pin backed by a real deploy
+> constraint) and clears both vite's and vitest's own `engines` ranges. Pairs with
+> [audit-01](../todos/closed/2026-09-13-audit-01-turbo-cache-false-green.md)'s topological-cache fix,
+> which is why CI can use turbo normally instead of avoiding it. Spec:
+> [audit-06](../todos/closed/2026-09-13-audit-06-ci-gate.md).
 
 > **2026-08-18 Corpus audit — the work queue was fiction and 452 links were dead.** `todos/` held 29
 > files while their own trackers recorded **24 as done**; those moved to `todos/closed/`, leaving a

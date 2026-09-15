@@ -9,10 +9,10 @@
  */
 import { bootstrapSim, loadFromSave } from "@citadel/sim-core/sim-bootstrap";
 import type { WorkerInbound, WorkerOutbound, CitadelSave } from "@citadel/sim-core/snapshot";
+import { createTickPump } from "@engine/core/runtime";
 
 let paused = false;
 let speed = 1;
-let intervalId: ReturnType<typeof setInterval> | null = null;
 let tick = 0;
 // Set when a command arrives; lets the paused loop know there is work to apply
 // (so we only re-bake/re-snapshot when something actually changed).
@@ -35,30 +35,42 @@ function postSnapshot(): void {
   } satisfies WorkerOutbound);
 }
 
-function startLoop(): void {
-  if (simResult === null) return;
-  if (intervalId !== null) clearInterval(intervalId);
-
-  const msPerTick = 1000 / (20 * speed);
-  const result = simResult;
-
-  intervalId = setInterval(() => {
-    if (paused) {
-      // Plan-while-paused: apply queued placement/demolish commands without
-      // advancing the sim or the day clock, then re-emit a snapshot so the new
-      // layout shows immediately. No tick increment, no sim systems run.
-      if (commandsPending) {
+/**
+ * audit-26: fixed-cadence (base 20 Hz) tick pump — the interval PERIOD is
+ * fixed and never re-periodized by `speed`; `speed` instead sets the batch
+ * size (scheduler ticks per fire), read fresh via `getBatchSize` so a speed
+ * change takes effect on the very next fire with no interval teardown or
+ * recreation (that teardown/recreate was the prior speed-change timing
+ * hitch — see @engine/core/runtime/tick-pump.ts's header, and its
+ * batch-overrun ruling: a fire runs at most `speed` ticks, never more, and
+ * never accumulates debt from a slow fire).
+ *
+ * Paused: `getBatchSize` resolves to 0, so the pump's internal tick loop
+ * runs zero times this fire; `onFire`'s `ticksThisFire === 0` branch is
+ * exactly the original plan-while-paused logic (Citadel 97/13) — apply
+ * queued placement/demolish commands without advancing the sim or the day
+ * clock, then re-emit a snapshot so the new layout shows immediately.
+ */
+const pump = createTickPump({
+  hz: 20,
+  getBatchSize: () => (paused ? 0 : speed),
+  onTick: () => {
+    if (simResult === null) return;
+    simResult.scheduler.tick({ tick });
+    tick++;
+  },
+  onFire: (ticksThisFire) => {
+    if (ticksThisFire === 0) {
+      if (commandsPending && simResult !== null) {
         commandsPending = false;
-        result.applyCommands({ tick });
+        simResult.applyCommands({ tick });
         postSnapshot();
       }
       return;
     }
-    result.scheduler.tick({ tick });
-    tick++;
     postSnapshot();
-  }, msPerTick);
-}
+  },
+});
 
 self.onmessage = (event: MessageEvent<WorkerInbound>) => {
   const msg = event.data;
@@ -111,7 +123,7 @@ self.onmessage = (event: MessageEvent<WorkerInbound>) => {
       const ready: WorkerOutbound = { type: "ready" };
       self.postMessage(ready);
 
-      startLoop();
+      pump.start();
       break;
     }
     // Citadel 97/13: emit a snapshot right after each pacing change so the client
@@ -129,9 +141,8 @@ self.onmessage = (event: MessageEvent<WorkerInbound>) => {
     }
     case "speed": {
       speed = msg.multiplier;
-      if (intervalId !== null && simResult !== null) {
-        startLoop();
-      }
+      // audit-26: fixed period — no interval teardown/recreation on a speed
+      // change; the pump's next fire just reads the new `speed` value fresh.
       postSnapshot();
       break;
     }
@@ -153,7 +164,7 @@ self.onmessage = (event: MessageEvent<WorkerInbound>) => {
     // Phase 5: Load — replay a CitadelSave to reconstruct identical sim state.
     // Pauses before replay, restores speed after.
     case "load-save": {
-      if (intervalId !== null) clearInterval(intervalId);
+      pump.stop();
       const loaded = loadFromSave(msg.save);
       simResult = loaded;
       // Resume from the tick that was the save point.
@@ -162,7 +173,7 @@ self.onmessage = (event: MessageEvent<WorkerInbound>) => {
 
       const ready: WorkerOutbound = { type: "ready" };
       self.postMessage(ready);
-      startLoop();
+      pump.start();
       // Citadel 97/13: emit an immediate snapshot carrying the post-load pacing (paused=false)
       // so the client self-corrects at once — its old optimistic `paused` (e.g. true from a
       // pre-load pause) no longer pins render interpolation to a frozen alpha.

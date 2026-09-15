@@ -24,12 +24,16 @@
  * SAME seed + the CURRENT mastery + the NEW locale) — this worker doesn't distinguish a "first"
  * init from a "re-init", it just always (re)boots `bootstrapMathquestSim` fresh on any `"init"`.
  *
- * Drives `bootstrapMathquestSim()` at a fixed 20 Hz base cadence and posts a snapshot after each
- * paced tick (cheap — keeps the view fresh) AND immediately after every command, so the client
- * sees the run's resolution the instant it happens rather than waiting for the next tick.
- * `step()` itself never changes run/combat state (see `sim-bootstrap.ts`'s module doc) — the
- * 20 Hz real-time cadence is this transport's OWN pacing, never the sim's (determinism is
- * load-bearing — root CLAUDE.md).
+ * Drives `bootstrapMathquestSim()` purely by command: MateQuest is turn-based, and the sim's own
+ * doc comment (`sim-bootstrap.ts`) says run/combat state changes ONLY inside the commands, never
+ * inside `step()` — so nothing changes between commands and a wall-clock pump has nothing to
+ * show. This worker posts a snapshot on `init` and immediately after every command (already true
+ * of every handler below); there is no `setInterval`/`step()` pump (see
+ * corpus/todos/2026-09-13-audit-03-mathquest-drop-snapshot-pump.md — a prior 20 Hz `step()` +
+ * `postSnapshot()` loop was deleted as provably redundant: `step()` never changes visible state,
+ * so every one of those 20 posts/sec was a wasted structured-clone of an unchanged snapshot). If
+ * a heartbeat/animation is ever wanted, gate it behind a dirty flag the sim sets — never
+ * reinstate an unconditional pump.
  */
 import { bootstrapMathquestSim } from "@mathquest/sim-core/sim-bootstrap";
 import type {
@@ -113,10 +117,6 @@ export type WorkerOutbound =
   | { type: "ready" }
   | { type: "snapshot"; snapshot: GameSnapshot };
 
-const BASE_TICK_HZ = 20;
-const BASE_MS_PER_TICK = 1000 / BASE_TICK_HZ;
-
-let intervalId: ReturnType<typeof setInterval> | null = null;
 let sim: ReturnType<typeof bootstrapMathquestSim> | null = null;
 
 function postSnapshot(): void {
@@ -125,23 +125,20 @@ function postSnapshot(): void {
   self.postMessage({ type: "snapshot", snapshot } satisfies WorkerOutbound);
 }
 
-function startLoop(): void {
-  if (intervalId !== null) clearInterval(intervalId);
-  intervalId = setInterval(() => {
-    if (sim === null) return;
-    sim.step();
-    postSnapshot();
-  }, BASE_MS_PER_TICK);
-}
-
 self.onmessage = (event: MessageEvent<WorkerInbound>) => {
   const msg = event.data;
+  // Diagnostic only (audit-28): every handler below already silently drops via `sim?.method()`
+  // (and `postSnapshot()` early-returns on `sim === null`) — that policy is UNCHANGED and is
+  // pinned by sim-worker.test.ts. This just makes a stray pre-"init" command visible instead of a
+  // totally silent no-op; it never reads/writes `sim` itself, so it can't affect state or ordering.
+  if (sim === null && msg.type !== "init") {
+    console.warn(`[mathquest worker] dropping "${msg.type}" received before "init"`);
+  }
   switch (msg.type) {
     case "init": {
       sim = bootstrapMathquestSim({ seed: msg.seed, mastery: msg.mastery, locale: msg.locale });
       self.postMessage({ type: "ready" } satisfies WorkerOutbound);
       postSnapshot();
-      startLoop();
       break;
     }
     case "choose-node": {

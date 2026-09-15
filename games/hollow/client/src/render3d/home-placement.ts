@@ -13,7 +13,18 @@
  * app can freeze it there for the life of the run (no teleport). Corner-anchored
  * to match `@engine/core/render3d`'s `box()` (a home at `(x,y)` spans
  * `[x, x+w] x [y, y+d]`).
+ *
+ * `HomeRectIndex` + `HomeRegistry` (chunk audit-11 fix) own the LIFETIME half
+ * of this: Hollow is generational, households dissolve continuously, and the
+ * app used to only ever `push` a placed rect — never release one — so a
+ * dissolved household's footprint stayed reserved forever and the spiral
+ * search below degraded without bound as the map saturated. `HomeRegistry`
+ * reconciles against each frame's live household ids and drops a dissolved
+ * one's rect + frozen position; `HomeRectIndex` buckets rects into a coarse
+ * tile grid so a search only tests nearby rects instead of scanning the
+ * whole (no-longer-ever-growing) set.
  */
+import type { HouseholdPosition } from "./household-layout";
 
 /** An axis-aligned footprint rectangle in tile-space (a home's "hitbox"). */
 export interface Rect {
@@ -48,6 +59,24 @@ export interface PlacementOptions {
   readonly maxRings?: number;
 }
 
+/** A source of "rects that might overlap a query rect" — a conservative
+ *  superset; `isFree` below still confirms every candidate with
+ *  `rectsOverlap`. A plain `readonly Rect[]` trivially satisfies this (used
+ *  by small/test placement sets, where scanning the whole thing is cheap);
+ *  `HomeRectIndex` implements it with O(neighbours) lookup for the
+ *  large/long-lived case (chunk audit-11 fix). */
+export interface RectSource {
+  near(query: Rect): readonly Rect[];
+}
+
+function isRectSource(placed: readonly Rect[] | RectSource): placed is RectSource {
+  return !Array.isArray(placed);
+}
+
+function candidatesNear(placed: readonly Rect[] | RectSource, query: Rect): readonly Rect[] {
+  return isRectSource(placed) ? placed.near(query) : placed;
+}
+
 /**
  * Find a position (min-corner) for a `w x d` home near `desired` whose hitbox
  * (footprint + `margin`) overlaps none of `placed`. Tries `desired` first, then
@@ -61,7 +90,7 @@ export function findFreePlacement(
   w: number,
   d: number,
   margin: number,
-  placed: readonly Rect[],
+  placed: readonly Rect[] | RectSource,
   opts: PlacementOptions = {},
 ): { x: number; y: number } {
   const step = opts.step ?? Math.max(w, d);
@@ -69,7 +98,7 @@ export function findFreePlacement(
 
   const isFree = (x: number, y: number): boolean => {
     const rect = footprintRect(x, y, w, d, margin);
-    for (const r of placed) {
+    for (const r of candidatesNear(placed, rect)) {
       if (rectsOverlap(r, rect)) return false;
     }
     return true;
@@ -88,4 +117,177 @@ export function findFreePlacement(
     }
   }
   return { x: desired.x, y: desired.y };
+}
+
+// --- HomeRectIndex (chunk audit-11 fix) ---------------------------------
+
+/**
+ * Coarse tile-grid spatial index over placed home rects, keyed by household
+ * id. `findFreePlacement`'s spiral search calls `isFree` once per sample and,
+ * against a plain array, each call linearly rescans the WHOLE set of placed
+ * rects — on a saturated 64x64 town that's ~9,400 samples x N placed homes
+ * for every household whose search fails, every frame. Bucketing rects into
+ * fixed-size cells means a query only has to look at the handful of cells
+ * its own bounding box touches.
+ *
+ * A rect is stored in EVERY cell it overlaps (not just one), so two
+ * overlapping rects are guaranteed to share at least one bucket — `near()`
+ * is therefore always a SUPERSET of the true overlap set, never a subset.
+ * `findFreePlacement` still confirms every candidate with `rectsOverlap`, so
+ * correctness doesn't depend on the bucketing being exact.
+ */
+export class HomeRectIndex implements RectSource {
+  private readonly cellSize: number;
+  private readonly cells = new Map<string, { id: number; rect: Rect }[]>();
+  private readonly byId = new Map<number, { rect: Rect; cellKeys: readonly string[] }>();
+
+  constructor(cellSize = 8) {
+    this.cellSize = Math.max(1, cellSize);
+  }
+
+  private cellKeysFor(rect: Rect): string[] {
+    const minCx = Math.floor(rect.minX / this.cellSize);
+    const maxCx = Math.floor(rect.maxX / this.cellSize);
+    const minCy = Math.floor(rect.minY / this.cellSize);
+    const maxCy = Math.floor(rect.maxY / this.cellSize);
+    const keys: string[] = [];
+    for (let cx = minCx; cx <= maxCx; cx++) {
+      for (let cy = minCy; cy <= maxCy; cy++) {
+        keys.push(`${cx}:${cy}`);
+      }
+    }
+    return keys;
+  }
+
+  /** Reserve `rect` under `id`, replacing any previous reservation for it. */
+  set(id: number, rect: Rect): void {
+    this.delete(id);
+    const cellKeys = this.cellKeysFor(rect);
+    for (const key of cellKeys) {
+      let bucket = this.cells.get(key);
+      if (!bucket) {
+        bucket = [];
+        this.cells.set(key, bucket);
+      }
+      bucket.push({ id, rect });
+    }
+    this.byId.set(id, { rect, cellKeys });
+  }
+
+  /** Release `id`'s reservation, if any. Returns whether one existed. */
+  delete(id: number): boolean {
+    const entry = this.byId.get(id);
+    if (!entry) return false;
+    for (const key of entry.cellKeys) {
+      const bucket = this.cells.get(key);
+      if (!bucket) continue;
+      const kept = bucket.filter((item) => item.id !== id);
+      if (kept.length > 0) this.cells.set(key, kept);
+      else this.cells.delete(key);
+    }
+    this.byId.delete(id);
+    return true;
+  }
+
+  has(id: number): boolean {
+    return this.byId.has(id);
+  }
+
+  /** Number of currently-reserved rects (LIVE, not cumulative — every
+   *  `delete` shrinks this). */
+  get size(): number {
+    return this.byId.size;
+  }
+
+  near(query: Rect): readonly Rect[] {
+    const seen = new Set<number>();
+    const out: Rect[] = [];
+    for (const key of this.cellKeysFor(query)) {
+      const bucket = this.cells.get(key);
+      if (!bucket) continue;
+      for (const item of bucket) {
+        if (seen.has(item.id)) continue;
+        seen.add(item.id);
+        out.push(item.rect);
+      }
+    }
+    return out;
+  }
+}
+
+// --- HomeRegistry (chunk audit-11 fix) ----------------------------------
+
+export interface HomeRegistryOptions extends PlacementOptions {
+  /** `HomeRectIndex` bucket size (tiles); defaults to 8. */
+  readonly cellSize?: number;
+}
+
+/**
+ * Owns the full "freeze on first sighting + collision-aware placement +
+ * release on dissolve" lifecycle for household homes. Before this existed,
+ * `app.ts` kept a `homePosByHousehold` Map and a `placedHomeRects` array
+ * that were only ever grown, never shrunk — since Hollow is the
+ * *generational* sim (households form and dissolve continuously across
+ * generations), a dissolved household's frozen position and reserved
+ * footprint leaked forever, and the free-space search degraded without
+ * bound as the map saturated with dead reservations.
+ *
+ * Pure and deterministic (no RNG, no wall-clock) beyond its own internal
+ * state — the SAME sequence of `positionsFor` calls with the same `layout`
+ * content always yields the same positions, so this stays render-only
+ * dressing, never a sim input.
+ *
+ * **Anti-teleport guarantee**: a household's position is computed exactly
+ * ONCE — the first frame its id appears in `layout` — via `findFreePlacement`
+ * against every other currently-LIVE home's rect. Every later call for that
+ * same id reuses the frozen position untouched (`positions.has(id)` short-
+ * circuits before `findFreePlacement` is ever called again for it).
+ * Releasing a DIFFERENT, dissolved household's rect only changes what a
+ * *future new* household's search sees — it can never re-trigger placement
+ * for a household whose position is already frozen, because release only
+ * deletes entries for ids ABSENT from `layout`, and a surviving household's
+ * id is (by definition) present.
+ */
+export class HomeRegistry {
+  private readonly positions = new Map<number, HouseholdPosition>();
+  private readonly rects: HomeRectIndex;
+  private readonly footprint: { readonly w: number; readonly d: number };
+  private readonly margin: number;
+  private readonly opts: PlacementOptions;
+
+  constructor(footprint: { readonly w: number; readonly d: number }, margin: number, opts: HomeRegistryOptions = {}) {
+    this.footprint = footprint;
+    this.margin = margin;
+    this.opts = opts;
+    this.rects = new HomeRectIndex(opts.cellSize);
+  }
+
+  /**
+   * Reconcile against this frame's live household ids (`layout`'s keys):
+   * release any previously-tracked id no longer present, then freeze a
+   * position for any new one. Returns the frozen position for every
+   * currently-live household — exactly `layout`'s ids, no more, no less.
+   */
+  positionsFor(layout: ReadonlyMap<number, HouseholdPosition>): ReadonlyMap<number, HouseholdPosition> {
+    for (const id of this.positions.keys()) {
+      if (!layout.has(id)) {
+        this.positions.delete(id);
+        this.rects.delete(id);
+      }
+    }
+    for (const [id, freshAnchor] of layout) {
+      if (this.positions.has(id)) continue;
+      const { w, d } = this.footprint;
+      const pos = findFreePlacement(freshAnchor, w, d, this.margin, this.rects, this.opts);
+      this.positions.set(id, pos);
+      this.rects.set(id, footprintRect(pos.x, pos.y, w, d, this.margin));
+    }
+    return this.positions;
+  }
+
+  /** Number of currently-reserved footprints (LIVE households only — the
+   *  metric that must stabilise instead of growing unboundedly). */
+  get liveCount(): number {
+    return this.rects.size;
+  }
 }

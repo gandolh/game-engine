@@ -254,8 +254,26 @@ export interface SimState {
   /** Road grid: 1 = road tile, 0 = not road. Length width*height. Shared. */
   readonly roadGrid: Uint8Array;
 
-  /** Set of tile indices (ty*width+tx) covered by building footprints. Shared. */
-  readonly buildingTiles: Set<number>;
+  /**
+   * Tile index (ty*width+tx) → owning building's ECS entity id, for every tile
+   * covered by a building footprint. Shared.
+   *
+   * audit-14: this used to be a bare `Set<number>` (occupancy only); it is now
+   * the single persistent tile→building index that `getBuildings`/`getVillagers`
+   * (snapshot-builder.ts) read directly instead of rebuilding a footprint-walk
+   * `Map` from scratch on every snapshot. Kept as the SAME field (not a second
+   * map alongside it) specifically so every existing call site that only ever
+   * did occupancy checks — `.has(idx)` (road-connectivity.ts, placement.ts) and
+   * `.delete(idx)` (placement.ts demolish, army.ts/fire-system.ts/
+   * siege-resolution.ts destroy) — keeps working unchanged: `Map.has`/`Map.delete`
+   * have the identical call signature to `Set.has`/`Set.delete`, so those sites
+   * needed zero edits and the index is exact under demolish AND fire/siege/army
+   * destroy without touching those systems. Only the ADD side changed: it now
+   * needs a value (the building id), so `addBuildingTiles` in placement.ts — the
+   * only site that ever added tiles — takes the new entity's id and calls
+   * `.set(idx, id)` instead of `.add(idx)`.
+   */
+  readonly buildingTiles: Map<number, number>;
 
   /** Per-building runtime economy state, keyed by ECS entity id. */
   readonly buildingState: Map<number, BuildingRuntimeState>;

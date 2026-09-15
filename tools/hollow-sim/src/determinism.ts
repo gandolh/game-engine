@@ -18,39 +18,116 @@ export interface DeterminismCheckOptions {
   personaSeedPath?: string;
 }
 
+// `JSON.stringify` collapses Infinity/-Infinity/NaN all to `null` and prints
+// `-0` as `0` — so a real float-drift bug that flips a division-derived
+// metric between, say, Infinity and -Infinity between two passes fingerprints
+// *identically* and the determinism check falsely passes. These sentinels
+// make each case a distinct, visible string instead. Mirrors
+// `tools/run-sim/src/run-core.ts`'s scheme (see that file's header comment
+// for the collision note — a legitimate string equal to one of these exact
+// sentinels is re-escaped by `escapeSentinelString` below).
+const SENTINEL_NAN = "__NaN";
+const SENTINEL_POS_INF = "__Inf";
+const SENTINEL_NEG_INF = "__-Inf";
+const SENTINEL_NEG_ZERO = "__-0";
+const SENTINELS: ReadonlySet<string> = new Set([
+  SENTINEL_NAN,
+  SENTINEL_POS_INF,
+  SENTINEL_NEG_INF,
+  SENTINEL_NEG_ZERO,
+]);
+
+function escapeSentinelString(value: string): string {
+  return SENTINELS.has(value) ? `__esc${value}` : value;
+}
+
+function fingerprintReplacer(_key: string, value: unknown): unknown {
+  if (typeof value === "number") {
+    if (Number.isNaN(value)) return SENTINEL_NAN;
+    if (value === Number.POSITIVE_INFINITY) return SENTINEL_POS_INF;
+    if (value === Number.NEGATIVE_INFINITY) return SENTINEL_NEG_INF;
+    if (Object.is(value, -0)) return SENTINEL_NEG_ZERO;
+    return value;
+  }
+  if (typeof value === "string") return escapeSentinelString(value);
+  return value;
+}
+
 /** A single JSON string capturing everything that must reproduce
  *  byte-identically: the metrics time series, the full event chronicle,
  *  and the lineage record. */
 export function fingerprint(result: RunResult): string {
-  return JSON.stringify({
-    metricsRows: result.metricsRows,
-    events: result.events,
-    lineage: result.lineage,
-  });
+  return JSON.stringify(
+    {
+      metricsRows: result.metricsRows,
+      events: result.events,
+      lineage: result.lineage,
+    },
+    fingerprintReplacer,
+  );
+}
+
+/** Same-value comparison for leaf values: unlike `===`, this treats NaN as
+ *  equal to itself and -0 as DIFFERENT from 0 — the exact bit-for-bit
+ *  reproducibility this tool is meant to enforce. */
+function sameLeaf(a: unknown, b: unknown): boolean {
+  if (typeof a === "number" && typeof b === "number") return Object.is(a, b);
+  return a === b;
+}
+
+/** Renders a single leaf value legibly, spelling out non-finite numbers and
+ *  -0 by name instead of letting them collapse to "null"/"0". */
+function formatLeaf(v: unknown): string {
+  if (typeof v === "number") {
+    if (Number.isNaN(v)) return "NaN";
+    if (v === Number.POSITIVE_INFINITY) return "Infinity";
+    if (v === Number.NEGATIVE_INFINITY) return "-Infinity";
+    if (Object.is(v, -0)) return "-0";
+  }
+  return JSON.stringify(v, fingerprintReplacer);
+}
+
+/** Recursively walks two same-shaped values and returns a legible
+ *  `path: run A = ...\n  run B = ...` report for the first leaf that
+ *  differs, or null if they match. */
+function findDivergence(a: unknown, b: unknown, path: string): string | null {
+  if (sameLeaf(a, b)) return null;
+
+  const aIsObj = typeof a === "object" && a !== null;
+  const bIsObj = typeof b === "object" && b !== null;
+  if (aIsObj && bIsObj) {
+    const aRec = a as Record<string, unknown>;
+    const bRec = b as Record<string, unknown>;
+    const keys = new Set([...Object.keys(aRec), ...Object.keys(bRec)]);
+    const isArray = Array.isArray(a) || Array.isArray(b);
+    for (const key of keys) {
+      const childPath = isArray ? `${path}[${key}]` : `${path}.${key}`;
+      const found = findDivergence(aRec[key], bRec[key], childPath);
+      if (found) return found;
+    }
+    return null;
+  }
+
+  return `${path}: run A = ${formatLeaf(a)}\n  run B = ${formatLeaf(b)}`;
 }
 
 export function describeDivergence(a: RunResult, b: RunResult): string {
   const rowCount = Math.max(a.metricsRows.length, b.metricsRows.length);
   for (let i = 0; i < rowCount; i++) {
-    const ra = JSON.stringify(a.metricsRows[i] ?? null);
-    const rb = JSON.stringify(b.metricsRows[i] ?? null);
-    if (ra !== rb) {
-      return `first metrics-row divergence at index ${i}:\n  run A: ${ra}\n  run B: ${rb}`;
-    }
+    const found = findDivergence(
+      a.metricsRows[i] ?? null,
+      b.metricsRows[i] ?? null,
+      `metricsRows[${i}]`,
+    );
+    if (found) return `first metrics-row divergence at ${found}`;
   }
   const eventCount = Math.max(a.events.length, b.events.length);
   for (let i = 0; i < eventCount; i++) {
-    const ea = JSON.stringify(a.events[i] ?? null);
-    const eb = JSON.stringify(b.events[i] ?? null);
-    if (ea !== eb) {
-      return `first event divergence at index ${i}:\n  run A: ${ea}\n  run B: ${eb}`;
-    }
+    const found = findDivergence(a.events[i] ?? null, b.events[i] ?? null, `events[${i}]`);
+    if (found) return `first event divergence at ${found}`;
   }
-  const la = JSON.stringify(a.lineage);
-  const lb = JSON.stringify(b.lineage);
-  if (la !== lb) {
-    return `lineage differs:\n  run A: ${la}\n  run B: ${lb}`;
-  }
+  const found = findDivergence(a.lineage, b.lineage, "lineage");
+  if (found) return `lineage differs at ${found}`;
   return "runs differ but no per-field difference located (length mismatch?)";
 }
 

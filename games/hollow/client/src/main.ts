@@ -69,7 +69,7 @@ import type {
   WorkerOutbound,
 } from "./worker/sim-worker";
 import { startHollowApp } from "./render3d/app";
-import { DebugOverlay } from "@engine/core";
+import { DebugOverlay, showUnsupportedNotice } from "@engine/core";
 import { HOLLOW_PAL } from "./render/hollow-palette";
 import { createOverlayCanvas, resizeOverlayCanvas, drawAgentOverlay, type OverlayAgentInput } from "./render3d/overlay";
 import { renderInspectPanel, type InspectPanelCallbacks } from "./inspect-panel";
@@ -253,34 +253,6 @@ function startRun(input: { seed: number; persona?: PersonaSeed; replayLog?: Inte
     worker.postMessage(inspect);
   }
 
-  /**
-   * Shows a centered, palette-styled message over the scene when the WebGPU
-   * renderer can't start (see `app.ts`'s `onRendererUnavailable`) — so the
-   * user sees an explanation instead of a blank canvas, while the sim +
-   * chronicle + dashboard keep running behind it. Idempotent.
-   */
-  function showRendererUnavailable(message: string): void {
-    if (document.getElementById("hollow-renderer-unavailable")) return;
-    const box = document.createElement("div");
-    box.id = "hollow-renderer-unavailable";
-    box.textContent = message;
-    box.style.position = "fixed";
-    box.style.top = "50%";
-    box.style.left = "50%";
-    box.style.transform = "translate(-50%, -50%)";
-    box.style.maxWidth = "32rem";
-    box.style.padding = "16px 20px";
-    box.style.textAlign = "center";
-    box.style.font = "14px/1.5 ui-monospace, monospace";
-    box.style.color = HOLLOW_PAL.cream;
-    box.style.background = HOLLOW_PAL.ink;
-    box.style.border = `1px solid ${HOLLOW_PAL.rust}`;
-    box.style.borderRadius = "6px";
-    box.style.zIndex = "50";
-    box.style.pointerEvents = "none";
-    appEl.appendChild(box);
-  }
-
   // -------------------------------------------------------------------------
   // Boot the 3D app
   // -------------------------------------------------------------------------
@@ -296,7 +268,18 @@ function startRun(input: { seed: number; persona?: PersonaSeed; replayLog?: Inte
       followingAgentId = null;
       if (currentDetail) showPanel(currentDetail);
     },
-    onRendererUnavailable: showRendererUnavailable,
+    // Shows a centered, palette-styled message over the scene when the WebGL2
+    // renderer can't start — so the user sees an explanation instead of a
+    // blank canvas, while the sim + chronicle + dashboard keep running
+    // behind it. Delegates to the shared `showUnsupportedNotice`, which is
+    // idempotent (see engine/core/src/render/unsupported-notice.ts).
+    onRendererUnavailable: (message) =>
+      showUnsupportedNotice(
+        appEl,
+        { text: HOLLOW_PAL.cream, background: HOLLOW_PAL.ink, border: HOLLOW_PAL.rust },
+        message,
+        "hollow-renderer-unavailable",
+      ),
   });
 
   // Chunk hollow-10b: the `"requestLineage"`/`"lineage"` round trip backing
@@ -463,7 +446,7 @@ function startRun(input: { seed: number; persona?: PersonaSeed; replayLog?: Inte
   const overlayCtx = overlayCanvas.getContext("2d");
   if (!overlayCtx) {
     // eslint-disable-next-line no-console -- surfaced to the dev console, same
-    // convention as app.ts's WebGPU-unavailable message; the overlay is a
+    // convention as app.ts's renderer-unavailable message; the overlay is a
     // legibility layer on top of the 3D scene, not something the app hard-fails
     // without.
     console.error("[hollow] 2D overlay canvas context unavailable — glyphs/tags will not render.");
@@ -472,7 +455,7 @@ function startRun(input: { seed: number; persona?: PersonaSeed; replayLog?: Inte
   function overlayFrame(): void {
     // Perf HUD — updated every display frame (its fps/ms come from the
     // wall-clock delta between these calls). Runs even before the first
-    // snapshot / when WebGPU is absent, so it's always a live readout.
+    // snapshot / when the renderer is unavailable, so it's always a live readout.
     if (showPerfHud) {
       const frameReport = app.getRenderReport();
       if (frameReport) debugOverlay.setFrameReport(frameReport);

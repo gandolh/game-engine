@@ -1,9 +1,9 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import { ONT_FAMILY } from "@hollow/sim-core/protocols";
-import { metricsCsv, eventsJsonl, lineageJson } from "@hollow/sim-core/observe";
+import { CHRONICLE_CAP, metricsCsv, eventsJsonl, lineageJson } from "@hollow/sim-core/observe";
 import type { LineageEntry } from "@hollow/sim-core/lineage";
 import { ingestEvents, ingestMetricsRow, getEvents, getMetrics, resetResearchStore } from "./research-store";
-import { createExportPanel } from "./export-panel";
+import { createExportPanel, droppedEventsNoteText } from "./export-panel";
 
 let createObjectURL: ReturnType<typeof vi.fn>;
 let revokeObjectURL: ReturnType<typeof vi.fn>;
@@ -74,6 +74,43 @@ describe("createExportPanel", () => {
 
     expect(clickSpy).toHaveBeenCalledOnce();
     expect(await capturedBlobText()).toBe(eventsJsonl(getEvents()));
+  });
+
+  it("droppedEventsNoteText is empty below the cap, explicit and exact past it", () => {
+    expect(droppedEventsNoteText(0)).toBe("");
+    expect(droppedEventsNoteText(1)).toContain("1 event");
+    expect(droppedEventsNoteText(1)).not.toContain("1 events"); // singular, not "1 events"
+    expect(droppedEventsNoteText(42)).toContain("42 events");
+  });
+
+  it("shows no dropped-events note below the cap", () => {
+    ingestEvents([{ tick: 20, ontology: ONT_FAMILY.DEATH, agentId: 1, cause: "oldAge" }]);
+    const root = createExportPanel({ requestLineage: () => Promise.resolve([]) });
+
+    const note = root.querySelector<HTMLElement>(".hollow-export-dropped-note");
+    expect(note).not.toBeNull();
+    expect(note!.hidden).toBe(true);
+    expect(note!.textContent).toBe("");
+  });
+
+  it("surfaces the exact dropped-event count once the client-side cap is exceeded — never a silent truncation", async () => {
+    const overflow = 3;
+    for (let i = 0; i < CHRONICLE_CAP + overflow; i++) {
+      ingestEvents([{ tick: i, ontology: ONT_FAMILY.DEATH, agentId: i, cause: "oldAge" }]);
+    }
+    const root = createExportPanel({ requestLineage: () => Promise.resolve([]) });
+
+    const note = root.querySelector<HTMLElement>(".hollow-export-dropped-note");
+    expect(note!.hidden).toBe(false);
+    expect(note!.textContent).toBe(droppedEventsNoteText(overflow));
+    expect(note!.textContent).toContain(`${overflow} events`);
+
+    // And the export itself is exactly the (now-capped) getEvents() — this
+    // module never claims completeness it doesn't have; the note is how it
+    // says so.
+    buttonByLabel(root, "Export events.jsonl").click();
+    expect(await capturedBlobText()).toBe(eventsJsonl(getEvents()));
+    expect(getEvents().length).toBe(CHRONICLE_CAP);
   });
 
   it("exporting lineage.json requests the worker round trip and downloads lineageJson(entries)", async () => {

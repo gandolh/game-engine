@@ -1,6 +1,7 @@
 
 
 import type { SimContext, System, World, MessageBus, Rng } from "@engine/core";
+import { bodyOf } from "@engine/core";
 import type { GameEntity } from "../../components";
 import { ONT_SIMULATION, PERFORMATIVE } from "../../protocols";
 import {
@@ -40,9 +41,10 @@ export class HarborSystem implements System {
 
     let newDay: number | null = null;
     for (const msg of board.inbox.messages) {
-      if (msg.ontology === ONT_SIMULATION.DAY_START) {
+      const dayStart = bodyOf(msg, ONT_SIMULATION.DAY_START);
+      if (dayStart !== null) {
         this.bus.markRead(ONT_SIMULATION.DAY_START);
-        const day = (msg.body as { day: number }).day;
+        const day = dayStart.day;
         if (newDay === null || day > newDay) newDay = day;
       }
     }

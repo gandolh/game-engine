@@ -59,6 +59,34 @@ this monorepo it additionally copies each `.wasm` into the farm client's `public
 for the reference game — that copy path is a repo convenience, not part of the package's
 own artifacts; a tarball consumer relies only on the in-package `dist/`.)
 
+## Drift guard: `npm run test -w @engine/wasm-modules`
+
+Nothing else notices a `src/*.ts` edit that was never followed by a rebuild — the only
+consumer-side test ([pathfinder.test.ts](../core/src/wasm/pathfinder.test.ts)) loads
+whatever bytes are already on disk, so it stays green even when they're stale (audit-29).
+`build/compile.mjs` writes a source-hash manifest (`dist/manifest.json`) at the end of
+every successful build. `build/check-drift.mjs` — wired up as this package's `test`
+script — recomputes the current `src/*.ts` hashes and fails, naming the stale kernel, if
+they no longer match the manifest. It also byte-compares each `dist/<name>.wasm` against
+its staged copy in `games/farm/client/public/wasm/`, since the two locations can drift
+from each other independently. The check is a pure hash comparison (no `asc` invocation),
+so it's fast and needs no toolchain at test time.
+
+If you edit a kernel, the fix is always the same: re-run the build above (which regenerates
+`dist/manifest.json` for you) and commit the result.
+
+**Caveat found while adding this guard (audit-29):** `engine/wasm-modules/dist/` is
+*not actually tracked by git* — `engine/wasm-modules/.gitignore` unconditionally ignores
+`dist/`, and it always has (`git log --diff-filter=A -- engine/wasm-modules/dist/` is
+empty back to the commit that introduced wasm infra). Only
+`games/farm/client/public/wasm/` is committed. So on a genuinely fresh clone,
+`dist/` — and `dist/manifest.json` — won't exist until someone runs
+`npm run build-wasm`, and this check (plus `pathfinder.test.ts`, the Farm server, and
+`@tool/run-sim`, all of which read `dist/pathfinding.wasm` directly) will fail until then.
+This contradicts the "a fresh clone must not need to build wasm" decision recorded in
+CLAUDE.md and above. Not fixed here — `.gitignore` and any force-add of the binaries are
+outside this guard's scope; see the handoff note for follow-up.
+
 ## Determinism caveat — do NOT mix the JS fallback across a baseline
 
 `@engine/core/wasm`'s `Pathfinder` satisfies a `PathfinderLike` interface, and the repo

@@ -103,8 +103,23 @@ export interface SimAttachMsg {
   owner: boolean;
 }
 
+/**
+ * Terminal message: a tick threw mid-scheduler and the host halted the run
+ * rather than advance onto a world state no clean tick could have produced
+ * (see decisions.md, "Farm sim-host tick-fault policy"). `tick` is the tick
+ * that faulted — its systems ran partially and no snapshot was ever built
+ * or sent for it, so the client's last "snapshot" message is the last known
+ * *good* state. No further messages follow a `fault`.
+ */
+export interface SimFaultMsg {
+  type: "fault";
+  tick: number;
+  message: string;
+}
+
 export type SimOutbound =
   | SimStaticLayerMsg
   | SimSnapshotMsg
   | SimProfileMsg
-  | SimAttachMsg;
+  | SimAttachMsg
+  | SimFaultMsg;

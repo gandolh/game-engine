@@ -17,7 +17,9 @@ import type {
 } from "@farm/sim-core/snapshot";
 import type { ProfileReport } from "@engine/core";
 import type { ShopOffer } from "@farm/sim-core/agents/shop-slate";
-import { clamp, lerp, smoothstep, copySprite } from "./interp";
+import { computeSnapshotAlpha, lerp } from "@engine/core/render";
+import { smoothstep, copySprite } from "./interp";
+import { showFaultBanner } from "./fault-banner";
 
 const MAX_LERP_DIST_PX = 2 * 16;
 const MAX_LERP_DIST_SQ = MAX_LERP_DIST_PX * MAX_LERP_DIST_PX;
@@ -55,8 +57,11 @@ export class SimClient {
   private snapshotCallback: ((snap: RenderSnapshot) => void) | null = null;
   private profileCallback: ((tick: number, report: ProfileReport) => void) | null = null;
   private attachCallback: ((owner: boolean) => void) | null = null;
+  private faultCallback: ((tick: number, message: string) => void) | null = null;
 
   private isOwner = true;
+
+  private faultInfo: { tick: number; message: string } | null = null;
 
   private readonly prevById = new Map<number, SnapshotSprite>();
   private interpOut: SnapshotSprite[] = [];
@@ -111,6 +116,17 @@ export class SimClient {
 
         this.isOwner = msg.owner;
         this.attachCallback?.(msg.owner);
+      } else if (msg.type === "fault") {
+
+        // Terminal: the server halted the run mid-tick rather than advance
+        // onto a world state no clean tick could have produced (see
+        // decisions.md, "Farm sim-host tick-fault policy"). No further
+        // messages follow — the last snapshot already received is the last
+        // known good state. Callers should show this as "run crashed",
+        // never as a frozen/stalled screen.
+        this.faultInfo = { tick: msg.tick, message: msg.message };
+        showFaultBanner(msg.tick, msg.message);
+        this.faultCallback?.(msg.tick, msg.message);
       }
     };
 
@@ -218,8 +234,22 @@ export class SimClient {
     this.attachCallback = cb;
   }
 
+  /** Fires once, if ever, when the server halts a run on a tick fault. */
+  onFault(cb: (tick: number, message: string) => void): void {
+    this.faultCallback = cb;
+  }
+
   get owner(): boolean {
     return this.isOwner;
+  }
+
+  /** True once the server has reported a tick fault; the run is dead. */
+  get faulted(): boolean {
+    return this.faultInfo !== null;
+  }
+
+  get faultMessage(): string | null {
+    return this.faultInfo?.message ?? null;
   }
 
   latestSnapshot(): RenderSnapshot | null {
@@ -229,10 +259,11 @@ export class SimClient {
   freezeInterp(frames: number): void {
     if (frames <= 0) return;
     const now = performance.now();
-    const rawAlpha = clamp(
-      (now - this.lastSnapshotArrivalMs - this.renderDelayMs) / this.msPerTick,
-      0,
-      1,
+    const rawAlpha = computeSnapshotAlpha(
+      now,
+      this.lastSnapshotArrivalMs,
+      this.msPerTick,
+      this.renderDelayMs,
     );
     this.hitstopAlpha = smoothstep(rawAlpha);
     this.hitstopFramesLeft = frames;
@@ -253,10 +284,11 @@ export class SimClient {
     } else {
       const now = performance.now();
 
-      const rawAlpha = clamp(
-        (now - this.lastSnapshotArrivalMs - this.renderDelayMs) / this.msPerTick,
-        0,
-        1,
+      const rawAlpha = computeSnapshotAlpha(
+        now,
+        this.lastSnapshotArrivalMs,
+        this.msPerTick,
+        this.renderDelayMs,
       );
       alpha = smoothstep(rawAlpha);
     }

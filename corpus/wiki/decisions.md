@@ -1,6 +1,6 @@
 ---
-summary: Locked tech choices that future briefs must not relitigate — stack, sim, ECS, renderer (WebGL2-only as of 2026-08-18, migration shipped), assets, palette, concurrency, WASM, and the gameplay source-of-truth.
-updated: 2026-08-18
+summary: Locked tech choices that future briefs must not relitigate — stack, sim, ECS, renderer (WebGL2-only as of 2026-08-18, migration shipped), assets, palette, concurrency, tick-pump/speed semantics, build & verify gates (the turbo cache-key rule, the Node-importable barrel rule), WASM, and the gameplay source-of-truth.
+updated: 2026-09-15
 ---
 
 # Locked Decisions
@@ -72,10 +72,115 @@ Tech choices that are settled. Listed here so future briefs and reviews don't re
   - **Per-run render memo:** `snapshot-builder/sprites.ts` moved its `lastIntention`/`lastFacing` memos from module globals into a per-run `SnapshotSpriteState` (the server passes one per connection), so multiple sims in one process don't cross-contaminate cosmetic facing. Callers that omit it fall back to a shared default (browser worker, tests) — byte-identical to before.
 - **Scale target:** 50–100 agents. Engine APIs should not assume that ceiling.
 
+## Tick pump & speed semantics (Citadel + Hollow)
+
+**Fixed period, variable batch — Hollow's model wins over Citadel's prior one.** (audit-26,
+2026-09-15.) All three Worker-hosted continuous sims (Citadel, Hollow; MateQuest has no pump — it's
+turn-based, deliberately removed by audit-03) used to hand-roll their own `setInterval` lifecycle and
+had silently drifted onto two different meanings of "speed": Hollow held the fire period fixed at a
+base ms-per-tick and ran `speedMultiplier` ticks per fire; Citadel instead re-periodized the interval
+itself (`1000 / (20 * speed)`) and tore down/recreated it on every speed change, producing a one-off
+timing hitch exactly when the player worked the speed control. Alternatives considered: keep Citadel's
+re-periodization (rejected — the hitch is user-visible and gets worse the more often speed changes);
+let each game keep its own model (rejected — this is a duplicated concern with only one game-agnostic
+answer, and the divergence itself was unintentional drift, not a considered choice per game).
+
+Both workers now share one engine primitive, `createTickPump` in
+[engine/core/src/runtime/tick-pump.ts](../../engine/core/src/runtime/tick-pump.ts) (`/runtime` barrel
+export): a fixed-Hz `setInterval` whose period never changes for the life of the pump, plus a
+per-fire `getBatchSize()` read fresh on every fire — so a caller changes how many logical ticks run
+per fire (its own "speed") without ever touching the timer.
+
+**Batch overrun: cap the batch and drop the debt — never accumulate.** A fire runs at most
+`getBatchSize()` logical ticks and then returns, whatever the wall clock says. There is no catch-up
+queue, no delta-time accumulator, and no computing "how many ticks should have run by now" from
+elapsed wall-clock time. On weak hardware the sim simply advances slower in wall-clock terms; it must
+never enter a death spiral trying to catch up. Determinism is unaffected either way — sim output
+depends only on tick *count*, and `setInterval` is pacing only (see Concurrency, above).
+
+Farm's client is intentionally NOT on this primitive — it's WebSocket-driven and the server
+([@farm/server](../../games/farm/server/)) owns its own clock; forcing a client-side pump onto it
+would fight that ownership rather than fit it.
+
+## Build & verify gates
+
+**`typecheck`/`test` use topological (`^task`) deps, not `dependsOn: []`.** (audit-01, 2026-09-13.)
+The original `dependsOn: []` was a *deliberate* choice with a sound-sounding rationale written into
+[turbo.json](../../turbo.json) — maximum parallelism, and each package reporting its own failure
+independently rather than being skipped when an upstream one fails. **Do not restore it.** What that
+rationale missed is that `^task` is also what folds an upstream package's source hash into the
+downstream cache key. Every internal package exports raw TS source, so with `dependsOn: []` a
+dependency could change and its dependents would still report a *cached success they never re-ran*.
+Proven by experiment: adding a required field to `Personality` printed `18 successful, 1 failed`,
+while `--force` showed **8 packages genuinely broken** — including two that reported cached success
+while broken. Because [routing.md](../routing.md) makes `npm run typecheck` the verify gate between
+dispatch waves, this silently weakened **every** "verified" claim made through a warm cache for as
+long as turbo had been adopted. The parallelism concern is preserved instead by
+`--continue=always` on the root scripts. `@engine/core`'s own `#test` override keeps `dependsOn: []`
+legitimately — it has no workspace dependencies for `^` to resolve.
+
+**A warm-cache green is only trustworthy because of the above.** When a run's conclusion depends on
+it (a release, a behaviour-preservation claim), still force a cold pass — `turbo run typecheck
+--force` — rather than reasoning about whether the key was right.
+
+**The engine's public barrels must stay Node-importable.** (audit-19, 2026-09-15; enforced by
+`engine/core/src/node-import.test.ts`.) `@engine/core`'s WebGL2 render passes import `*.glsl?raw`,
+which is a Vite-only specifier — a plain Node consumer (`@farm/server`, the headless sim tools, any
+Node test) crashes with `ERR_UNKNOWN_FILE_EXTENSION` the moment a barrel pulls that reach in as a
+**value** import. Type-only reaches are fine, because they erase. This is invisible in the code: the
+offending line looks like an ordinary export and typechecks perfectly. Before adding a value export
+to a barrel, check the gate — and note that a green `npm run typecheck` plus a full green test suite
+did **not** catch this class of break when it last happened (see Renderer), which is why CI has
+startup-smoke steps that merely prove the entry points *start*.
+
 ## WASM
 
 - **AssemblyScript** for native-speed kernels — TypeScript-shaped, no native toolchain, ships as an npm package. See [engine/wasm-modules/README.md](../../engine/wasm-modules/README.md).
-- **Built artifacts committed** under `games/farm/client/public/wasm/` so fresh clones don't need to build wasm first.
+- **Built artifacts committed** under `games/farm/client/public/wasm/` so fresh clones don't need to
+  build wasm first. **This is only half true, and knowing which half matters** (audit-29/34,
+  2026-09-15): that browser copy *is* tracked, but `engine/wasm-modules/dist/` is **gitignored** and is
+  what **seven Node-side consumers** read — including the Farm server and four test files. So a
+  genuinely fresh clone fails `npm ci && npm run test` until `npm run build-wasm` has run; it goes
+  unnoticed because `dist/` persists locally once built. CI therefore needs an explicit `build-wasm`
+  step, which in turn means audit-29's drift guard **cannot fail in CI** (that step regenerates the
+  manifest the guard compares against) — it is effective locally only. Resolving which location is
+  canonical is [audit-34](../todos/2026-09-14-audit-34-wasm-dist-untracked.md); do not "fix" the
+  docs or the gitignore without reading it.
+
+## Farm sim-host tick-fault policy
+
+**On a mid-tick fault, the run halts and the client is told — it does not log-and-continue.**
+(audit-17, 2026-09-13.) [`SimHost.runOneTick`](../../games/farm/server/src/sim-host.ts) used to wrap
+the whole tick body — `scheduler.tick(...)` included — in a `try` whose `catch` only logged and nulled
+`pendingShock`, after which `tick += 1` ran unconditionally. Systems run in a fixed, dependency-ordered
+sequence ([system-ordering.md](system-ordering.md)); if system N throws, systems `1..N-1` already wrote
+their mutations for that tick and `N..last` never ran — a world state no clean tick could ever produce
+(e.g. inboxes written but never drained, since `PerceiveSystem` clears them and `MarketSystem` drains
+them, both late in the order). The old code fed that corrupted state into the next tick forever, with one
+console line as the only signal, on the one game whose sim runs unattended server-side (one per WebSocket
+connection, under pm2, for 100 in-game days). `this.stop()` also lived inside that same `try`, above the
+catch, so a throw before the `gameOver` check meant a *finished* run failed to stop too.
+
+Two policies were rejected: **keep going** (a corrupted world is never better than a stopped one for an
+unattended spectator sim — nothing downstream can tell a valid trajectory from a post-fault one, and
+`CHECK_DETERMINISM` can't catch this class of bug since it compares two runs of the *same* seed that
+would fault identically), and **halt silently** (a dead run with no client-visible signal is
+indistinguishable from a frozen/stalled connection — worse than either working or loudly broken).
+
+**What shipped:** the catch now mirrors what `start()` already does on a startup fault — it logs, calls
+`this.stop()` (clears the interval, sets `stopped`), and returns without incrementing `tick`, so the
+faulted tick's partial mutations are never turned into a snapshot and no further tick runs. It also sends
+a new terminal `SimFaultMsg` (`{ type: "fault", tick, message }`, in `@farm/sim-core/protocol`) so a
+connected client knows the run crashed rather than seeing a screen that has merely stopped moving.
+`SimClient` ([net/sim-client/client.ts](../../games/farm/client/src/net/sim-client/client.ts)) exposes
+this as `faulted` / `faultMessage` / `onFault(cb)` (same shape as `owner`/`onAttach`) and shows a small
+self-contained banner ([fault-banner.ts](../../games/farm/client/src/net/sim-client/fault-banner.ts)) —
+deliberately *not* wired into `main/render-loop.ts`'s canvas UI panels, so the signal doesn't depend on
+the render loop still running.
+
+A test seam, `SimHostOptions.onSchedulerReady` (test-only; never set in production), lets tests
+`scheduler.add(...)` a throwing system without touching any real `@farm/sim-core` system — this is a
+policy fix, not a claim that any real system throws today.
 
 ## Source-of-truth for gameplay
 

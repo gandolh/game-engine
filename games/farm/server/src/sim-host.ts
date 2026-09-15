@@ -22,10 +22,12 @@ import type {
   SimStaticLayerMsg,
   SimSnapshotMsg,
   SimProfileMsg,
+  SimFaultMsg,
 } from "@farm/sim-core/protocol";
 import type { SnapshotShock } from "@farm/sim-core/snapshot";
 import { createPathfinderFromBytes, Profiler } from "@engine/core";
 import type { PathfinderLike } from "@farm/sim-core/sim-bootstrap";
+import type { Scheduler } from "@engine/core/sim";
 
 const TILE = 16;
 const PROFILE_REPORT_EVERY = 60;
@@ -49,6 +51,14 @@ export interface SimHostOptions {
   pathfinder?: PathfinderLike | null;
 
   pathfinderWasm?: ArrayBuffer | null;
+
+  /**
+   * Test seam only: invoked with the freshly-built `Scheduler` before the
+   * tick loop starts, so tests can `scheduler.add(...)` a throwing system
+   * and exercise the tick-fault policy (see decisions.md) without touching
+   * @farm/sim-core systems themselves. Never set in production.
+   */
+  onSchedulerReady?: (scheduler: Scheduler) => void;
 }
 
 export class SimHost {
@@ -175,6 +185,8 @@ export class SimHost {
       rivalry,
     } = bootstrapSim({ seed, ticksPerDay, maxDays, pathfinder });
 
+    this.opts.onSchedulerReady?.(scheduler);
+
     this.applyInput = (moveX, moveY, action, selectSlot, actionTile) => {
       for (const e of world.query("player")) {
         e.player!.pendingMoveX = moveX;
@@ -287,8 +299,24 @@ export class SimHost {
 
         if (snapshot.gameOver) this.stop();
       } catch (err) {
-        console.error(`[sim] tick ${tick} faulted; skipping snapshot`, err);
+        // A system threw partway through this tick: 1..N-1 already wrote
+        // their mutations, N..last never ran. That's a world state no
+        // clean tick could ever produce, so — unlike a normal caught
+        // error — we do NOT log-and-continue: the run halts here, the
+        // same way start() halts on a startup fault above. `tick` is
+        // deliberately left un-advanced and no snapshot is sent for it;
+        // the last "snapshot" message the client has is the last known
+        // good state. See decisions.md ("Farm sim-host tick-fault policy").
+        console.error(`[sim] tick ${tick} faulted; halting run`, err);
         pendingShock = null;
+        const faultMsg: SimFaultMsg = {
+          type: "fault",
+          tick,
+          message: err instanceof Error ? err.message : String(err),
+        };
+        this.send(faultMsg);
+        this.stop();
+        return;
       }
 
       tick += 1;

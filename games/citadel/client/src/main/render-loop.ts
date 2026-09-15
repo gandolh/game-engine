@@ -1,5 +1,5 @@
 import { TILE_SIZE } from "@citadel/sim-core";
-import type { SettlementTier } from "@citadel/sim-core";
+import type { SettlementTier, BuildingSnapshot } from "@citadel/sim-core";
 import { expSmooth } from "@engine/core";
 import { computeLayout, renderTree, label } from "@engine/ui";
 import type { LabelNode } from "@engine/ui";
@@ -16,10 +16,12 @@ import {
   pushDisconnectedMarkers,
   cloudOptionsFor,
   transformOf,
+  visibleTileWindow,
+  WINDOW_PAD,
 } from "../render/citadel-renderer";
 import {
   syncAppearMap,
-  buildingKey,
+  appearTileKey,
   placementScale,
   easeQuad,
   gaitOffset,
@@ -113,6 +115,19 @@ let siegeLaidOutSizeKey = "";
 
 let lastFrameMs = 0; // render clock (performance.now, MAIN-thread only — NOT sim)
 
+/**
+ * audit-13: the `currentBuildings` array reference last fed through
+ * `syncAppearMap`/the burning-since tracker below. `getBuildings` (sim-core)
+ * rebuilds a brand-new array every sim tick and `currentBuildings` is
+ * reassigned to it only when a snapshot arrives (main/sim-client.ts) — the
+ * SAME reference is reused across every render frame in between. Gating both
+ * trackers on "has this reference changed since last frame" cuts them from
+ * once per (60 Hz) render frame to once per (20 Hz) sim snapshot, with zero
+ * behaviour change: re-running either against an unchanged array is a no-op
+ * (the `present`/`burningKeys` set and the add/delete diff come out identical).
+ */
+let lastSyncedBuildings: readonly BuildingSnapshot[] | null = null;
+
 /** Count of windowed re-bakes since boot. Diagnostic only — read by the boot.ts dev hook. */
 export let windowBakes = 0;
 
@@ -160,18 +175,27 @@ export function loop(): void {
   // (before the follow-cam) so both the cam target and pushScene share it.
   const interpPhase = paused ? RENDER_DELAY_INTERVALS : snapshotPhase(nowMs, lastSnapshotMs, snapshotIntervalMs);
 
-  // --- Brief 17 placement ease-in: diff the building set against the appear map
-  // (records first-seen render-clock ms per x,y,type; drops demolished keys).
-  syncAppearMap(appearAt, currentBuildings, nowMs);
+  // --- Brief 17 placement ease-in + brief 24 wear/decay burning-since tracking.
+  // audit-13: both diff `currentBuildings` against a small Map and are pure
+  // functions of that array's CONTENTS — re-running either against the exact
+  // same array reference every render frame (60 Hz) was redundant work for
+  // data that only changes once per sim snapshot (20 Hz; see
+  // `lastSyncedBuildings`'s doc comment). Gate on the reference actually
+  // having changed since the last frame.
+  if (currentBuildings !== lastSyncedBuildings) {
+    lastSyncedBuildings = currentBuildings;
 
-  // --- Brief 24 wear/decay (render-only): track when each building first started
-  // burning so the soot overlay can ramp from ignition. Drop keys once the fire
-  // is out (so a re-ignite re-ramps) or the building is gone.
-  {
-    const burningKeys = new Set<string>();
+    // Diff the building set against the appear map (records first-seen
+    // render-clock ms per origin tile; drops demolished keys).
+    syncAppearMap(appearAt, currentBuildings, nowMs);
+
+    // Track when each building first started burning so the soot overlay can
+    // ramp from ignition. Drop keys once the fire is out (so a re-ignite
+    // re-ramps) or the building is gone.
+    const burningKeys = new Set<number>();
     for (const b of currentBuildings) {
       if (!b.burning && !b.onFire) continue;
-      const key = buildingKey(b);
+      const key = appearTileKey(b);
       burningKeys.add(key);
       if (!burningSince.has(key)) burningSince.set(key, nowMs);
     }
@@ -219,6 +243,16 @@ export function loop(): void {
   const dayFraction = dayFractionOf(tick, VISUAL_DAY_TICKS);
   const nightFactor = nightFactorOf(dayFraction);
 
+  // audit-13: the camera-visible tile window, used to cull off-screen
+  // buildings out of pushScene entirely (no shadow/border/glow/sprite push).
+  // Reuses the SAME `visibleTileWindow` math (and `WINDOW_PAD` margin) the
+  // terrain static-layer bake already uses — a generous pad so a tall
+  // building's sprite (rises up to ~3 tiles above its footprint in iso Y)
+  // is already on-window before its origin tile crosses the visible edge, so
+  // nothing visibly pops in/out while panning. `worldUnitsX/Y` already bake in
+  // zoom (see `RenderWindowController.currentWindow`'s comment), so zoom=1.
+  const visibleWindow = visibleTileWindow(iso, camera.centerX, camera.centerY, camera.worldUnitsX, camera.worldUnitsY, 1, WINDOW_PAD);
+
   pushScene(
     renderer,
     iso,
@@ -229,7 +263,7 @@ export function loop(): void {
     },
     {
       building: (b, quad) => {
-        const born = appearAt.get(`${b.x},${b.y},${b.type}`);
+        const born = appearAt.get(appearTileKey(b));
         if (born === undefined) return { quad, alpha: 1 };
         const fx = placementScale(nowMs - born);
         return { quad: easeQuad(quad, fx), alpha: fx.alpha };
@@ -245,6 +279,7 @@ export function loop(): void {
     nowMs,
     // Night factor selects warm dusk-lit building frames (cozy window glow).
     nightFactor,
+    visibleWindow,
   );
 
   // --- Brief 24 wear/decay soot overlay (render-only). For each burning
@@ -252,7 +287,7 @@ export function loop(): void {
   // render clock from burningSince). Healthy buildings emit nothing.
   for (const b of currentBuildings) {
     if (!b.burning && !b.onFire) continue;
-    const since = burningSince.get(buildingKey(b)) ?? nowMs;
+    const since = burningSince.get(appearTileKey(b)) ?? nowMs;
     pushWearOverlay(renderer, [b], nowMs - since);
   }
 

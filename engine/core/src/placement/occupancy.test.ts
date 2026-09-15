@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { OccupancyGrid, checkPlacement, rebuildWalkable } from "./occupancy";
+import { OccupancyGrid, checkPlacement, rebuildWalkable, patchWalkable } from "./occupancy";
 
 describe("OccupancyGrid", () => {
   it("starts fully free", () => {
@@ -73,5 +73,53 @@ describe("rebuildWalkable", () => {
     const walkable = rebuildWalkable(4, 4, occ, (tx) => tx !== 2);
     expect(walkable[0 * 4 + 2]).toBe(0); // water column
     expect(walkable[0 * 4 + 0]).toBe(1); // grass
+  });
+});
+
+describe("patchWalkable (audit-10: in-place footprint patch)", () => {
+  it("patches only the footprint's cells, leaving the rest of the buffer untouched", () => {
+    const occ = new OccupancyGrid(6, 6);
+    const walkable = rebuildWalkable(6, 6, occ, () => true); // all walkable initially
+    const before = Array.from(walkable);
+
+    occ.apply({ x: 2, y: 2, w: 2, h: 2 });
+    patchWalkable(walkable, occ, { x: 2, y: 2, w: 2, h: 2 }, () => true);
+
+    for (let ty = 0; ty < 6; ty++) {
+      for (let tx = 0; tx < 6; tx++) {
+        const idx = ty * 6 + tx;
+        const inFootprint = tx >= 2 && tx < 4 && ty >= 2 && ty < 4;
+        if (inFootprint) {
+          expect(walkable[idx]).toBe(0); // now occupied
+        } else {
+          expect(walkable[idx]).toBe(before[idx]); // untouched
+        }
+      }
+    }
+  });
+
+  it("returns the SAME array identity — it patches in place, never allocates", () => {
+    const occ = new OccupancyGrid(6, 6);
+    const walkable = rebuildWalkable(6, 6, occ, () => true);
+    occ.apply({ x: 0, y: 0, w: 1, h: 1 });
+    patchWalkable(walkable, occ, { x: 0, y: 0, w: 1, h: 1 }, () => true);
+    expect(walkable[0]).toBe(0);
+  });
+
+  it("is equivalent to a full rebuildWalkable for the footprint it covers", () => {
+    const occ = new OccupancyGrid(8, 8);
+    const walkable = rebuildWalkable(8, 8, occ, (tx, ty) => (tx + ty) % 3 !== 0);
+    occ.apply({ x: 3, y: 3, w: 3, h: 2 });
+    patchWalkable(walkable, occ, { x: 3, y: 3, w: 3, h: 2 }, (tx, ty) => (tx + ty) % 3 !== 0);
+
+    const oracle = rebuildWalkable(8, 8, occ, (tx, ty) => (tx + ty) % 3 !== 0);
+    expect(Array.from(walkable)).toEqual(Array.from(oracle));
+  });
+
+  it("clamps out-of-bounds footprint cells rather than throwing or corrupting memory", () => {
+    const occ = new OccupancyGrid(4, 4);
+    const walkable = rebuildWalkable(4, 4, occ, () => true);
+    expect(() => patchWalkable(walkable, occ, { x: -1, y: -1, w: 2, h: 2 }, () => true)).not.toThrow();
+    expect(walkable.length).toBe(16);
   });
 });

@@ -99,6 +99,32 @@ describe("packInstance / packInstances", () => {
     expect([...packed.slice(20, 36)]).toEqual([...translation([5, 0, 0])]);
     expect([...packed.slice(36, 40)]).toEqual([0, 1, 0, 1]);
   });
+
+  it("packInstances (in-place writeInstanceInto) is byte-for-byte identical to concatenating packInstance rows", () => {
+    // packInstances writes directly into its output buffer via
+    // writeInstanceInto rather than allocating+copying a packInstance() row
+    // per instance (audit-16). This pins the packed GPU-upload layout: the
+    // new path must produce EXACTLY the same bytes as the old
+    // "packInstance-per-row-then-concat" approach for a varied multi-instance
+    // list, not just the same length/shape.
+    const list = [
+      { model: identity(), tint: [1, 0, 0, 1] as const },
+      { model: translation([5, -2.5, 0.25]), tint: [0, 1, 0.5, 1] as const },
+      { model: translation([-10, 100, -3.75]), tint: [0.1, 0.2, 0.3, 0.4] as const },
+    ];
+
+    const actual = packInstances(list);
+
+    // Reference implementation: exactly the old code path (one throwaway
+    // packInstance() allocation per row, copied into a concat buffer).
+    const expected = new Float32Array(list.length * FLOATS_PER_INSTANCE);
+    list.forEach((inst, i) => {
+      expected.set(packInstance(inst.model, inst.tint), i * FLOATS_PER_INSTANCE);
+    });
+
+    expect(actual.length).toBe(expected.length);
+    expect([...actual]).toEqual([...expected]);
+  });
 });
 
 describe("packMaterials", () => {

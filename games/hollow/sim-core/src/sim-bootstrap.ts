@@ -250,6 +250,7 @@ import {
   NORM_CLASH_THRESHOLD,
 } from "./governance";
 import { HollowJobAssignmentSystem, JOBS_ASSIGN_INTERVAL_TICKS } from "./jobs";
+import { getSnapshot as buildSnapshot } from "./snapshot-builder";
 
 export type { HollowEntity } from "./components";
 
@@ -630,6 +631,17 @@ export interface BootedHollowSim {
    *  any `loadInterventionLog`-seeded ones), in schedule order — the
    *  replayable record (chunk hollow-11a). */
   readonly interventionLog: readonly Intervention[];
+  /**
+   * The current tick count (chunk audit-04) — exactly the same value
+   * `getSnapshot().tick` returns, without building the full agent/corpse/
+   * community/resource payload. Named `tickCount` rather than `tick`
+   * because `tick()` (below) is already that key on this object — see the
+   * closure-local `let tickCount` in `bootstrapHollowSim`'s body, which
+   * this getter reads directly. Callers that only need the integer (a
+   * batched tick loop, click-to-inspect) should use this instead of
+   * `getSnapshot().tick`.
+   */
+  readonly tickCount: number;
   /** Advances the sim by exactly one tick. */
   tick(): void;
   /** Returns a snapshot of the current sim state (render/transport boundary). */
@@ -990,6 +1002,14 @@ export function bootstrapHollowSim(opts: HollowSimOptions): BootedHollowSim {
     get interventionLog(): readonly Intervention[] {
       return shockSystem.interventionLog;
     },
+    // chunk audit-04: exposes the same integer `getSnapshot().tick` returns,
+    // without paying for a full snapshot build. `tickCount` here resolves to
+    // the closure-local `let tickCount` declared above — this getter's own
+    // key (`tickCount`) is a distinct namespace from that binding, same as
+    // `interventionLog` above reads `shockSystem.interventionLog`.
+    get tickCount(): number {
+      return tickCount;
+    },
     tick(): void {
       scheduler.tick({ tick: tickCount });
       // Host-level message delivery (mirrors @farm/server/sim-host.ts calling
@@ -1004,96 +1024,11 @@ export function bootstrapHollowSim(opts: HollowSimOptions): BootedHollowSim {
       tickCount++;
     },
     getSnapshot(): HollowSnapshot {
-      const agents: HollowAgentSnapshot[] = [];
-      for (const entity of world.query(
-        "agent",
-        "needs",
-        "inventory",
-        "personality",
-        "beliefs",
-        "communityId",
-        "lifecycle",
-        "genome",
-        "householdId",
-        "occupation",
-      )) {
-        const needs: Record<string, number> = {};
-        for (const [kind, need] of Object.entries(entity.needs.byKind)) {
-          needs[kind] = need.value;
-        }
-        agents.push({
-          id: entity.id ?? -1,
-          kind: entity.personality.kind,
-          gx: entity.agent.gx,
-          gy: entity.agent.gy,
-          needs,
-          inventory: { ...entity.inventory.goods },
-          starving: entity.beliefs.data.starving === true,
-          communityId: entity.communityId,
-          ageTicks: entity.lifecycle.ageTicks,
-          stage: entity.lifecycle.stage,
-          householdId: entity.householdId,
-          appearance: {
-            height: entity.genome.appearance.height,
-            build: entity.genome.appearance.build,
-            skinTone: entity.genome.appearance.skinTone,
-            hairTone: entity.genome.appearance.hairTone,
-          },
-          action: entity.agent.currentAction ?? "idle",
-          occupation: entity.occupation.role,
-          diseased: entity.disease !== undefined,
-        });
-      }
-      const corpses: HollowCorpseSnapshot[] = [];
-      for (const entity of world.query("corpse")) {
-        const c = entity.corpse;
-        corpses.push({
-          id: entity.id ?? -1,
-          deceasedId: c.deceasedId,
-          gx: c.gx,
-          gy: c.gy,
-          buried: c.buried,
-          rotting: c.rotting,
-          carriedBy: c.carriedBy,
-        });
-      }
-      corpses.sort((a, b) => a.id - b.id);
-      const resourceNodes: HollowResourceNodeSnapshot[] = resources.nodes.map((node) => ({
-        id: node.id,
-        kind: node.kind,
-        gx: node.gx,
-        gy: node.gy,
-        stock: node.stock,
-        maxStock: node.maxStock,
-      }));
-      const communitiesSnapshot: HollowCommunitySnapshot[] = communities.all().map((c) => ({
-        id: c.id,
-        members: [...c.members],
-        territory: c.territory.map((t) => ({ gx: t.gx, gy: t.gy })),
-        stockpile: { ...c.stockpile },
-        norms: {
-          shareRate: c.norms.shareRate,
-          cooperationExpectation: c.norms.cooperationExpectation,
-          admissionPolicy: c.norms.admissionPolicy ?? COMMUNITY_DEFAULT_ADMISSION_POLICY,
-        },
-        leaderId: c.leaderId,
-        standing: { ...c.standing },
-      }));
-      return {
-        tick: tickCount,
-        aliveCount: agents.length,
-        agents,
-        resourceNodes,
-        communities: communitiesSnapshot,
-        bornCount,
-        diedCount,
-        householdCount: households.all().length,
-        socialCounts: { ...socialCounts },
-        hearth: { gx: HEARTH_TILE.gx, gy: HEARTH_TILE.gy },
-        corpses,
-        graveyard: { gx: GRAVEYARD_TILE.gx, gy: GRAVEYARD_TILE.gy },
-        buriedCount,
-      };
+      // audit-24: extracted to snapshot-builder.ts. `tickCount` is passed by
+      // value from this SAME closure-local variable `tick()` increments and
+      // the `tickCount` getter above reads — see that getter's doc and
+      // snapshot-builder.ts's header for the single-source contract (audit-04).
+      return buildSnapshot(world, resources, communities, households, bornCount, diedCount, buriedCount, socialCounts, tickCount);
     },
   };
 }

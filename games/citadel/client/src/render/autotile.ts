@@ -16,10 +16,14 @@
  * treat gates as road, and walls do NOT treat roads as wall — each network is
  * independent, except walls additionally absorb gate tiles into their set.
  *
- * PERF: masks are recomputed every frame from the building snapshot. Road+wall
- * tiles are a small fraction of the world and well under the brief's ~1000-tile
- * budget, so recompute-per-frame is fine and avoids cache invalidation on
- * placement commands. (The cost tracks the network's size, not the map's.)
+ * PERF (audit-13, 2026-09-14): this module itself is still called fresh each
+ * time — it stays pure/tested that way — but the CALLER no longer invokes it
+ * per render frame. `pushNetworks` (citadel-renderer.ts) memoizes on the
+ * snapshot's `buildings` array identity (a fresh array only on a new sim
+ * snapshot — see `getBuildings` in sim-core), so on a 192×192 world these
+ * membership `Set`s + `IsoNetworkTile` allocations happen once per snapshot,
+ * not once per (60 Hz) frame. Before that fix this recomputed unconditionally
+ * every frame, which stopped being "cheap" once the world grew from 96×96.
  */
 import { CITADEL_PAL as EDG } from "./citadel-palette";
 import { TILE_SIZE } from "@citadel/sim-core";

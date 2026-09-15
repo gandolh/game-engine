@@ -1,4 +1,5 @@
 import type { SimContext, System, MessageBus, World, Rng } from "@engine/core";
+import { bodyOf } from "@engine/core";
 import type { GameEntity } from "../../components";
 import { generateDailySlate } from "../../agents/shop-slate";
 import { ONT_SHOP } from "../../protocols/shop";
@@ -30,8 +31,9 @@ export class ShopSlateSystem implements System {
 
     let newDay: number | null = null;
     for (const msg of shop.inbox.messages) {
-      if (msg.ontology === ONT_SIMULATION.DAY_START) {
-        const day = (msg.body as { day: number }).day;
+      const dayStart = bodyOf(msg, ONT_SIMULATION.DAY_START);
+      if (dayStart !== null) {
+        const day = dayStart.day;
         if (day > this.lastDayProcessed) {
           newDay = day;
         }

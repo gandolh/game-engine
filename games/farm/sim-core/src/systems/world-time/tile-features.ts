@@ -1,6 +1,7 @@
 
 
 import type { SimContext, System, World, MessageBus, Rng } from "@engine/core";
+import { bodyOf } from "@engine/core";
 import type { GameEntity, TileFeatureKind } from "../../components";
 import { ONT_SIMULATION } from "../../protocols";
 import { REGIONS, forEachLandTile } from "../../world/regions";
@@ -34,8 +35,9 @@ export class TileFeatureSystem implements System {
     let newDay: number | null = null;
     for (const station of stations) {
       for (const msg of station.inbox.messages) {
-        if (msg.ontology === ONT_SIMULATION.DAY_START) {
-          const day = (msg.body as { day: number }).day;
+        const dayStart = bodyOf(msg, ONT_SIMULATION.DAY_START);
+        if (dayStart !== null) {
+          const day = dayStart.day;
           if (day > this.lastDayProcessed) newDay = day;
         }
       }

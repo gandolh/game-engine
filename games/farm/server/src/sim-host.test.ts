@@ -5,6 +5,7 @@ import { dirname, resolve } from "node:path";
 import { AddressInfo } from "node:net";
 import { WebSocketServer, WebSocket } from "ws";
 import { createPathfinderFromBytes } from "@engine/core";
+import type { Scheduler, System, SimContext } from "@engine/core/sim";
 import type { SimOutbound, SimInbound } from "@farm/sim-core/protocol";
 import type { PathfinderLike } from "@farm/sim-core/sim-bootstrap";
 import { SimHost, isValidSwapIndex } from "./sim-host";
@@ -53,6 +54,35 @@ let wasmBytes: ArrayBuffer;
 beforeAll(() => {
   wasmBytes = loadWasmBytes();
 });
+
+/**
+ * Test-only system (audit-17): throws exactly once, on the given tick, so
+ * tests can exercise SimHost's tick-fault policy without touching
+ * @farm/sim-core systems. Injected via SimHostOptions.onSchedulerReady,
+ * which appends it to the end of the scheduler — so it runs *after* every
+ * real system for that tick (e.g. DayClockSystem), letting a test throw on
+ * the exact tick a real gameOver transition would land on.
+ */
+function faultSystemAt(tick: number): System {
+  return {
+    name: "test-fault-injector",
+    run(ctx: SimContext) {
+      if (ctx.tick === tick) throw new Error(`injected fault at tick ${tick}`);
+    },
+  };
+}
+
+function snapshotsOf(msgs: SimOutbound[]) {
+  return msgs.filter(
+    (m): m is Extract<SimOutbound, { type: "snapshot" }> => m.type === "snapshot",
+  );
+}
+
+function faultsOf(msgs: SimOutbound[]) {
+  return msgs.filter(
+    (m): m is Extract<SimOutbound, { type: "fault" }> => m.type === "fault",
+  );
+}
 
 describe("SimHost message stream", () => {
   it("emits a static-layer first, then a monotonic snapshot stream ending in gameOver", async () => {
@@ -287,5 +317,111 @@ describe("hostile-input clamps", () => {
 
     host.stop();
     setIntervalSpy.mockRestore();
+  });
+});
+
+describe("tick-fault policy (audit-17)", () => {
+  it("halts the run and tells the client on a mid-tick fault — the corrupted tick's snapshot is never sent, and no tick after it runs", async () => {
+    vi.useFakeTimers();
+    const pf = (await createPathfinderFromBytes(
+      wasmBytes,
+    )) as unknown as PathfinderLike;
+    const msgs: SimOutbound[] = [];
+    let scheduler: Scheduler | null = null;
+    const host = new SimHost((m) => msgs.push(m), {
+      pathfinder: pf,
+      onSchedulerReady: (s) => {
+        scheduler = s;
+        s.add(faultSystemAt(3));
+      },
+    });
+
+    host.handleInbound({
+      type: "init",
+      seed: 1,
+      ticksPerDay: 1000,
+      maxDays: 1000,
+      tickRateHz: 1,
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(scheduler).not.toBeNull();
+
+    host.handleInbound({ type: "pause", paused: true });
+
+    // Ticks 0,1,2 succeed; tick 3 faults; ticks 4,5 must never run.
+    for (let i = 0; i < 6; i++) {
+      host.handleInbound({ type: "step" });
+      await vi.advanceTimersByTimeAsync(1000);
+    }
+
+    const faults = faultsOf(msgs);
+    expect(faults.length).toBe(1);
+    expect(faults[0]!.tick).toBe(3);
+
+    const snaps = snapshotsOf(msgs);
+    expect(snaps.length).toBe(3);
+    for (const s of snaps) expect(s.snapshot.tick).toBeLessThan(3);
+
+    // The loop must not advance onto the corrupted state: further step
+    // attempts produce nothing more (the run is dead, interval cleared).
+    const snapCount = snaps.length;
+    for (let i = 0; i < 3; i++) {
+      host.handleInbound({ type: "step" });
+      await vi.advanceTimersByTimeAsync(1000);
+    }
+    expect(snapshotsOf(msgs).length).toBe(snapCount);
+    expect(faultsOf(msgs).length).toBe(1);
+
+    vi.useRealTimers();
+  });
+
+  it("a throw on the tick that would have set gameOver still halts the run via the fault path, not the normal gameOver branch", async () => {
+    vi.useFakeTimers();
+    const pf = (await createPathfinderFromBytes(
+      wasmBytes,
+    )) as unknown as PathfinderLike;
+    const msgs: SimOutbound[] = [];
+
+    // ticksPerDay=20, maxDays=1 → day flips to 1 (gameOver = day >= maxDays)
+    // exactly at tick 20. The fault system is appended *after* every real
+    // system (including DayClockSystem), so by the time it throws on tick
+    // 20, the day has already flipped — gameOver "would have been set" —
+    // but the throw happens before buildRenderSnapshot ever runs for that
+    // tick, so the normal `if (snapshot.gameOver) this.stop()` branch never
+    // executes. Only the catch's halt-and-report path can stop this run.
+    const FAULT_TICK = 20;
+    const host = new SimHost((m) => msgs.push(m), {
+      pathfinder: pf,
+      onSchedulerReady: (s) => s.add(faultSystemAt(FAULT_TICK)),
+    });
+
+    host.handleInbound({
+      type: "init",
+      seed: 1,
+      ticksPerDay: 20,
+      maxDays: 1,
+      tickRateHz: 1,
+    });
+    await vi.advanceTimersByTimeAsync(0);
+
+    host.handleInbound({ type: "pause", paused: true });
+
+    for (let i = 0; i <= FAULT_TICK + 2; i++) {
+      host.handleInbound({ type: "step" });
+      await vi.advanceTimersByTimeAsync(1000);
+    }
+
+    const faults = faultsOf(msgs);
+    expect(faults.length).toBe(1);
+    expect(faults[0]!.tick).toBe(FAULT_TICK);
+
+    const snaps = snapshotsOf(msgs);
+    expect(snaps.length).toBe(FAULT_TICK);
+    for (const s of snaps) {
+      expect(s.snapshot.tick).toBeLessThan(FAULT_TICK);
+      expect(s.snapshot.gameOver).toBe(false);
+    }
+
+    vi.useRealTimers();
   });
 });

@@ -1,4 +1,5 @@
 import type { SimContext, System, MessageBus, World, Rng } from "@engine/core";
+import { bodyOf } from "@engine/core";
 import type { GameEntity, CropKind } from "../../components";
 import { ONT_SIMULATION, PERFORMATIVE } from "../../protocols";
 import { ONT_BOUNTY, type Bounty, type BountyPostedBody } from "../../protocols/bounty";
@@ -29,8 +30,9 @@ export class NoticeBoardSystem implements System {
 
     let newDay: number | null = null;
     for (const msg of board.inbox.messages) {
-      if (msg.ontology === ONT_SIMULATION.DAY_START) {
-        const day = (msg.body as { day: number }).day;
+      const dayStart = bodyOf(msg, ONT_SIMULATION.DAY_START);
+      if (dayStart !== null) {
+        const day = dayStart.day;
         if (day > this.lastDayProcessed) newDay = day;
       }
     }
