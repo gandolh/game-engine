@@ -7,6 +7,17 @@ updated: 2026-09-15
 
 Current-state **snapshot** (2026-08-18, banner below 2026-09-14). Banners below are newest-first.
 
+> **2026-09-15 audit-37 is built — the wasm build is all-or-nothing, and the audit queue is empty.**
+> `compile.mjs` published each kernel inside the compile loop, so a build where one kernel failed for
+> a reason unrelated to its source left the successful ones modified in **both tracked locations**
+> while skipping `writeManifest()` — invisible to audit-29's guard, since the recorded source hashes
+> still matched and the two locations still agreed. Debt [audit-34](../todos/closed/2026-09-14-audit-34-wasm-dist-untracked.md)
+> introduced by making `dist/` tracked. Kernels now compile into a staging dir outside the repo and
+> nothing is published until all four succeed. Measured before: **8 tracked binaries dirty, guard
+> exit 0**; after: both locations untouched. **Nothing is left in the audit queue** — the only open
+> work is [hollow-13](../todos/2026-07-17-hollow-13-llm-rationalizer-seam.md) (needs a design
+> session before it can be dispatched) and engine-ui item 2 (deliberately deferred).
+
 > **2026-09-15 audit-36 is built, and it exposed that `pack-smoke` was not actually a gate.** The
 > packed `@engine/core` shipped **zero shaders** (`postbuild.mjs` still copied `*.wgsl`, deleted with
 > WebGPU in 2026-08-18) — fixed, and the fixture's blind spot closed with a new `smoke-assets.mjs`
@@ -19,7 +30,7 @@ Current-state **snapshot** (2026-08-18, banner below 2026-09-14). Banners below 
 > the gate asserted against a *previous good install* while the tarball on disk was empty — green all
 > the while. It now wipes the fixture's `node_modules` before installing. Both proven red-then-green.
 > **The lesson: a gate that does not reinstall is not a gate**, and only unpacking a real artifact
-> caught it. Still open: [audit-37](../todos/2026-09-15-audit-37-partial-wasm-build-invisible-to-guard.md),
+> caught it. Still open: [audit-37](../todos/closed/2026-09-15-audit-37-partial-wasm-build-invisible-to-guard.md),
 > hollow-13, engine-ui item 2.
 
 > **2026-09-15 audit-32/33/34/35 are built** on branch `audit-followups-2026-09-15`, one commit each,
@@ -35,7 +46,7 @@ Current-state **snapshot** (2026-08-18, banner below 2026-09-14). Banners below 
 > **Two new specs filed, not fixed:** [audit-36](../todos/closed/2026-09-15-audit-36-packed-engine-core-ships-no-shaders.md)
 > (the packed `@engine/core` ships **no shaders** — `postbuild.mjs` copies `*.wgsl`, zero of which
 > exist; the fixture skips `/render`, so the publish gate has a hole exactly where the bug is) and
-> [audit-37](../todos/2026-09-15-audit-37-partial-wasm-build-invisible-to-guard.md) (a partial wasm
+> [audit-37](../todos/closed/2026-09-15-audit-37-partial-wasm-build-invisible-to-guard.md) (a partial wasm
 > build rewrites tracked binaries invisibly to the guard — debt audit-34 introduced). **Nothing
 > browser-verified this session**; none of this work is browser-visible.
 

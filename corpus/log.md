@@ -4,6 +4,48 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-09-15] build | audit-37 closes the audit queue, and a lesson about reproductions
+
+`compile.mjs` wrote each kernel into both tracked locations inside the compile
+loop and checked `failed` only afterwards. A build where one kernel failed for a
+reason unrelated to its source — an assemblyscript bump, an OOM, a half-edited
+sibling — left the already-succeeded kernels modified in `dist/` and
+`games/farm/client/public/wasm/`, then skipped `writeManifest()`. audit-29's
+guard could not see it: recorded source hashes still matched (the manifest was
+never rewritten) and the two locations still agreed (both got the same partial
+run). Debt audit-34 introduced by making `dist/` tracked. Fixed by compiling into
+a staging dir **outside the repo** and publishing nothing until all four kernels
+succeed.
+
+**The reproduction is the part worth recording.** The spec required demonstrating
+the bug first, and two natural attempts failed to reproduce it — not because the
+bug was absent, but because each tripped a check that already worked:
+
+- breaking a kernel's source → the guard fires on the **source-hash** path
+- breaking a source *and* changing compiler flags → same, source-hash fires first
+
+The hole needs a kernel to fail for a reason **external to its source**, so it
+was staged by temporarily injecting a failure into the compile loop with every
+source pristine and `optimizeLevel` changed so the succeeding kernels' bytes
+differed. Result: **8 tracked binaries dirty and `check-drift` exit 0**, cheerily
+reporting "4 kernel(s) match their recorded source hash". After the fix the
+identical scenario leaves both locations byte-for-byte untouched.
+
+So: a reproduction that goes red for the wrong reason has demonstrated nothing.
+Both failed attempts *looked* like confirmation — a red guard on a broken build —
+and either would have been accepted as proof by anyone reading only the exit
+code. This is the same shape as the `pack-smoke` finding an hour earlier, where a
+green gate meant "did not re-read its input" rather than "passed".
+
+Deliberately not done: artifact hashes in the manifest. The all-or-nothing build
+closes the defect at its source, and the obvious timestamp version is fragile
+(git does not preserve mtimes, so a fresh clone would look stale). If revisited,
+record the artifact sha256 beside the source sha256 — that would also catch a
+hand-edited binary, which nothing checks today.
+
+**The audit queue is now empty.** Remaining open work is hollow-13 (needs a
+design session first) and engine-ui item 2 (deliberately deferred).
+
 ## [2026-09-15] build | audit-36, and the discovery that pack-smoke was never a gate
 
 Built audit-36 (the packed `@engine/core` shipping no shaders) and found two
