@@ -1,1 +1,4 @@
-dist/
+!/dist/
+/dist/*
+!/dist/*.wasm
+!/dist/manifest.json

@@ -1,0 +1,9 @@
+{
+  "_comment": "sha256 of each engine/wasm-modules/src/*.ts kernel, recorded by build/compile.mjs at the end of a successful build. build/check-drift.mjs recomputes these and fails if a source file changed without a rebuild. Regenerated automatically -- do not hand-edit.",
+  "sources": {
+    "floodfill": "97fc44911a690b281ec5e88cf327d47d80bead7ce56236da2b7df32b7ad88e0e",
+    "noise": "cf5d944a1c4a5820d9a7e379e3d9e43dcb2230554da35ed46b468990a340ed04",
+    "pathfinding": "34ed1a234f24955188986c33d9d0595dbff03fea5e155c39995ca4ae33744107",
+    "rng": "98aefec9a435cbc38d451524d44b9ba75b325b9eec6a78e6f9dfee239a7b0dc2"
+  }
+}
