@@ -1,2 +1,6 @@
 node_modules/
 tarballs/
+# No committed lockfile on purpose (audit-35): the file: tarball integrity
+# hashes are wrong by construction the moment an engine source changes.
+# See README.md's "no committed package-lock.json" note.
+package-lock.json

@@ -8,32 +8,54 @@ packages work for someone who is NOT inside this monorepo.
 
 ## Important: tarballs are gitignored
 
-`tarballs/` and `node_modules/` are gitignored (build artifacts). `package.json` and
-`package-lock.json` ARE committed for reproducibility, but their `file:./tarballs/...`
-dependencies **dangle** until you regenerate the tarballs locally — `npm install` will fail
-with an ENOENT on a fresh checkout until you run step 1 below.
+`tarballs/` and `node_modules/` are gitignored (build artifacts). `package.json` IS committed
+for reproducibility, but its `file:./tarballs/...` dependencies **dangle** until you regenerate
+the tarballs locally — `npm install` will fail with an ENOENT on a fresh checkout until you run
+step 1 below.
+
+There is deliberately **no committed `package-lock.json`**. A lockfile here would pin the
+`file:` tarballs' integrity hashes, and those hashes are wrong by construction: every tarball is
+rebuilt from the working tree by step 1, so the moment any engine source changes, a committed
+lock no longer matches what gets packed and `npm install` fails with `EINTEGRITY`. A lock whose
+hashes are disposable on every engine edit documents nothing — don't regenerate and commit one
+back.
 
 ## Regenerate and run
 
-From the repo root:
+From the repo root (**not** `--prefix`, see below):
 
 ```bash
 # 1. Build + pack all three engine packages into this fixture's tarballs/ dir.
 #    (prepack builds dist/ and swaps the manifest to dist-pointing exports;
-#    postpack restores the dev manifest — the working tree ends up unchanged.)
-npm pack --prefix engine/core            --pack-destination examples/library-consumer/tarballs
-npm pack --prefix engine/ui              --pack-destination examples/library-consumer/tarballs
-npm pack --prefix engine/wasm-modules    --pack-destination examples/library-consumer/tarballs
+#    postpack restores the dev manifest and deletes the generated dist/ — the
+#    working tree ends up unchanged either way.) npm pack does NOT create the
+#    --pack-destination directory itself, so mkdir it first.
+mkdir -p examples/library-consumer/tarballs
+npm pack -w @engine/core         --pack-destination examples/library-consumer/tarballs
+npm pack -w @engine/ui           --pack-destination examples/library-consumer/tarballs
+npm pack -w @engine/wasm-modules --pack-destination examples/library-consumer/tarballs
 
 # (equivalently, from inside each package dir: npm pack --pack-destination <abs path to tarballs>)
 
-# 2. Install the fixture's own node_modules from those tarballs.
+# 2. Install the fixture's own node_modules from those tarballs. --package-lock=false
+#    keeps npm from writing a package-lock.json here at all (npm still writes one on a
+#    plain `npm install` even with no lock committed) — see the no-lockfile note above.
 cd examples/library-consumer
-npm install
+npm install --package-lock=false
 
 # 3. Run the smoke.
 npm run smoke   # or: node smoke.mjs
 ```
+
+**Why `-w`, not `--prefix`:** this fixture lives at `examples/library-consumer/`, **outside**
+the root `package.json` workspaces globs (`engine/*`, `games/*/*`, `tools/*`, `docs`) on purpose — see
+the top of this file. That's also why `npm pack --prefix engine/core …` from the repo root does
+NOT do what it looks like it does: in an npm-workspaces repo, `--prefix` just changes npm's
+working directory before running the command, and `npm pack` with no package argument packs
+whatever is at that directory's root — here, the **whole monorepo**
+(`game-engine-monorepo-0.0.0.tgz`), not `@engine/core`. `npm pack -w @engine/core` names the
+workspace explicitly and packs only that package, run from anywhere in the repo. This is the
+same form `npm run pack-smoke` already uses.
 
 Expect tarballs named `engine-core-0.1.0.tgz`, `engine-ui-0.1.0.tgz`,
 `engine-wasm-modules-0.1.0.tgz`. All three must be present and installed together —
