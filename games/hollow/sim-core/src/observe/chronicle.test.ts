@@ -9,7 +9,25 @@
 import { describe, it, expect } from "vitest";
 import { MessageBus } from "@engine/core";
 import { ONT_FAMILY, ONT_SOCIAL } from "../protocols";
-import { createChronicle, countByOntology, CHRONICLE_CAP } from "./chronicle";
+import type { RationalizerDecision } from "../rationalize";
+import { createChronicle, countByOntology, CHRONICLE_CAP, ONT_RATIONALIZE } from "./chronicle";
+
+/** A hand-built `RationalizerDecision` (chunk hollow-13) — no seam, no sim
+ *  boot, matching this file's own hand-built-fixture pattern. */
+function makeDecision(overrides: Partial<RationalizerDecision> = {}): RationalizerDecision {
+  return {
+    tick: 10,
+    agentId: 1,
+    requestTick: 8,
+    provider: "stub",
+    outcome: "adopted",
+    reason: null,
+    rationale: "agent 1 at tick 8: stealing looked better than trading",
+    bdiKind: "trade",
+    chosenKind: "steal",
+    ...overrides,
+  };
+}
 
 function dispatchTick(bus: MessageBus): void {
   bus.flush();
@@ -148,5 +166,104 @@ describe("createChronicle", () => {
     dispatchTick(bus);
 
     expect(chronicle.deathsByCause()).toEqual({ oldAge: 1, starvation: 0, violence: 0, disease: 0 });
+  });
+
+  it("captureRationalizerDecisions flattens a decision into a rationalize.decision event carrying both bdiKind and chosenKind", () => {
+    const bus = new MessageBus();
+    const chronicle = createChronicle(bus);
+
+    chronicle.captureRationalizerDecisions([makeDecision()]);
+
+    expect(chronicle.events()).toEqual([
+      {
+        tick: 10,
+        ontology: ONT_RATIONALIZE.DECISION,
+        agentId: 1,
+        requestTick: 8,
+        provider: "stub",
+        outcome: "adopted",
+        reason: null,
+        rationale: "agent 1 at tick 8: stealing looked better than trading",
+        bdiKind: "trade",
+        chosenKind: "steal",
+      },
+    ]);
+  });
+
+  it("interleaves rationalizer decisions with bus-sourced events in the same buffer, unaffected by ontology", () => {
+    const bus = new MessageBus();
+    const chronicle = createChronicle(bus);
+
+    bus.send(
+      { performative: "inform", ontology: ONT_FAMILY.BIRTH, sender: "world", recipient: "broadcast", body: { tick: 1, childId: 1, parentAId: 2, parentBId: 3 } },
+      1,
+    );
+    dispatchTick(bus);
+    chronicle.captureRationalizerDecisions([makeDecision({ tick: 2 })]);
+    bus.send(
+      { performative: "inform", ontology: ONT_FAMILY.BIRTH, sender: "world", recipient: "broadcast", body: { tick: 3, childId: 4, parentAId: 2, parentBId: 3 } },
+      3,
+    );
+    dispatchTick(bus);
+
+    const events = chronicle.events();
+    expect(events.length).toBe(3);
+    expect(events.map((e) => e.ontology)).toEqual([ONT_FAMILY.BIRTH, ONT_RATIONALIZE.DECISION, ONT_FAMILY.BIRTH]);
+    expect(countByOntology(events, ONT_RATIONALIZE.DECISION)).toBe(1);
+  });
+
+  it("a rejected decision's empty rationale round-trips as '', not dropped or altered", () => {
+    const bus = new MessageBus();
+    const chronicle = createChronicle(bus);
+
+    chronicle.captureRationalizerDecisions([
+      makeDecision({ outcome: "rejected", reason: "stale-candidates", rationale: "", bdiKind: "gift", chosenKind: "gift" }),
+    ]);
+
+    const [event] = chronicle.events();
+    expect(event!["outcome"]).toBe("rejected");
+    expect(event!["reason"]).toBe("stale-candidates");
+    expect(event!["rationale"]).toBe("");
+  });
+
+  it("defensively re-clamps an oversized rationale to RATIONALE_MAX_CHARS rather than trusting the caller", () => {
+    const bus = new MessageBus();
+    const chronicle = createChronicle(bus);
+    const overlong = "x".repeat(1000);
+
+    chronicle.captureRationalizerDecisions([makeDecision({ rationale: overlong })]);
+
+    const [event] = chronicle.events();
+    expect((event!["rationale"] as string).length).toBe(400);
+  });
+
+  it("rationalizer decisions count toward the cap/eviction/droppedCount accounting exactly like bus events (audit-32 honesty holds)", () => {
+    const bus = new MessageBus();
+    const cap = 4;
+    const chronicle = createChronicle(bus, cap);
+
+    // 3 bus-sourced gifts + 3 rationalizer decisions = 6 pushes through a
+    // 4-slot ring: 2 should be evicted (the oldest 2), regardless of which
+    // ontology they came from.
+    sendGift(bus, 0, 0);
+    sendGift(bus, 1, 1);
+    chronicle.captureRationalizerDecisions([makeDecision({ tick: 2, agentId: 100 })]);
+    chronicle.captureRationalizerDecisions([makeDecision({ tick: 3, agentId: 101 })]);
+    sendGift(bus, 4, 4);
+    chronicle.captureRationalizerDecisions([makeDecision({ tick: 5, agentId: 102 })]);
+
+    const events = chronicle.events();
+    expect(events.length).toBe(cap);
+    expect(chronicle.droppedCount()).toBe(2); // 6 pushed - 4 cap
+    // Newest 4 retained, oldest-first: the two oldest pushes (the gifts at
+    // tick 0, 1) are evicted; the two decisions at tick 2/3, the gift at
+    // tick 4, and the decision at tick 5 survive, in push order.
+    expect(events.map((e) => e.tick)).toEqual([2, 3, 4, 5]);
+    expect(events.map((e) => e.ontology)).toEqual([
+      ONT_RATIONALIZE.DECISION,
+      ONT_RATIONALIZE.DECISION,
+      ONT_SOCIAL.GIFT,
+      ONT_RATIONALIZE.DECISION,
+    ]);
   });
 });

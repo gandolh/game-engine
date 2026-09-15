@@ -144,6 +144,18 @@ export function runResearch(opts: RunOptions): RunResult {
   const totalTicks = opts.maxYears * opts.ticksPerYear;
   for (let tick = 1; tick <= totalTicks; tick++) {
     sim.tick();
+    // Chunk hollow-13c: `sim.rationalizer` is `null` unless
+    // `HollowSimOptions.rationalizer` was set (the default), so this is a
+    // no-op — no drain, no allocation, no chronicle write — for every run
+    // that doesn't opt in, keeping seam-OFF output byte-identical. When set,
+    // `drainDecisions()` hands over (and clears) whatever resolved since the
+    // last drain; feeding it to the chronicle right after `tick()` keeps
+    // rationalizer events in the same dispatch-order stream as everything
+    // else this tick produced.
+    const decisions = sim.rationalizer?.drainDecisions();
+    if (decisions !== undefined && decisions.length > 0) {
+      chronicle.captureRationalizerDecisions(decisions);
+    }
     if (tick % opts.ticksPerYear === 0) {
       metricsRows.push(sampler.sample(sim, chronicle, tick / opts.ticksPerYear));
     }

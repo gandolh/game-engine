@@ -27,9 +27,12 @@ export {
   createChronicle,
   countByOntology,
   CHRONICLE_CAP,
+  ONT_RATIONALIZE,
   type ChronicleEvent,
   type DeathsByCause,
   type Chronicle,
+  type RationalizeOntology,
+  type RationalizeDecisionBody,
 } from "./chronicle";
 
 export {

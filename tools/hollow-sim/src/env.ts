@@ -65,6 +65,33 @@ export const PERSONA_SEED = strEnv("PERSONA_SEED");
  *  interventions exactly — see `sim-bootstrap.ts`'s `loadInterventionLog`. */
 export const INTERVENTION_LOG = strEnv("INTERVENTION_LOG");
 
+/**
+ * hollow-13's LLM-rationalizer seam. **OFF unless explicitly asked for** —
+ * `off` (default) keeps the sim byte-deterministic and takes no seam code path
+ * at all; `stub` is the offline echo provider (deterministic, no network, no
+ * key); `claude` is the real provider and COSTS MONEY.
+ *
+ * `contrarian` is a DIAGNOSTIC: it always picks a non-default candidate, so
+ * the adoption path can be exercised end-to-end without a live provider.
+ *
+ * `claude` still degrades to OFF when no API key is present
+ * (`createClaudeRationalizerFromEnv` returns null) rather than crashing a run.
+ */
+export const RATIONALIZER = (strEnv("RATIONALIZER") ?? "off").toLowerCase();
+
+/** Model for `RATIONALIZER=claude`. Defaults to Haiku 4.5 inside the provider. */
+export const RATIONALIZER_MODEL = strEnv("RATIONALIZER_MODEL");
+
+/**
+ * Path to a prompt-keyed response cache (hollow-13's deterministic replay of a
+ * non-deterministic run). With `RATIONALIZER_CACHE_MODE=record` the run writes
+ * one here; with `replay` it answers from it and never calls a provider.
+ */
+export const RATIONALIZER_CACHE = strEnv("RATIONALIZER_CACHE");
+
+/** `record` | `replay`. Ignored unless `RATIONALIZER_CACHE` is set. */
+export const RATIONALIZER_CACHE_MODE = (strEnv("RATIONALIZER_CACHE_MODE") ?? "record").toLowerCase();
+
 export const CHECK_DETERMINISM =
   process.env["CHECK_DETERMINISM"] === "1" || process.argv.includes("--check-determinism");
 

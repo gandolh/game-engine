@@ -21,6 +21,7 @@
  * multi-generation run).
  */
 import { runResearch, type RunResult } from "./run-core";
+import { selectRationalizer } from "./rationalizer/select";
 import { metricsCsv, metricsJson, eventsJsonl, lineageJson, summaryJson, writeExportFile } from "./export";
 import { runDeterminismCheck } from "./determinism";
 import {
@@ -35,6 +36,10 @@ import {
   CHECK_DETERMINISM,
   buildSimOptions,
   determinismSeeds,
+  RATIONALIZER,
+  RATIONALIZER_MODEL,
+  RATIONALIZER_CACHE,
+  RATIONALIZER_CACHE_MODE,
 } from "./env";
 
 function printSummary(result: RunResult): void {
@@ -78,13 +83,24 @@ function main(): void {
     `Hollow headless research run — seed=0x${SEED.toString(16)}, ${MAX_YEARS} year(s) @ ${TICKS_PER_YEAR} ticks/year (population=${simOptions.population})`,
   );
 
+  // hollow-13: OFF unless asked for. `null` leaves HollowSimOptions.rationalizer
+  // unset, which is the byte-deterministic path.
+  const seam = selectRationalizer({
+    kind: RATIONALIZER,
+    model: RATIONALIZER_MODEL,
+    cachePath: RATIONALIZER_CACHE,
+    cacheMode: RATIONALIZER_CACHE_MODE,
+  });
+  if (seam.note !== null) console.log(`  rationalizer seam: ${seam.note}`);
+
   const result = runResearch({
-    simOptions,
+    simOptions: seam.rationalizer !== null ? { ...simOptions, rationalizer: seam.rationalizer } : simOptions,
     ticksPerYear: TICKS_PER_YEAR,
     maxYears: MAX_YEARS,
     ...(PERSONA_SEED !== undefined ? { personaSeedPath: PERSONA_SEED } : {}),
     ...(INTERVENTION_LOG !== undefined ? { interventionLogPath: INTERVENTION_LOG } : {}),
   });
+  seam.finish();
 
   const metricsIsJson = EXPORT === "json";
   const metricsPayload = metricsIsJson ? metricsJson(result.metricsRows) : metricsCsv(result.metricsRows);

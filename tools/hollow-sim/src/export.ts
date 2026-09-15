@@ -11,6 +11,12 @@
  * import of `"./export"` in this tool (and `export.test.ts`/
  * `run-core.test.ts`, unchanged) keeps resolving without a single
  * import-path edit.
+ *
+ * Chunk hollow-13c: `eventsJsonl` needed no change to carry rationalizer
+ * decisions — it's a generic line-per-`ChronicleEvent` serializer, and
+ * `run-core.ts` feeds `RationalizerSeam.drainDecisions()` output into the
+ * SAME chronicle (`chronicle.captureRationalizerDecisions`), so
+ * `rationalize.decision` lines show up in `events.jsonl` automatically.
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";

@@ -26,9 +26,24 @@
  * count (mirrors how `HollowSnapshot.bornCount`/`diedCount` are themselves
  * cumulative totals meant to be diffed between samples) without rescanning
  * the whole event buffer every sample.
+ *
+ * Chunk hollow-13c additionally exposes `captureRationalizerDecisions` —
+ * unlike every ontology above, `RationalizerSeam.drainDecisions()`
+ * (`../rationalize/seam.ts`) is a PULL-based log, not something dispatched
+ * over `bus`/`notifySubscribers()` (a rationalizer answer lands between
+ * ticks, off the sim's own message flow — see that file's header). The host
+ * (the CLI's `run-core.ts`) drains it once per tick and hands the batch to
+ * this method, which flattens each `RationalizerDecision` into the SAME ring
+ * buffer under `ONT_RATIONALIZE.DECISION` — so every existing consumer
+ * (`countByOntology`, `eventsJsonl`, the browser chronicle feed's generic
+ * fallback formatter) handles it identically to a bus-sourced event without
+ * any of them knowing it arrived a different way. With no rationalizer
+ * configured (the default), nothing ever calls this method, so chronicle
+ * output is unchanged.
  */
 import type { MessageBus } from "@engine/core";
 import { ONT_FAMILY, ONT_COMMUNITY, ONT_SOCIAL, ONT_STARVATION, ONT_GOVERNANCE, ONT_FEUD, ONT_JOBS, ONT_MORTALITY } from "../protocols";
+import { RATIONALE_MAX_CHARS, type RationalizerDecision, type RationalizerRejectionReason } from "../rationalize";
 
 /** One flattened chronicle line: `{ tick, ontology, ...body }` — `tick` is
  *  read from the body (every Hollow event body carries its own `tick`
@@ -65,6 +80,52 @@ export interface Chronicle {
    *  `events()` is the complete history (e.g. an export) must check this
    *  rather than assume completeness. */
   droppedCount(): number;
+  /**
+   * Flattens each `RationalizerDecision` (chunk hollow-13, `../rationalize/
+   * seam.ts`) into a `rationalize.decision` chronicle event and pushes it
+   * through the SAME ring buffer/eviction/`droppedCount()` accounting as
+   * every bus-sourced event — see this file's header for why this is a
+   * separate pull-based method rather than a `bus.subscribeOntology`. A host
+   * that never calls this (no rationalizer configured) leaves the chronicle
+   * byte-identical to before this method existed. See `captureRationalizerDecisions`'s
+   * own comment in `createChronicle` for what was concluded about rationale
+   * text vs the ring-buffer cap.
+   */
+  captureRationalizerDecisions(decisions: readonly RationalizerDecision[]): void;
+}
+
+/**
+ * Ontology tag for chronicle lines produced by `captureRationalizerDecisions`
+ * (chunk hollow-13c). Not dispatched over `bus` like `ONT_FAMILY` etc. above
+ * — see this file's header — but the `ontology` field is all any consumer
+ * (`countByOntology`, `eventsJsonl`, a UI formatter) actually keys off of, so
+ * a plain string constant here is enough to make these events a first-class
+ * citizen of every existing chronicle path.
+ */
+export const ONT_RATIONALIZE = {
+  DECISION: "rationalize.decision",
+} as const;
+
+export type RationalizeOntology = (typeof ONT_RATIONALIZE)[keyof typeof ONT_RATIONALIZE];
+
+/**
+ * One `rationalize.decision` chronicle line, flattened field-for-field from
+ * `RationalizerDecision` (`../rationalize/seam.ts`). `bdiKind` (what the BDI
+ * substrate would have done) and `chosenKind` (what actually happened) are
+ * carried in the SAME row deliberately — that pairing is the stated-vs-
+ * revealed signal the spec asks for, and it only differs when
+ * `outcome === "adopted"`.
+ */
+export interface RationalizeDecisionBody {
+  tick: number;
+  agentId: number;
+  requestTick: number;
+  provider: string;
+  outcome: "adopted" | "kept-default" | "declined" | "rejected";
+  reason: RationalizerRejectionReason | null;
+  rationale: string;
+  bdiKind: string;
+  chosenKind: string;
 }
 
 /**
@@ -185,10 +246,47 @@ export function createChronicle(bus: MessageBus, cap: number = CHRONICLE_CAP): C
     else if (cause === "disease") deaths.disease++;
   });
 
+  /**
+   * `rationale` is already bounded to `RATIONALE_MAX_CHARS` (400) by
+   * `validate.ts` before a `RationalizerDecision` is ever constructed — a
+   * rejected/errored decision's `rationale` is `""`. So this ring buffer's
+   * per-event footprint stays flat-and-small the way `CHRONICLE_CAP`'s
+   * sizing note above assumes: worst case, one `rationalize.decision` line is
+   * a few hundred bytes of ~400-char string plus a handful of numbers/short
+   * strings — call it 3-4x an ordinary event's footprint, not an order of
+   * magnitude more. And unlike `ONT_SOCIAL`'s cooperation events (hundreds
+   * per sim-year, unconditionally), these are throttled twice over before
+   * they ever reach here: `isSignificantDecision` (`../rationalize/
+   * policy.ts`) gates which decisions are even worth a consultation, and
+   * `RationalizerSeam`'s `maxInFlight` (default 8) caps how many are
+   * in-flight across the WHOLE population at once. So volume stays well
+   * under the ordinary event ontologies this buffer already tolerates, and
+   * no separate cap on rationale text (or a dedicated sub-buffer) is
+   * warranted — `RATIONALE_MAX_CHARS`, re-applied defensively below rather
+   * than trusted blindly, is enough.
+   */
+  function captureRationalizerDecisions(decisions: readonly RationalizerDecision[]): void {
+    for (const d of decisions) {
+      pushEvent({
+        tick: d.tick,
+        ontology: ONT_RATIONALIZE.DECISION,
+        agentId: d.agentId,
+        requestTick: d.requestTick,
+        provider: d.provider,
+        outcome: d.outcome,
+        reason: d.reason,
+        rationale: d.rationale.slice(0, RATIONALE_MAX_CHARS),
+        bdiKind: d.bdiKind,
+        chosenKind: d.chosenKind,
+      });
+    }
+  }
+
   return {
     events: () => materialize(),
     deathsByCause: () => deaths,
     droppedCount: () => dropped,
+    captureRationalizerDecisions,
   };
 }
 

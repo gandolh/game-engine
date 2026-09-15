@@ -9,10 +9,11 @@
 import { describe, it, expect } from "vitest";
 import { runResearch, type RunResult, type RunSummary } from "./run-core";
 import { RESEARCH_PROFILE } from "./env";
-import { metricsCsv, METRICS_COLUMNS } from "./export";
+import { metricsCsv, METRICS_COLUMNS, eventsJsonl } from "./export";
 import { fingerprint, describeDivergence } from "./determinism";
-import type { MetricsRow, ChronicleEvent } from "@hollow/sim-core/observe";
+import { ONT_RATIONALIZE, type MetricsRow, type ChronicleEvent } from "@hollow/sim-core/observe";
 import type { LineageEntry } from "@hollow/sim-core/lineage";
+import { createStubRationalizer, type RationalizerRequest } from "@hollow/sim-core/rationalize";
 
 describe("runResearch — tiny end-to-end wiring proof", () => {
   it("produces a metrics time series, a non-empty chronicle, and a lineage with real descent, in ~300 ticks", () => {
@@ -75,6 +76,96 @@ describe("runResearch — tiny end-to-end wiring proof", () => {
     expect(again.summary.droppedEventCount).toBe(result.summary.droppedEventCount);
   });
 
+  it("with no rationalizer configured (the default), the chronicle carries zero rationalize.decision events", () => {
+    const result = runResearch({ simOptions: { seed: 7, ...RESEARCH_PROFILE }, ticksPerYear: 50, maxYears: 6 });
+    expect(result.events.some((e) => e.ontology === ONT_RATIONALIZE.DECISION)).toBe(false);
+  });
+});
+
+/**
+ * Chunk hollow-13c — rationalizer decisions reaching the chronicle/export.
+ * Uses `createStubRationalizer` (the project's offline, deterministic test
+ * default — no network, no key) rather than booting anything heavier; the
+ * run itself is the same small research-profile size already established
+ * above (300 ticks), not a new heavy fixture.
+ */
+describe("runResearch — rationalizer decisions reach the chronicle and events.jsonl (chunk hollow-13c)", () => {
+  it("an agreeing stub still produces rationalize.decision events carrying both bdiKind and chosenKind", () => {
+    const result = runResearch({
+      simOptions: { seed: 7, ...RESEARCH_PROFILE, rationalizer: createStubRationalizer() },
+      ticksPerYear: 50,
+      maxYears: 6,
+    });
+
+    const decisions = result.events.filter((e) => e.ontology === ONT_RATIONALIZE.DECISION);
+    expect(decisions.length).toBeGreaterThan(0);
+    for (const d of decisions) {
+      expect(typeof d["bdiKind"]).toBe("string");
+      expect(typeof d["chosenKind"]).toBe("string");
+      expect(typeof d["agentId"]).toBe("number");
+      expect(typeof d["provider"]).toBe("string");
+    }
+
+    // Reaches the export unchanged: eventsJsonl is a generic line-per-event
+    // serializer, so every rationalize.decision row shows up in the .jsonl
+    // output exactly as it sits in `result.events`.
+    const jsonl = eventsJsonl(result.events);
+    const lines = jsonl.trim().split("\n").map((l) => JSON.parse(l) as ChronicleEvent);
+    const exportedDecisions = lines.filter((e) => e.ontology === ONT_RATIONALIZE.DECISION);
+    expect(exportedDecisions.length).toBe(decisions.length);
+    expect(exportedDecisions[0]).toEqual(decisions[0]);
+  });
+
+  it("an overriding stub produces at least one adopted decision where chosenKind differs from bdiKind", () => {
+    // Always picks the first candidate that ISN'T the BDI default —
+    // deterministic override, no Rng/clock. Most such answers land as
+    // "rejected" (the anchoring validator: the world moved on by the time a
+    // parked answer is claimed) or "declined" (only one candidate existed at
+    // request time), which is itself the anchoring guarantee working as
+    // designed — but a real research run has enough volume that some
+    // genuinely land as "adopted" before the option ages out. Probed at this
+    // exact seed/size (`RESEARCH_PROFILE`, seed 7, 300 ticks): 2 adopted out
+    // of 18 decisions.
+    const respond = (request: RationalizerRequest) => {
+      for (let i = 0; i < request.candidates.length; i++) {
+        if (i !== request.bdiChoiceIndex) return { choiceIndex: i, rationale: "overriding the substrate's pick" };
+      }
+      return { choiceIndex: null, rationale: "only one option" };
+    };
+
+    const result = runResearch({
+      simOptions: { seed: 7, ...RESEARCH_PROFILE, rationalizer: createStubRationalizer({ respond, name: "override-stub" }) },
+      ticksPerYear: 50,
+      maxYears: 6,
+    });
+
+    const decisions = result.events.filter((e) => e.ontology === ONT_RATIONALIZE.DECISION);
+    const adopted = decisions.filter((d) => d["outcome"] === "adopted");
+    expect(adopted.length).toBeGreaterThan(0);
+    for (const d of adopted) {
+      expect(d["chosenKind"]).not.toBe(d["bdiKind"]);
+      expect(d["provider"]).toBe("override-stub");
+    }
+  });
+
+  it("rationalizer decisions count toward droppedEventCount honesty (audit-32) when they push a tiny chronicle cap over", () => {
+    const opts = {
+      simOptions: { seed: 7, ...RESEARCH_PROFILE, rationalizer: createStubRationalizer() },
+      ticksPerYear: 50,
+      maxYears: 6,
+      chronicleCap: 5,
+    };
+    const result = runResearch(opts);
+    expect(result.summary.droppedEventCount).toBeGreaterThan(0);
+    expect(result.events.length).toBe(5);
+    // Determinism holds even with the seam's own decision log involved.
+    const again = runResearch(opts);
+    expect(again.summary.droppedEventCount).toBe(result.summary.droppedEventCount);
+    expect(JSON.stringify(again.events)).toBe(JSON.stringify(result.events));
+  });
+});
+
+describe("runResearch — determinism (seam-independent)", () => {
   it("is byte-identical across two fresh runs with the same seed+options (determinism)", () => {
     const opts = { simOptions: { seed: 42, ...RESEARCH_PROFILE }, ticksPerYear: 50, maxYears: 4 };
     const a = runResearch(opts);

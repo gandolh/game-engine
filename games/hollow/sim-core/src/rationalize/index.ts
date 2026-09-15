@@ -39,6 +39,16 @@ export { buildRationalizerRequest, RELATIONSHIP_BUDGET } from "./request";
 export { createStubRationalizer, stubRationale, type StubRationalizerOptions } from "./stub";
 
 export {
+  createRecordingRationalizer,
+  createReplayingRationalizer,
+  deriveCacheKey,
+  isCacheMissError,
+  CACHE_MISS_ERROR_PREFIX,
+  type RationalizerCacheEntry,
+  type RationalizerCacheData,
+} from "./cache";
+
+export {
   RationalizerSeam,
   DEFAULT_REQUEST_TIMEOUT_TICKS,
   DEFAULT_MAX_IN_FLIGHT,
