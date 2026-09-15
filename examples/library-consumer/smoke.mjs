@@ -7,5 +7,6 @@ await import("./smoke-isolation.mjs");
 await import("./smoke-core.mjs");
 await import("./smoke-wasm.mjs");
 await import("./smoke-ui.mjs");
+await import("./smoke-assets.mjs");
 
 console.log("== all smokes passed ==");
