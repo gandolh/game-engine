@@ -46,10 +46,10 @@ Keep it honest about cost: state the wall time. If it is slow enough to be annoy
 gate it to changes under `engine/**` — but do not silently drop it.
 
 ## Files you OWN
-- root [package.json](../../package.json) (the `pack-smoke` script)
+- root [package.json](../../../package.json) (the `pack-smoke` script)
 - `.github/workflows/ci.yml` if [audit-06](2026-09-13-audit-06-ci-gate.md) has landed; otherwise note the
   wiring requirement for whoever does it
-- [CLAUDE.md](../../CLAUDE.md) Commands section
+- [CLAUDE.md](../../../CLAUDE.md) Commands section
 - `turbo.json`'s stale comment about which packages have a `build` — **coordinate with
   [audit-01](2026-09-13-audit-01-turbo-cache-false-green.md)**, which owns that file; if it is in flight,
   leave the comment to it and say so

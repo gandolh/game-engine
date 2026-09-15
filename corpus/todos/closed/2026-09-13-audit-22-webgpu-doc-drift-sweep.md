@@ -7,22 +7,22 @@ context: repo audit 2026-09-13 (`improve`). A single sweep; one finding, several
 ## The drift
 
 Canvas2D and WebGPU were both **deleted** 2026-08-18 and WebGL2 is the only backend
-([decisions.md](../wiki/decisions.md) → Renderer, a locked convention). These still say otherwise:
+([decisions.md](../../wiki/decisions.md) → Renderer, a locked convention). These still say otherwise:
 
 **Published package metadata** (both packages have `prepack`/`publishConfig` wiring, so this ships to npm):
-- [engine/core/package.json](../../engine/core/package.json) `description`: *"… canvas2d/WebGPU render …"*
-- [engine/ui/package.json](../../engine/ui/package.json) `description`: *"… the same 2D renderer as the game scene (WebGPU + Canvas2D) …"*
+- [engine/core/package.json](../../../engine/core/package.json) `description`: *"… canvas2d/WebGPU render …"*
+- [engine/ui/package.json](../../../engine/ui/package.json) `description`: *"… the same 2D renderer as the game scene (WebGPU + Canvas2D) …"*
 
 **Live source JSDoc:**
-- [games/citadel/client/src/render/citadel-renderer.ts](../../games/citadel/client/src/render/citadel-renderer.ts)
+- [games/citadel/client/src/render/citadel-renderer.ts](../../../games/citadel/client/src/render/citadel-renderer.ts)
   lines 1-16 and 249-254 — describes the module as "WebGPU-backed", says it will "force the WebGPU
   backend", and claims "no silent Canvas2D fallback — Citadel is WebGPU-only". The actual `createRenderer`
   call ~20 lines below passes **no** backend option, because
-  [create-renderer.ts:15-18](../../engine/core/src/render/create-renderer.ts#L15-L18) documents that the
+  [create-renderer.ts:15-18](../../../engine/core/src/render/create-renderer.ts#L15-L18) documents that the
   option "is gone".
-- [games/citadel/client/src/render/window-controller.ts](../../games/citadel/client/src/render/window-controller.ts) lines 18, 49
-- [games/citadel/client/src/render/render-window.ts](../../games/citadel/client/src/render/render-window.ts) line 12
-- [games/hollow/client/src/main.ts](../../games/hollow/client/src/main.ts) lines 257, 466, 475 — including a
+- [games/citadel/client/src/render/window-controller.ts](../../../games/citadel/client/src/render/window-controller.ts) lines 18, 49
+- [games/citadel/client/src/render/render-window.ts](../../../games/citadel/client/src/render/render-window.ts) line 12
+- [games/hollow/client/src/main.ts](../../../games/hollow/client/src/main.ts) lines 257, 466, 475 — including a
   function commented as handling "when the WebGPU renderer can't start"
 
 **Container comment:**

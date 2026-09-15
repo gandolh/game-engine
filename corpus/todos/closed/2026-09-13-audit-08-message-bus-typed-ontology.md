@@ -7,10 +7,10 @@ context: repo audit 2026-09-13 (`improve`). The largest hole in a codebase that 
 ## The defect
 
 The message bus is the project's gameplay spine — FIPA-ACL `performative` + `ontology` + body, ported
-from the Python SPADE prototype ([decisions.md](../wiki/decisions.md) → Source-of-truth). Both of its
+from the Python SPADE prototype ([decisions.md](../../wiki/decisions.md) → Source-of-truth). Both of its
 key fields are untyped:
 
-[engine/core/src/sim/message-bus.ts:5-11](../../engine/core/src/sim/message-bus.ts#L5-L11):
+[engine/core/src/sim/message-bus.ts:5-11](../../../engine/core/src/sim/message-bus.ts#L5-L11):
 ```ts
 export interface OutgoingMessage {
   ontology: string;                     // any string compiles
@@ -18,9 +18,9 @@ export interface OutgoingMessage {
   …
 }
 ```
-Subscribers are keyed by raw string ([message-bus.ts:26](../../engine/core/src/sim/message-bus.ts#L26)),
+Subscribers are keyed by raw string ([message-bus.ts:26](../../../engine/core/src/sim/message-bus.ts#L26)),
 and `AgentMessage.ontology` is likewise `string`
-([ecs/components.ts:50](../../engine/core/src/ecs/components.ts#L50)).
+([ecs/components.ts:50](../../../engine/core/src/ecs/components.ts#L50)).
 
 Measured 2026-09-13:
 - **53** send-side `as unknown as Record<string, unknown>` double casts
@@ -29,14 +29,14 @@ Measured 2026-09-13:
   shape**: `msg.body as { day: number }` in `crop-growth`, `weather`, `tile-features`, `festival`,
   `notice-board`, `shop-slate`, `bubbles`, `tavern`, `run-history`, `orchard`, `livestock`, `harbor`.
 
-Meanwhile [protocols/simulation.ts:18-21](../../games/farm/sim-core/src/protocols/simulation.ts#L18-L21)
+Meanwhile [protocols/simulation.ts:18-21](../../../games/farm/sim-core/src/protocols/simulation.ts#L18-L21)
 already exports the correct type:
 ```ts
 export interface DayStartBody { day: number; daysRemaining: number; }
 ```
 
 The protocol layer is in fact well-built — per-ontology `ONT_*` const objects plus a named `*Body`
-interface each ([protocols/index.ts](../../games/farm/sim-core/src/protocols/index.ts)). The types exist;
+interface each ([protocols/index.ts](../../../games/farm/sim-core/src/protocols/index.ts)). The types exist;
 they are simply never *bound* to the ontology they belong to.
 
 ## Failure scenarios (two, both silent)
@@ -84,14 +84,14 @@ any point that gets hairy rather than half-converting a game:
 4. Citadel / Hollow / MateQuest.
 
 ## Files you OWN
-- [engine/core/src/sim/message-bus.ts](../../engine/core/src/sim/message-bus.ts) + its test
-- [engine/core/src/ecs/components.ts](../../engine/core/src/ecs/components.ts) (`AgentMessage.ontology`)
+- [engine/core/src/sim/message-bus.ts](../../../engine/core/src/sim/message-bus.ts) + its test
+- [engine/core/src/ecs/components.ts](../../../engine/core/src/ecs/components.ts) (`AgentMessage.ontology`)
 - each game's `protocols/` modules and the call sites you convert
 
 ## Files you must NOT touch
 - **Any system's logic.** This is a typing change only — no behavioural edits, no reordering, no
   "while I'm here" fixes. The scheduler order encodes real data dependencies
-  ([wiki/system-ordering.md](../wiki/system-ordering.md)).
+  ([wiki/system-ordering.md](../../wiki/system-ordering.md)).
 - No game may import another game; the registry must be extended per-game via declaration merging.
 
 ## Acceptance
@@ -101,7 +101,7 @@ any point that gets hairy rather than half-converting a game:
   `DayStartBody.day` now **fails typecheck**. Demonstrate this, then revert — it is the whole point.
 - Report the before/after count of `as unknown as Record<string, unknown>` and `msg.body as …` sites.
 - **Determinism unchanged.** This is a pure typing refactor, so prove behaviour preservation the way
-  [wiki/performance.md](../wiki/performance.md) requires: a multi-seed `EXPORT=json` diff, not just a
+  [wiki/performance.md](../../wiki/performance.md) requires: a multi-seed `EXPORT=json` diff, not just a
   reproducibility check. Use the fast 3-day/3-seed diff, and **ask before any full determinism run**
   (hardware limits — see routing.md).
 - `npm run typecheck` + `npm run test` green. Because audit-01 is unfixed at authoring time, run the

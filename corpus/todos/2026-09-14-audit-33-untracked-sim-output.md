@@ -2,7 +2,7 @@
 
 status: todo
 created: 2026-09-14
-context: found 2026-09-14 while running startup smoke checks during the audit build; directly affects [audit-06](2026-09-13-audit-06-ci-gate.md)'s smoke step.
+context: found 2026-09-14 while running startup smoke checks during the audit build; directly affects [audit-06](closed/2026-09-13-audit-06-ci-gate.md)'s smoke step.
 
 ## The gap
 
@@ -22,7 +22,7 @@ directly: a 1-day smoke run modified all three, and they had to be restored with
 1. **It is a trap for contributors.** Running the documented headless command produces a dirty tree,
    so the next `git add -A` silently commits a one-day throwaway run over whatever baseline was
    there. The files are large and diff noisily.
-2. **CI will hit it.** [audit-06](2026-09-13-audit-06-ci-gate.md) adds a startup-smoke step that runs
+2. **CI will hit it.** [audit-06](closed/2026-09-13-audit-06-ci-gate.md) adds a startup-smoke step that runs
    `sim:hollow` precisely to catch the class of break that a green typecheck misses. In CI the
    checkout is ephemeral so nothing is lost, but any "working tree is clean" assertion added later
    would fail, and the intent is muddied.
@@ -44,7 +44,7 @@ the docs site) before deciding — deleting a referenced fixture is worse than a
 - `tools/hollow-sim/hollow-out/**` only if the decision is to untrack it
 
 ## Files you must NOT touch
-- the export FORMAT — [audit-12](2026-09-13-audit-12-hollow-chronicle-bounded.md) deliberately kept
+- the export FORMAT — [audit-12](closed/2026-09-13-audit-12-hollow-chronicle-bounded.md) deliberately kept
   `events.jsonl` byte-compatible with the CLI, and [audit-32](2026-09-14-audit-32-hollow-cli-export-drop-report.md)
   builds on that
 - the other tools' output paths unless they have the same problem — if they do, say so rather than

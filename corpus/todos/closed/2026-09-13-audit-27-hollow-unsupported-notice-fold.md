@@ -6,16 +6,16 @@ context: repo audit 2026-09-13 (`improve`). Trivial; near-zero risk. Good first 
 
 ## The gap
 
-[engine/core/src/render/unsupported-notice.ts](../../engine/core/src/render/unsupported-notice.ts) exists
+[engine/core/src/render/unsupported-notice.ts](../../../engine/core/src/render/unsupported-notice.ts) exists
 because Hollow did this properly first — its header says the pattern was *"lifted from Hollow, which already
 did this properly"*. Farm, Citadel and MateQuest all now call the shared `showUnsupportedNotice`:
 
-- [games/farm/client/src/main.ts](../../games/farm/client/src/main.ts)
-- [games/citadel/client/src/main/boot.ts](../../games/citadel/client/src/main/boot.ts)
-- [games/mathquest/client/src/main.ts](../../games/mathquest/client/src/main.ts)
+- [games/farm/client/src/main.ts](../../../games/farm/client/src/main.ts)
+- [games/citadel/client/src/main/boot.ts](../../../games/citadel/client/src/main/boot.ts)
+- [games/mathquest/client/src/main.ts](../../../games/mathquest/client/src/main.ts)
 
 **Hollow was never migrated.** It still runs its own `showRendererUnavailable`
-([games/hollow/client/src/main.ts:262](../../games/hollow/client/src/main.ts#L262), wired at line 299) — a
+([games/hollow/client/src/main.ts:262](../../../games/hollow/client/src/main.ts#L262), wired at line 299) — a
 near-identical ~25-line DOM construction.
 
 ## Failure scenario
@@ -40,17 +40,17 @@ showUnsupportedNotice(appEl, { text: HOLLOW_PAL.cream, background: HOLLOW_PAL.in
 
 The shared version already takes colours as parameters for exactly this reason ("Colours are parameters, not
 imports"), so the Apollo-family palette stays where it belongs and the engine stays EDG32-default. Pick the
-actual role names from [hollow-palette.ts](../../games/hollow/client/src/render/hollow-palette.ts) rather
+actual role names from [hollow-palette.ts](../../../games/hollow/client/src/render/hollow-palette.ts) rather
 than the guesses above.
 
 The two differ slightly in corner-vs-centre text alignment — adopt the shared behaviour rather than adding a
 parameter for it, unless it looks genuinely wrong in Hollow, in which case say so.
 
 ## Files you OWN
-- [games/hollow/client/src/main.ts](../../games/hollow/client/src/main.ts)
+- [games/hollow/client/src/main.ts](../../../games/hollow/client/src/main.ts)
 
 ## Files you must NOT touch
-- [engine/core/src/render/unsupported-notice.ts](../../engine/core/src/render/unsupported-notice.ts) — the
+- [engine/core/src/render/unsupported-notice.ts](../../../engine/core/src/render/unsupported-notice.ts) — the
   shared helper is correct; do not add Hollow-specific options to it
 - the other three games' call sites
 

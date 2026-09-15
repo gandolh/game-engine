@@ -6,7 +6,7 @@ context: repo audit 2026-09-13 (`improve`). Hollow is the *generational* sim —
 
 ## The defect
 
-[games/hollow/client/src/render3d/app.ts](../../games/hollow/client/src/render3d/app.ts):
+[games/hollow/client/src/render3d/app.ts](../../../games/hollow/client/src/render3d/app.ts):
 `placedHomeRects` is declared at line 291 and only ever **pushed** (line 469) — never spliced, filtered
 or cleared. A dissolved household's footprint is reserved forever.
 
@@ -16,7 +16,7 @@ homePosByHousehold.set(householdId, pos);
 placedHomeRects.push(footprintRect(pos.x, pos.y, w, d, HOME_MARGIN));
 ```
 
-The search is [home-placement.ts:69-91](../../games/hollow/client/src/render3d/home-placement.ts#L69-L91)
+The search is [home-placement.ts:69-91](../../../games/hollow/client/src/render3d/home-placement.ts#L69-L91)
 — a spiral of up to 48 rings, `ring * 8` samples each, every sample scanning the whole (still-growing)
 `placed` array.
 
@@ -40,8 +40,8 @@ parallel.
    instead of running 48 rings.
 
 ## Files you OWN
-- [games/hollow/client/src/render3d/app.ts](../../games/hollow/client/src/render3d/app.ts)
-- [games/hollow/client/src/render3d/home-placement.ts](../../games/hollow/client/src/render3d/home-placement.ts) + its tests
+- [games/hollow/client/src/render3d/app.ts](../../../games/hollow/client/src/render3d/app.ts)
+- [games/hollow/client/src/render3d/home-placement.ts](../../../games/hollow/client/src/render3d/home-placement.ts) + its tests
 
 ## Files you must NOT touch
 - `games/hollow/sim-core/**` — home *placement* is render-side dressing; it must not start feeding the sim

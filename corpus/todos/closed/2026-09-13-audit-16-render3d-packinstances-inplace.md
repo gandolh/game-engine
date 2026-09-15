@@ -6,7 +6,7 @@ context: repo audit 2026-09-13 (`improve`). Engine-level, three-line fix, no API
 
 ## The defect
 
-[engine/core/src/render3d/buffers.ts:146-152](../../engine/core/src/render3d/buffers.ts#L146-L152):
+[engine/core/src/render3d/buffers.ts:146-152](../../../engine/core/src/render3d/buffers.ts#L146-L152):
 
 ```ts
 export function packInstances(list: readonly InstanceInput[]): Float32Array {
@@ -18,7 +18,7 @@ export function packInstances(list: readonly InstanceInput[]): Float32Array {
 }
 ```
 
-`packInstance` ([:128-137](../../engine/core/src/render3d/buffers.ts#L128-L137)) allocates its own
+`packInstance` ([:128-137](../../../engine/core/src/render3d/buffers.ts#L128-L137)) allocates its own
 `new Float32Array(20)`, fills it, returns it — and `out.set` immediately copies it in and discards it.
 So every instance costs one wasted 20-float allocation plus a redundant copy.
 
@@ -26,7 +26,7 @@ So every instance costs one wasted 20-float allocation plus a redundant copy.
 
 Hollow calls `packInstances` per frame for the ground, territory tiles, hearth, graveyard, corpses, each
 home-mesh group, each resource-node kind and each agent mesh-variant
-([render3d/app.ts](../../games/hollow/client/src/render3d/app.ts) lines 389, 401, 420, 434, 447, 477, 499,
+([render3d/app.ts](../../../games/hollow/client/src/render3d/app.ts) lines 389, 401, 420, 434, 447, 477, 499,
 508, 610). At population 40 that is ~130-180 instances per frame, so ~8-11k short-lived typed arrays per
 second — the allocation pattern that produces periodic GC sawtooth in a rAF loop. Hollow is the only 3D
 game, so this is its frame-time tax specifically.
@@ -43,8 +43,8 @@ frame-scoped — a shared mutable buffer handed to the GL layer is a correctness
 deferred.
 
 ## Files you OWN
-- [engine/core/src/render3d/buffers.ts](../../engine/core/src/render3d/buffers.ts) + its tests
-- [games/hollow/client/src/render3d/app.ts](../../games/hollow/client/src/render3d/app.ts) if you add staging buffers
+- [engine/core/src/render3d/buffers.ts](../../../engine/core/src/render3d/buffers.ts) + its tests
+- [games/hollow/client/src/render3d/app.ts](../../../games/hollow/client/src/render3d/app.ts) if you add staging buffers
 
 ## Files you must NOT touch
 - `FLOATS_PER_INSTANCE` / the std140 layout — the packed byte layout must stay identical

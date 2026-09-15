@@ -6,7 +6,7 @@ context: repo audit 2026-09-13 (`improve`). Automates the one failure the corpus
 
 ## The gap
 
-[decisions.md](../wiki/decisions.md) → Renderer records two non-obvious constraints, the first being:
+[decisions.md](../../wiki/decisions.md) → Renderer records two non-obvious constraints, the first being:
 
 > **The renderer must be imported DYNAMICALLY.** `createRenderer` uses `await import("./webgl2/renderer")`,
 > and `render/index.ts` exports `WebGl2Renderer` as a **type only**. The WebGL2 passes
@@ -15,11 +15,11 @@ context: repo audit 2026-09-13 (`improve`). Automates the one failure the corpus
 > `ERR_UNKNOWN_FILE_EXTENSION`. This happened once during the migration and **typecheck plus 689 passing
 > tests did not catch it.**
 
-The constraint is real and currently honoured — [render/index.ts](../../engine/core/src/render/index.ts)
+The constraint is real and currently honoured — [render/index.ts](../../../engine/core/src/render/index.ts)
 carries the `// TYPE-ONLY on purpose` comment above `export type { WebGl2Renderer }`. But nothing
 *enforces* it, and the surface is wide:
 
-- The root barrel [engine/core/src/index.ts](../../engine/core/src/index.ts) does
+- The root barrel [engine/core/src/index.ts](../../../engine/core/src/index.ts) does
   `export * from "./render"`, so every Node consumer pulls the render module graph transitively.
 - **334** bare `from "@engine/core"` imports across the repo (vs. a handful using the 16 declared subpath
   exports), including `tools/run-sim`, `tools/world-preview`, `games/farm/server` and
@@ -59,7 +59,7 @@ gate is what buys safety.
 
 ## Files you OWN
 - new test under `engine/core/src/` (colocated, e.g. `node-import.test.ts`) or a small script invoked from CI
-- [engine/core/src/index.ts](../../engine/core/src/index.ts) / [render/index.ts](../../engine/core/src/render/index.ts)
+- [engine/core/src/index.ts](../../../engine/core/src/index.ts) / [render/index.ts](../../../engine/core/src/render/index.ts)
   only if a comment needs strengthening — **do not restructure the barrels here**
 
 ## Files you must NOT touch

@@ -8,12 +8,12 @@ context: repo audit 2026-09-13 (`improve`). Low effort, low risk; the smaller si
 
 Three of four games hand-build their snapshot inside the bootstrap closure, iterating ECS queries directly:
 
-- [games/hollow/sim-core/src/sim-bootstrap.ts:1006-1096](../../games/hollow/sim-core/src/sim-bootstrap.ts#L1006-L1096) — `getSnapshot`, ~90 lines
-- [games/mathquest/sim-core/src/sim-bootstrap.ts:510-556](../../games/mathquest/sim-core/src/sim-bootstrap.ts#L510-L556) — `getSnapshot`, ~46 lines
+- [games/hollow/sim-core/src/sim-bootstrap.ts:1006-1096](../../../games/hollow/sim-core/src/sim-bootstrap.ts#L1006-L1096) — `getSnapshot`, ~90 lines
+- [games/mathquest/sim-core/src/sim-bootstrap.ts:510-556](../../../games/mathquest/sim-core/src/sim-bootstrap.ts#L510-L556) — `getSnapshot`, ~46 lines
 - (Citadel's is covered by audit-23)
 
 Only Farm — the oldest game — factored this out, into
-[games/farm/sim-core/src/snapshot-builder/](../../games/farm/sim-core/src/snapshot-builder/). The snapshot
+[games/farm/sim-core/src/snapshot-builder/](../../../games/farm/sim-core/src/snapshot-builder/). The snapshot
 *shapes* are legitimately game-specific; the fact that they are unextractable closures is not.
 
 ## Failure scenario
@@ -35,8 +35,8 @@ taking its state explicitly. Follow Farm's precedent for structure but do not tr
 across games — they are meant to differ, and the dependency rule forbids sharing them anyway.
 
 ## Files you OWN
-- [games/hollow/sim-core/src/sim-bootstrap.ts](../../games/hollow/sim-core/src/sim-bootstrap.ts) + new `src/snapshot-builder.ts`
-- [games/mathquest/sim-core/src/sim-bootstrap.ts](../../games/mathquest/sim-core/src/sim-bootstrap.ts) + new `src/snapshot-builder.ts`
+- [games/hollow/sim-core/src/sim-bootstrap.ts](../../../games/hollow/sim-core/src/sim-bootstrap.ts) + new `src/snapshot-builder.ts`
+- [games/mathquest/sim-core/src/sim-bootstrap.ts](../../../games/mathquest/sim-core/src/sim-bootstrap.ts) + new `src/snapshot-builder.ts`
 - new colocated tests
 
 ## Files you must NOT touch

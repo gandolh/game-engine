@@ -26,7 +26,7 @@ which is how a "WebGPU-only render path" line outlived the page that already sai
 
 - [wiki/architecture.md](wiki/architecture.md) — The load-bearing map: workspaces, the four-layer dependency rule, the sim loop, ECS, message bus, per-tick data flow, render, and WASM.
 - [wiki/code-graph.md](wiki/code-graph.md) — The CodeGraph symbol index as the code-understanding layer: the two-layer why/what model, and its **measured failure modes** (it conflates same-named symbols across games).
-- [wiki/decisions.md](wiki/decisions.md) — Locked tech choices that future briefs must not relitigate — stack, sim, ECS, renderer, assets, palette, concurrency, WASM, and the gameplay source-of-truth.
+- [wiki/decisions.md](wiki/decisions.md) — Locked tech choices that future briefs must not relitigate — stack, sim, ECS, renderer, assets, palette, concurrency, tick-pump/speed semantics, build & verify gates, WASM, and the gameplay source-of-truth.
 - [wiki/glossary.md](wiki/glossary.md) — The project's vocabulary: one canonical name per concept across the engine and the four games, each listing the synonyms it displaces (tick vs frame, spec vs brief, the two senses of "villager").
 - [wiki/status.md](wiki/status.md) — The current-state snapshot: one terse line per brief, architecture milestones, current sim/determinism behaviour, and open gaps. The single source for brief state.
 - [wiki/open-questions.md](wiki/open-questions.md) — Live list of what is genuinely unresolved, plus settled premises that must not be re-litigated. Resolved items are deleted, not archived.

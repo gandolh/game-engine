@@ -6,7 +6,7 @@ context: repo audit 2026-09-13 (`improve`). Pure extraction, no behaviour change
 
 ## The problem
 
-[games/citadel/sim-core/src/sim-bootstrap.ts](../../games/citadel/sim-core/src/sim-bootstrap.ts) is 1,302
+[games/citadel/sim-core/src/sim-bootstrap.ts](../../../games/citadel/sim-core/src/sim-bootstrap.ts) is 1,302
 lines, and `bootstrapSim` itself (276-1302) contains ~18 nested closures doing five separable jobs:
 
 | job | lines |
@@ -20,7 +20,7 @@ lines, and `bootstrapSim` itself (276-1302) contains ~18 nested closures doing f
 None of them need this closure's scope: they touch `state` / `terrain` / `WORLD_WIDTH`, all of which are
 already passed as plain values to the top-level pure helpers in the same file (`canAfford`, `debitStock`,
 `creditStock`). Farm solved this long ago — its snapshot building lives in
-[games/farm/sim-core/src/snapshot-builder/](../../games/farm/sim-core/src/snapshot-builder/).
+[games/farm/sim-core/src/snapshot-builder/](../../../games/farm/sim-core/src/snapshot-builder/).
 
 **This is not "the file is big".** A long declarative system-registration sequence would be fine — the
 scheduler order is load-bearing and reads well as a list. The problem is the four *other* jobs tangled into
@@ -49,7 +49,7 @@ naturally; do not chase the full 1,302 lines.
 code and will conflict otherwise. If they are already done, rebase onto them.
 
 ## Files you OWN
-- [games/citadel/sim-core/src/sim-bootstrap.ts](../../games/citadel/sim-core/src/sim-bootstrap.ts)
+- [games/citadel/sim-core/src/sim-bootstrap.ts](../../../games/citadel/sim-core/src/sim-bootstrap.ts)
 - new `games/citadel/sim-core/src/systems/placement.ts` and `src/snapshot-builder.ts` (+ any new tests)
 
 ## Files you must NOT touch

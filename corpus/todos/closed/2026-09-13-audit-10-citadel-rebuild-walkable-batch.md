@@ -7,19 +7,19 @@ context: repo audit 2026-09-13 (`improve`).
 ## The defect
 
 `placeOne` ends with a full grid rebuild
-([sim-bootstrap.ts:553](../../games/citadel/sim-core/src/sim-bootstrap.ts#L553), also 511 and 711):
+([sim-bootstrap.ts:553](../../../games/citadel/sim-core/src/sim-bootstrap.ts#L553), also 511 and 711):
 
 ```ts
 occupancy.apply(fp);
 walkable = rebuildWalkable(WORLD_WIDTH, WORLD_HEIGHT, occupancy, buildable);
 ```
 
-[engine/core/src/placement/occupancy.ts:150-157](../../engine/core/src/placement/occupancy.ts#L150-L157)
+[engine/core/src/placement/occupancy.ts:150-157](../../../engine/core/src/placement/occupancy.ts#L150-L157)
 allocates a fresh `Uint8Array(width*height)` and runs a nested loop with two callbacks per cell — 36,864
 cells on the 192×192 world.
 
 And `placeDragged` calls `placeOne` **once per tile**
-([sim-bootstrap.ts:623-630](../../games/citadel/sim-core/src/sim-bootstrap.ts#L623-L630)):
+([sim-bootstrap.ts:623-630](../../../games/citadel/sim-core/src/sim-bootstrap.ts#L623-L630)):
 ```ts
 for (const tile of tiles) { const r = placeOne(buildingType, tile.x, tile.y); … }
 ```
@@ -42,8 +42,8 @@ reject reasons) must still see a correct grid. If a mid-batch read exists, patch
 rather than deferring; check before choosing.
 
 ## Files you OWN
-- [games/citadel/sim-core/src/sim-bootstrap.ts](../../games/citadel/sim-core/src/sim-bootstrap.ts) (the placement closures)
-- [engine/core/src/placement/occupancy.ts](../../engine/core/src/placement/occupancy.ts) only if adding an
+- [games/citadel/sim-core/src/sim-bootstrap.ts](../../../games/citadel/sim-core/src/sim-bootstrap.ts) (the placement closures)
+- [engine/core/src/placement/occupancy.ts](../../../engine/core/src/placement/occupancy.ts) only if adding an
   in-place footprint update — keep it generic, no Citadel concepts in the engine
 
 ## Files you must NOT touch

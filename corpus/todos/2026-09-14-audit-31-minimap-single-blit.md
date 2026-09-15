@@ -2,7 +2,7 @@
 
 status: todo
 created: 2026-09-14
-context: follow-up from [audit-02](2026-09-13-audit-02-citadel-minimap-bake.md) (landed `a2b9931`). Not a defect — the remaining step needs an API change audit-02 correctly declined to make.
+context: follow-up from [audit-02](closed/2026-09-13-audit-02-citadel-minimap-bake.md) (landed `a2b9931`). Not a defect — the remaining step needs an API change audit-02 correctly declined to make.
 
 ## Where this stands
 

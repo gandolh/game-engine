@@ -6,7 +6,7 @@ context: repo audit 2026-09-13 (`improve`). Citadel already demonstrates the tar
 
 ## The problem
 
-[games/farm/client/src/main/render-loop.ts:262-981](../../games/farm/client/src/main/render-loop.ts#L262-L981)
+[games/farm/client/src/main/render-loop.ts:262-981](../../../games/farm/client/src/main/render-loop.ts#L262-L981)
 — `renderFrame` is effectively the whole file's body, inlining: camera/pan easing, weather-particle
 spawning, sprite pushing for buildings / bridges / decor / water / fish, day-night wash computation, and
 ~12 UI surfaces (world clock, right column, hotbar, playback controls, leaderboard, inventory modal, hover
@@ -15,7 +15,7 @@ sequential imperative code over one function's mutable locals.
 
 The whole file has only 4 sub-extractions (`spawnRainSplash`, `applyToolCursor`, `renderFrame`, one local).
 
-**Contrast, deliberately:** [citadel-renderer.ts](../../games/citadel/client/src/render/citadel-renderer.ts)
+**Contrast, deliberately:** [citadel-renderer.ts](../../../games/citadel/client/src/render/citadel-renderer.ts)
 is 821 lines — comparable — but organised as 9 small named exports (`pushBuilding`, `pushScene`,
 `pushNetworks`, `pushGhost`, `pushCatchment`, `pushLightPool`, `pushFire`, `pushAmbientCrowd`), each
 independently testable. That is the "long but cohesive" case and is **not** a defect. Farm's is the other kind.
@@ -42,7 +42,7 @@ weather → world decor → world-anchored cards → UI panels. Stop and ship wh
 turns out to be genuinely entangled; say which in the close-out.
 
 ## Files you OWN
-- [games/farm/client/src/main/render-loop.ts](../../games/farm/client/src/main/render-loop.ts)
+- [games/farm/client/src/main/render-loop.ts](../../../games/farm/client/src/main/render-loop.ts)
 - new sibling modules if a concern is large enough to deserve its own file
 - new tests for any extracted pure function
 

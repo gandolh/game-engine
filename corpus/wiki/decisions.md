@@ -1,5 +1,5 @@
 ---
-summary: Locked tech choices that future briefs must not relitigate — stack, sim, ECS, renderer (WebGL2-only as of 2026-08-18, migration shipped), assets, palette, concurrency, WASM, and the gameplay source-of-truth.
+summary: Locked tech choices that future briefs must not relitigate — stack, sim, ECS, renderer (WebGL2-only as of 2026-08-18, migration shipped), assets, palette, concurrency, tick-pump/speed semantics, build & verify gates (the turbo cache-key rule, the Node-importable barrel rule), WASM, and the gameplay source-of-truth.
 updated: 2026-09-15
 ---
 
@@ -102,10 +102,50 @@ Farm's client is intentionally NOT on this primitive — it's WebSocket-driven a
 ([@farm/server](../../games/farm/server/)) owns its own clock; forcing a client-side pump onto it
 would fight that ownership rather than fit it.
 
+## Build & verify gates
+
+**`typecheck`/`test` use topological (`^task`) deps, not `dependsOn: []`.** (audit-01, 2026-09-13.)
+The original `dependsOn: []` was a *deliberate* choice with a sound-sounding rationale written into
+[turbo.json](../../turbo.json) — maximum parallelism, and each package reporting its own failure
+independently rather than being skipped when an upstream one fails. **Do not restore it.** What that
+rationale missed is that `^task` is also what folds an upstream package's source hash into the
+downstream cache key. Every internal package exports raw TS source, so with `dependsOn: []` a
+dependency could change and its dependents would still report a *cached success they never re-ran*.
+Proven by experiment: adding a required field to `Personality` printed `18 successful, 1 failed`,
+while `--force` showed **8 packages genuinely broken** — including two that reported cached success
+while broken. Because [routing.md](../routing.md) makes `npm run typecheck` the verify gate between
+dispatch waves, this silently weakened **every** "verified" claim made through a warm cache for as
+long as turbo had been adopted. The parallelism concern is preserved instead by
+`--continue=always` on the root scripts. `@engine/core`'s own `#test` override keeps `dependsOn: []`
+legitimately — it has no workspace dependencies for `^` to resolve.
+
+**A warm-cache green is only trustworthy because of the above.** When a run's conclusion depends on
+it (a release, a behaviour-preservation claim), still force a cold pass — `turbo run typecheck
+--force` — rather than reasoning about whether the key was right.
+
+**The engine's public barrels must stay Node-importable.** (audit-19, 2026-09-15; enforced by
+`engine/core/src/node-import.test.ts`.) `@engine/core`'s WebGL2 render passes import `*.glsl?raw`,
+which is a Vite-only specifier — a plain Node consumer (`@farm/server`, the headless sim tools, any
+Node test) crashes with `ERR_UNKNOWN_FILE_EXTENSION` the moment a barrel pulls that reach in as a
+**value** import. Type-only reaches are fine, because they erase. This is invisible in the code: the
+offending line looks like an ordinary export and typechecks perfectly. Before adding a value export
+to a barrel, check the gate — and note that a green `npm run typecheck` plus a full green test suite
+did **not** catch this class of break when it last happened (see Renderer), which is why CI has
+startup-smoke steps that merely prove the entry points *start*.
+
 ## WASM
 
 - **AssemblyScript** for native-speed kernels — TypeScript-shaped, no native toolchain, ships as an npm package. See [engine/wasm-modules/README.md](../../engine/wasm-modules/README.md).
-- **Built artifacts committed** under `games/farm/client/public/wasm/` so fresh clones don't need to build wasm first.
+- **Built artifacts committed** under `games/farm/client/public/wasm/` so fresh clones don't need to
+  build wasm first. **This is only half true, and knowing which half matters** (audit-29/34,
+  2026-09-15): that browser copy *is* tracked, but `engine/wasm-modules/dist/` is **gitignored** and is
+  what **seven Node-side consumers** read — including the Farm server and four test files. So a
+  genuinely fresh clone fails `npm ci && npm run test` until `npm run build-wasm` has run; it goes
+  unnoticed because `dist/` persists locally once built. CI therefore needs an explicit `build-wasm`
+  step, which in turn means audit-29's drift guard **cannot fail in CI** (that step regenerates the
+  manifest the guard compares against) — it is effective locally only. Resolving which location is
+  canonical is [audit-34](../todos/2026-09-14-audit-34-wasm-dist-untracked.md); do not "fix" the
+  docs or the gitignore without reading it.
 
 ## Farm sim-host tick-fault policy
 

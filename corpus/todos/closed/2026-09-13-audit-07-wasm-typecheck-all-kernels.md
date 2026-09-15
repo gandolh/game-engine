@@ -6,7 +6,7 @@ context: repo audit 2026-09-13 (`improve`). One-line fix; grouped here because i
 
 ## The gap
 
-[engine/wasm-modules/package.json](../../engine/wasm-modules/package.json) declares:
+[engine/wasm-modules/package.json](../../../engine/wasm-modules/package.json) declares:
 
 ```
 "typecheck": "asc --noEmit src/pathfinding.ts --config asconfig.json"
@@ -31,8 +31,8 @@ nothing extra to run. Confirm `asconfig.json` doesn't assume a single entry poin
 rather than glob.
 
 ## Files you OWN
-- [engine/wasm-modules/package.json](../../engine/wasm-modules/package.json)
-- [engine/wasm-modules/build/compile.mjs](../../engine/wasm-modules/build/compile.mjs) if a shared
+- [engine/wasm-modules/package.json](../../../engine/wasm-modules/package.json)
+- [engine/wasm-modules/build/compile.mjs](../../../engine/wasm-modules/build/compile.mjs) if a shared
   source list is the cleaner route
 
 ## Files you must NOT touch

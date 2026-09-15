@@ -7,7 +7,7 @@ context: repo audit 2026-09-13 (`improve`). The project's own README names this 
 ## The gap
 
 Committing the wasm artifacts is deliberate and correct — CLAUDE.md and
-[decisions.md](../wiki/decisions.md) both state a fresh clone must not need to build wasm first, and the
+[decisions.md](../../wiki/decisions.md) both state a fresh clone must not need to build wasm first, and the
 binaries live under `games/farm/client/public/wasm/` plus `engine/wasm-modules/dist/`.
 
 What is missing is any check that the committed binary was rebuilt after a source edit. No test, no git
@@ -18,9 +18,9 @@ correctness bug."**
 
 ## Failure scenario
 
-A contributor fixes a bug in [engine/wasm-modules/src/pathfinding.ts](../../engine/wasm-modules/src/pathfinding.ts)
+A contributor fixes a bug in [engine/wasm-modules/src/pathfinding.ts](../../../engine/wasm-modules/src/pathfinding.ts)
 and forgets `npm run build-wasm`. The only test touching the wasm output,
-[engine/core/src/wasm/pathfinder.test.ts](../../engine/core/src/wasm/pathfinder.test.ts), loads the
+[engine/core/src/wasm/pathfinder.test.ts](../../../engine/core/src/wasm/pathfinder.test.ts), loads the
 **existing** `dist/pathfinding.wasm` bytes and asserts against them — it has no way to know the source
 changed, so it stays green while the shipped binary still contains the bug.
 
@@ -47,7 +47,7 @@ Whichever is chosen, it must also cover the **two** artifact locations (`engine/
 currently in sync as part of this work and report it.
 
 ## Files you OWN
-- [engine/wasm-modules/build/compile.mjs](../../engine/wasm-modules/build/compile.mjs) (emit the manifest)
+- [engine/wasm-modules/build/compile.mjs](../../../engine/wasm-modules/build/compile.mjs) (emit the manifest)
 - new test in `engine/wasm-modules/` or `engine/core/src/wasm/`
 - `engine/wasm-modules/package.json` — a `test` script if the test lands there (see
   [audit-20](2026-09-13-audit-20-tool-workspaces-test-scripts.md))

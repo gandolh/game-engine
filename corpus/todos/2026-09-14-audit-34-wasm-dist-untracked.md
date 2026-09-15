@@ -2,7 +2,7 @@
 
 status: todo
 created: 2026-09-14
-context: found by [audit-29](2026-09-13-audit-29-wasm-artifact-drift-check.md) while building the drift guard, and confirmed by the controller. It made the CI added in [audit-06](2026-09-13-audit-06-ci-gate.md) fail on a fresh runner until a `build-wasm` step was added.
+context: found by [audit-29](closed/2026-09-13-audit-29-wasm-artifact-drift-check.md) while building the drift guard, and confirmed by the controller. It made the CI added in [audit-06](closed/2026-09-13-audit-06-ci-gate.md) fail on a fresh runner until a `build-wasm` step was added.
 
 ## The gap
 

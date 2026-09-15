@@ -6,7 +6,7 @@ context: repo audit 2026-09-13 (`improve`). Cheapest real perf win in the batch 
 
 ## The defect
 
-[games/mathquest/client/src/worker/sim-worker.ts:128-135](../../games/mathquest/client/src/worker/sim-worker.ts#L128-L135):
+[games/mathquest/client/src/worker/sim-worker.ts:128-135](../../../games/mathquest/client/src/worker/sim-worker.ts#L128-L135):
 
 ```ts
 function startLoop(): void {
@@ -21,7 +21,7 @@ function startLoop(): void {
 
 MateQuest is turn-based: solving a problem *is* the combat action. Nothing changes between commands,
 and the sim says so itself at
-[mathquest/sim-core/src/sim-bootstrap.ts:19-22](../../games/mathquest/sim-core/src/sim-bootstrap.ts#L19-L22):
+[mathquest/sim-core/src/sim-bootstrap.ts:19-22](../../../games/mathquest/sim-core/src/sim-bootstrap.ts#L19-L22):
 
 > "Run/combat state changes **ONLY** inside the commands below, never inside `step()`, so a run's
 > outcome depends solely on the (seed, command sequence) pair, never on wall-clock timing."
@@ -34,7 +34,7 @@ second are provably redundant.
 Any MateQuest session, permanently. Each 50 ms the worker rebuilds `RunView` (an
 `inventory.map(toItemView)` plus object spreads), posts it, and the main thread pays a structured-clone
 deserialize plus a `JSON.stringify(snapshot.run.mastery)` at
-[client/src/main.ts:179](../../games/mathquest/client/src/main.ts#L179). The screen is static between
+[client/src/main.ts:179](../../../games/mathquest/client/src/main.ts#L179). The screen is static between
 keypresses, so 100% of it is waste — and the main-thread message queue is never idle, which matters on
 the low-end school hardware this game targets.
 
@@ -49,11 +49,11 @@ for assumptions that a snapshot arrives without a command (e.g. a timer/animatio
 arrival). If something does, convert that consumer to its own rAF rather than keeping the worker pump.
 
 ## Files you OWN
-- [games/mathquest/client/src/worker/sim-worker.ts](../../games/mathquest/client/src/worker/sim-worker.ts)
+- [games/mathquest/client/src/worker/sim-worker.ts](../../../games/mathquest/client/src/worker/sim-worker.ts)
 - any client code that depended on the unconditional snapshot cadence
 
 ## Files you must NOT touch
-- [games/mathquest/sim-core/**](../../games/mathquest/sim-core/) — `step()` stays exactly as is; this
+- [games/mathquest/sim-core/**](../../../games/mathquest/sim-core/) — `step()` stays exactly as is; this
   is a client/transport change and the sim's determinism contract is unaffected
 - the other games' workers (they run continuous sims and legitimately need a pump)
 

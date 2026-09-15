@@ -8,12 +8,12 @@ context: repo audit 2026-09-13 (`improve`).
 
 Inside a single `getSnapshot()`, the same building-footprint walk happens **three times**:
 
-[sim-bootstrap.ts:968-980](../../games/citadel/sim-core/src/sim-bootstrap.ts#L968-L980) (`getBuildings`):
+[sim-bootstrap.ts:968-980](../../../games/citadel/sim-core/src/sim-bootstrap.ts#L968-L980) (`getBuildings`):
 ```ts
 const tileToBuilding = new Map<number, number>();
 for (const entity of buildingWorld.query("building")) { … tileToBuilding.set(ty*WORLD_WIDTH+tx, entity.id); }
 ```
-[sim-bootstrap.ts:1038-1050](../../games/citadel/sim-core/src/sim-bootstrap.ts#L1038-L1050) (`getVillagers`)
+[sim-bootstrap.ts:1038-1050](../../../games/citadel/sim-core/src/sim-bootstrap.ts#L1038-L1050) (`getVillagers`)
 independently builds `tileToType` **and** `tileToBuildingId` over the identical footprints.
 
 ## Failure scenario
@@ -35,7 +35,7 @@ placement-time bookkeeping replacing per-tick recomputation. Consider doing them
 them as separate commits so either can be reverted alone.
 
 ## Files you OWN
-- [games/citadel/sim-core/src/sim-bootstrap.ts](../../games/citadel/sim-core/src/sim-bootstrap.ts)
+- [games/citadel/sim-core/src/sim-bootstrap.ts](../../../games/citadel/sim-core/src/sim-bootstrap.ts)
 - `SimState` and the placement/demolish paths that maintain `buildingTiles`
 
 ## Files you must NOT touch

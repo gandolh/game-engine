@@ -7,7 +7,7 @@ context: repo audit 2026-09-13 (`improve`). No sim run needed to fix or verify t
 ## The defect
 
 `CHECK_DETERMINISM=1` compares two runs of the same seed via
-[tools/run-sim/src/run-core.ts:87-89](../../tools/run-sim/src/run-core.ts#L87-L89):
+[tools/run-sim/src/run-core.ts:87-89](../../../tools/run-sim/src/run-core.ts#L87-L89):
 
 ```ts
 export function fingerprint(result: RunResult): string {
@@ -24,7 +24,7 @@ NaN      vs  Infinity : equal
 -0       vs  0        : equal
 ```
 
-[tools/hollow-sim/src/determinism.ts:24-26](../../tools/hollow-sim/src/determinism.ts#L24-L26) has the
+[tools/hollow-sim/src/determinism.ts:24-26](../../../tools/hollow-sim/src/determinism.ts#L24-L26) has the
 same shape, and neither function has a test: `tools/run-sim` has **0 test files**, and
 `tools/hollow-sim/src/run-core.test.ts` re-implements its own `JSON.stringify` comparison rather than
 calling `fingerprint`.
@@ -36,7 +36,7 @@ nondeterminism bug that flips a value between `Infinity` and `-Infinity`, or bet
 between the two passes — precisely the floating-point-drift class this tool exists to surface —
 fingerprints **identically** and prints `DETERMINISM CHECK PASSED`.
 
-This is load-bearing: [decisions.md](../wiki/decisions.md) makes determinism a hard invariant, and
+This is load-bearing: [decisions.md](../../wiki/decisions.md) makes determinism a hard invariant, and
 `corpus/routing.md` routes determinism questions to "run the guard test — the tests are the authority."
 That authority currently cannot see a whole class of divergence.
 
@@ -50,8 +50,8 @@ every existing caller is unaffected.
 Also make `describeDivergence` report these cases legibly rather than showing two `null`s.
 
 ## Files you OWN
-- [tools/run-sim/src/run-core.ts](../../tools/run-sim/src/run-core.ts)
-- [tools/hollow-sim/src/determinism.ts](../../tools/hollow-sim/src/determinism.ts)
+- [tools/run-sim/src/run-core.ts](../../../tools/run-sim/src/run-core.ts)
+- [tools/hollow-sim/src/determinism.ts](../../../tools/hollow-sim/src/determinism.ts)
 - new: `tools/run-sim/src/run-core.test.ts` (and extend `tools/hollow-sim/src/run-core.test.ts`)
 - `tools/run-sim/package.json` — add a `test` script if absent (see audit-20; if that spec lands
   first, this one just adds the test file)

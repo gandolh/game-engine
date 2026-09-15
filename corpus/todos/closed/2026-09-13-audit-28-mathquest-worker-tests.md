@@ -6,11 +6,11 @@ context: repo audit 2026-09-13 (`improve`). Coordinate with [audit-03](2026-09-1
 
 ## The gap
 
-[games/mathquest/client/src/worker/sim-worker.ts:145-181](../../games/mathquest/client/src/worker/sim-worker.ts#L145-L181)
+[games/mathquest/client/src/worker/sim-worker.ts:145-181](../../../games/mathquest/client/src/worker/sim-worker.ts#L145-L181)
 is the entire postMessage boundary between the UI and `bootstrapMathquestSim()` — 8 command types — and it
 has **no colocated test**. Its siblings do:
-[citadel/client/src/worker/sim-worker.test.ts](../../games/citadel/client/src/worker/sim-worker.test.ts) and
-[hollow/client/src/worker/inspect.test.ts](../../games/hollow/client/src/worker/inspect.test.ts).
+[citadel/client/src/worker/sim-worker.test.ts](../../../games/citadel/client/src/worker/sim-worker.test.ts) and
+[hollow/client/src/worker/inspect.test.ts](../../../games/hollow/client/src/worker/inspect.test.ts).
 
 Every handler dispatches through optional chaining — `sim?.chooseNode(msg.id)` (148),
 `sim?.chooseAction` (153), `sim?.submitAnswer` (158), and five more.
@@ -44,7 +44,7 @@ pre-init command would have made this diagnosable; if you add one, keep it out o
 
 ## Files you OWN
 - new `games/mathquest/client/src/worker/sim-worker.test.ts`
-- [games/mathquest/client/src/worker/sim-worker.ts](../../games/mathquest/client/src/worker/sim-worker.ts)
+- [games/mathquest/client/src/worker/sim-worker.ts](../../../games/mathquest/client/src/worker/sim-worker.ts)
   only for a diagnostic warning, if you add one
 
 ## Files you must NOT touch

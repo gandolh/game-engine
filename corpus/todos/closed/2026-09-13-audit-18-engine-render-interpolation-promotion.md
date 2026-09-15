@@ -11,10 +11,10 @@ a clamped `[0,1]` alpha from the expected inter-arrival interval, lerp each enti
 teleported entities:
 
 - **Farm** — inline in the transport class:
-  [net/sim-client/client.ts:87-135, 248-299](../../games/farm/client/src/net/sim-client/client.ts#L87-L135) (~50 lines, mixed into the WebSocket client)
-- **Citadel** — [render/entity-interp.ts](../../games/citadel/client/src/render/entity-interp.ts) (405 lines:
+  [net/sim-client/client.ts:87-135, 248-299](../../../games/farm/client/src/net/sim-client/client.ts#L87-L135) (~50 lines, mixed into the WebSocket client)
+- **Citadel** — [render/entity-interp.ts](../../../games/citadel/client/src/render/entity-interp.ts) (405 lines:
   jitter buffer, Catmull-Rom/Hermite corner smoothing, long-segment glide)
-- **Hollow** — [render3d/interp.ts](../../games/hollow/client/src/render3d/interp.ts) (136 lines)
+- **Hollow** — [render3d/interp.ts](../../../games/hollow/client/src/render3d/interp.ts) (136 lines)
 
 There is zero sim-specific content in any of them. They cannot share code today because no game may
 import another game — so the shared version has to live in the engine, and nobody put it there.
@@ -53,9 +53,9 @@ regression, not a cleanup.
 
 ## Files you OWN
 - new engine module under `engine/core/src/render/` (or `/runtime/`) + tests + the subpath barrel entry
-- [games/hollow/client/src/render3d/interp.ts](../../games/hollow/client/src/render3d/interp.ts)
-- [games/farm/client/src/net/sim-client/client.ts](../../games/farm/client/src/net/sim-client/client.ts)
-- [games/citadel/client/src/render/entity-interp.ts](../../games/citadel/client/src/render/entity-interp.ts) (last, optional)
+- [games/hollow/client/src/render3d/interp.ts](../../../games/hollow/client/src/render3d/interp.ts)
+- [games/farm/client/src/net/sim-client/client.ts](../../../games/farm/client/src/net/sim-client/client.ts)
+- [games/citadel/client/src/render/entity-interp.ts](../../../games/citadel/client/src/render/entity-interp.ts) (last, optional)
 
 ## Files you must NOT touch
 - any `sim-core` — this is entirely a render-side concern

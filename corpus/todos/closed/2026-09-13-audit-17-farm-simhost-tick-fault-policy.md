@@ -6,7 +6,7 @@ context: repo audit 2026-09-13 (`improve`). **Needs a decision before code** —
 
 ## The defect
 
-[games/farm/server/src/sim-host.ts:289-294](../../games/farm/server/src/sim-host.ts#L289-L294):
+[games/farm/server/src/sim-host.ts:289-294](../../../games/farm/server/src/sim-host.ts#L289-L294):
 
 ```ts
         if (snapshot.gameOver) this.stop();
@@ -23,7 +23,7 @@ nulls `pendingShock`, and then `tick += 1` runs **unconditionally**.
 
 ## Failure scenario
 
-Systems run in a fixed, dependency-ordered sequence ([wiki/system-ordering.md](../wiki/system-ordering.md)).
+Systems run in a fixed, dependency-ordered sequence ([wiki/system-ordering.md](../../wiki/system-ordering.md)).
 If system N throws, systems 1..N-1 have already written their mutations for that tick and N..last never
 ran — leaving a world state no clean tick could ever produce (e.g. inboxes written but never drained,
 because `PerceiveSystem` clears them and `MarketSystem` drains them, both late in the order). The loop
@@ -41,9 +41,9 @@ with one console line as the only signal.
 
 ## The decision to make first
 
-Pick one and record it in [wiki/decisions.md](../wiki/decisions.md):
+Pick one and record it in [wiki/decisions.md](../../wiki/decisions.md):
 - **(a) Halt the run** — mirror what `start()` already does on a startup fault
-  ([sim-host.ts:155-158](../../games/farm/server/src/sim-host.ts#L155-L158)): stop the tick loop, tell
+  ([sim-host.ts:155-158](../../../games/farm/server/src/sim-host.ts#L155-L158)): stop the tick loop, tell
   the client the run is dead. Honest, and a dead run is diagnosable.
 - **(b) Halt + report** — as (a), plus surface a terminal state to the client so a viewer sees "this run
   crashed" rather than a frozen screen.
@@ -54,9 +54,9 @@ Pick one and record it in [wiki/decisions.md](../wiki/decisions.md):
 Recommended: **(b)**.
 
 ## Files you OWN
-- [games/farm/server/src/sim-host.ts](../../games/farm/server/src/sim-host.ts) + its test
+- [games/farm/server/src/sim-host.ts](../../../games/farm/server/src/sim-host.ts) + its test
 - the client's handling of a terminal/faulted run, if (b)
-- a line in [wiki/decisions.md](../wiki/decisions.md)
+- a line in [wiki/decisions.md](../../wiki/decisions.md)
 
 ## Files you must NOT touch
 - `@farm/sim-core` systems — do not "fix" the hypothetical throw; this spec is about the *policy* when

@@ -7,14 +7,14 @@ context: repo audit 2026-09-13 (`improve`). Cheap because the index it needs alr
 ## The defect
 
 `_tickBurning` runs every tick and, in cozy mode, calls `_hasWellNear` per burning building
-([fire-system.ts:302](../../games/citadel/sim-core/src/systems/fire-system.ts#L302)):
+([fire-system.ts:302](../../../games/citadel/sim-core/src/systems/fire-system.ts#L302)):
 
 ```ts
 if (this.cozy && this._hasWellNear(p, bcx, bcy)) decay += COZY_WELL_EXTINGUISH_BONUS;
 ```
 
-`_hasWellNear` ([:530-541](../../games/citadel/sim-core/src/systems/fire-system.ts#L530-L541)) is a full
-`buildingWorld.query("building")` linear scan. `_entityById` ([:543-548](../../games/citadel/sim-core/src/systems/fire-system.ts#L543-L548))
+`_hasWellNear` ([:530-541](../../../games/citadel/sim-core/src/systems/fire-system.ts#L530-L541)) is a full
+`buildingWorld.query("building")` linear scan. `_entityById` ([:543-548](../../../games/citadel/sim-core/src/systems/fire-system.ts#L543-L548))
 is likewise O(B) and is called per burning id from `_spreadFire` and every `_extinguishBuilding`.
 
 The system **already has** `_buildDailyIndex` / `FireDailyIndex` built for exactly this purpose.
@@ -37,12 +37,12 @@ placement/destroy or accept a documented one-day staleness — decide explicitly
 because "a well you just built doesn't help until tomorrow" is a gameplay change if chosen silently.
 
 ## Files you OWN
-- [games/citadel/sim-core/src/systems/fire-system.ts](../../games/citadel/sim-core/src/systems/fire-system.ts) + its tests
+- [games/citadel/sim-core/src/systems/fire-system.ts](../../../games/citadel/sim-core/src/systems/fire-system.ts) + its tests
 
 ## Files you must NOT touch
 - fire *balance* constants (`COZY_WELL_EXTINGUISH_BONUS`, `BURN_TICKS`, spread radius) — this is a
   performance change; Citadel's cozy softness is a settled design call
-  ([open-questions.md](../wiki/open-questions.md))
+  ([open-questions.md](../../wiki/open-questions.md))
 
 ## Acceptance
 - No full-world scan per burning building per tick. Report the before/after entity-iteration count with

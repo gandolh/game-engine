@@ -6,7 +6,7 @@ context: repo audit 2026-09-13 (`improve`). A session-length memory problem on t
 
 ## The defect
 
-[games/hollow/sim-core/src/observe/chronicle.ts:79-81](../../games/hollow/sim-core/src/observe/chronicle.ts#L79-L81)
+[games/hollow/sim-core/src/observe/chronicle.ts:79-81](../../../games/hollow/sim-core/src/observe/chronicle.ts#L79-L81)
 — `buffer` is append-only, no cap, no eviction:
 ```ts
 const capture = (ontology: string) => (msg) => {
@@ -16,7 +16,7 @@ const capture = (ontology: string) => (msg) => {
 ```
 
 And the main thread keeps a **second full copy**:
-[games/hollow/client/src/research-store.ts:36](../../games/hollow/client/src/research-store.ts#L36)
+[games/hollow/client/src/research-store.ts:36](../../../games/hollow/client/src/research-store.ts#L36)
 `ingestEvents` pushes every delta into its own `events` array.
 
 Only the **DOM** is capped (`chronicle-panel.ts:143`, `MAX_ROWS = 300`) — which is why this is invisible
@@ -42,8 +42,8 @@ Decide and record whether a research export is allowed to be lossy. If it is not
 *client* copy only and the worker buffer needs a documented memory ceiling instead.
 
 ## Files you OWN
-- [games/hollow/sim-core/src/observe/chronicle.ts](../../games/hollow/sim-core/src/observe/chronicle.ts)
-- [games/hollow/client/src/research-store.ts](../../games/hollow/client/src/research-store.ts)
+- [games/hollow/sim-core/src/observe/chronicle.ts](../../../games/hollow/sim-core/src/observe/chronicle.ts)
+- [games/hollow/client/src/research-store.ts](../../../games/hollow/client/src/research-store.ts)
 - the export panel, if the export contract changes
 
 ## Files you must NOT touch

@@ -6,7 +6,7 @@ context: repo audit 2026-09-13 (`improve`). **Do this one first** — until the 
 
 ## The gap
 
-`typecheck` and `test` in [turbo.json](../../turbo.json) are declared `dependsOn: []` with no
+`typecheck` and `test` in [turbo.json](../../../turbo.json) are declared `dependsOn: []` with no
 `inputs` override. Every internal package exports raw TS source (no build step), so `tsc` reads a
 dependency's `.ts` **directly** — but the task's cache key contains only the package's *own* files.
 So when an upstream workspace's source changes, every downstream package keeps its old hash and
@@ -26,7 +26,7 @@ Baseline: `npx turbo run typecheck --dry-run=json` shows `@citadel/client#typech
 `"dependencies": []` and 132 hashed inputs, **none** under `engine/core/` or any `sim-core/`.
 
 Then a required field was added to `Personality` in
-[engine/core/src/ecs/components.ts:40](../../engine/core/src/ecs/components.ts#L40)
+[engine/core/src/ecs/components.ts:40](../../../engine/core/src/ecs/components.ts#L40)
 (a type defined in the engine and constructed only by games):
 
 ```
@@ -53,14 +53,14 @@ broken* in the same run, which is the fully-silent case.
 
 ## Why it matters beyond tidiness
 
-[routing.md](../routing.md) makes `npm run typecheck` + scoped `npm run test` the **verify gate**
+[routing.md](../../routing.md) makes `npm run typecheck` + scoped `npm run test` the **verify gate**
 between dispatch waves and before delivery, and states "a subagent's 'tests pass' is not evidence."
 Today the controller's own re-run is not evidence either. Every other spec in this batch is verified
 through this gate.
 
 ## Files you OWN
-- [turbo.json](../../turbo.json)
-- a short note in [corpus/wiki/decisions.md](../wiki/decisions.md) recording the resolution
+- [turbo.json](../../../turbo.json)
+- a short note in [corpus/wiki/decisions.md](../../wiki/decisions.md) recording the resolution
 
 ## Files you must NOT touch
 - any `package.json` (do not restructure the workspace graph to work around this)

@@ -4,6 +4,58 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-09-15] audit | The 2026-09-13 audit backlog is built: 30 of 30 specs landed
+
+All 30 specs from the 2026-09-13 audit are implemented and committed on branch `audit-2026-09-13`,
+one commit per spec, and moved to [todos/closed/](todos/closed/). Five follow-ups found *during* the
+build stayed open in [todos/](todos/) as `audit-31..35`.
+
+**Spec 01 first, and it paid for itself immediately.** Until the verify gate was honest nothing else
+could be trusted, so `typecheck`/`test` moved to `dependsOn: ["^typecheck"]`/`["^test"]`. Re-running the
+`Personality` probe afterwards turned "18 successful, 1 failed" into **8 genuinely failed packages**,
+exactly matching the `--force` set. Every later verification in this run sits on that fix.
+
+**What the build changed about the audit's own conclusions.** Three findings did not survive contact:
+`World.query()`'s cache key measured 18µs/tick (0.04% of budget — dropped), the lockfile's ghost
+`packages/` entries turned out benign (`npm ci --dry-run` exits 0), and audit-09's spec was internally
+contradictory — it demanded bit-identical behaviour *and* a retry backoff. Resolved by proving the
+assignment order identical while recording that **fixed-seed output will diverge**; audit-09 is the one
+commit in this run that is deliberately not behaviour-preserving.
+
+**Two specs were wrong as written and the executing agents caught them.** audit-04's proposed
+`get tick()` collides with the existing `tick(): void` method on `BootedHollowSim` (became `tickCount`),
+and audit-12's chronicle cap would have **silently broken event delivery forever** — capping the heap
+makes `events().length` plateau, so the worker's `length > postedEventCount` check is permanently false
+and it stops posting. Fixed with an explicit cursor
+([chronicle-cursor.ts](../games/hollow/client/src/worker/chronicle-cursor.ts)) that tracks captured vs
+dropped vs posted. A subagent refusing to work around an off-limits file is what surfaced it.
+
+**Four engine promotions, and one deliberate refusal.** The message bus gained a typed ontology→body
+registry (open for declaration merging, so the engine still never imports a game); snapshot
+interpolation and the tick pump both became engine primitives. But **Citadel keeps its own
+`entity-interp.ts`** — its jitter buffer fixed a real diagnosed bug (hold-then-jump tile-stepping,
+~41% → ~2% of gaps), and a shared abstraction that degrades the one game with the good implementation
+is a regression dressed up as a cleanup. Promoting that behaviour as opt-in layers remains open.
+
+**Speed semantics were settled, not just deduplicated** — see the new tick-pump entry in
+[decisions.md](wiki/decisions.md). Hollow's fixed-period/variable-batch model wins over Citadel's
+re-periodizing one, and batch overrun (previously undefined in all three workers) is now **cap and drop
+the debt, never accumulate** — enforced structurally, since the primitive does no wall-clock accounting
+at all and therefore has no code path that could catch up.
+
+**CI now exists** ([.github/workflows/ci.yml](../.github/workflows/ci.yml)) and the audit's own gaps
+showed up in it: `engine/wasm-modules/dist/` is gitignored but seven Node consumers read it, so CI
+needed a `build-wasm` step — which in turn neuters the new drift guard in CI (filed as audit-34). The
+publish fixture `examples/library-consumer`, which nothing had ever run, is now a CI step proven to go
+red when a subpath leaves the `exports` map.
+
+**Verification gaps, stated plainly.** Per the session's budget, **no sim runs** were made: behaviour
+preservation for audit-08/09/10/14/15/23/24 rests on typecheck + scoped suites, not multi-seed
+`EXPORT=json` diffs, and audit-09 is known to diverge. **Browser verification was unavailable after
+Wave 2** (`XDG_RUNTIME_DIR` vanished at a session boundary), so audit-13's culling, audit-25's draw
+order, Farm's fault banner, and both browser-visible acceptance criteria on audit-18 and audit-26 are
+**outstanding, not discharged**.
+
 ## [2026-09-13] audit | Repo-wide audit (`improve`): 42 candidates → 30 specs, and the verify gate itself was lying
 
 Whole-monorepo audit scoped to performance, good practices and code structure — five lens-scoped finders

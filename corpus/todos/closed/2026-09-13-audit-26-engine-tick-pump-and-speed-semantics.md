@@ -9,9 +9,9 @@ context: repo audit 2026-09-13 (`improve`). **Contains a design decision**, not 
 Each Worker-based game hand-rolls the same `intervalId` / `setInterval` / `clearInterval` lifecycle plus a
 `startLoop` / `postSnapshot` / `onmessage` switch around a `"ready"`/`"init"` handshake:
 
-- [games/citadel/client/src/worker/sim-worker.ts:13-61](../../games/citadel/client/src/worker/sim-worker.ts#L13-L61)
-- [games/hollow/client/src/worker/sim-worker.ts:185-288](../../games/hollow/client/src/worker/sim-worker.ts#L185-L288)
-- [games/mathquest/client/src/worker/sim-worker.ts:116-135](../../games/mathquest/client/src/worker/sim-worker.ts#L116-L135)
+- [games/citadel/client/src/worker/sim-worker.ts:13-61](../../../games/citadel/client/src/worker/sim-worker.ts#L13-L61)
+- [games/hollow/client/src/worker/sim-worker.ts:185-288](../../../games/hollow/client/src/worker/sim-worker.ts#L185-L288)
+- [games/mathquest/client/src/worker/sim-worker.ts:116-135](../../../games/mathquest/client/src/worker/sim-worker.ts#L116-L135)
 
 `grep -c setInterval engine/core/src` is **0** — there is no engine-level tick-pump primitive at all, so a
 fourth continuous-sim game will produce a fourth variant.
@@ -21,7 +21,7 @@ fourth continuous-sim game will produce a fourth variant.
 The three have silently settled on **different meanings for speed**:
 
 - **Citadel** re-periodizes the interval: `const msPerTick = 1000 / (20 * speed)` inside `startLoop`
-  ([:42](../../games/citadel/client/src/worker/sim-worker.ts#L42)), and the `"speed"` case re-invokes
+  ([:42](../../../games/citadel/client/src/worker/sim-worker.ts#L42)), and the `"speed"` case re-invokes
   `startLoop()` — tearing down and recreating the interval on every speed change.
 - **Hollow** holds the period fixed at `BASE_MS_PER_TICK` and runs `speedMultiplier` ticks per fire; its
   own header says the interval is *"NEVER re-periodized by speed"*.
@@ -32,14 +32,14 @@ Hollow's design specifically avoids that. Nothing documents why they differ — 
 not two considered choices.
 
 Note that determinism is unaffected either way: the sim depends only on tick *count*, and `setInterval` is
-pacing only ([decisions.md](../wiki/decisions.md) → Concurrency). This is a feel/correctness-of-pacing
+pacing only ([decisions.md](../../wiki/decisions.md) → Concurrency). This is a feel/correctness-of-pacing
 question, not a sim-correctness one.
 
 ## Decide first, then build
 
 1. Pick the model. Recommended: **Hollow's** — fixed period, variable batch size. It avoids the hitch and
    degrades more gracefully when a batch overruns its period.
-2. Record the call in [wiki/decisions.md](../wiki/decisions.md), including what happens when a batch cannot
+2. Record the call in [wiki/decisions.md](../../wiki/decisions.md), including what happens when a batch cannot
    finish within one period (drop ticks? let it drift? cap the batch?) — that case is currently undefined in
    all three workers and is the thing that bites at high speed on weak hardware.
 3. Then add `createTickPump({ hz, onTick })` (start / stop / isRunning, generic over logical-ticks-per-fire)
@@ -51,7 +51,7 @@ has not removed its pump entirely — check first; a turn-based game may end up 
 ## Files you OWN
 - new `engine/core/src/runtime/tick-pump.ts` + tests + the `/runtime` barrel entry
 - the three workers' pump scaffolding
-- a line in [wiki/decisions.md](../wiki/decisions.md)
+- a line in [wiki/decisions.md](../../wiki/decisions.md)
 
 ## Files you must NOT touch
 - any `sim-core` tick logic — this is host pacing only

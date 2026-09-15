@@ -22,7 +22,7 @@ Any change that breaks a workspace the author did not personally re-run — whic
 (`git status` at audit time: on `main`, clean). There is no PR checkpoint to catch it either.
 
 The corpus records two prior incidents of exactly this class: the dynamic-renderer-import break, where
-"typecheck plus 689 passing tests did not catch it" ([decisions.md](../wiki/decisions.md) → Renderer),
+"typecheck plus 689 passing tests did not catch it" ([decisions.md](../../wiki/decisions.md) → Renderer),
 and two features that shipped inert with green tests.
 
 ## Fix sketch
@@ -51,8 +51,8 @@ that cost, but size the smoke runs to seconds, not minutes.
 
 ## Files you OWN
 - new: `.github/workflows/ci.yml`
-- root [package.json](../../package.json) — only if a `ci`/`smoke` convenience script helps
-- a note in [corpus/wiki/status.md](../wiki/status.md)
+- root [package.json](../../../package.json) — only if a `ci`/`smoke` convenience script helps
+- a note in [corpus/wiki/status.md](../../wiki/status.md)
 
 ## Files you must NOT touch
 - `turbo.json` — that is audit-01's file; do not fix the cache here

@@ -2,7 +2,7 @@
 
 status: todo
 created: 2026-09-14
-context: follow-up from [audit-12](2026-09-13-audit-12-hollow-chronicle-bounded.md) (landed `c750e06`), which the implementing agent flagged rather than working around.
+context: follow-up from [audit-12](closed/2026-09-13-audit-12-hollow-chronicle-bounded.md) (landed `c750e06`), which the implementing agent flagged rather than working around.
 
 ## The gap
 

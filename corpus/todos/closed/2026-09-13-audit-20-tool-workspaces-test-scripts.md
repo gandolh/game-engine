@@ -46,7 +46,7 @@ so between the two gaps three kernels have neither typecheck nor test.
 ## Files you OWN
 - `tools/run-sim/package.json`, `tools/citadel-sim/package.json` (+ new `vitest.config.ts` each)
 - new test files in those packages
-- a line in [CLAUDE.md](../../CLAUDE.md) recording the deliberate exceptions
+- a line in [CLAUDE.md](../../../CLAUDE.md) recording the deliberate exceptions
 - `turbo.json` **only** if a new `inputs` override is genuinely needed — coordinate with
   [audit-01](2026-09-13-audit-01-turbo-cache-false-green.md), which owns that file
 

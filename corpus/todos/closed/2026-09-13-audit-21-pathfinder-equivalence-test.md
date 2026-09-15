@@ -2,15 +2,15 @@
 
 status: todo
 created: 2026-09-13
-context: repo audit 2026-09-13 (`improve`). The corpus already records being bitten by this class once — see [decisions.md](../wiki/decisions.md) → Concurrency, "Pathfinder choice is load-bearing".
+context: repo audit 2026-09-13 (`improve`). The corpus already records being bitten by this class once — see [decisions.md](../../wiki/decisions.md) → Concurrency, "Pathfinder choice is load-bearing".
 
 ## The gap
 
 Two implementations, both satisfying `PathfinderLike`:
-- [games/farm/sim-core/src/world/js-pathfinder.ts](../../games/farm/sim-core/src/world/js-pathfinder.ts) —
+- [games/farm/sim-core/src/world/js-pathfinder.ts](../../../games/farm/sim-core/src/world/js-pathfinder.ts) —
   unweighted BFS, 4-directional, neighbours visited in a fixed `DX`/`DY` order
 - the WASM kernel, described by its own test as A*
-  ([engine/core/src/wasm/pathfinder.test.ts](../../engine/core/src/wasm/pathfinder.test.ts))
+  ([engine/core/src/wasm/pathfinder.test.ts](../../../engine/core/src/wasm/pathfinder.test.ts))
 
 They are shortest-*length* equivalent but **not route** equivalent — BFS has no tie-break heuristic, A*
 explores by cost/heuristic order, so they pick different equal-cost paths and therefore produce different
@@ -20,7 +20,7 @@ Nothing anywhere compares them. `pathfinder.test.ts` exercises only WASM;
 `games/farm/sim-core/src/world/ports.test.ts` only JS.
 
 And the headless default is the divergent one:
-[tools/run-sim/src/pathfinder.ts:10-12](../../tools/run-sim/src/pathfinder.ts#L10-L12) —
+[tools/run-sim/src/pathfinder.ts:10-12](../../../tools/run-sim/src/pathfinder.ts#L10-L12) —
 `const kind = (process.env["PATHFINDER"] ?? "js").toLowerCase()`. The browser and both servers use WASM.
 
 ## Failure scenario
@@ -51,7 +51,7 @@ WASM is what ships, so the next person reaching for a baseline sets `PATHFINDER=
 ## Files you OWN
 - new test (colocate with whichever side reads more naturally — likely
   `games/farm/sim-core/src/world/pathfinder-equivalence.test.ts`)
-- a clarifying comment in [tools/run-sim/src/pathfinder.ts](../../tools/run-sim/src/pathfinder.ts)
+- a clarifying comment in [tools/run-sim/src/pathfinder.ts](../../../tools/run-sim/src/pathfinder.ts)
 
 ## Files you must NOT touch
 - either pathfinder implementation. **Do not "align" them.** Route divergence is accepted and documented;

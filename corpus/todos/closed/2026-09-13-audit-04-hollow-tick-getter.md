@@ -6,7 +6,7 @@ context: repo audit 2026-09-13 (`improve`). One-line engine-free fix inside Holl
 
 ## The defect
 
-[games/hollow/client/src/worker/sim-worker.ts:267-274](../../games/hollow/client/src/worker/sim-worker.ts#L267-L274):
+[games/hollow/client/src/worker/sim-worker.ts:267-274](../../../games/hollow/client/src/worker/sim-worker.ts#L267-L274):
 
 ```ts
 function tickBatch(count: number): void {
@@ -19,9 +19,9 @@ function tickBatch(count: number): void {
 }
 ```
 
-`getSnapshot()` ([hollow/sim-core/src/sim-bootstrap.ts:1006-1089](../../games/hollow/sim-core/src/sim-bootstrap.ts#L1006-L1089))
+`getSnapshot()` ([hollow/sim-core/src/sim-bootstrap.ts:1006-1089](../../../games/hollow/sim-core/src/sim-bootstrap.ts#L1006-L1089))
 builds the entire agent/corpse/community/resource payload. The tick counter it wants is a closure
-local (`let tickCount = 0`, [sim-bootstrap.ts:969](../../games/hollow/sim-core/src/sim-bootstrap.ts#L969))
+local (`let tickCount = 0`, [sim-bootstrap.ts:969](../../../games/hollow/sim-core/src/sim-bootstrap.ts#L969))
 with **no getter**, even though `get interventionLog()` sits right beside it at line 990.
 
 The `inspect` handler (~line 311 of the worker) has the same shape.
@@ -42,13 +42,13 @@ Add `get tick(): number { return tickCount; }` to the object returned by `bootst
 alongside the existing `get interventionLog()`. Read it in `tickBatch` and in the `inspect` handler.
 
 Mind the off-by-one already documented at
-[sim-bootstrap.ts:982-985](../../games/hollow/sim-core/src/sim-bootstrap.ts#L982-L985): `tickCount` is
+[sim-bootstrap.ts:982-985](../../../games/hollow/sim-core/src/sim-bootstrap.ts#L982-L985): `tickCount` is
 incremented *after* `scheduler.tick`, and `schedule()` deliberately reads the pre-increment value. The
 getter must return the same value `getSnapshot().tick` returns today — verify, don't assume.
 
 ## Files you OWN
-- [games/hollow/sim-core/src/sim-bootstrap.ts](../../games/hollow/sim-core/src/sim-bootstrap.ts) (add the getter only)
-- [games/hollow/client/src/worker/sim-worker.ts](../../games/hollow/client/src/worker/sim-worker.ts)
+- [games/hollow/sim-core/src/sim-bootstrap.ts](../../../games/hollow/sim-core/src/sim-bootstrap.ts) (add the getter only)
+- [games/hollow/client/src/worker/sim-worker.ts](../../../games/hollow/client/src/worker/sim-worker.ts)
 
 ## Files you must NOT touch
 - the snapshot *shape* — no fields added or removed

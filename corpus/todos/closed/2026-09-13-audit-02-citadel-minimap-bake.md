@@ -2,11 +2,11 @@
 
 status: todo
 created: 2026-09-13
-context: repo audit 2026-09-13 (`improve`) — the single largest render-side win found. Citadel/Hollow/MateQuest have no entry in [wiki/performance.md](../wiki/performance.md), which is Farm-only; this is the first.
+context: repo audit 2026-09-13 (`improve`) — the single largest render-side win found. Citadel/Hollow/MateQuest have no entry in [wiki/performance.md](../../wiki/performance.md), which is Farm-only; this is the first.
 
 ## The defect
 
-[games/citadel/client/src/ui/minimap.ts:196](../../games/citadel/client/src/ui/minimap.ts#L196)
+[games/citadel/client/src/ui/minimap.ts:196](../../../games/citadel/client/src/ui/minimap.ts#L196)
 re-emits one `surface.rect` **per world tile, every frame**:
 
 ```ts
@@ -17,15 +17,15 @@ for (const q of this.terrainQuads) {
 ```
 
 `terrainQuads` is built once (good) at
-[minimap.ts:137-149](../../games/citadel/client/src/ui/minimap.ts#L137-L149) — one quad per cell of
-the **192×192** world ([terrain.ts:20](../../games/citadel/sim-core/src/world/terrain.ts#L20)), so
+[minimap.ts:137-149](../../../games/citadel/client/src/ui/minimap.ts#L137-L149) — one quad per cell of
+the **192×192** world ([terrain.ts:20](../../../games/citadel/sim-core/src/world/terrain.ts#L20)), so
 **36,864 quads**. The *build* is cached; the *submission* is not.
 
 Each quad becomes a `ctx.fillStyle =` + `ctx.fillRect` at
-[engine/core/src/render/ui-draw.ts:70-73](../../engine/core/src/render/ui-draw.ts#L70-L73).
+[engine/core/src/render/ui-draw.ts:70-73](../../../engine/core/src/render/ui-draw.ts#L70-L73).
 
 The minimap is laid out and rendered every frame from
-[main/render-loop.ts:505-515](../../games/citadel/client/src/main/render-loop.ts#L505-L515).
+[main/render-loop.ts:505-515](../../../games/citadel/client/src/main/render-loop.ts#L505-L515).
 
 ## Failure scenario
 
@@ -48,7 +48,7 @@ tiles are approximated as axis-aligned squares. Baking does not change that — 
 approximation, or improve it for free since the bake is one-time.
 
 ## Files you OWN
-- [games/citadel/client/src/ui/minimap.ts](../../games/citadel/client/src/ui/minimap.ts)
+- [games/citadel/client/src/ui/minimap.ts](../../../games/citadel/client/src/ui/minimap.ts)
 - its colocated test, if one exists
 
 ## Files you must NOT touch
