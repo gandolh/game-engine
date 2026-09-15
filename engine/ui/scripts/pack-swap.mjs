@@ -34,22 +34,29 @@ function writeJson(path, obj) {
   writeFileSync(path, JSON.stringify(obj, null, 2) + "\n");
 }
 
-if (mode === "--to-dist") {
+if (mode === "--clean-dist") {
+  // Wired to the FRONT of `build`, so every build starts from an empty dist/.
+  //
+  // This is where stale-dist cleanup has to live, and the reason is the
+  // `prepack` ordering: `prepack` is `npm run build && pack-swap --to-dist`,
+  // so --to-dist runs AFTER the build. Deleting dist/ there would delete the
+  // artifacts the build just produced and npm would pack an empty tarball
+  // (measured: 3 files, no code). Cleaning at the start of `build` instead
+  // covers the case that motivated this -- `tsc` has `noEmitOnError` unset,
+  // so a failing build still EMITS into dist/ and exits 1, `npm pack` aborts,
+  // and `postpack`/--restore never runs. Any dist/ left behind that way is at
+  // least freshly derived from current source rather than an arbitrarily old
+  // build, and the next `build` clears it again.
+  const distPath = join(here, "..", "dist");
+  if (existsSync(distPath)) {
+    rmSync(distPath, { recursive: true, force: true });
+    console.log("[pack-swap] cleared dist/ before build.");
+  }
+} else if (mode === "--to-dist") {
   // If a stale backup exists (a previous pack was interrupted), restore first
   // so we always swap from the canonical dev manifest.
   if (existsSync(backupPath)) {
     writeFileSync(pkgPath, read(backupPath));
-  }
-  // Also remove any pre-existing generated dist/ before we start. `tsc` has
-  // `noEmitOnError` unset, so a failing `npm run build` (the first half of
-  // `prepack`) still EMITS into dist/ before exiting 1 -- `npm pack` then
-  // aborts and `--restore` (wired to `postpack`) never runs, so cleanup
-  // living only there cannot reach this case. Clearing dist/ here, before
-  // build even starts, means a stale one can never survive into (or out of)
-  // a pack regardless of whether that pack succeeds.
-  const preExistingDistPath = join(here, "..", "dist");
-  if (existsSync(preExistingDistPath)) {
-    rmSync(preExistingDistPath, { recursive: true, force: true });
   }
   const raw = read(pkgPath);
   writeFileSync(backupPath, raw); // exact dev manifest, byte-for-byte
@@ -76,17 +83,15 @@ if (mode === "--to-dist") {
   // dist/ only ever exists to be packed (see `files` in package.json) — a
   // *stale* one left lying around after pack has broken unrelated consumers
   // (a bundler resolving `.glsl?raw` through a leftover @engine/core/dist).
-  // Remove it here too (on top of the --to-dist-time cleanup above) so a
-  // SUCCESSFUL pack's postpack still leaves the tree as prepack found it —
-  // note that only covers the success path; a failed `npm run build` exits
-  // before postpack ever runs, which is what the --to-dist-time cleanup
-  // above is for.
+  // Removing it here covers the SUCCESS path; the failure path (a build that
+  // emits then exits 1, so postpack never runs) is covered by --clean-dist at
+  // the front of `build`.
   const distPath = join(here, "..", "dist");
   if (existsSync(distPath)) {
     rmSync(distPath, { recursive: true, force: true });
     console.log("[pack-swap] removed generated dist/.");
   }
 } else {
-  console.error("[pack-swap] usage: pack-swap.mjs --to-dist | --restore");
+  console.error("[pack-swap] usage: pack-swap.mjs --clean-dist | --to-dist | --restore");
   process.exit(1);
 }

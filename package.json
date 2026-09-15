@@ -34,7 +34,7 @@
     "build-wasm": "npm run build -w @engine/wasm-modules",
     "build-engine": "npm run build -w @engine/core",
     "build-ui": "npm run build -w @engine/ui",
-    "pack-smoke": "mkdir -p examples/library-consumer/tarballs && npm pack -w @engine/core --pack-destination examples/library-consumer/tarballs && npm pack -w @engine/ui --pack-destination examples/library-consumer/tarballs && npm pack -w @engine/wasm-modules --pack-destination examples/library-consumer/tarballs && npm install --package-lock=false --prefix examples/library-consumer && npm run smoke --prefix examples/library-consumer",
+    "pack-smoke": "mkdir -p examples/library-consumer/tarballs && npm pack -w @engine/core --pack-destination examples/library-consumer/tarballs && npm pack -w @engine/ui --pack-destination examples/library-consumer/tarballs && npm pack -w @engine/wasm-modules --pack-destination examples/library-consumer/tarballs && rm -rf examples/library-consumer/node_modules && npm install --package-lock=false --prefix examples/library-consumer && npm run smoke --prefix examples/library-consumer",
     "docs": "turbo run docs",
     "docs:dev": "npm run dev -w @game-engine/docs-site",
     "codegraph:init": "codegraph init && codegraph telemetry off && codegraph status",

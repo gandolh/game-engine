@@ -101,7 +101,7 @@
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json && node scripts/postbuild.mjs",
+    "build": "node scripts/pack-swap.mjs --clean-dist && tsc -p tsconfig.build.json && node scripts/postbuild.mjs",
     "prepack": "npm run build && node scripts/pack-swap.mjs --to-dist",
     "postpack": "node scripts/pack-swap.mjs --restore",
     "typecheck": "tsc --noEmit",

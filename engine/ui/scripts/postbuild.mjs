@@ -80,7 +80,7 @@ for (const file of codeFiles) {
 
 // --- 2. Copy non-TS runtime assets (none today; kept for parity/future-proofing).
 let assets = 0;
-for (const shader of walk(srcDir, (n) => n.endsWith(".wgsl"))) {
+for (const shader of walk(srcDir, (n) => n.endsWith(".glsl"))) {
   const dest = join(distDir, relative(srcDir, shader));
   mkdirSync(dirname(dest), { recursive: true });
   copyFileSync(shader, dest);

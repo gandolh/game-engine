@@ -10,9 +10,9 @@
 //
 // It is intentionally conservative: a specifier is only rewritten when it
 // resolves to a real emitted file. Non-resolvable specifiers (e.g. Vite's
-// `./shaders/x.wgsl?raw` bundler imports) are left untouched and reported.
+// `./shaders/x.glsl?raw` bundler imports) are left untouched and reported.
 //
-// It also copies non-TS runtime assets that tsc does not emit (WGSL shaders)
+// It also copies non-TS runtime assets that tsc does not emit (GLSL shaders)
 // into dist so the render subpath ships complete.
 //
 // Zero dependencies on purpose — runs on the repo's pinned Node.
@@ -73,9 +73,9 @@ for (const file of codeFiles) {
   if (changed) writeFileSync(file, next);
 }
 
-// --- 2. Copy non-TS runtime assets (WGSL shaders) tsc does not emit.
+// --- 2. Copy non-TS runtime assets (GLSL shaders) tsc does not emit.
 let assets = 0;
-for (const shader of walk(srcDir, (n) => n.endsWith(".wgsl"))) {
+for (const shader of walk(srcDir, (n) => n.endsWith(".glsl"))) {
   const dest = join(distDir, relative(srcDir, shader));
   mkdirSync(dirname(dest), { recursive: true });
   copyFileSync(shader, dest);
