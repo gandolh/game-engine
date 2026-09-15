@@ -21,7 +21,8 @@
     "./social": "./src/social/index.ts",
     "./observe": "./src/observe/index.ts",
     "./persona": "./src/persona/index.ts",
-    "./shock": "./src/shock/index.ts"
+    "./shock": "./src/shock/index.ts",
+    "./rationalize": "./src/rationalize/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

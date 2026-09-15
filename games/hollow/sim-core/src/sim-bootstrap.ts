@@ -251,6 +251,7 @@ import {
 } from "./governance";
 import { HollowJobAssignmentSystem, JOBS_ASSIGN_INTERVAL_TICKS } from "./jobs";
 import { getSnapshot as buildSnapshot } from "./snapshot-builder";
+import { RationalizerSeam, type Rationalizer, type RationalizerSeamOptions } from "./rationalize";
 
 export type { HollowEntity } from "./components";
 
@@ -442,6 +443,38 @@ export interface HollowSimOptions {
    *  (emits `ONT_FEUD.RECONCILED`) — deliberately lower than
    *  `feudStartThreshold`, a hysteresis band (see social/feud-constants.ts). */
   feudReconcileThreshold?: number;
+
+  // LLM-rationalizer seam (chunk hollow-13) — see `rationalize/`.
+  /**
+   * THE SEAM'S ONLY SWITCH, and it is OFF unless you set it.
+   *
+   * Omit it (every existing caller: the headless CLI, the client Worker,
+   * every test, `CHECK_DETERMINISM`) and no `RationalizerSeam` is
+   * constructed, nothing is threaded into the deliberation context, and
+   * `agents/villager.ts` takes its pre-hollow-13 branch verbatim — no
+   * candidate array retained, no request built, no `Rng` fork added, no
+   * per-tick allocation. The sim is byte-identical to a build without the
+   * seam compiled in at all.
+   *
+   * Set it to a `Rationalizer` provider (`createStubRationalizer()` for the
+   * offline/test one; a Claude-backed provider lives outside sim-core — this
+   * package must stay HTTP/SDK-free per CLAUDE.md layering) and every
+   * SIGNIFICANT social decision (`rationalize/policy.ts`) is offered to it,
+   * asynchronously, with the agent proceeding on its BDI default meanwhile.
+   * A returned choice is adopted a few ticks later IF it still anchors to a
+   * live candidate; anything else falls back to the BDI default. With the
+   * stub this stays fully deterministic; with a live model it is the spec's
+   * explicitly non-deterministic live mode.
+   *
+   * Typed as the PROVIDER, not the seam: the harness (budget caps, timeouts,
+   * the decision log) is `bootstrapHollowSim`'s to construct and to own — see
+   * `BootedHollowSim.rationalizer`.
+   */
+  rationalizer?: Rationalizer;
+  /** Tuning for the seam harness (in-flight cap, request timeout, decision-log
+   *  cap) — ignored entirely when `rationalizer` is unset. Defaults in
+   *  `rationalize/seam.ts`. */
+  rationalizerOptions?: RationalizerSeamOptions;
 }
 
 export interface HollowAppearanceSnapshot {
@@ -612,6 +645,15 @@ export interface BootedHollowSim {
    * the exact same fixed point in the root `Rng`'s fork sequence.
    */
   personaRng: Rng;
+  /**
+   * The LLM-rationalizer harness (chunk hollow-13), or `null` when
+   * `HollowSimOptions.rationalizer` was not set — which is the default. A
+   * host reads `drainDecisions()` off this to log rationales to the
+   * chronicle/export ("stated vs revealed reasoning"), and `inFlightCount`/
+   * `droppedDecisionCount` for run-summary budget reporting. The sim itself
+   * never reads it back; see `rationalize/seam.ts`.
+   */
+  rationalizer: RationalizerSeam | null;
   /**
    * Schedules `shock` to apply at the NEXT tick boundary (chunk hollow-11a)
    * and appends the resulting `Intervention` to `interventionLog`. See
@@ -794,6 +836,22 @@ export function bootstrapHollowSim(opts: HollowSimOptions): BootedHollowSim {
   // header for the full stage-placement + determinism/replay contract.
   const shockSystem = new HollowShockSystem(world, resources, bus, shockRng);
 
+  // chunk hollow-13's LLM-rationalizer seam. Constructed ONLY when the caller
+  // actually supplied a provider — `undefined` otherwise, which is the
+  // default and the OFF state all the way down (see `HollowSimOptions.
+  // rationalizer`, `HollowDeliberateSystem`'s last ctor param, and
+  // `agents/registry.ts`'s `HollowDeliberationContext.rationalizer`).
+  //
+  // Note what is NOT here: no `rng.fork(...)`. A fork consumes a draw from
+  // its parent, so adding one — even an unused one — would shift every
+  // downstream number in the run and break the "seam OFF is byte-identical"
+  // guarantee outright. The seam needs no randomness of its own: the policy
+  // gate, the request builder and the anchoring validator are all pure, and
+  // any nondeterminism in live mode comes from the MODEL, not from the sim.
+  const rationalizerSeam = opts.rationalizer
+    ? new RationalizerSeam(opts.rationalizer, opts.rationalizerOptions ?? {})
+    : undefined;
+
   const scheduler = new Scheduler();
   scheduler
     .stage("SHOCK")
@@ -830,6 +888,7 @@ export function bootstrapHollowSim(opts: HollowSimOptions): BootedHollowSim {
         communities,
         opts.ticksPerDay,
         opts.medicMaxTreatmentsPerDay ?? MEDIC_MAX_TREATMENTS_PER_DAY,
+        rationalizerSeam,
       ),
     )
     .stage("ACT")
@@ -990,6 +1049,7 @@ export function bootstrapHollowSim(opts: HollowSimOptions): BootedHollowSim {
     households,
     lineage,
     personaRng,
+    rationalizer: rationalizerSeam ?? null,
     scheduleShock(shock: Shock): Intervention {
       // `tickCount` (not yet incremented — see `tick()` below) is exactly
       // the tick number the NEXT `tick()` call will run, i.e. the next tick

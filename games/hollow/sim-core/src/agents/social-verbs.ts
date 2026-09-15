@@ -574,26 +574,90 @@ export interface ChooseSocialActionOptions {
 }
 
 /**
+ * THE CANDIDATE SET (chunk hollow-13). Runs every `deliberate*` helper above
+ * once and returns EVERY feasible verb that clears `SOCIAL_ACTION_MIN_SCORE`,
+ * in `VERB_ORDER` order — the grounded, already-feasibility-checked option
+ * set the LLM-rationalizer seam (`rationalize/`) is allowed to choose among,
+ * and nothing else. Each entry is exactly the `ScoredChoice` its helper
+ * produced (same `kind`/`data` the ACT-stage social system consumes
+ * verbatim), so adopting ANY index out of this array is by construction a
+ * legal, world-validated action.
+ *
+ * ── why this is behavior-preserving ───────────────────────────────────────
+ * `chooseSocialAction` below is now literally "the max of this array, first
+ * wins", and that is the SAME choice the pre-hollow-13 loop made:
+ *  - if the old running-max cleared the gate, it is in this array AND is
+ *    still the max of it (a max over the whole set is a max over any subset
+ *    that contains it), at the same `VERB_ORDER` position, so the first-wins
+ *    strict-`>` tie-break picks the identical entry;
+ *  - if the old running-max did NOT clear the gate, then no verb did, this
+ *    array is empty, and both spellings return `null`.
+ * Filtering per-verb BEFORE the max instead of gating the max afterwards is
+ * therefore an identity, not a re-tuning.
+ *
+ * Determinism: `VERB_ORDER` is fixed and every helper's own candidate scan
+ * is ascending-id + strict-`>` (see this file's header) — the returned array
+ * is a pure function of this tick's state, with no `Rng` anywhere.
+ */
+export function enumerateSocialActions(
+  agent: SocialAgent,
+  ctx: HollowDeliberationContext,
+  opts: ChooseSocialActionOptions = {},
+): readonly ScoredChoice[] {
+  let candidates = nearbyCandidates(agent, ctx);
+  if (opts.restrictToCloseTies) {
+    candidates = candidates.filter((c) => isCloseTie(agent, c));
+  }
+
+  const feasible: ScoredChoice[] = [];
+  for (const fn of VERB_ORDER) {
+    const choice = fn(agent, candidates);
+    if (choice && choice.score >= SOCIAL_ACTION_MIN_SCORE) feasible.push(choice);
+  }
+  return feasible;
+}
+
+/**
+ * The BDI DEFAULT within a candidate set (chunk hollow-13): the index of the
+ * highest-scoring entry, or `-1` for an empty set. Strict `>` so a tie keeps
+ * the EARLIER entry — i.e. whichever verb comes first in `VERB_ORDER`,
+ * exactly the pre-hollow-13 tie-break (see this file's header).
+ *
+ * Split out from `chooseSocialAction` because the rationalizer seam needs
+ * BOTH halves separately: the candidate array to offer the LLM, and the
+ * index the sim falls back to whenever the LLM declines, is late, or returns
+ * something the anchoring validator rejects.
+ */
+export function bestCandidateIndex(candidates: readonly ScoredChoice[]): number {
+  let bestIndex = -1;
+  let bestScore = -Infinity;
+  for (let i = 0; i < candidates.length; i++) {
+    const choice = candidates[i]!;
+    if (choice.score > bestScore) {
+      bestScore = choice.score;
+      bestIndex = i;
+    }
+  }
+  return bestIndex;
+}
+
+/**
  * Runs every `deliberate*` helper above once and returns the single
  * highest-scoring feasible verb, gated by `SOCIAL_ACTION_MIN_SCORE` — or
  * `null` if nothing clears the gate (the caller, `agents/villager.ts`,
  * falls back to `work`).
+ *
+ * Since hollow-13 this is exactly `bestCandidateIndex(enumerateSocialActions(…))`
+ * — see `enumerateSocialActions`'s header for why that is the identical
+ * choice the pre-hollow-13 single-pass loop made, in every case including
+ * ties.
  */
 export function chooseSocialAction(
   agent: SocialAgent,
   ctx: HollowDeliberationContext,
   opts: ChooseSocialActionOptions = {},
 ): ScoredChoice | null {
-  let candidates = nearbyCandidates(agent, ctx);
-  if (opts.restrictToCloseTies) {
-    candidates = candidates.filter((c) => isCloseTie(agent, c));
-  }
-
-  let best: ScoredChoice | null = null;
-  for (const fn of VERB_ORDER) {
-    const choice = fn(agent, candidates);
-    if (choice && (!best || choice.score > best.score)) best = choice;
-  }
-  if (!best || best.score < SOCIAL_ACTION_MIN_SCORE) return null;
-  return best;
+  const candidates = enumerateSocialActions(agent, ctx, opts);
+  const index = bestCandidateIndex(candidates);
+  return index < 0 ? null : candidates[index]!;
 }

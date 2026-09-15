@@ -162,6 +162,34 @@ exits 1, aborting the pack before `postpack`/`--restore` can run — so it has t
 does, in a `--clean-dist` mode wired ahead of the build. `postpack` still removes `dist/` on the
 success path.
 
+## Hollow — the LLM-rationalizer seam
+
+**Anchoring is per-choice by identity, not per-set by position.** (hollow-13, 2026-09-15.) The seam
+hands the model a set of BDI-produced candidates and takes back a choice among them. The obvious
+guard — remember the set, and accept an index into it — **does not work here, and the failure is
+silent**: `SOCIAL_COOLDOWN_TICKS` is 40, so an agent that submits at tick T does not socially
+deliberate again until T+40, while trust decays *every* tick and every verb's score drifts with it.
+Whole-set fingerprint matching therefore rejected **100%** of answers when measured — the seam was
+completely inert behind a fully green suite. Instead, the chosen option's `kind` + grounded payload
+is looked up in the **live** candidate set and adopted at its new index; absent → `stale-candidates`
+→ BDI default. This is *stronger* than index matching, not weaker: the action taken is provably the
+one reasoned about even if the set was reshuffled, and being present in the live set is what proves
+it is still feasible. The literal per-set rule remains available as `strictCandidateSet`, off by
+default and tested.
+
+**Score is deliberately excluded from choice identity.** A choice can therefore be adopted after its
+score has collapsed — the agent committed to it two in-game days ago and it is still feasible. That
+is the intended reading of "adopts the LLM's choice when it returns", and studying the gap between
+stated and revealed reasoning is the seam's whole research purpose. If this ever needs tightening,
+add a score-floor check; do not reintroduce positional matching.
+
+**Agreement is not an instruction.** If the model returns the index the request presented as the BDI
+default, that is concurrence, not an override: the **current** default runs, never the stale one the
+request was built from. Without this the echoing stub visibly changed the run, because a
+stale-but-still-feasible option outranked a fresh valuation. The invariant this buys is testable and
+load-bearing — **seam ON with the echoing stub is byte-identical to seam OFF**, while a contrarian
+stub provably diverges. Those two tests together are what prove the seam is neither inert nor leaky.
+
 ## WASM
 
 - **AssemblyScript** for native-speed kernels — TypeScript-shaped, no native toolchain, ships as an npm package. See [engine/wasm-modules/README.md](../../engine/wasm-modules/README.md).

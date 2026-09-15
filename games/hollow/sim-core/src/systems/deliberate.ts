@@ -36,6 +36,7 @@ import {
 import type { ResourceWorld } from "../world";
 import type { CommunityRegistry } from "../community";
 import { MEDIC_MAX_TREATMENTS_PER_DAY } from "../mortality";
+import type { RationalizerSeam } from "../rationalize/seam";
 
 const PERCEIVE_STATE: HollowFsmState = "PERCEIVE";
 const ACT_STATE: HollowFsmState = "ACT";
@@ -53,6 +54,15 @@ export class HollowDeliberateSystem implements System {
     communities: CommunityRegistry,
     ticksPerDay: number,
     medicMaxTreatmentsPerDay: number = MEDIC_MAX_TREATMENTS_PER_DAY,
+    /**
+     * Chunk hollow-13's optional LLM-rationalizer seam (`rationalize/`).
+     * `undefined` is OFF and is the default — the sim then behaves exactly
+     * as it did pre-hollow-13 (see `agents/registry.ts`'s
+     * `HollowDeliberationContext.rationalizer` for the OFF contract). Only
+     * `sim-bootstrap.ts` ever passes a real one, and only when
+     * `HollowSimOptions.rationalizer` was set by the caller.
+     */
+    private readonly rationalizer: RationalizerSeam | undefined = undefined,
   ) {
     this.inner = createDeliberateSystem(world, {
       name: "HollowDeliberateSystem",
@@ -68,6 +78,10 @@ export class HollowDeliberateSystem implements System {
         corpses: this.corpses,
         sick: this.sick,
         medicMaxTreatmentsPerDay,
+        // Passed unconditionally; `undefined` IS the off state (the field is
+        // declared `?: RationalizerSeam | undefined`, so this needs no
+        // conditional spread per agent).
+        rationalizer: this.rationalizer,
       }),
     });
   }
@@ -79,6 +93,11 @@ export class HollowDeliberateSystem implements System {
     this.neighbors = buildNeighborIndex(this.world);
     this.corpses = buildCorpseIndex(this.world);
     this.sick = buildSickIndex(this.world);
+    // Chunk hollow-13: collect whatever the rationalizer provider finished
+    // since the last tick and park it for the owning agents, BEFORE anyone
+    // deliberates — so an answer that landed between ticks is adoptable this
+    // tick rather than next. A no-op (not even a call) when the seam is off.
+    this.rationalizer?.drain(ctx.tick);
     this.inner.run(ctx);
   }
 }

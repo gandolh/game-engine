@@ -5,6 +5,7 @@ import type { ResourceWorld } from "../world";
 import { GOOD_FOOD, GOOD_MATERIALS } from "../economy";
 import { SKILL_MATERIAL } from "../social/constants";
 import type { CommunityRegistry } from "../community";
+import type { RationalizerSeam } from "../rationalize/seam";
 
 /**
  * A plain-data snapshot of ONE agent, as seen by every OTHER agent's social
@@ -108,6 +109,24 @@ export interface HollowDeliberationContext {
    *  "any budget left today?" check agrees with the `treat` care-act's
    *  authoritative spend (mortality/care-act-system.ts). */
   readonly medicMaxTreatmentsPerDay: number;
+  /**
+   * The LLM-rationalizer seam (chunk hollow-13, `rationalize/`), or absent/
+   * `undefined` when the seam is OFF — which is the DEFAULT and the only
+   * state `CHECK_DETERMINISM` has ever seen.
+   *
+   * Optional-and-explicitly-`| undefined` (rather than required-and-nullable)
+   * for two reasons: every hand-built test context that predates hollow-13
+   * keeps compiling untouched, and `systems/deliberate.ts`'s per-agent
+   * `makeContext` can set the key unconditionally under
+   * `exactOptionalPropertyTypes` without a conditional spread per agent per
+   * tick.
+   *
+   * `agents/villager.ts` checks this ONCE, before anything else seam-related
+   * happens: when it is absent the deliberator runs `chooseSocialAction`
+   * exactly as it did pre-hollow-13 — no request built, no candidate array
+   * retained, no `Rng` touched. This field is the whole OFF switch.
+   */
+  readonly rationalizer?: RationalizerSeam | undefined;
 }
 
 /**

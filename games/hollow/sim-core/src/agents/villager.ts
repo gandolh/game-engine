@@ -68,7 +68,13 @@ import { SOCIAL_COOLDOWN_TICKS } from "../social/deliberation-constants";
 import { dayPhase, HEARTH_TILE, GRAVEYARD_TILE } from "../world";
 import { medicTreatsRemaining } from "../mortality";
 import { registerPersonality, type HollowDeliberationContext } from "./registry";
-import { chooseSocialAction, type SocialAgent } from "./social-verbs";
+import {
+  chooseSocialAction,
+  enumerateSocialActions,
+  bestCandidateIndex,
+  type ScoredChoice,
+  type SocialAgent,
+} from "./social-verbs";
 
 /** Priority for the hollow-14c routine's GATHER/SLEEP movement intention
  *  ("goto") — purely documentary (see systems/act.ts: nothing sorts the
@@ -193,17 +199,34 @@ function restSeekThreshold(agent: HollowEntity): number {
 
 /**
  * Narrows a plain `HollowEntity` to `social-verbs.ts`'s `SocialAgent` shape
- * and runs `chooseSocialAction`, or returns `null` if the agent is missing
- * any hollow-06 component (genome/relationships/skills/inventory/id) — the
- * same defensive fallback convention as `restSeekThreshold` above, so a
- * hand-built test harness that predates hollow-06 still gets the pure
+ * and picks this tick's social verb, or returns `null` if the agent is
+ * missing any hollow-06 component (genome/relationships/skills/inventory/id)
+ * — the same defensive fallback convention as `restSeekThreshold` above, so
+ * a hand-built test harness that predates hollow-06 still gets the pure
  * survival+work ladder instead of throwing.
+ *
+ * ── the hollow-13 seam, and its OFF guarantee ─────────────────────────────
+ * This is THE call site of the LLM-rationalizer seam, and the `if` below is
+ * the whole off switch. With `ctx.rationalizer` absent — the default, and
+ * what every existing test, the headless CLI and `CHECK_DETERMINISM` see —
+ * control returns from `chooseSocialAction` exactly as it did pre-hollow-13:
+ * no candidate array is retained, no request is built, no `Rng` is touched,
+ * and the seam module is not even reached (it is imported for its types
+ * only, via `HollowDeliberationContext`). The sim is byte-identical.
+ *
+ * With the seam ON, the substrate still does all the grounding work — it
+ * enumerates EVERY feasible verb and computes its own default — and the seam
+ * may only return one of those enumerated entries (see `rationalize/seam.ts`'s
+ * `consider`, whose return is always an element of the array handed to it).
+ * So even here, at the one place model output can influence the sim, the
+ * worst an answer can do is swap one already-validated verb for another
+ * already-validated verb.
  */
 function tryChooseSocialAction(
   agent: HollowEntity,
   ctx: HollowDeliberationContext,
   restrictToCloseTies: boolean,
-): ReturnType<typeof chooseSocialAction> {
+): ScoredChoice | null {
   if (
     agent.id === undefined ||
     !agent.agent ||
@@ -215,7 +238,14 @@ function tryChooseSocialAction(
   ) {
     return null;
   }
-  return chooseSocialAction(agent as SocialAgent, ctx, { restrictToCloseTies });
+  const social = agent as SocialAgent;
+  const seam = ctx.rationalizer;
+  if (!seam) return chooseSocialAction(social, ctx, { restrictToCloseTies });
+
+  const candidates = enumerateSocialActions(social, ctx, { restrictToCloseTies });
+  const bdiChoiceIndex = bestCandidateIndex(candidates);
+  if (bdiChoiceIndex < 0) return null; // nothing cleared SOCIAL_ACTION_MIN_SCORE
+  return seam.consider({ agent: social, ctx, candidates, bdiChoiceIndex });
 }
 
 /**
