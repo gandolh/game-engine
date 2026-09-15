@@ -200,6 +200,23 @@ All Tier 3 items are render-only and seed-deterministic by construction (like th
 - **Archetype / SoA / column-oriented ECS storage.** The ECS uses flat objects with property-based components ([world.ts:12-23](../../engine/core/src/ecs/world.ts#L12-L23)). The literature's 5–10× cache-locality wins materialize at thousands–millions of entities in tight numeric loops; Farm Valley has ~4 farmers + tens of entities. A rewrite would be high-effort, near-zero-payoff, and would fight the determinism guarantees. **Confirmed by profiling 2026-06-05:** the full sim tick over ~300 entities is **0.33ms (~0.7% of the 50ms budget)** — there is no cache-locality problem to solve. Revisit **only** if entity counts grow by orders of magnitude.
 - **Path caching beyond current behavior.** The pathfinder is only called on a *new* travel intent with no active path ([travel/system.ts](../../games/farm/sim-core/src/systems/travel/system.ts)); it is not a per-tick cost. Profiling shows the whole tick (pathfinder included on travel ticks) is sub-millisecond. Not worth caching.
 - **Packed/SharedArrayBuffer snapshot (P2 #7).** Profiling (when this was a Web Worker) showed `snapshot.build` = 0.08ms and ~36KB/tick — invisible in the tick/frame budget. The packed-buffer/SAB rewrite would add real complexity for an unmeasurable gain. **Doubly moot since the split** (briefs 57–58): the boundary is now JSON over a WebSocket, not structured clone, so SAB doesn't even apply — see the T1.1 note above. Deferred indefinitely; revisit only if `snapshot.bytes` or the server tick climb materially (e.g. a 10× entity-count increase), and then via a binary wire codec, not SAB.
+- **The Citadel minimap's last 422 quads (audit-31, closed 2026-09-15 as not worth doing).**
+  [audit-02](../todos/closed/2026-09-13-audit-02-citadel-minimap-bake.md) already cut the minimap from
+  **36,864 `fillRect`s per frame to 422** by rasterizing terrain once and greedy-scanline-merging it
+  into same-colour rects — a 98.9% reduction, shipped in `a2b9931`. The remaining step, a single
+  baked blit, needs `CitadelMinimap` to register its bake as an atlas through a renderer.
+  **Closed without doing it, and the reason is the measurement, not the cost.** 422 quads/frame is
+  already negligible, and the only honest justification for touching a public constructor would be a
+  frame profile from real hardware — which this sandbox cannot produce: it renders WebGL2 through
+  SwiftShader (CPU raster), the exact artifact that produced an entire phantom "FPS regression"
+  chased down in brief 84 (see the Tier 0 historical entry above). Acting on a SwiftShader number
+  would repeat that mistake.
+  **Note for whoever reopens this:** the spec claimed threading a renderer in was a cross-module
+  contract change. It is not — `renderer` is already exported from
+  [renderer-state.ts:9](../../games/citadel/client/src/main/renderer-state.ts#L9), the same module
+  [minimap-wiring.ts](../../games/citadel/client/src/main/minimap-wiring.ts) imports `iso` and
+  `camera` from. It is an import line and a constructor argument. So if a real-hardware profile ever
+  *does* show these quads, the fix is cheap — reopen on a number, not on principle.
 
 ## Measuring & measured results
 

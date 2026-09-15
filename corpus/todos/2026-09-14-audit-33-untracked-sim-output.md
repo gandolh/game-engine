@@ -1,57 +1,80 @@
-# audit-33 — Running the Hollow sim dirties the working tree
+# audit-33 — Untrack `tools/hollow-sim/hollow-out/`; running the Hollow sim must not dirty the tree
 
-status: todo
+status: ready to build (trivial — no code change)
 created: 2026-09-14
-context: found 2026-09-14 while running startup smoke checks during the audit build; directly affects [audit-06](closed/2026-09-13-audit-06-ci-gate.md)'s smoke step.
+ruled: 2026-09-15 (grill-me session) — the spec's open question is answered below from git evidence.
+context: found 2026-09-14 while running startup smoke checks during the audit build; directly affects
+[audit-06](closed/2026-09-13-audit-06-ci-gate.md)'s smoke step.
 
 ## The gap
 
-`tools/hollow-sim/hollow-out/` holds three **generated** export artifacts —
-`events.jsonl`, `lineage.json`, `metrics.csv` — and they are **tracked in git and not
-gitignored**. So simply running:
+`tools/hollow-sim/hollow-out/` holds three **generated** export artifacts — `events.jsonl`,
+`lineage.json`, `metrics.csv` — and they are **tracked in git and not gitignored**. So:
 
 ```bash
 MAX_DAYS=1 TICKS_PER_DAY=20 npm run sim:hollow
 ```
 
-overwrites them and leaves the working tree dirty with output nobody intended to commit. Observed
-directly: a 1-day smoke run modified all three, and they had to be restored with `git restore`.
+overwrites all three and leaves the working tree dirty. The next `git add -A` silently commits a
+one-day throwaway run over whatever baseline was there. The files are ~492 KB and diff noisily.
 
-## Why it matters
+## The ruling — the open question is already answered
 
-1. **It is a trap for contributors.** Running the documented headless command produces a dirty tree,
-   so the next `git add -A` silently commits a one-day throwaway run over whatever baseline was
-   there. The files are large and diff noisily.
-2. **CI will hit it.** [audit-06](closed/2026-09-13-audit-06-ci-gate.md) adds a startup-smoke step that runs
-   `sim:hollow` precisely to catch the class of break that a green typecheck misses. In CI the
-   checkout is ephemeral so nothing is lost, but any "working tree is clean" assertion added later
-   would fail, and the intent is muddied.
-3. **It is unclear what the committed copies are FOR.** Decide that first — the answer changes the
-   fix:
-   - *A checked-in sample/fixture other code or docs reference* → keep them tracked, but write them
-     somewhere the tool does not overwrite by default (or make the default output path a temp dir and
-     require an explicit flag to refresh the committed sample).
-   - *Just the last run someone happened to commit* → gitignore the directory and remove it from the
-     index.
+The original spec said *"do not skip the question: what are the committed copies FOR?"*
+It was not skipped. It was answered, and **the answer is nothing.**
 
-**Do not skip that question.** Check whether anything reads these paths (tests, docs, the corpus,
-the docs site) before deciding — deleting a referenced fixture is worse than a dirty tree.
+Evidence gathered 2026-09-15:
+
+1. **Nothing reads them.** The only reference to the path anywhere in the repo is the tool's own
+   default: [`tools/hollow-sim/src/env.ts:57`](../../tools/hollow-sim/src/env.ts#L57) →
+   `EXPORT_DIR ?? "./hollow-out"`. No test, doc, corpus page or docs-site build reads those files.
+2. **They were committed by accident.** `git log --diff-filter=A` on the path returns exactly one
+   commit: **`df9919f` — "engine: delete both WebGPU backends and purge @webgpu/types (brief 12)"**,
+   which added all 11,304 lines of them alongside an unrelated renderer deletion. They were swept in
+   by a `git add -A` — precisely the trap this spec was filed about.
+3. **It was already known.** [hollow BUILD-STATE](2026-07-17-hollow-BUILD-STATE.md) line 312 lists
+   *"ensure `hollow-out/` (CLI EXPORT_DIR) is gitignored"* as outstanding housekeeping.
+
+They are not a fixture. **Untrack them and gitignore the directory.**
+
+**Keep the default output path where it is** (`./hollow-out`, beside the tool). Defaulting to an OS
+temp dir was considered and rejected: writing next to the tool is discoverable, it matches the
+existing precedent of `world-preview.png` (generated at the repo root, gitignored at
+[.gitignore:175](../../.gitignore)), and a temp-dir default just trades a dirty tree for a new
+"where did my 100-day export go?" papercut.
+
+**Consequence: this spec needs no code change.** The ruling keeps `env.ts` as-is, so the work is
+`git rm --cached` plus a `.gitignore` line.
+
+## The other tools are already clean
+
+Checked 2026-09-15, satisfying the third acceptance bullet — **re-verify rather than trusting this
+paragraph, but do not go "fixing" them**:
+
+- `@tool/run-sim` — writes only when `EXPORT_FILE` is set; no default output path.
+- `@tool/citadel-sim` — no default output.
+- `@tool/world-preview` — writes `world-preview.png` at the repo root; already gitignored.
+
+## What to do
+
+1. `git rm --cached tools/hollow-sim/hollow-out/{events.jsonl,lineage.json,metrics.csv}`
+2. Add `tools/hollow-sim/hollow-out/` to the root `.gitignore`, beside the existing
+   `world-preview.png` entry and with the same style of one-line comment naming the command that
+   generates it.
 
 ## Files you OWN
-- `.gitignore` (or `tools/hollow-sim/.gitignore`)
-- [tools/hollow-sim/src/run-core.ts](../../tools/hollow-sim/src/run-core.ts) and wherever the default
-  output path is chosen
-- `tools/hollow-sim/hollow-out/**` only if the decision is to untrack it
+- `.gitignore`
+- `tools/hollow-sim/hollow-out/**` (untracking only)
 
 ## Files you must NOT touch
+- [`tools/hollow-sim/src/env.ts`](../../tools/hollow-sim/src/env.ts) — the default path stays
 - the export FORMAT — [audit-12](closed/2026-09-13-audit-12-hollow-chronicle-bounded.md) deliberately kept
-  `events.jsonl` byte-compatible with the CLI, and [audit-32](2026-09-14-audit-32-hollow-cli-export-drop-report.md)
-  builds on that
-- the other tools' output paths unless they have the same problem — if they do, say so rather than
-  fixing them silently here
+  `events.jsonl` byte-compatible with the CLI, and
+  [audit-32](2026-09-14-audit-32-hollow-cli-export-drop-report.md) builds on that
+- the other tools' output paths
 
 ## Acceptance
-- State what the committed copies were for and cite the evidence (who reads them, or that nothing does).
-- After the fix, `npm run sim:hollow` at any budget leaves `git status --porcelain` clean.
-- `npm run sim` / `sim:citadel` / `preview` are checked for the same behaviour, and the finding is
+- `MAX_DAYS=1 TICKS_PER_DAY=20 npm run sim:hollow` leaves `git status --porcelain` **clean**.
+- The three files no longer appear in `git ls-files`.
+- `npm run sim` / `sim:citadel` / `preview` re-checked for the same behaviour, and the finding
   reported either way.

@@ -133,19 +133,61 @@ to a barrel, check the gate — and note that a green `npm run typecheck` plus a
 did **not** catch this class of break when it last happened (see Renderer), which is why CI has
 startup-smoke steps that merely prove the entry points *start*.
 
+**The publish fixture carries no lockfile.** (audit-35, 2026-09-15.)
+`examples/library-consumer/` installs `@engine/core`, `@engine/ui` and `@engine/wasm-modules` from
+tarballs packed out of the working tree, so a committed `package-lock.json` pins integrity hashes
+that **any** engine source change invalidates — a plain `npm install` there fails `EINTEGRITY` by
+construction. The lockfile is deleted rather than regenerated: a lock whose hashes are disposable
+documents nothing, and regenerating it inside `pack-smoke` would commit churn on every engine edit.
+The fixture is also outside the root `workspaces` on purpose, which is why it packs with
+`npm pack -w <pkg>` — `npm pack --prefix <dir>` from the repo root packs the **whole monorepo**.
+If a lockfile reappears in that directory, it is a mistake.
+
 ## WASM
 
 - **AssemblyScript** for native-speed kernels — TypeScript-shaped, no native toolchain, ships as an npm package. See [engine/wasm-modules/README.md](../../engine/wasm-modules/README.md).
-- **Built artifacts committed** under `games/farm/client/public/wasm/` so fresh clones don't need to
-  build wasm first. **This is only half true, and knowing which half matters** (audit-29/34,
-  2026-09-15): that browser copy *is* tracked, but `engine/wasm-modules/dist/` is **gitignored** and is
-  what **seven Node-side consumers** read — including the Farm server and four test files. So a
-  genuinely fresh clone fails `npm ci && npm run test` until `npm run build-wasm` has run; it goes
-  unnoticed because `dist/` persists locally once built. CI therefore needs an explicit `build-wasm`
-  step, which in turn means audit-29's drift guard **cannot fail in CI** (that step regenerates the
-  manifest the guard compares against) — it is effective locally only. Resolving which location is
-  canonical is [audit-34](../todos/2026-09-14-audit-34-wasm-dist-untracked.md); do not "fix" the
-  docs or the gitignore without reading it.
+- **Built artifacts are committed in BOTH locations, and `engine/wasm-modules/dist/` is the
+  canonical one.** (audit-34, ruled 2026-09-15; supersedes the earlier "only the browser copy is
+  tracked" state.) `dist/` is what the package's own `exports` map resolves
+  (`"./pathfinding.wasm": "./dist/pathfinding.wasm"`) and what **seven Node-side consumers** read —
+  the Farm server, `@tool/run-sim`, and four test files. `games/farm/client/public/wasm/` stays
+  tracked as well because it is a **Vite public-dir URL contract**: the client loads
+  `${import.meta.env.BASE_URL}wasm/noise.wasm` at runtime, so that copy cannot move.
+
+  **The rejected alternative matters.** Pointing the Node consumers at `public/wasm/` instead (so
+  there is only one tracked location) was considered and refused: it would make the repo exercise a
+  path the published package does not ship, so a broken `exports` map would pass every local test.
+  The repo must read what consumers read. Keeping `build-wasm` as a required bootstrap step and
+  fixing the docs instead was also refused — it leaves audit-29's drift guard permanently CI-blind.
+
+  The cost that made this easy: the four `.wasm` files total **3.8 KB**. The generated `.wat` text
+  dumps (~31 KB) are debug output and stay gitignored — `dist/` tracks `*.wasm` + `manifest.json`
+  only.
+
+- **Wasm drift is a hard CI failure, not a warning.** (audit-34, 2026-09-15.) With `dist/` tracked,
+  CI no longer runs `build-wasm`, so audit-29's drift guard finally compares committed artifacts
+  against committed source and **can** fail. It must. Editing an AssemblyScript kernel is therefore a
+  two-step commit: change the source, run `npm run build-wasm`, commit both. That friction is
+  deliberate and cheap — those kernels change roughly never, and a silent divergence between a
+  committed binary and its source is precisely what audit-29 exists to catch.
+
+## Hollow chronicle & headless export
+
+**The chronicle is capped; the export is never silently short.** (audit-12, extended by audit-32,
+2026-09-15.) The chronicle is a ring buffer, so a long run drops its oldest events rather than
+growing without bound. Both surfaces that read it — the client store and `@tool/hollow-sim` — must
+report the exact dropped count, in the printed run summary *and* in the exported artifact. Hollow is
+a research instrument: an export that quietly truncates invalidates an analysis months later, when
+nobody remembers the run.
+
+**The headless cap is higher than the browser's, and still finite.** A CLI run has no DOM and a
+different memory budget, so it gets its own explicit larger constant. It does **not** get an
+unbounded chronicle: trading a truncated export for an OOM-killed run is a worse failure, and this
+project runs on constrained hardware.
+
+**Dropping events does not fail the run** — it warns and records, exit 0. Refusing to hand over the
+data a run *did* collect helps nobody; the honesty requirement is satisfied by making it impossible
+to analyse a truncated export unaware, which a summary line plus an export field does.
 
 ## Farm sim-host tick-fault policy
 
