@@ -21,7 +21,7 @@
  * multi-generation run).
  */
 import { runResearch, type RunResult } from "./run-core";
-import { metricsCsv, metricsJson, eventsJsonl, lineageJson, writeExportFile } from "./export";
+import { metricsCsv, metricsJson, eventsJsonl, lineageJson, summaryJson, writeExportFile } from "./export";
 import { runDeterminismCheck } from "./determinism";
 import {
   SEED,
@@ -54,6 +54,10 @@ function printSummary(result: RunResult): void {
   console.log(`  antagonistic events:    ${s.totalAntagEvents}`);
   console.log(`  communities formed:     ${s.communitiesFormed}`);
   console.log(`  communities dissolved:  ${s.communitiesDissolved}`);
+  // Always printed (audit-32) — 0 for any run that stayed under the CLI's
+  // chronicle cap, so "never silently short" holds whether or not this run
+  // actually dropped anything.
+  console.log(`  chronicle events dropped: ${s.droppedEventCount}`);
   console.log("=".repeat(72));
 }
 
@@ -89,10 +93,22 @@ function main(): void {
   writeExportFile(EXPORT_DIR, metricsFile, metricsPayload);
   writeExportFile(EXPORT_DIR, "events.jsonl", eventsJsonl(result.events));
   writeExportFile(EXPORT_DIR, "lineage.json", lineageJson(result.lineage));
+  writeExportFile(EXPORT_DIR, "summary.json", summaryJson(result.summary));
 
   console.log(`wrote ${result.metricsRows.length} metrics row(s) to ${EXPORT_DIR}/${metricsFile}`);
   console.log(`wrote ${result.events.length} event(s) to ${EXPORT_DIR}/events.jsonl`);
   console.log(`wrote ${result.lineage.length} lineage entrie(s) to ${EXPORT_DIR}/lineage.json`);
+  console.log(`wrote run summary to ${EXPORT_DIR}/summary.json`);
+
+  // Dropping events does NOT fail the run (audit-32 ruling) — warn loudly,
+  // record the exact count (console summary + summary.json above), exit 0
+  // regardless. Refusing to hand over the data this run DID collect would
+  // help nobody.
+  if (result.summary.droppedEventCount > 0) {
+    console.warn(
+      `WARNING: chronicle dropped ${result.summary.droppedEventCount} event(s) — events.jsonl holds only the newest ${result.events.length}. See droppedEventCount in summary.json.`,
+    );
+  }
 
   printSummary(result);
   process.exit(0);

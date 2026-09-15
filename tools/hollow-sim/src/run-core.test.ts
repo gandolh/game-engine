@@ -43,6 +43,36 @@ describe("runResearch — tiny end-to-end wiring proof", () => {
 
     // Not a decorative no-op: real dynamics happened.
     expect(result.summary.totalBirths).toBeGreaterThan(0);
+
+    // audit-32: a run this short never approaches HOLLOW_CLI_CHRONICLE_CAP
+    // (250,000), so the honest answer is exactly 0, not merely "falsy".
+    expect(result.summary.droppedEventCount).toBe(0);
+  });
+
+  it("reports a nonzero droppedEventCount when a tiny injected chronicle cap overflows during a real run (audit-32 wiring)", () => {
+    // A tiny cap (5) on a short-but-real research-profile run: this profile
+    // has active social verbs from tick 0 (see the test above), so 300 ticks
+    // overflows a 5-slot chronicle many times over — cheap to run, but not
+    // cheap enough to also assert an exact count (the sim's actual event
+    // volume isn't a contract this test should pin), so this checks
+    // `> 0` and cross-checks against the chronicle's own accounting via a
+    // second run at the same seed (determinism holds droppedCount steady).
+    const opts = {
+      simOptions: { seed: 7, ...RESEARCH_PROFILE },
+      ticksPerYear: 50,
+      maxYears: 6,
+      chronicleCap: 5,
+    };
+    const result = runResearch(opts);
+    expect(result.summary.droppedEventCount).toBeGreaterThan(0);
+    // Cross-check against the chronicle's own math, observable via the
+    // exported events array: kept events + dropped == total pushed. We
+    // can't see "total pushed" directly here, but we CAN assert the kept
+    // count is exactly the cap (nothing above the cap survives) and that a
+    // second identical run drops the exact same number (determinism).
+    expect(result.events.length).toBe(5);
+    const again = runResearch(opts);
+    expect(again.summary.droppedEventCount).toBe(result.summary.droppedEventCount);
   });
 
   it("is byte-identical across two fresh runs with the same seed+options (determinism)", () => {
@@ -117,6 +147,7 @@ const STUB_SUMMARY: RunSummary = {
   totalAntagEvents: 0,
   communitiesFormed: 0,
   communitiesDissolved: 0,
+  droppedEventCount: 0,
 };
 
 function makeRunResult(wealthGini: number): RunResult {
