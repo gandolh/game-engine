@@ -1,6 +1,6 @@
 ---
 summary: Locked tech choices that future briefs must not relitigate — stack, sim, ECS, renderer (WebGL2-only as of 2026-08-18, migration shipped), assets, palette, concurrency, WASM, and the gameplay source-of-truth.
-updated: 2026-08-18
+updated: 2026-09-15
 ---
 
 # Locked Decisions
@@ -71,6 +71,36 @@ Tech choices that are settled. Listed here so future briefs and reviews don't re
   - **Pathfinder choice is load-bearing:** the JS (`run-sim`) and WASM (browser/server) pathfinders are **not route-equivalent** — same seed, different equal-cost paths, different outcomes. The server uses WASM to preserve what players see; the determinism baseline for the split is captured with `PATHFINDER=wasm` on `run-sim` (a new env knob), not the default JS.
   - **Per-run render memo:** `snapshot-builder/sprites.ts` moved its `lastIntention`/`lastFacing` memos from module globals into a per-run `SnapshotSpriteState` (the server passes one per connection), so multiple sims in one process don't cross-contaminate cosmetic facing. Callers that omit it fall back to a shared default (browser worker, tests) — byte-identical to before.
 - **Scale target:** 50–100 agents. Engine APIs should not assume that ceiling.
+
+## Tick pump & speed semantics (Citadel + Hollow)
+
+**Fixed period, variable batch — Hollow's model wins over Citadel's prior one.** (audit-26,
+2026-09-15.) All three Worker-hosted continuous sims (Citadel, Hollow; MateQuest has no pump — it's
+turn-based, deliberately removed by audit-03) used to hand-roll their own `setInterval` lifecycle and
+had silently drifted onto two different meanings of "speed": Hollow held the fire period fixed at a
+base ms-per-tick and ran `speedMultiplier` ticks per fire; Citadel instead re-periodized the interval
+itself (`1000 / (20 * speed)`) and tore down/recreated it on every speed change, producing a one-off
+timing hitch exactly when the player worked the speed control. Alternatives considered: keep Citadel's
+re-periodization (rejected — the hitch is user-visible and gets worse the more often speed changes);
+let each game keep its own model (rejected — this is a duplicated concern with only one game-agnostic
+answer, and the divergence itself was unintentional drift, not a considered choice per game).
+
+Both workers now share one engine primitive, `createTickPump` in
+[engine/core/src/runtime/tick-pump.ts](../../engine/core/src/runtime/tick-pump.ts) (`/runtime` barrel
+export): a fixed-Hz `setInterval` whose period never changes for the life of the pump, plus a
+per-fire `getBatchSize()` read fresh on every fire — so a caller changes how many logical ticks run
+per fire (its own "speed") without ever touching the timer.
+
+**Batch overrun: cap the batch and drop the debt — never accumulate.** A fire runs at most
+`getBatchSize()` logical ticks and then returns, whatever the wall clock says. There is no catch-up
+queue, no delta-time accumulator, and no computing "how many ticks should have run by now" from
+elapsed wall-clock time. On weak hardware the sim simply advances slower in wall-clock terms; it must
+never enter a death spiral trying to catch up. Determinism is unaffected either way — sim output
+depends only on tick *count*, and `setInterval` is pacing only (see Concurrency, above).
+
+Farm's client is intentionally NOT on this primitive — it's WebSocket-driven and the server
+([@farm/server](../../games/farm/server/)) owns its own clock; forcing a client-side pump onto it
+would fight that ownership rather than fit it.
 
 ## WASM
 

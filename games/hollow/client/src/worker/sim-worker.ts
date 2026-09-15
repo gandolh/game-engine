@@ -7,10 +7,12 @@
  *
  * Drives `bootstrapHollowSim()` at a fixed 20 Hz base cadence and posts a
  * snapshot after each batch of ticks, mirroring @citadel/client's src/worker/
- * sim-worker.ts (the Worker/postMessage pattern this file follows). `@engine/
- * core` has no `FixedStepClock` abstraction — the 20 Hz real-time cadence is
- * this transport's own pacing (a `setInterval`), same as Citadel's worker;
- * the sim-core `tick()` call itself only advances a tick counter.
+ * sim-worker.ts (the Worker/postMessage pattern this file follows). The 20 Hz
+ * real-time cadence is this transport's own pacing, driven by `@engine/core`'s
+ * `createTickPump` (audit-26 — the shared fixed-period/variable-batch pump
+ * both this worker and Citadel's now use, replacing each one's former
+ * hand-rolled `setInterval`); the sim-core `tick()` call itself only advances
+ * a tick counter.
  *
  * `"inspect"` (chunk hollow-09c): a READ-ONLY query of live sim state for
  * one agent id, answered from the SAME `simResult` this loop already ticks
@@ -54,15 +56,17 @@
  * seed+persona+log reproduces the same town (see `run-descriptor.ts`).
  *
  * Time controls (`"setPaused"`/`"setSpeed"`/`"step"`) are PURE PACING — see
- * `startLoop`/`tickBatch` below: `paused` just skips the whole tick batch on
- * an interval fire, and `speedMultiplier` (`../time-control.ts`'s
+ * the `pump` below (`createTickPump`, audit-26) and `tickBatch`: `paused`
+ * resolves the pump's per-fire batch size to 0 (skipping the whole tick
+ * batch on that fire), and `speedMultiplier` (`../time-control.ts`'s
  * `SPEED_OPTIONS`, snapped via `normalizeSpeedMultiplier`) is simply how many
- * `sim.tick()` calls happen per fixed-cadence interval fire — the interval
- * PERIOD itself never changes, so pacing never depends on wall-clock jitter
- * across different multipliers. `"step"` calls `tickBatch(1)` directly
- * (works whether paused or not, but is the only way to advance while
- * paused). NONE of this changes what a tick computes — determinism (CLAUDE.md)
- * is untouched.
+ * `sim.tick()` calls happen per fixed-cadence pump fire — the pump's period
+ * itself never changes, so pacing never depends on wall-clock jitter across
+ * different multipliers, and a speed change needs no pump teardown/
+ * recreation (`getBatchSize` is read fresh every fire). `"step"` calls
+ * `tickBatch(1)` directly (works whether paused or not, but is the only way
+ * to advance while paused). NONE of this changes what a tick computes —
+ * determinism (CLAUDE.md) is untouched.
  *
  * `"shock"` (chunk hollow-11b): the ONLY path that ever calls
  * `sim.scheduleShock` — never called from anywhere else in this file, so a
@@ -83,6 +87,7 @@
  * (sorted by tick) before posting — so a fired shock shows up in the
  * client's chronicle/dashboard without touching sim-core.
  */
+import { createTickPump } from "@engine/core/runtime";
 import { bootstrapHollowSim } from "@hollow/sim-core/sim-bootstrap";
 import type { HollowSnapshot } from "@hollow/sim-core/sim-bootstrap";
 import { createChronicle, MetricsSampler, type ChronicleEvent, type MetricsRow } from "@hollow/sim-core/observe";
@@ -184,9 +189,7 @@ export type WorkerOutbound =
   | { type: "interventions"; log: Intervention[] };
 
 const BASE_TICK_HZ = 20;
-const BASE_MS_PER_TICK = 1000 / BASE_TICK_HZ;
 
-let intervalId: ReturnType<typeof setInterval> | null = null;
 let simResult: ReturnType<typeof bootstrapHollowSim> | null = null;
 let chronicle: ReturnType<typeof createChronicle> | null = null;
 let metricsSampler: MetricsSampler | null = null;
@@ -271,37 +274,55 @@ function postInterventions(): void {
   self.postMessage({ type: "interventions", log: [...simResult.interventionLog] } satisfies WorkerOutbound);
 }
 
-/** Advances the sim exactly `count` ticks (never more, never fewer — pure
- *  pacing, see this file's header), sampling metrics at every `ticksPerDay`
- *  boundary crossed WITHIN the batch (not just the batch's final tick, so a
- *  high `speedMultiplier` never skips a per-year sample). Does NOT post a
- *  snapshot/events itself — callers batch that once after the whole count. */
-function tickBatch(count: number): void {
+/** Advances the sim exactly one logical tick, sampling metrics if a
+ *  `ticksPerDay` boundary was just crossed. The single per-tick unit of work
+ *  shared by `tickBatch`'s loop and by the pump's own per-fire batch loop
+ *  (`createTickPump` calls `onTick` once per logical tick — see the pump
+ *  below), so both "step one tick" and "run a batch of N ticks" do exactly
+ *  the same thing per tick. */
+function tickOnce(): void {
   if (simResult === null) return;
-  for (let i = 0; i < count; i++) {
-    simResult.tick();
-    // chunk audit-04: was `simResult.getSnapshot().tick` — building the whole
-    // agent/corpse/community/resource payload just to read one integer, up to
-    // 8x per interval fire at speed 8. `tickCount` is the same value without
-    // the build (see BootedHollowSim.tickCount's header).
-    const tick = simResult.tickCount;
-    if (ticksPerDay > 0 && tick % ticksPerDay === 0) sampleAndPostMetrics(tick / ticksPerDay);
-  }
+  simResult.tick();
+  // chunk audit-04: was `simResult.getSnapshot().tick` — building the whole
+  // agent/corpse/community/resource payload just to read one integer, up to
+  // 8x per interval fire at speed 8. `tickCount` is the same value without
+  // the build (see BootedHollowSim.tickCount's header).
+  const tick = simResult.tickCount;
+  if (ticksPerDay > 0 && tick % ticksPerDay === 0) sampleAndPostMetrics(tick / ticksPerDay);
 }
 
-function startLoop(): void {
-  if (simResult === null) return;
-  if (intervalId !== null) clearInterval(intervalId);
-  // Fixed-cadence interval (chunk hollow-11b: NEVER re-periodized by speed —
-  // see this file's header for why `speedMultiplier` instead changes how
-  // many ticks run per fire).
-  intervalId = setInterval(() => {
-    if (paused) return;
-    tickBatch(speedMultiplier);
+/** Advances the sim exactly `count` ticks (never more, never fewer — pure
+ *  pacing, see this file's header). Does NOT post a snapshot/events itself —
+ *  callers batch that once after the whole count. Used directly by `"step"`
+ *  (count 1); the pump's own per-fire batching (below) calls `tickOnce`
+ *  itself rather than going through this, since it already IS the "run N
+ *  ticks per fire" loop. */
+function tickBatch(count: number): void {
+  for (let i = 0; i < count; i++) tickOnce();
+}
+
+/**
+ * audit-26: fixed-cadence (`BASE_TICK_HZ`) tick pump — the engine-level
+ * primitive (`@engine/core/runtime/tick-pump.ts`) that replaces this file's
+ * former hand-rolled `setInterval` loop, now shared with Citadel. Semantics
+ * are exactly what this file's header already documented: the fire PERIOD
+ * never changes; `speedMultiplier` sets the batch size (ticks per fire),
+ * read fresh via `getBatchSize` so a speed change needs no pump teardown/
+ * recreation. `paused` resolves the batch size to 0, matching the original
+ * `if (paused) return;` — `onFire` below is a no-op when `ticksThisFire`
+ * is 0, so a paused fire posts neither a snapshot nor new events, exactly
+ * as before.
+ */
+const pump = createTickPump({
+  hz: BASE_TICK_HZ,
+  getBatchSize: () => (paused ? 0 : speedMultiplier),
+  onTick: tickOnce,
+  onFire: (ticksThisFire) => {
+    if (ticksThisFire === 0) return;
     postSnapshot();
     postNewEvents();
-  }, BASE_MS_PER_TICK);
-}
+  },
+});
 
 self.onmessage = (event: MessageEvent<WorkerInbound>) => {
   const msg = event.data;
@@ -329,7 +350,7 @@ self.onmessage = (event: MessageEvent<WorkerInbound>) => {
       // `run-core.ts`'s own baseline `sampleRow(0)` call.
       sampleAndPostMetrics(0);
       postInterventions();
-      startLoop();
+      pump.start();
       break;
     }
     case "inspect": {
