@@ -7,6 +7,38 @@ updated: 2026-09-15
 
 Current-state **snapshot** (2026-08-18, banner below 2026-09-14). Banners below are newest-first.
 
+> **2026-09-15 audit-32/33/34/35 are built** on branch `audit-followups-2026-09-15`, one commit each,
+> all now in [todos/closed/](../todos/closed/). The wasm promise is true at last —
+> `engine/wasm-modules/dist/` is tracked, CI's `build-wasm` step is gone, and audit-29's drift guard
+> **can now fail in CI** (demonstrated red-then-green). The review gate produced two Important
+> findings that no test could have caught, both from *removals*: deleting the stale `build-wasm`
+> comment also deleted the only record that `pack-smoke` rebuilds the wasm artifacts, so the guard is
+> honest only while `npm run test` runs first (now an explicit invariant in the workflow); and
+> audit-35's `postpack` cleanup structurally could not cover a **failed** prepack, which is the case
+> that actually strands a stale `dist/`. audit-32's wiring was also inert-testable — stubbing the one
+> line that implements it kept every test green — now closed by an injectable `chronicleCap`.
+> **Two new specs filed, not fixed:** [audit-36](../todos/2026-09-15-audit-36-packed-engine-core-ships-no-shaders.md)
+> (the packed `@engine/core` ships **no shaders** — `postbuild.mjs` copies `*.wgsl`, zero of which
+> exist; the fixture skips `/render`, so the publish gate has a hole exactly where the bug is) and
+> [audit-37](../todos/2026-09-15-audit-37-partial-wasm-build-invisible-to-guard.md) (a partial wasm
+> build rewrites tracked binaries invisibly to the guard — debt audit-34 introduced). **Nothing
+> browser-verified this session**; none of this work is browser-visible.
+
+> **2026-09-15 The five audit follow-ups were interrogated, not built.** A `grill-me` pass settled
+> every open question in `audit-31..35` and rewrote four of them as dispatch-ready specs with the
+> ruling at the top — the earlier versions recommended options that are now refused, which would have
+> misled an executor. **[audit-31](../todos/closed/2026-09-15-audit-31-minimap-single-blit.md) is
+> closed as NOT DOING**: 422 minimap quads/frame is negligible and the only honest justification is a
+> real-hardware profile this sandbox cannot produce (SwiftShader — brief 84's phantom regression).
+> **audit-34 reversed its own recommendation**: `engine/wasm-modules/dist/` gets tracked, because the
+> package's `exports` map resolves `./dist/*.wasm`, so consuming `public/wasm/` instead would let a
+> broken `exports` map pass every local test; the four binaries are **3.8 KB**. **audit-33 needs no
+> code change** — `git log --diff-filter=A` shows `hollow-out/` was swept in by `df9919f` (a WebGPU
+> deletion commit) and nothing reads it. Rulings are in [decisions.md](decisions.md)
+> (*WASM*, *Hollow chronicle & headless export*, *Build & verify gates*) and
+> [performance.md](performance.md). **Nothing is built yet** — `audit-32/33/34/35` are ready to
+> dispatch. hollow-13 (LLM seam) stays parked until they land; engine-ui item 2 (grid) stays deferred.
+
 > **2026-09-15 The 2026-09-13 audit backlog is built — 30 of 30 specs landed** on branch
 > `audit-2026-09-13`, one commit per spec, all now in [todos/closed/](../todos/closed/). Five
 > follow-ups found during the build stay open as `audit-31..35`. Spec 01 (the turbo cache) went first

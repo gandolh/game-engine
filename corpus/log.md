@@ -4,6 +4,100 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-09-15] build | audit-32/33/34/35 land, and the review gate earns its keep twice
+
+Four follow-ups built on branch `audit-followups-2026-09-15`, one commit each,
+after a `grill-me` pass settled every open question in them (entry below). The
+interesting part is not the fixes — it is that the two Important findings both
+came from **removing** something, and neither was visible in a green test run.
+
+**The wasm promise is now true.** `engine/wasm-modules/dist/` is tracked
+(`*.wasm` + `manifest.json`; `*.wat` ignored), CI's `build-wasm` step is gone,
+and audit-29's drift guard can finally fail there — it was blind in CI because
+the step it needed regenerated the very manifest it compares against. Chose to
+track `dist/` rather than repoint the seven Node consumers at `public/wasm/`,
+because the package's `exports` map resolves `./dist/*.wasm`: consuming a
+different path would let a broken `exports` map pass every local test. Both
+locations stay; `public/wasm/` is a Vite public-dir URL contract and cannot move.
+
+**Removing a stale comment removed the only record of a live hazard.** The
+deleted `build-wasm` comment block was also the sole place documenting that
+rebuilding wasm in CI blinds the drift guard. That hazard survived the fix:
+`pack-smoke` packs `@engine/wasm-modules`, whose `prepack` rewrites the tracked
+artifacts, so the guard is honest **only because `npm run test` runs before
+`pack-smoke`**. Nothing said so until the review gate asked. Restored as an
+explicit ordering invariant at the step itself.
+
+**Cleanup in the wrong lifecycle hook cannot cover the failure path.** audit-35
+moved generated-`dist/` removal into `postpack`. But `noEmitOnError` is unset,
+so a type error makes `tsc` emit into `dist/` and exit 1 — aborting the pack
+*before* `postpack` runs. The stale directory the fix existed to prevent was
+exactly the case it could not reach. Cleanup now also runs at the start of
+`--to-dist`.
+
+**A green test suite proved nothing about the feature.** audit-32's whole fix is
+one line forwarding `chronicle.droppedCount()` into the summary. Stub it to `0`
+and every test still passed: one asserted `=== 0` on a short run, the other
+hand-built its `RunSummary` and never called `runResearch`. `RunOptions` now
+takes an optional `chronicleCap` so a short real run overflows a tiny cap;
+verified from the controller that stubbing the line fails exactly that test.
+Third time this project has been bitten by this shape — the lesson is holding.
+
+**Two findings were filed, not fixed.** The packed `@engine/core` tarball ships
+**no shaders**: `postbuild.mjs` still copies `*.wgsl`, of which zero have existed
+since WebGPU was deleted, while 22 `.glsl` files and 25 `?raw` imports go
+unpacked — and `smoke-ui.mjs` skips `/render`, so the fixture built to test the
+publish contract has a hole precisely where the break is (`audit-36`). And a
+partially-failed `compile.mjs` run rewrites tracked binaries while skipping
+`writeManifest()`, which the drift guard cannot see — debt audit-34 introduced by
+making `dist/` tracked (`audit-37`).
+
+**audit-31 stays closed as not-worth-doing** (see the decision entry below).
+Nothing was verified in a browser this session; none of this work is
+browser-visible.
+
+## [2026-09-15] decision | The audit-follow-up queue got interrogated before it got built
+
+Five audit follow-ups (31–35) plus two feature items sat in `corpus/todos/` with their
+open questions unanswered. A grill-me pass settled all of them without writing any code —
+and **three of the five specs turned out to be wrong about their own premise**, which is the
+argument for doing this before dispatch rather than during it.
+
+**audit-34 recommended the wrong option.** It leaned toward pointing the seven Node consumers at
+the tracked `games/farm/client/public/wasm/` copy. But `@engine/wasm-modules`'s `exports` map
+resolves `./dist/*.wasm` — `dist/` *is* the published package's export surface, so consuming
+anything else would let a broken `exports` map pass every local test. Ruling: track `dist/`
+(`*.wasm` + `manifest.json`; `*.wat` stays ignored). The cost objection that made the spec hesitate
+evaporates on measurement — **the four binaries total 3.8 KB**. CI drops its `build-wasm` step, and
+audit-29's drift guard stops being CI-blind, which was the whole point of building it. Drift becomes
+a hard CI failure.
+
+**audit-33's "do not skip this question" was answerable from git.** The spec insisted on deciding
+what the committed `hollow-out/` exports are FOR. Nothing reads them: the only reference in the repo
+is the tool's own `EXPORT_DIR` default, and `git log --diff-filter=A` shows all three files were
+first added in `df9919f` — *"engine: delete both WebGPU backends"*. They were swept in by a
+`git add -A`, which is precisely the trap the spec was filed about. Untrack and gitignore; the
+default output path stays put, matching `world-preview.png`'s existing precedent.
+
+**audit-31 is closed as not worth doing** — the outcome its own first section said was acceptable.
+audit-02 already took the Citadel minimap from 36,864 `fillRect`s per frame to 422; the remaining
+single-blit step needs a real-hardware frame profile to justify, and this sandbox renders WebGL2
+through SwiftShader — the exact artifact behind brief 84's phantom FPS regression. Acting on that
+number would repeat the mistake. Recorded in `performance.md` with the quad count. The spec's claim
+that the fix needs a cross-module contract change is also wrong and is corrected in the closed file:
+`renderer` is already exported from the same module the minimap wiring imports `iso` and `camera`
+from. **Reopen on a number, not on principle.**
+
+**The two genuinely open trade-offs** went the conservative way. Hollow's headless chronicle gets its
+own larger explicit cap — not an unbounded one, because trading a truncated export for an OOM-killed
+run is the worse failure on constrained hardware — and it always reports its dropped count while
+still exiting 0. The publish fixture's lockfile is deleted rather than regenerated: its integrity
+hashes are invalidated by any engine source change, so it is wrong by construction.
+
+**Deliberately not started:** hollow-13 (the LLM rationalizer seam) waits until the audit debt is
+clear, and its own design — provider, significance gate, cache format — needs a separate grilling.
+engine-ui item 2 (grid layout) stays deferred under its own rule: no second table has asked for it.
+
 ## [2026-09-15] audit | The 2026-09-13 audit backlog is built: 30 of 30 specs landed
 
 All 30 specs from the 2026-09-13 audit are implemented and committed on branch `audit-2026-09-13`,

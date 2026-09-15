@@ -1,15 +1,20 @@
 import { describe, it, expect } from "vitest";
 import { BEHAVIOR_GENES } from "@hollow/sim-core/components";
+import { MessageBus } from "@engine/core";
+import { ONT_SOCIAL } from "@hollow/sim-core/protocols";
 import {
   METRICS_COLUMNS,
   metricsCsv,
   metricsJson,
   eventsJsonl,
   lineageJson,
+  summaryJson,
   type MetricsRow,
 } from "./export";
+import { createChronicle } from "./chronicle";
 import type { ChronicleEvent } from "./chronicle";
 import type { LineageEntry } from "@hollow/sim-core/lineage";
+import type { RunSummary } from "./run-core";
 
 function row(overrides: Partial<MetricsRow> = {}): MetricsRow {
   return {
@@ -106,6 +111,83 @@ describe("eventsJsonl", () => {
     expect(JSON.parse(lines[1]!)).toEqual(events[1]);
     // Key order: tick, then ontology, then the rest — verify literally, not just via equality.
     expect(lines[0]!.startsWith('{"tick":5,"ontology":"family.birth"')).toBe(true);
+  });
+});
+
+function makeSummary(overrides: Partial<RunSummary> = {}): RunSummary {
+  return {
+    seed: 7,
+    ticksRun: 100,
+    generationsOfDescent: 1,
+    finalPopulation: 20,
+    totalBirths: 5,
+    deathsByCause: { oldAge: 0, starvation: 0, violence: 0, disease: 0 },
+    totalCoopEvents: 3,
+    totalAntagEvents: 0,
+    communitiesFormed: 1,
+    communitiesDissolved: 0,
+    droppedEventCount: 0,
+    ...overrides,
+  };
+}
+
+function dispatchTick(bus: MessageBus): void {
+  bus.flush();
+  bus.notifySubscribers();
+}
+
+/** Sends+dispatches one `ONT_SOCIAL.GIFT` event at `tick`, tagged with `seq`
+ *  (in the `from` field) — mirrors `chronicle.test.ts`'s helper of the same
+ *  shape, kept local here since this test drives the chronicle through the
+ *  CLI's own `./chronicle` re-export, not the sim-core module directly. */
+function sendGift(bus: MessageBus, tick: number, seq: number): void {
+  bus.send(
+    { performative: "inform", ontology: ONT_SOCIAL.GIFT, sender: seq, recipient: "broadcast", body: { tick, from: seq, to: seq + 1 } },
+    tick,
+  );
+  dispatchTick(bus);
+}
+
+describe("summaryJson", () => {
+  it("round-trips a below-cap summary with droppedEventCount: 0", () => {
+    const summary = makeSummary({ droppedEventCount: 0 });
+    const parsed = JSON.parse(summaryJson(summary)) as RunSummary;
+    expect(parsed).toEqual(summary);
+    expect(parsed.droppedEventCount).toBe(0);
+  });
+
+  it(
+    "reports the EXACT drop count from a real chronicle pushed past a small injected cap " +
+      "(audit-32) — no sim boot, drives `createChronicle` directly like `chronicle.test.ts` does",
+    () => {
+      const bus = new MessageBus();
+      const cap = 5;
+      const chronicle = createChronicle(bus, cap); // CLI's own cap arg, NOT CHRONICLE_CAP
+
+      const totalPushed = 12;
+      for (let i = 0; i < totalPushed; i++) sendGift(bus, i, i);
+
+      // The chronicle itself is honest about what it dropped...
+      const expectedDropped = totalPushed - cap;
+      expect(chronicle.droppedCount()).toBe(expectedDropped);
+      expect(chronicle.events().length).toBe(cap);
+
+      // ...and that exact number is what ends up in the exported artifact,
+      // exactly as `runResearch` wires `chronicle.droppedCount()` into
+      // `RunSummary.droppedEventCount` (see run-core.ts).
+      const summary = makeSummary({ droppedEventCount: chronicle.droppedCount() });
+      const json = summaryJson(summary);
+      const parsed = JSON.parse(json) as RunSummary;
+      expect(parsed.droppedEventCount).toBe(expectedDropped);
+      expect(parsed.droppedEventCount).toBe(7);
+      expect(json).toContain('"droppedEventCount": 7');
+    },
+  );
+
+  it("ends with exactly one trailing newline, matching lineageJson's convention", () => {
+    const json = summaryJson(makeSummary());
+    expect(json.endsWith("\n")).toBe(true);
+    expect(json.endsWith("\n\n")).toBe(false);
   });
 });
 

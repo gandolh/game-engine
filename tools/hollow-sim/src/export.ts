@@ -14,6 +14,7 @@
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import type { RunSummary } from "./run-core";
 
 export {
   METRICS_COLUMNS,
@@ -24,6 +25,22 @@ export {
   lineageJson,
   type MetricsRow,
 } from "@hollow/sim-core/observe";
+
+/**
+ * `summary.json` (audit-32) — the printed run summary (`RunSummary`), as its
+ * own exported artifact rather than console-only output. Added purely
+ * ADDITIVELY: `metrics.csv`/`.json`, `events.jsonl` and `lineage.json` are
+ * unchanged byte-for-byte by this file (see `run-core.ts`'s header on why
+ * `droppedEventCount` — the audit-32 fix — was NOT threaded into the
+ * `events.jsonl` per-line format, which audit-12 deliberately kept stable).
+ * Pretty-printed, one trailing newline, matching this file's other JSON
+ * exports (`lineageJson`) for consistency; a run that never hit the CLI's
+ * chronicle cap reports `droppedEventCount: 0` here, same as the console
+ * summary.
+ */
+export function summaryJson(summary: RunSummary): string {
+  return JSON.stringify(summary, null, 2) + "\n";
+}
 
 /** Creates `dir` (recursively) if it doesn't already exist. */
 export function ensureExportDir(dir: string): void {
