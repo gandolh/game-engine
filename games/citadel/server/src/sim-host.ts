@@ -20,6 +20,29 @@ import type { CitadelSimResult } from "@citadel/sim-core/sim-bootstrap";
 import type { WorkerInbound, WorkerOutbound, RenderSnapshot, RosterEntry } from "@citadel/sim-core/snapshot";
 import { CitadelBot } from "./bot";
 
+/**
+ * Ceiling on the `speed` multiplier (audit-43).
+ *
+ * `speed` is a SYNCHRONOUS loop count inside `setInterval` (`for (let i = 0; i < this.speed; i++)
+ * this.step()`), so an unbounded value is an unbounded amount of work in one callback — the same
+ * event-loop-blocking shape as Farm's skip drain (audit-41). Farm clamps here; Citadel is the copy
+ * that dropped the clamp, and the host-only check is no defence because `attach` makes the FIRST
+ * peer to connect the host.
+ *
+ * Same value as Farm's `MAX_SPEED_MULTIPLIER`, deliberately: two sim hosts diverging on a safety
+ * bound is how this one got lost.
+ */
+const MAX_SPEED_MULTIPLIER = 8;
+
+/**
+ * Cap on a single `placeRoad`/`placeWall` drag (audit-43).
+ *
+ * `placeDragged` loops a caller-supplied `cmd.payload.tiles` with no length check, so one frame
+ * controlled how much work the tick did. A legitimate drag is bounded by the world (192x192 solo,
+ * 256x256 here) and by what a hand can drag; anything beyond this is not a gesture.
+ */
+const MAX_DRAG_TILES = 4096;
+
 export type SendFn = (msg: WorkerOutbound) => void;
 
 export interface Peer {
@@ -125,6 +148,7 @@ export class CitadelSimHost {
 
   detach(peer: Peer): void {
     this.peers.delete(peer);
+    this.prunePlayerState(peer.playerId);
     // Citadel 38 P0#4: if the host leaves, promote the next-remaining peer so
     // room control isn't frozen (Set preserves attach order → oldest survivor).
     if (peer === this.hostPeer) {
@@ -164,6 +188,14 @@ export class CitadelSimHost {
   }
 
   handleInbound(peer: Peer, msg: WorkerInbound): void {
+    // audit-43: shape guard at the host's own entry point, mirroring Farm's. `switch (msg.type)`
+    // dereferences a `null` frame, and a throw out of the interval callback on a publicly
+    // reachable socket is an `uncaughtException`. Field-level validation is NOT here: that is
+    // Farm's `validate-inbound.ts` (audit-42), and porting it is a revival precondition recorded
+    // in wiki/citadel-mp-deprecated.md.
+    if (typeof msg !== "object" || msg === null || typeof (msg as { type?: unknown }).type !== "string") {
+      return;
+    }
     switch (msg.type) {
       case "init":
         if (this.sim === null) this.start(msg.seed, msg.ticksPerDay);
@@ -171,10 +203,23 @@ export class CitadelSimHost {
         return;
       case "command": {
         if (this.sim === null) return;
+        // audit-43: `msg.command.type` was dereferenced unguarded, so `{type:"command"}` with no
+        // `command` threw out of the interval callback and (before the process handlers below)
+        // took the whole server down.
+        const command = (msg as { command?: { type?: unknown } }).command;
+        if (typeof command !== "object" || command === null || typeof command.type !== "string") {
+          return;
+        }
         // Citadel 38 P0#3: setActivePlayer is a server-internal routing marker —
         // a peer must never inject one (it would mis-route the FOLLOWING command
         // to another player). Drop it; the host stamps the trusted marker below.
         if (msg.command.type === "setActivePlayer") return;
+        // audit-43: bound a drag before it reaches `placeDragged`, which loops the payload with
+        // no length check of its own.
+        if (command.type === "placeRoad" || command.type === "placeWall") {
+          const tiles = (msg.command as { payload?: { tiles?: unknown } }).payload?.tiles;
+          if (!Array.isArray(tiles) || tiles.length > MAX_DRAG_TILES) return;
+        }
         // Multi-writer: route this peer's command to ITS player, then enqueue.
         // Both go into the one authoritative command stream (logged + replayable).
         this.sim.commands.enqueue({ type: "setActivePlayer", payload: { id: peer.playerId } });
@@ -198,7 +243,10 @@ export class CitadelSimHost {
         return;
       case "speed":
         if (peer !== this.hostPeer) return;
-        this.speed = Number.isFinite(msg.multiplier) && msg.multiplier >= 1 ? Math.floor(msg.multiplier) : 1;
+        this.speed =
+          Number.isFinite(msg.multiplier) && msg.multiplier >= 1
+            ? Math.min(MAX_SPEED_MULTIPLIER, Math.floor(msg.multiplier))
+            : 1;
         this.broadcastSnapshot();
         return;
       case "request-save":
@@ -244,6 +292,36 @@ export class CitadelSimHost {
     return this.sim;
   }
 
+  /**
+   * Drop a departed peer's `PlayerState` when it is safe to (audit-43).
+   *
+   * `nextPlayerId` only ever increments and `ensurePlayer` only ever pushes, so before this every
+   * connect left a `PlayerState` in `sim.state.players` FOREVER — `reset()` only fires when the
+   * room fully empties, and ~89 sim-core call sites iterate that array. A reconnect loop grew it
+   * without bound, and each entry costs every per-player system a pass.
+   *
+   * SAFE-ONLY, and that is the whole design: a state is removed only when its player owns nothing
+   * in the world. A player that built a settlement keeps its state, because its buildings and
+   * villagers carry that `ownerId` and orphaning them is worse than the leak. The unbounded case —
+   * a peer that connects and leaves without building — is exactly the prunable one.
+   *
+   * Ids are never reused (`nextPlayerId` keeps incrementing), so nothing can inherit a stale
+   * identity. Nothing depends on `players` indices being stable — checked: every access is by
+   * `.find(p => p.id === …)` or a full iteration, never positional.
+   */
+  private prunePlayerState(playerId: number): void {
+    if (this.sim === null) return;
+    if (playerId === 0) return; // bootstrap's own player; not ours to remove
+    for (const b of this.sim.getBuildings()) {
+      if (b.ownerId === playerId) return;
+    }
+    for (const v of this.sim.villagerWorld.query("villager")) {
+      if (v.villager?.ownerId === playerId) return;
+    }
+    const i = this.sim.state.players.findIndex((p) => p.id === playerId);
+    if (i >= 0) this.sim.state.players.splice(i, 1);
+  }
+
   private ensurePlayer(id: number): void {
     if (this.sim === null) return;
     if (this.sim.state.players.find((p) => p.id === id) === undefined) {
@@ -280,9 +358,19 @@ export class CitadelSimHost {
   /** Advance the sim one tick + fan out snapshots. Drained: queued commands. */
   step(): void {
     if (this.sim === null) return;
-    // Citadel 37: bots decide + submit commands BEFORE the tick drains the queue.
-    for (const bot of this.bots) bot.update();
-    this.sim.scheduler.tick({ tick: this.tick });
+    // audit-43: guard the tick. Farm's host has had this since audit-17; Citadel's `step()` called
+    // `scheduler.tick` bare, so ONE throw from any system inside the interval callback took the
+    // whole process down. Halting the room (rather than advancing onto a world state no clean tick
+    // could produce) mirrors Farm's tick-fault policy — see decisions.md.
+    try {
+      // Citadel 37: bots decide + submit commands BEFORE the tick drains the queue.
+      for (const bot of this.bots) bot.update();
+      this.sim.scheduler.tick({ tick: this.tick });
+    } catch (err) {
+      console.error(`[citadel-server] tick ${String(this.tick)} faulted; halting the room`, err);
+      this.stop();
+      return;
+    }
     this.tick += 1;
     this.broadcastSnapshot();
     this.broadcastRoster();

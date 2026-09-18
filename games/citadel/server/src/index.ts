@@ -20,7 +20,23 @@ const host = new CitadelSimHost({
   tickRateHz: 20,
 });
 
-const wss = new WebSocketServer({ port: PORT, perMessageDeflate: { threshold: 1024 } });
+// audit-43: process-level handlers, matching Farm's. Without them one throw anywhere off the
+// request path takes the whole server down; `step()` now guards the tick itself.
+process.on("unhandledRejection", (reason) => {
+  console.error("[citadel-server] unhandled rejection:", reason);
+});
+process.on("uncaughtException", (err) => {
+  console.error("[citadel-server] uncaught exception:", err);
+});
+
+const wss = new WebSocketServer({
+  port: PORT,
+  perMessageDeflate: { threshold: 1024 },
+  // audit-43: `ws` defaults to 100 MB. Farm sets 64 KB; Citadel is the copy that dropped it.
+  // Combined with `placeRoad`/`placeWall` looping a caller-supplied tile list, a single frame
+  // controlled how much work a tick did — the tile list is separately capped in the host.
+  maxPayload: 64 * 1024,
+});
 console.log(`[citadel-server] multi-writer sim room listening on ws://localhost:${PORT}`);
 
 wss.on("connection", (ws: WebSocket) => {
@@ -35,7 +51,17 @@ wss.on("connection", (ws: WebSocket) => {
     } catch {
       return;
     }
-    host.handleInbound(peer, msg);
+    // audit-43: shape guard. `handleInbound` switches on `msg.type`, which a `null` frame
+    // dereferences. Field-level validation is NOT added here — that is Farm's `validate-inbound.ts`
+    // (audit-42) and porting it is a revival precondition, recorded in wiki/citadel-mp-deprecated.md.
+    if (typeof msg !== "object" || msg === null || typeof (msg as { type?: unknown }).type !== "string") {
+      return;
+    }
+    try {
+      host.handleInbound(peer, msg);
+    } catch (err) {
+      console.error("[citadel-server] handleInbound threw; dropping the frame", err);
+    }
   });
   ws.on("close", () => host.detach(peer));
   ws.on("error", () => host.detach(peer));
