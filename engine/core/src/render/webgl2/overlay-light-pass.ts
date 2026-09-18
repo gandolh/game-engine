@@ -157,6 +157,14 @@ export class OverlayLightPass {
       gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE,
       this.bakeCanvas as TexImageSource,
     );
+    // Restore immediately. UNPACK_PREMULTIPLY_ALPHA_WEBGL is context-GLOBAL state:
+    // leaving it set silently flips every OTHER pass's texture upload (the static
+    // layer, water and the atlas all upload STRAIGHT alpha and premultiply in their
+    // own shaders, so they would render rgb*a² — darkened). The sibling passes set
+    // and restore their pixelStorei flags in matched pairs for the same reason; this
+    // one is the flag's single owner, so the restore lives here rather than as a
+    // defensive re-set in each victim.
+    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
 
     gl.useProgram(this.program);
     gl.bindVertexArray(this.vao);

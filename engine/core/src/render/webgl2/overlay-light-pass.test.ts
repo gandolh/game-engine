@@ -148,8 +148,62 @@ describe("OverlayLightPass", () => {
     // Uploaded premultiplied, additive blend, one full-screen triangle.
     expect(calls.some((c) => c.op === "pixelStorei" && c.args[1] === true)).toBe(true);
     expect(calls.some((c) => c.op === "texImage2D")).toBe(true);
+    // ...and the context-global flag was RESTORED (audit-39). Asserting only the
+    // `true` above is what pinned the bug: the upload is correct, the leak is not.
+    expect(calls.some((c) => c.op === "pixelStorei" && c.args[1] === false)).toBe(true);
     expect(calls.some((c) => c.op === "blendFunc" && c.args[0] === gl.ONE && c.args[1] === gl.ONE)).toBe(true);
     expect(calls.some((c) => c.op === "drawArrays" && c.args[0] === gl.TRIANGLES && c.args[1] === 0 && c.args[2] === 3)).toBe(true);
+  });
+
+  it("restores UNPACK_PREMULTIPLY_ALPHA_WEBGL to false, in order, after every draw", async () => {
+    const calls: Call[] = [];
+    const gl = makeFakeGl(calls);
+    const { OverlayLightPass } = await import("./overlay-light-pass");
+    const pass = new OverlayLightPass(gl);
+
+    pass.draw(() => {}, { sx: 1, sy: 1, ox: 0, oy: 0 }, 800, 600);
+    pass.draw(() => {}, { sx: 1, sy: 1, ox: 0, oy: 0 }, 800, 600);
+
+    const flag = calls
+      .filter((c) => c.op === "pixelStorei" && c.args[0] === gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL)
+      .map((c) => c.args[1]);
+    // Matched pairs, never left dangling: a set is always followed by a restore.
+    expect(flag).toEqual([true, false, true, false]);
+
+    // The set/restore straddle the upload, and nothing else uploads in between.
+    const seq = calls
+      .filter((c) => c.op === "pixelStorei" || c.op === "texImage2D")
+      .map((c) => (c.op === "texImage2D" ? "upload" : `flag=${String(c.args[1])}`));
+    expect(seq.slice(0, 3)).toEqual(["flag=true", "upload", "flag=false"]);
+
+    // The state a LATER pass would observe: straight-alpha uploads are safe again.
+    expect(flag.at(-1)).toBe(false);
+  });
+
+  it("leaves a LATER straight-alpha upload unaffected — the season-change re-bake case", async () => {
+    // The real failure: SimHost re-bakes and re-posts the static layer on every
+    // season change, thousands of overlay frames in. `pixelStorei` is context state,
+    // so the victim is whatever uploads NEXT. Model that state explicitly rather than
+    // only inspecting the call log.
+    const calls: Call[] = [];
+    const gl = makeFakeGl(calls);
+    const pixelStore = new Map<number, unknown>();
+    const realPixelStorei = gl.pixelStorei.bind(gl);
+    (gl as { pixelStorei: (p: number, v: unknown) => void }).pixelStorei = (p, v) => {
+      pixelStore.set(p, v);
+      realPixelStorei(p, v as never);
+    };
+
+    const { OverlayLightPass } = await import("./overlay-light-pass");
+    const pass = new OverlayLightPass(gl);
+    for (let frame = 0; frame < 3; frame++) {
+      pass.draw(() => {}, { sx: 1, sy: 1, ox: 0, oy: 0 }, 800, 600);
+    }
+
+    // What static-layer-pass / water-pass / gl-atlas-store see when they upload next.
+    // They push STRAIGHT alpha and premultiply in their own shaders (`c.rgb * c.a`);
+    // a stuck `true` here renders them at rgb*a² — sub-opaque pixels darkened.
+    expect(pixelStore.get(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL)).toBe(false);
   });
 
   it("reuses the bake canvas across same-size draws, recreates it on a drawing-buffer resize", async () => {

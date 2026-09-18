@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { createRng } from "@engine/core";
 import { GENERATORS, TOPICS_FOR_GRADE } from "./generators";
 import { ADD_SUB_RANGE } from "./constants";
-import type { Grade, MathTopic, Problem } from "./types";
+import type { ChoiceProblem, Grade, MathTopic, Problem, TypedProblem } from "./types";
 
 const GRADES: readonly Grade[] = [1, 2, 3, 4];
 const RELATIONS = ["<", ">", "="] as const;
@@ -12,6 +12,50 @@ function numbersIn(text: string): number[] {
   return (text.match(/-?\d+/g) ?? []).map(Number);
 }
 
+/**
+ * Per-topic independent checks. A TABLE, not an if/else chain, for one reason: the chain had no
+ * terminal `else`, so any topic it did not recognise fell through with **zero assertions** while
+ * still reporting a green test named "... and the math checks out" (audit-55). Because
+ * `verifyProblem` is driven from a loop over `TOPICS_FOR_GRADE`, adding a generator automatically
+ * minted new tests that checked no math at all.
+ *
+ * Every check must RE-DERIVE the answer from the prompt. Reading `p.answer` back from the generator
+ * and comparing it to itself is the failure mode this helper exists to prevent — in this game a
+ * wrong answer is a wrong thing taught to a child.
+ *
+ * Keys here are pinned against `Object.keys(GENERATORS)` by the meta-test below, so a new generator
+ * cannot ship without a new independent check.
+ */
+const INDEPENDENT_CHECKS: Record<MathTopic, (p: Problem) => void> = {
+  addition: (p) => {
+    const [x, y] = numbersIn(p.prompt);
+    expect(p.kind).toBe("typed");
+    expect((p as TypedProblem).answer).toBe(x! + y!);
+  },
+  subtraction: (p) => {
+    const [x, y] = numbersIn(p.prompt);
+    expect(p.kind).toBe("typed");
+    expect(x!).toBeGreaterThanOrEqual(y!); // a >= b, non-negative
+    expect((p as TypedProblem).answer).toBe(x! - y!);
+    expect((p as TypedProblem).answer).toBeGreaterThanOrEqual(0);
+  },
+  multiplication: (p) => {
+    const [x, y] = numbersIn(p.prompt);
+    expect(p.kind).toBe("typed");
+    expect((p as TypedProblem).answer).toBe(x! * y!);
+    expect((p as TypedProblem).answer).toBeLessThanOrEqual(9999); // brief: cap product/sum <= 9999
+  },
+  comparison: (p) => {
+    const [x, y] = numbersIn(p.prompt);
+    expect(p.kind).toBe("choice");
+    const c = p as ChoiceProblem;
+    expect(c.choices.length).toBe(3);
+    expect([...c.choices].sort()).toEqual([...RELATIONS].sort());
+    const relation = x! < y! ? "<" : x! > y! ? ">" : "=";
+    expect(c.choices[c.answerIndex]).toBe(relation);
+  },
+};
+
 /** Independently re-derive and verify a generated `Problem` — never trusts the generator's own
  * `answer`/`answerIndex`, per the M2 brief's A7: "compute independently". */
 function verifyProblem(p: Problem): void {
@@ -19,25 +63,40 @@ function verifyProblem(p: Problem): void {
   expect(x).toBeDefined();
   expect(y).toBeDefined();
 
-  if (p.kind === "typed") {
-    if (p.topic === "addition") {
-      expect(p.answer).toBe(x! + y!);
-    } else if (p.topic === "subtraction") {
-      expect(x!).toBeGreaterThanOrEqual(y!); // a >= b, non-negative
-      expect(p.answer).toBe(x! - y!);
-      expect(p.answer).toBeGreaterThanOrEqual(0);
-    } else if (p.topic === "multiplication") {
-      expect(p.answer).toBe(x! * y!);
-      expect(p.answer).toBeLessThanOrEqual(9999); // brief: cap product/sum ≤ 9999
-    }
-  } else {
-    // comparison
-    expect(p.choices.length).toBe(3);
-    expect([...p.choices].sort()).toEqual([...RELATIONS].sort());
-    const relation = x! < y! ? "<" : x! > y! ? ">" : "=";
-    expect(p.choices[p.answerIndex]).toBe(relation);
+  // Deliberately a lookup that CAN miss, even though the Record's type says it cannot: a widened
+  // `MathTopic` union reaches here at runtime long before anyone runs `tsc`.
+  const check = (INDEPENDENT_CHECKS as Partial<Record<string, (p: Problem) => void>>)[p.topic];
+  if (check === undefined) {
+    throw new Error(
+      `verifyProblem: no independent check for topic "${p.topic}". Add one to INDEPENDENT_CHECKS ` +
+        `that re-derives the answer from the prompt — a generator without one ships unverified.`,
+    );
   }
+  check(p);
 }
+
+describe("verifyProblem is coupled to GENERATORS (audit-55)", () => {
+  // THE test of this brief. The terminal throw in `verifyProblem` only fires when a new topic
+  // happens to be exercised; this fires the moment the generator table and the checker table
+  // disagree, which is the instant the gap opens.
+  it("has an independent check for exactly the topics GENERATORS produces", () => {
+    expect(Object.keys(INDEPENDENT_CHECKS).sort()).toEqual(Object.keys(GENERATORS).sort());
+  });
+
+  it("has an independent check for every topic any grade can draw", () => {
+    const reachable = new Set(Object.values(TOPICS_FOR_GRADE).flatMap((ts) => [...ts]));
+    for (const topic of reachable) {
+      expect(Object.keys(INDEPENDENT_CHECKS)).toContain(topic);
+    }
+  });
+
+  it("throws rather than silently passing when handed an unrecognised topic", () => {
+    const rogue = {
+      kind: "typed", topic: "division", grade: 3, prompt: "6 : 2 = ?", answer: 99, teach: "x",
+    } as unknown as Problem;
+    expect(() => verifyProblem(rogue)).toThrow(/no independent check for topic "division"/);
+  });
+});
 
 describe("TOPICS_FOR_GRADE", () => {
   it("grade 1 excludes multiplication (curriculum introduces × in clasa a II-a)", () => {

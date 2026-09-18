@@ -15,7 +15,7 @@
  * `createStatusPanel()` tree (status-panel.ts's own doc explains it's built to be unit-tested
  * this way, without dragging in sim-client.ts's live WebSocket/Worker — see that file).
  */
-import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
+import { describe, it, expect, afterEach, beforeAll, beforeEach, vi } from "vitest";
 import { createInputDispatcher } from "@engine/ui";
 import type { InputDispatcher, A11yMirror, ConsumeResult } from "@engine/ui";
 import { createStatusPanel } from "./status-panel";
@@ -75,6 +75,9 @@ function makeFakePrefs(defaults: Partial<Record<PanelId, boolean>> = { status: t
 const refs = vi.hoisted(() => ({
   siegeDispatcher: undefined as InputDispatcher | undefined,
   siegeMirror: undefined as A11yMirror | undefined,
+  // audit-48: rebindable so a test can make the HUD genuinely CONSUME a press and put a real
+  // pointer gesture in flight. Defaults to a never-consuming stub for every other test.
+  uiDispatcher: undefined as InputDispatcher | undefined,
 }));
 
 vi.mock("./dom", () => ({
@@ -134,7 +137,9 @@ vi.mock("./sim-client", () => ({
 // The dispatcher/mirror under test: real @engine/ui plumbing over a real status-panel.ts tree,
 // rebuilt per-test via `refs` (see beforeEach below).
 vi.mock("./hud-panels", () => ({
-  uiDispatcher: stubDispatcher(),
+  get uiDispatcher() {
+    return refs.uiDispatcher ?? stubDispatcher();
+  },
   a11yMirror: stubMirror(),
   get siegeDispatcher() {
     return refs.siegeDispatcher;
@@ -236,5 +241,136 @@ describe("input.ts keydown chain — siege/status dispatcher forwarding", () => 
   it("a key the siege panel does not consume falls through untouched (no false-positive forwarding)", () => {
     const evt = dispatchKeydown("a");
     expect(evt.defaultPrevented).toBe(false);
+  });
+});
+
+
+/**
+ * audit-48 — gesture ownership must always be RELEASABLE (Citadel half).
+ *
+ * `uiPressActive` was claimed on a UI-consumed `mousedown` and cleared only from a CANVAS-bound
+ * `mouseup`. Release outside the viewport and the flag stuck `true`, after which the capture-phase
+ * `mousemove` stopImmediatePropagation()'d everything: world hover frozen, camera pan dead, build
+ * drags impossible, until a full press+release back inside the canvas happened to clear it.
+ *
+ * Farm's `ui/canvas/ui-host.ts` had the identical bug — the two drifted into it by copying, which
+ * is why both are fixed and both are tested. These probe the observable symptom (does a later
+ * `mousemove` still reach the world?) rather than the private flag.
+ */
+describe("input.ts pointer ownership survives a release outside the canvas (audit-48)", () => {
+  let canvas: HTMLCanvasElement;
+  let worldSawMove: boolean;
+
+  /** A dispatcher that consumes presses — stands in for a real HUD slider under the cursor. */
+  function consumingDispatcher(): InputDispatcher {
+    return { ...stubDispatcher(), pointerDown: (): ConsumeResult => ({ consumed: true }) };
+  }
+
+  function mouse(type: string, x: number, y: number): MouseEvent {
+    return new MouseEvent(type, { clientX: x, clientY: y, button: 0, bubbles: true, cancelable: true });
+  }
+
+  beforeEach(async () => {
+    const dom = await import("./dom");
+    canvas = dom.canvas;
+    canvas.getBoundingClientRect = () =>
+      ({ left: 0, top: 0, width: 800, height: 600, right: 800, bottom: 600, x: 0, y: 0, toJSON() {} }) as DOMRect;
+    refs.uiDispatcher = consumingDispatcher();
+    worldSawMove = false;
+  });
+
+  afterEach(() => {
+    refs.uiDispatcher = undefined;
+    // Leave no gesture in flight for the next test — a wedged flag is precisely the bug.
+    window.dispatchEvent(mouse("mouseup", 900, 700));
+  });
+
+  function probeWorldMove(): () => void {
+    // Bubble phase on the canvas: a capture-phase stopImmediatePropagation() hides the event from
+    // it exactly as it hides it from the real world/camera handlers.
+    const onMove = (): void => { worldSawMove = true; };
+    canvas.addEventListener("mousemove", onMove);
+    return () => { canvas.removeEventListener("mousemove", onMove); };
+  }
+
+  it("a UI-consumed press blocks world moves WHILE the gesture is live", () => {
+    const undo = probeWorldMove();
+    canvas.dispatchEvent(mouse("mousedown", 10, 10));
+    canvas.dispatchEvent(mouse("mousemove", 20, 20));
+    expect(worldSawMove).toBe(false); // intended during a real UI drag
+    undo();
+  });
+
+  it("releasing on the WINDOW ends the gesture and unblocks the world", () => {
+    const undo = probeWorldMove();
+    canvas.dispatchEvent(mouse("mousedown", 10, 10));
+    canvas.dispatchEvent(mouse("mousemove", 20, 20));
+    expect(worldSawMove).toBe(false);
+
+    // Dragged onto the browser chrome and let go there — no mouseup reaches the canvas.
+    window.dispatchEvent(mouse("mouseup", 900, 700));
+
+    worldSawMove = false;
+    canvas.dispatchEvent(mouse("mousemove", 30, 30));
+    expect(worldSawMove).toBe(true); // was `false` before the fix — the wedge
+    undo();
+  });
+
+  it("a window blur mid-drag also ends the gesture", () => {
+    const undo = probeWorldMove();
+    canvas.dispatchEvent(mouse("mousedown", 10, 10));
+
+    window.dispatchEvent(new Event("blur"));
+
+    worldSawMove = false;
+    canvas.dispatchEvent(mouse("mousemove", 30, 30));
+    expect(worldSawMove).toBe(true);
+    undo();
+  });
+
+  it("the next world CLICK is not eaten after an outside release", () => {
+    let worldSawClick = false;
+    const onClick = (): void => { worldSawClick = true; };
+    canvas.addEventListener("click", onClick);
+
+    canvas.dispatchEvent(mouse("mousedown", 10, 10));
+    window.dispatchEvent(mouse("mouseup", 900, 700));
+
+    // No `click` reaches the canvas for that gesture, so ownership must not be left armed to
+    // swallow the player's NEXT real click.
+    refs.uiDispatcher = stubDispatcher();
+    canvas.dispatchEvent(mouse("mousedown", 400, 400));
+    canvas.dispatchEvent(mouse("mouseup", 400, 400));
+    canvas.dispatchEvent(mouse("click", 400, 400));
+    expect(worldSawClick).toBe(true);
+    canvas.removeEventListener("click", onClick);
+  });
+
+  it("THE NORMAL PATH IS UNCHANGED: press + release both inside the canvas stay UI-owned", () => {
+    let worldSawClick = false;
+    const onClick = (): void => { worldSawClick = true; };
+    canvas.addEventListener("click", onClick);
+
+    canvas.dispatchEvent(mouse("mousedown", 10, 10));
+    canvas.dispatchEvent(mouse("mouseup", 10, 10));
+    canvas.dispatchEvent(mouse("click", 10, 10));
+
+    // The window listener must not have pre-empted the canvas one and cleared `uiGestureWasUI`
+    // before the click handler read it — that handoff is the ordering risk in this fix.
+    expect(worldSawClick).toBe(false);
+    canvas.removeEventListener("click", onClick);
+  });
+
+  it("a WORLD-owned press released outside the canvas leaves the world alone", () => {
+    refs.uiDispatcher = stubDispatcher(); // nothing consumes the press
+    const undo = probeWorldMove();
+
+    canvas.dispatchEvent(mouse("mousedown", 500, 500));
+    window.dispatchEvent(mouse("mouseup", 900, 700));
+
+    worldSawMove = false;
+    canvas.dispatchEvent(mouse("mousemove", 30, 30));
+    expect(worldSawMove).toBe(true);
+    undo();
   });
 });

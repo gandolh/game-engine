@@ -177,6 +177,56 @@ canvas.addEventListener("mousemove", (e) => {
   // when the modal was already open cannot pan the world behind it.
   if (uiPressActive || settingsModal.isOpen()) e.stopImmediatePropagation();
 }, { capture: true });
+// audit-48 — THE INVARIANT: a gesture that can START must always be able to END.
+//
+// The canvas-bound `mouseup` above only fires when the release lands on the canvas. Press a HUD
+// slider, drag onto the browser chrome or a second monitor, release there, and `uiPressActive`
+// stays `true` forever — from then on the capture-phase `mousemove` stopImmediatePropagation()s
+// every event, so world hover, camera pan and build drags all go dead until a full press+release
+// back inside the canvas happens to clear it. To the player the game just stops responding.
+//
+// Farm has the identical bug in `ui/canvas/ui-host.ts` (the two drifted into it by copying) and is
+// fixed in the same pass. The capture-phase canvas listener keeps owning DISPATCH; this is only
+// about ownership-clearing.
+//
+// ORDERING: this is a BUBBLE-phase window listener, so for a release inside the canvas the canvas
+// capture listener has already run and set `uiGestureWasUI`. When it owned the gesture it also
+// called stopImmediatePropagation(), so the event never reaches here at all. The containment guard
+// makes that independent of the propagation detail rather than reliant on it.
+function endUiGestureOutsideCanvas(x: number, y: number, btn: "primary" | "secondary" | "auxiliary"): void {
+  if (uiDispatcher === undefined) return;
+  if (!uiPressActive) return;
+  // Complete the gesture in the UI so a slider/drag settles rather than sticking mid-drag.
+  newGameDispatcher?.pointerUp(x, y, btn);
+  uiDispatcher.pointerUp(x, y, btn);
+  inspectDispatcher?.pointerUp(x, y, btn);
+  villagerDispatcher?.pointerUp(x, y, btn);
+  siegeDispatcher?.pointerUp(x, y, btn);
+  buildBarDispatcher?.pointerUp(x, y, btn);
+  settingsDispatcher?.pointerUp(x, y, btn);
+  uiPressActive = false;
+  // No `click` will reach the canvas for this gesture: a click fires on the nearest common ancestor
+  // of the press and release targets, which is not the canvas when the release landed outside it.
+  // Nothing to suppress — and leaving ownership set would eat the player's NEXT world click.
+  uiGestureWasUI = false;
+}
+
+const hostWindow = canvas.ownerDocument.defaultView ?? window;
+
+hostWindow.addEventListener("mouseup", (e) => {
+  const target = e.target;
+  // Released inside the canvas → the capture-phase listener above already did the bookkeeping.
+  if (target instanceof Node && (target === canvas || canvas.contains(target))) return;
+  const { x, y } = eventToCssPx(e);
+  endUiGestureOutsideCanvas(x, y, pointerButtonOf(e));
+});
+
+// Belt and braces: focus can be lost mid-drag with no mouseup delivered anywhere (Alt-Tab, a
+// native context menu, an OS window switch). Twin of audit-47's keyboard reset.
+hostWindow.addEventListener("blur", () => {
+  endUiGestureOutsideCanvas(lastUiX, lastUiY, "primary");
+});
+
 canvas.addEventListener("click", (e) => {
   // Activation already happened on pointerUp. Suppress the world `click` handlers only when
   // this gesture's INITIATING mousedown was UI-consumed (a press that began on a HUD button

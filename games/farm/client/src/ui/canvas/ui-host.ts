@@ -100,6 +100,10 @@ export function createUIHost(renderer: RendererLike, canvas: HTMLCanvasElement):
   // click that fires just after mouseup (so we suppress the world click only for UI gestures).
   let uiPressActive = false;
   let uiGestureWasUI = false;
+  // Last pointer position in canvas CSS px — the only coordinates available to a release that
+  // arrives without one (a window blur mid-drag).
+  let lastPointerX = 0;
+  let lastPointerY = 0;
 
   /** After a focus-moving event, mirror each root's dispatcher focus into its a11y DOM. */
   function syncFocusToMirrors(): void {
@@ -153,11 +157,59 @@ export function createUIHost(renderer: RendererLike, canvas: HTMLCanvasElement):
       const btn = pointerButtonOf(e);
       // Always forward so hover visuals update; only block the world (pan/drag) while the UI owns
       // the active gesture. Mere hover must NOT block world pan/drag.
+      lastPointerX = x;
+      lastPointerY = y;
       for (const r of roots) r.dispatcher.pointerMove(x, y, btn);
       if (uiPressActive) e.stopImmediatePropagation();
     },
     { capture: true },
   );
+
+  // audit-48 — THE INVARIANT: a gesture that can START must always be able to END.
+  //
+  // The canvas-bound `mouseup` above only fires when the release lands on the canvas. Press a
+  // slider, drag onto the browser chrome or a second monitor, release there, and `uiPressActive`
+  // stays `true` forever — from then on the capture-phase `mousemove` stopImmediatePropagation()s
+  // every event, so world hover, camera drag and pan all go dead until a full press+release back
+  // inside the canvas happens to clear it. To the player the game simply stops responding.
+  //
+  // Farm's own camera drag already solved this three files over (`main/camera.ts` releases on
+  // `window`); this brings the UI host in line. The capture-phase canvas listener keeps owning
+  // DISPATCH — this is only about ownership-clearing.
+  //
+  // ORDERING: the window listener is BUBBLE phase, so for a release inside the canvas the canvas
+  // capture listener has already run and set `uiGestureWasUI`. When it owned the gesture it also
+  // called stopImmediatePropagation(), so the event never even reaches here. The containment guard
+  // makes that independent of the propagation detail rather than reliant on it.
+  const hostWindow = canvas.ownerDocument.defaultView ?? window;
+
+  function endGestureOutsideCanvas(x: number, y: number, btn: "primary" | "secondary" | "auxiliary"): void {
+    if (!uiPressActive) return;
+    // Complete the gesture in the UI so a slider/drag settles rather than sticking mid-drag.
+    for (const r of roots) r.dispatcher.pointerUp(x, y, btn);
+    uiPressActive = false;
+    // No `click` will reach the canvas for this gesture: a click fires on the nearest common
+    // ancestor of the press and release targets, which is not the canvas when the release landed
+    // outside it. So there is nothing to suppress, and leaving ownership set would instead eat the
+    // player's NEXT legitimate world click.
+    uiGestureWasUI = false;
+  }
+
+  hostWindow.addEventListener("mouseup", (e) => {
+    if (roots.length === 0) return;
+    const target = e.target;
+    // Released inside the canvas → the capture-phase listener above already did the bookkeeping.
+    if (target instanceof Node && (target === canvas || canvas.contains(target))) return;
+    const { x, y } = eventToCssPx(canvas, e);
+    endGestureOutsideCanvas(x, y, pointerButtonOf(e));
+  });
+
+  // Belt and braces: focus can be lost mid-drag with no mouseup delivered anywhere (Alt-Tab, a
+  // native context menu, an OS-level window switch). Twin of audit-47's keyboard reset.
+  hostWindow.addEventListener("blur", () => {
+    if (roots.length === 0) return;
+    endGestureOutsideCanvas(lastPointerX, lastPointerY, "primary");
+  });
 
   canvas.addEventListener(
     "click",
