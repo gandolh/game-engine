@@ -19,6 +19,20 @@ process.on("uncaughtException", (err) => {
   console.error("[server] uncaught exception:", err);
 });
 
+/**
+ * Load the committed pathfinder artifact.
+ *
+ * FATAL IN PRODUCTION (audit-40). Without a pathfinder, `bootstrapSim` omits `TravelSystem`
+ * entirely, so every travel-gated action silently no-ops — farmers never move, and the run looks
+ * *dormant* rather than broken. That is the exact false-dormancy trap recorded in
+ * `wiki/open-questions.md`, and the only signal used to be one `console.warn` on a container's
+ * stdout, under a process pm2/compose report as healthy. **A server that serves a sim whose
+ * farmers cannot move is worse than a server that refuses to start.**
+ *
+ * Outside production the warning stands: `@tool/run-sim`'s pure-JS fallback is a deliberate path,
+ * and a developer who has not run `npm run build-wasm` should get a diagnosable message rather
+ * than a hard stop.
+ */
 async function loadPathfinderWasm(): Promise<ArrayBuffer | null> {
   const here = dirname(fileURLToPath(import.meta.url));
   const wasmPath = resolve(
@@ -32,9 +46,16 @@ async function loadPathfinderWasm(): Promise<ArrayBuffer | null> {
       buf.byteOffset + buf.byteLength,
     ) as ArrayBuffer;
   } catch (e) {
+    const detail =
+      `could not read pathfinding.wasm at ${wasmPath} — TravelSystem would be omitted and ` +
+      `farmers would never move (run \`npm run build-wasm\`; in a container, check that ` +
+      `.dockerignore is not stripping engine/wasm-modules/dist). ${String(e)}`;
+    if (process.env["NODE_ENV"] === "production") {
+      console.error(`[server] FATAL: ${detail}`);
+      process.exit(1);
+    }
     console.warn(
-      `[server] could not read pathfinding.wasm at ${wasmPath} — farmers will not travel ` +
-        `(run \`npm run build-wasm\`). Behavior will DIFFER from the browser. ${e}`,
+      `[server] ${detail} Behavior will DIFFER from the browser.`,
     );
     return null;
   }

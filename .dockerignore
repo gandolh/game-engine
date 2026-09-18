@@ -1,6 +1,13 @@
 node_modules
 **/node_modules
 **/dist
+# audit-40: `**/dist` above matches engine/wasm-modules/dist — the CANONICAL, TRACKED location of
+# pathfinding.wasm, which the sim server reads at startup. Stripping it from the build context left
+# the container warning once on stdout and then serving a sim whose farmers could never move, under
+# a process compose reported as healthy. Un-ignore the directory AND its contents: Docker skips the
+# contents of an excluded directory, so the second line is not redundant.
+!engine/wasm-modules/dist
+!engine/wasm-modules/dist/**
 .git
 corpus
 *.md

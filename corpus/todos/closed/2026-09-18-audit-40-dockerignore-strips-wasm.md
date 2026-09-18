@@ -9,9 +9,9 @@ the runtime resolves the contradiction by warning and carrying on.
 
 [`.dockerignore:3`](../../.dockerignore#L3) is `**/dist`, which matches
 `engine/wasm-modules/dist/` — the canonical, **tracked** location of `pathfinding.wasm` (tracked as of
-[audit-34](closed/2026-09-14-audit-34-wasm-dist-untracked.md)).
+[audit-34](2026-09-14-audit-34-wasm-dist-untracked.md)).
 
-[`infrastructure/Dockerfile:11-12`](../../infrastructure/Dockerfile#L11-L12) asserts the opposite in
+[`infrastructure/Dockerfile:11-12`](../../../infrastructure/Dockerfile#L11-L12) asserts the opposite in
 its own header:
 
 > *"The committed wasm artifacts the sim reads (pathfinding.wasm and friends) ride along with the
@@ -21,7 +21,7 @@ They do not. `COPY engine ./engine` (line 36) copies an `engine/` whose `wasm-mo
 excluded from the build context.
 
 The loader then **degrades instead of failing** —
-[`games/farm/server/src/index.ts:33-39`](../../games/farm/server/src/index.ts#L33-L39):
+[`games/farm/server/src/index.ts:33-39`](../../../games/farm/server/src/index.ts#L33-L39):
 
 ```ts
 console.warn(`[server] could not read pathfinding.wasm at ${wasmPath} — farmers will not travel `
@@ -31,7 +31,7 @@ return null;
 
 And `bootstrapSim` omits `TravelSystem` entirely when no pathfinder is passed, so **every
 travel-gated action silently no-ops** — the exact false-dormancy trap recorded in
-[`wiki/open-questions.md`](../wiki/open-questions.md) and [`wiki/decisions.md`](../wiki/decisions.md).
+[`wiki/open-questions.md`](../../wiki/open-questions.md) and [`wiki/decisions.md`](../../wiki/decisions.md).
 
 ## Why nothing caught it
 
@@ -54,13 +54,13 @@ on the artifact in the image build costs nothing and makes the contract self-enf
 
 ## Files you OWN
 - [`.dockerignore`](../../.dockerignore)
-- [`infrastructure/Dockerfile`](../../infrastructure/Dockerfile)
-- [`games/farm/server/src/index.ts`](../../games/farm/server/src/index.ts) — the loader's failure policy
+- [`infrastructure/Dockerfile`](../../../infrastructure/Dockerfile)
+- [`games/farm/server/src/index.ts`](../../../games/farm/server/src/index.ts) — the loader's failure policy
 
 ## Files you must NOT touch
 - `engine/wasm-modules/build/*` and the two tracked artifact locations — both are contracts
   (audit-29 drift guard, audit-34, audit-37); this brief changes what is *copied*, never what is built
-- the pure-JS fallback [`js-pathfinder.ts`](../../games/farm/sim-core/src/world/js-pathfinder.ts) —
+- the pure-JS fallback [`js-pathfinder.ts`](../../../games/farm/sim-core/src/world/js-pathfinder.ts) —
   it is the headless runner's deliberate path, and JS/WASM are **not** route-equivalent
 
 ## Acceptance

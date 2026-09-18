@@ -32,7 +32,7 @@ reverse-proxy snippet exists in version control at all.
   nothing in the repo says how to rebuild it — no proxy rules, no process definition, no rsync/`npm ci`
   ordering.
 - **No gate can ever assert anything about it**, which is exactly why
-  [audit-40](2026-09-18-audit-40-dockerignore-strips-wasm.md) (the `.dockerignore` stripping the wasm
+  [audit-40](closed/2026-09-18-audit-40-dockerignore-strips-wasm.md) (the `.dockerignore` stripping the wasm
   the server reads) survived: the only committed deploy path is one nobody builds.
 - **The "dry-run-verified" claim cannot be re-checked**, because the script it refers to is not here.
 
@@ -42,7 +42,7 @@ There are two deploy stories and there should be one. Decide which, then make th
 
 1. **Docker/compose is the real path.** Then delete the pm2 + `deploy.ts` narrative from the corpus,
    commit the Caddy snippet that fronts the container, and fix
-   [audit-40](2026-09-18-audit-40-dockerignore-strips-wasm.md) so the image is actually correct.
+   [audit-40](closed/2026-09-18-audit-40-dockerignore-strips-wasm.md) so the image is actually correct.
 2. **pm2 + Caddy + `deploy.ts` is the real path.** Then commit it — the script, the Caddy snippet, the
    pm2 ecosystem file — and mark `infrastructure/` as superseded rather than leaving a second,
    contradictory answer in the tree.

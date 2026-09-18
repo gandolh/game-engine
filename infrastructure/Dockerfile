@@ -9,7 +9,10 @@
 #
 # Like just-a-bot, this runs from SOURCE under `tsx` (a devDependency), so the
 # runtime stage keeps dev dependencies. The committed wasm artifacts the sim
-# reads (pathfinding.wasm and friends) ride along with the source.
+# reads (pathfinding.wasm and friends) ride along with the source — which
+# required un-ignoring them in .dockerignore, whose `**/dist` rule had been
+# stripping them (audit-40). That claim is now CHECKED in the build below
+# rather than asserted here: a comment cannot fail.
 #
 # Only the SIM runs here. The three static clients built from this same
 # checkout — farm-valley, citadel, hollow — and the docs site are built on the
@@ -37,6 +40,13 @@ COPY engine ./engine
 COPY games ./games
 COPY tools ./tools
 COPY docs/package.json ./docs/
+# audit-40: make the wasm contract SELF-ENFORCING. Two committed files used to disagree about
+# whether the artifacts reach the image, and the runtime resolved the disagreement by warning and
+# carrying on. Fail the BUILD instead — it costs nothing and it cannot drift out of date.
+RUN test -f engine/wasm-modules/dist/pathfinding.wasm \
+  || (echo "FATAL: engine/wasm-modules/dist/pathfinding.wasm is missing from the build context." \
+      && echo "       Check .dockerignore — its '**/dist' rule matches this tracked directory." \
+      && exit 1)
 ENV NODE_ENV=production \
     PORT=8787
 EXPOSE 8787
