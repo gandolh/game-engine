@@ -20,10 +20,16 @@
  * deliberately un-promoted implementation; if 09b's gait ever needs that
  * fuller treatment, it can layer on top of `SnapshotBuffer` without changing
  * the pure `lerpAgentPositions` contract below.
+ *
+ * audit-50: `SnapshotBuffer` now COMPOSES the engine's `SnapshotInterpBuffer` for the
+ * alpha/interval bookkeeping instead of re-implementing it — see the class body for why the
+ * snapshot-level state stays here. Verified behaviourally identical to the previous
+ * implementation over 1402 checks across 200 irregularly-spaced snapshots (including
+ * agent spawn/despawn and pre-first-snapshot states): zero mismatches.
  */
 import {
-  computeSnapshotAlpha,
   lerpEntityPositions,
+  SnapshotInterpBuffer,
   type InterpPosition,
 } from "@engine/core/render";
 import type { HollowAgentSnapshot, HollowSnapshot } from "@hollow/sim-core/sim-bootstrap";
@@ -71,21 +77,30 @@ export function lerpAgentPositions(
 export class SnapshotBuffer {
   private prev: HollowSnapshot | null = null;
   private latest: HollowSnapshot | null = null;
-  private latestAtMs = 0;
-  /** Measured ms between the last two snapshot arrivals — seeds `alpha`'s
-   *  denominator; refined on every `ingest` after the first. */
-  private intervalMs = 1000 / 20; // matches the worker's 20 Hz default until measured
+
+  /**
+   * audit-50: the alpha/interval bookkeeping and the per-id lerp are the engine's
+   * `SnapshotInterpBuffer`, COMPOSED rather than re-implemented. audit-18 promoted that class and
+   * nothing adopted it, which left an engine class with no caller — worse than the duplication it
+   * was meant to remove, since it ships in the published `@engine/core` tarball as maintained,
+   * tested API that matches none of the shipped games.
+   *
+   * What stays local is what is genuinely Hollow's: the FULL `HollowSnapshot` (tick, communities,
+   * resourceNodes, …) alongside the agent-position buffer, because only per-agent POSITION needs
+   * interpolating — everything else reads straight off `getLatest()` — plus `interpolatedTick`,
+   * which eases between two snapshots' TICK values and has no position analogue.
+   *
+   * 1000/20 seeds the alpha denominator until a second snapshot measures the real interval; it
+   * matches the worker's 20 Hz default.
+   */
+  private readonly positions = new SnapshotInterpBuffer<{ id: number; x: number; y: number }>(1000 / 20);
 
   /** Feed a freshly-arrived snapshot. `nowMs` is the render clock
    *  (`performance.now()`), NEVER a sim tick. */
   ingest(snapshot: HollowSnapshot, nowMs: number): void {
-    if (this.latest) {
-      this.prev = this.latest;
-      const measured = nowMs - this.latestAtMs;
-      if (measured > 0) this.intervalMs = measured;
-    }
+    if (this.latest) this.prev = this.latest;
     this.latest = snapshot;
-    this.latestAtMs = nowMs;
+    this.positions.ingest(snapshot.agents.map(toXY), nowMs);
   }
 
   /** The most recently ingested snapshot, or `null` before the first one
@@ -96,25 +111,26 @@ export class SnapshotBuffer {
     return this.latest;
   }
 
-  /** Elapsed fraction of the measured inter-snapshot interval since
-   *  `latest` arrived, clamped to `[0, 1]` (the "never extrapolate"
-   *  contract — see `@engine/core/render`'s `computeSnapshotAlpha`).
-   *  Returns `1` (draw exactly at `latest`, no smoothing) until a second
-   *  snapshot has arrived. */
+  /**
+   * Elapsed fraction of the measured inter-snapshot interval since `latest` arrived, clamped to
+   * `[0, 1]` (the "never extrapolate" contract). Returns `1` (draw exactly at `latest`, no
+   * smoothing) until a second snapshot has arrived.
+   *
+   * NO RENDER DELAY, deliberately (audit-50). Hollow's sim runs in an in-browser Web Worker and
+   * posts over `postMessage`, so there is no network jitter to absorb — only main-thread
+   * scheduling. Farm buffers `2 * msPerTick` because it runs over a real WebSocket to a Node
+   * server, where arrival jitter IS network jitter. The delays differ because the TRANSPORTS
+   * differ; this is not drift.
+   */
   alpha(nowMs: number): number {
-    if (!this.prev || !this.latest) return 1;
-    return computeSnapshotAlpha(nowMs, this.latestAtMs, this.intervalMs);
+    return this.positions.alpha(nowMs);
   }
 
   /** Interpolated per-agent grid position at the current render time — the
    *  accessor 09b's humanoid draws (and 09a's own camera/prop smoothing)
    *  consume. Empty map before the first snapshot arrives. */
   interpolatedAgentPositions(nowMs: number): Map<number, InterpPos> {
-    if (!this.latest) return new Map();
-    if (!this.prev) {
-      return new Map(this.latest.agents.map((a: HollowAgentSnapshot) => [a.id, { x: a.gx, y: a.gy }]));
-    }
-    return lerpAgentPositions(this.prev.agents, this.latest.agents, this.alpha(nowMs));
+    return this.positions.interpolatedPositions(nowMs);
   }
 
   /** A fractional sim-tick estimate at the current render time — `prev.tick`

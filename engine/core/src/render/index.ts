@@ -28,6 +28,11 @@ export { resolveStaticRegion, staticBlitRect } from "./static-region";
 export type { StaticRegion, StaticBlit } from "./static-region";
 export {
   lerp,
+  // Exported with no external caller today — it is used internally by `computeSnapshotAlpha` and
+  // `lerpEntityPositions`. KEPT on purpose (audit-50): it is a legitimate primitive for a consumer
+  // building its own alpha path, and pulling it would be a breaking change to the published
+  // `@engine/core` surface for no gain now that `SnapshotInterpBuffer` beside it has a real
+  // adopter (Hollow's `render3d/interp.ts`).
   clampAlpha,
   computeSnapshotAlpha,
   lerpEntityPositions,

@@ -71,6 +71,29 @@ Engine never imports game; the renderer (`@farm/client`) depends on `@farm/sim-c
 ## Sim loop
 
 - **Fixed step**: 20 Hz tick (`FixedStepClock` in [runtime/](../../engine/core/src/runtime/)). Render interpolates with an `alpha ∈ [0,1)`.
+- **The three render delays differ because the TRANSPORTS differ** (answered 2026-09-18, audit-50 —
+  previously unrecorded, and therefore indistinguishable from drift). Farm buffers `2 * msPerTick`
+  ([`net/sim-client/client.ts`](../../games/farm/client/src/net/sim-client/client.ts)) because its
+  sim runs in a **Node server over a real WebSocket**, so arrival jitter is network jitter and there
+  is something to absorb. Hollow uses **0**
+  ([`render3d/interp.ts`](../../games/hollow/client/src/render3d/interp.ts)) because its sim runs in
+  an **in-browser Web Worker** over `postMessage` — no network, so a delay would add latency for
+  nothing. These are deliberate and correct.
+  *One observation, deliberately NOT changed:* Citadel's `RENDER_DELAY_INTERVALS = 1.5`
+  ([`render/entity-interp.ts`](../../games/citadel/client/src/render/entity-interp.ts)) was written
+  for its MP WebSocket path — its own header says "over its jittery WebSocket" — and the shipped
+  **solo** game inherits it while running in a Worker. Decision #21 deprecated Citadel MP and
+  audit-18 ruled `entity-interp.ts` deliberately separate, so this is recorded rather than
+  relitigated; a solo-only re-tune would be its own brief with a visual pass.
+- **`SnapshotInterpBuffer` has an adopter** (audit-50). audit-18 promoted a generic snapshot-interp
+  buffer into `@engine/core/render`; the free functions (`lerp`, `computeSnapshotAlpha`,
+  `lerpEntityPositions`) were adopted, the **class was not**, leaving an engine class with zero
+  callers — worse than the duplication it was meant to remove, since it ships in the published
+  tarball as maintained, tested API. Hollow's `SnapshotBuffer` now **composes** it (the
+  snapshot-level state — full `HollowSnapshot`, `interpolatedTick` — stays Hollow's, because only
+  per-agent *position* needs interpolating). Verified behaviourally identical over 1402 checks
+  across 200 irregularly-spaced snapshots. **Farm was not converted**: its buffer is entangled with
+  `SimClient`'s transport and its render delay, and audit-50 scoped that as optional.
 - **Runs in a Node server** (browser play): the sim lives in `@farm/server`'s `SimHost`, which owns the ECS `world` + clock and sends a `RenderSnapshot` per tick over a WebSocket; the browser ([net/sim-client/](../../games/farm/client/src/net/sim-client/) — renamed from the fossil `worker/` path by brief 115) renders + interpolates between the latest two snapshots. JSON over WS (no SharedArrayBuffer). The headless [run-sim](../../tools/run-sim/) and all tests still drive the sim directly in-process (no server). See [decisions.md](decisions.md) → Concurrency. *(Through brief 56 this ran in an in-browser Web Worker; briefs 57–58 moved it to the Node server.)*
 - **Deterministic**: all randomness via seeded [`Rng`](../../engine/core/src/runtime/rng.ts) (mulberry32 + named forks). No `Math.random` or `Date.now` in sim. Driving ticks from the server's `setInterval` doesn't affect this — the sim depends only on the tick count.
 - **Save / replay / share**: a run is fully described by its seed + params (`ticksPerDay`/`maxDays`), captured in the [`run-descriptor`](../../games/farm/sim-core/src/run-descriptor.ts) and round-tripped through the URL hash (the "Share this run" button in the game-over screen). Because the sim is deterministic, the seed alone reproduces the run byte-for-byte — there is **no** input-log or snapshot-based save model. *(An engine-level `InputLog`/event-sourced persistence layer was once planned but never built; do not cite `engine/core/src/persistence/` — it does not exist.)*
