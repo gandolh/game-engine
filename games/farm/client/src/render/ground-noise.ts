@@ -2,55 +2,12 @@
 
 import { EDG } from "@engine/core/render";
 
-function hash2(x: number, y: number, seed: number): number {
-  let h = (seed ^ Math.imul(x, 374761393) ^ Math.imul(y, 668265263)) >>> 0;
-  h = Math.imul(h ^ (h >>> 13), 1274126177) >>> 0;
-  h = (h ^ (h >>> 16)) >>> 0;
-  return h / 4294967296;
-}
-
-export function valueNoise2d(x: number, y: number, seed: number): number {
-  const x0 = Math.floor(x);
-  const y0 = Math.floor(y);
-  const fx = x - x0;
-  const fy = y - y0;
-
-  const s = seed >>> 0;
-  const c00 = hash2(x0, y0, s);
-  const c10 = hash2(x0 + 1, y0, s);
-  const c01 = hash2(x0, y0 + 1, s);
-  const c11 = hash2(x0 + 1, y0 + 1, s);
-
-  const ux = fx * fx * (3 - 2 * fx);
-  const uy = fy * fy * (3 - 2 * fy);
-
-  const top = c00 + (c10 - c00) * ux;
-  const bottom = c01 + (c11 - c01) * ux;
-  return top + (bottom - top) * uy;
-}
-
-export function fbm(
-  x: number,
-  y: number,
-  seed: number,
-  octaves: number,
-  lacunarity: number,
-  gain: number,
-): number {
-  let freq = 1;
-  let amp = 1;
-  let sum = 0;
-  let ampSum = 0;
-  const base = seed >>> 0;
-  for (let i = 0; i < octaves; i++) {
-    const octaveSeed = (base + Math.imul(i, 0x9e3779b1)) >>> 0;
-    sum += amp * valueNoise2d(x * freq, y * freq, octaveSeed);
-    ampSum += amp;
-    freq *= lacunarity;
-    amp *= gain;
-  }
-  return ampSum > 0 ? sum / ampSum : 0;
-}
+// `hash2`, `valueNoise2d` and `fbm` moved to `@engine/core/render` (audit-61). `hash2` was
+// byte-identical in two files of THIS package alone (here and `water-depth.ts`). Re-exported so
+// this module's existing importers are unaffected.
+export { hash2, valueNoise2d, fbm } from "@engine/core/render";
+// ...and imported for this module's own use below.
+import { fbm } from "@engine/core/render";
 
 export const GROUND_NOISE_AMPLITUDE = 0.12;
 

@@ -12,6 +12,7 @@
 import { CITADEL_PAL as EDG } from "./citadel-palette";
 import type { Ctx2D } from "@engine/core";
 import { TerrainType, TILE_SIZE } from "@citadel/sim-core";
+import { fbm3, valueNoise21 } from "@engine/core/render";
 import type { TerrainGrid } from "@citadel/sim-core";
 import { TERRAIN_COLORS } from "./quads";
 import type { TileWindow } from "./render-window";
@@ -131,49 +132,14 @@ export function ditherHash(tx: number, ty: number, type: number): number {
 // of EDG shades, exactly like the shader's alpha tiers. It is a LOW-freq term
 // LAYERED ON TOP OF the existing high-freq `(tx,ty,type)` dither clusters below.
 
-/** cloud.wgsl `hash21`: 2D coord → pseudo-random float in [0,1). */
-export function hash21(px: number, py: number): number {
-  const s = Math.sin(px * 127.1 + py * 311.7) * 43758.5453;
-  return s - Math.floor(s); // fract
-}
-
-/**
- * cloud.wgsl `valueNoise`: bilinear value noise with cubic-Hermite smoothing
- * (smoother than linear; avoids crease seams). Returns a smooth 0..1 value.
- */
-export function valueNoise(px: number, py: number): number {
-  const ix = Math.floor(px);
-  const iy = Math.floor(py);
-  const frx = px - ix;
-  const fry = py - iy;
-  // Cubic Hermite smoothing.
-  const smx = frx * frx * (3 - 2 * frx);
-  const smy = fry * fry * (3 - 2 * fry);
-  const a = hash21(ix, iy);
-  const b = hash21(ix + 1, iy);
-  const c = hash21(ix, iy + 1);
-  const d = hash21(ix + 1, iy + 1);
-  // mix(mix(a,b,smx), mix(c,d,smx), smy)
-  const top = a + (b - a) * smx;
-  const bot = c + (d - c) * smx;
-  return top + (bot - top) * smy;
-}
-
-/**
- * cloud.wgsl `fbm3`: 3 octaves of value noise, freq ×2 / amp ÷2 per octave,
- * normalized by 0.875 (0.5 + 0.25 + 0.125). Roughly [0,1]. Pure.
- */
-export function fbm3(px: number, py: number): number {
-  let val = 0;
-  let amp = 0.5;
-  let freq = 1.0;
-  val += amp * valueNoise(px * freq, py * freq);
-  amp *= 0.5; freq *= 2.0;
-  val += amp * valueNoise(px * freq, py * freq);
-  amp *= 0.5; freq *= 2.0;
-  val += amp * valueNoise(px * freq, py * freq);
-  return val / 0.875;
-}
+// The three functions that used to be re-implemented here now come from
+// `@engine/core/render` (audit-61). They were a hand-maintained CPU mirror of
+// `cloud.frag.glsl`, kept in step by the comment above and nothing else — editing the
+// shader's noise silently desynced this ground bake from the sky it is meant to match.
+// `noise.glsl-parity.test.ts` in the engine now gates that coupling. Re-exported so this
+// module's existing importers and tests are unaffected.
+export { hash21, fbm3 } from "@engine/core/render";
+export const valueNoise = valueNoise21;
 
 /**
  * Coarse elevation field in [0,1] for a terrain cell: a low-frequency 3-octave

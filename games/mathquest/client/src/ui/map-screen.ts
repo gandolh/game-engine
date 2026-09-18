@@ -46,6 +46,7 @@
  * indicator's fixed screen-space hit region, independent of the camera/`Strings`/`Locale`) that
  * `main.ts` uses to hit-test a click against — see its own doc below.
  */
+import { hillshadeFrom } from "@engine/core/render";
 import { drawText, measureText, type UISurface } from "@engine/ui";
 import { overallMasteryTier } from "@mathquest/sim-core";
 import type { Locale, MapNode, NodeType, RunMap, RunView } from "@mathquest/sim-core";
@@ -71,8 +72,15 @@ const WARP_STRENGTH = 1.1; // domain-warp amount (Quilez): swirls noise contours
 const MOIST_FREQ = 0.05; // second, broader "moisture" field frequency (Red Blob Games elevation+moisture)
 const MOIST_WEIGHT = 0.22; // how much moisture shifts tone independently of slope
 const BOUNDARY_WAVE = 34; // px: wavy zone-seam displacement so band borders aren't dead-straight
-const SLOPE_GAIN = 1.2; // hillshade slope weight (Citadel uses 1.3)
-const HEIGHT_GAIN = 0.55; // hypsometric weight
+// Hillshade weights, passed into `@engine/core/render`'s shared `hillshadeFrom` (audit-61).
+// BOTH differ from Citadel's (slope 1.3, height 0.5) and nothing on record says why — the original
+// comment noted the slope difference without explaining it, and the height difference was not
+// noted at all. KEPT AS SHIPPED rather than converged: changing either is an art decision about
+// how much relief this map reads with, not a refactor, and it would need a visual pass to justify.
+// They are explicit parameters so the divergence stays visible instead of being buried in a
+// shared constant.
+const SLOPE_GAIN = 1.2; // Citadel: 1.3
+const HEIGHT_GAIN = 0.55; // hypsometric weight. Citadel: 0.5
 const GTILE = 24; // ground shading cell (finer than the 28px node grid ⇒ smoother band contours)
 const BAND_T = 0.13; // |shade| beyond which a cell takes the dark/light band (else base) — Citadel-style
 const SPECK_RANGE = 0.3; // shade range that saturates the per-cell speck light/dark bias
@@ -195,12 +203,23 @@ function heightAt(tx: number, ty: number, seed: number): number {
 function moistureAt(tx: number, ty: number, seed: number): number {
   return fbm(tx * MOIST_FREQ + 40.5, ty * MOIST_FREQ + 17.2, seed + 101);
 }
-/** Continuous hillshade signal: Citadel's central-difference gradient under a fixed NW sun. */
+/**
+ * Continuous hillshade signal under a fixed NW sun.
+ *
+ * The central-difference gradient is now `@engine/core/render`'s `hillshadeFrom` (audit-61) — it
+ * existed here AND in Citadel's `hillshade.ts`, re-derived by hand, so a tuning fix to one never
+ * reached the other. MateQuest's own SLOPE_GAIN / HEIGHT_GAIN are passed in and UNCHANGED:
+ * MateQuest's slope weight is 1.2 where Citadel's is 1.3, the source noted the difference without
+ * saying why it exists, and converging them would be an unrecorded art change rather than a
+ * refactor. Explicit parameters keep the disagreement visible instead of burying it.
+ */
 function terrainShade(tx: number, ty: number, seed: number): number {
-  const c = heightAt(tx, ty, seed);
-  const gx = heightAt(tx + 1, ty, seed) - heightAt(tx - 1, ty, seed);
-  const gy = heightAt(tx, ty + 1, seed) - heightAt(tx, ty - 1, seed);
-  return -(gx + gy) * SLOPE_GAIN + (c - 0.5) * HEIGHT_GAIN;
+  return hillshadeFrom(
+    (x, y) => heightAt(x, y, seed),
+    tx,
+    ty,
+    { slope: SLOPE_GAIN, height: HEIGHT_GAIN },
+  );
 }
 
 function computeMapLayout(map: RunMap, viewW: number, viewH: number): MapLayout {

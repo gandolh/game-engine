@@ -1,3 +1,5 @@
+export { hash21, valueNoise21, fbm3, hash2, valueNoise2d, fbm, hillshadeFrom, SHADER_NOISE_CONSTANTS } from "./noise";
+export type { HeightSampler, HillshadeWeights } from "./noise";
 export { TILE } from "./tile";
 export { Camera2D, MIN_ZOOM, MAX_ZOOM, expSmooth } from "./camera";
 export type { CameraConfig } from "./camera";

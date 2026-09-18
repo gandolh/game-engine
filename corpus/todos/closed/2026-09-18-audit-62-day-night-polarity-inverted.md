@@ -34,7 +34,7 @@ Same input, same shape, **opposite meaning**, under names that do not make the d
 ## The cost
 
 MateQuest and Hollow both explicitly copy Citadel's render idioms (see
-[audit-61](../2026-09-18-audit-61-noise-stack-duplicated-four-ways.md), where the copying is documented in
+[audit-61](2026-09-18-audit-61-noise-stack-duplicated-four-ways.md), where the copying is documented in
 comments). Anyone moving lighting code between games has even odds of picking the wrong polarity and
 producing a world that is brightest at midnight — which reads as a plausible wash in a screenshot and
 is exactly the kind of bug that ships. A fourth game means a fourth copy and a fourth coin flip.

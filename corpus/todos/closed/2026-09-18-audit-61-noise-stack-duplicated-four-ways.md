@@ -9,11 +9,11 @@ comments, which is what makes this actionable rather than a taste argument.
 
 Three games and one shader each carry the same noise/relief pipeline:
 
-- [`engine/core/src/render/webgl2/shaders/cloud.frag.glsl:36-67`](../../engine/core/src/render/webgl2/shaders/cloud.frag.glsl#L36-L67) — `hash21`, cubic-Hermite `valueNoise`, 3-octave `fbm3`
-- [`games/citadel/client/src/render/terrain-dither.ts:134-175`](../../games/citadel/client/src/render/terrain-dither.ts#L134-L175) — the same three functions **in TypeScript**, and `:126-131` says so: *"This is the engine's canonical noise, ported CPU-side **VERBATIM** from `engine/core/src/render/webgl2/shaders/cloud.frag.glsl`"*. Nothing keeps the two in sync.
-- [`games/citadel/client/src/render/hillshade.ts:136-145`](../../games/citadel/client/src/render/hillshade.ts#L136-L145) — the central-difference gradient
-- [`games/farm/client/src/render/ground-noise.ts:3-49`](../../games/farm/client/src/render/ground-noise.ts#L3-L49) and [`water-depth.ts:19-24`](../../games/farm/client/src/render/water-depth.ts#L19-L24) — byte-identical `hash2` bodies, in the same package
-- [`games/mathquest/client/src/ui/map-screen.ts:143-205`](../../games/mathquest/client/src/ui/map-screen.ts#L143-L205) — `// --- height field (Farm fBm + Citadel hillshade, adapted to tile coords)`, with constants deliberately off by ±0.1 (`SLOPE_GAIN = 1.2; // hillshade slope weight (Citadel uses 1.3)`) and no record of why
+- [`engine/core/src/render/webgl2/shaders/cloud.frag.glsl:36-67`](../../../engine/core/src/render/webgl2/shaders/cloud.frag.glsl#L36-L67) — `hash21`, cubic-Hermite `valueNoise`, 3-octave `fbm3`
+- [`games/citadel/client/src/render/terrain-dither.ts:134-175`](../../../games/citadel/client/src/render/terrain-dither.ts#L134-L175) — the same three functions **in TypeScript**, and `:126-131` says so: *"This is the engine's canonical noise, ported CPU-side **VERBATIM** from `engine/core/src/render/webgl2/shaders/cloud.frag.glsl`"*. Nothing keeps the two in sync.
+- [`games/citadel/client/src/render/hillshade.ts:136-145`](../../../games/citadel/client/src/render/hillshade.ts#L136-L145) — the central-difference gradient
+- [`games/farm/client/src/render/ground-noise.ts:3-49`](../../../games/farm/client/src/render/ground-noise.ts#L3-L49) and [`water-depth.ts:19-24`](../../../games/farm/client/src/render/water-depth.ts#L19-L24) — byte-identical `hash2` bodies, in the same package
+- [`games/mathquest/client/src/ui/map-screen.ts:143-205`](../../../games/mathquest/client/src/ui/map-screen.ts#L143-L205) — `// --- height field (Farm fBm + Citadel hillshade, adapted to tile coords)`, with constants deliberately off by ±0.1 (`SLOPE_GAIN = 1.2; // hillshade slope weight (Citadel uses 1.3)`) and no record of why
 
 ## The cost
 
@@ -47,7 +47,7 @@ drift.
 - the GLSL's **colour** handling — locked: every colour from a palette-role uniform, no literals,
   guarded by `glsl-lint.test.ts`
 - any game's palette mapping — extract the numbers, leave the colour decisions where they are
-- [`games/mathquest/client/src/ui/map-screen.ts`](../../games/mathquest/client/src/ui/map-screen.ts)
+- [`games/mathquest/client/src/ui/map-screen.ts`](../../../games/mathquest/client/src/ui/map-screen.ts)
   beyond the noise/terrain third. That file is an 850-line god module and splitting it is its own job.
 
 ## Acceptance

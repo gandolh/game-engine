@@ -34,6 +34,7 @@
  * one place and this module carries no hex. No RNG, no `Date`, no sim mutation —
  * a bake decoration, never persisted, identical every call.
  */
+import { hillshadeFrom } from "@engine/core/render";
 import { TerrainType } from "@citadel/sim-core";
 
 // ---------------------------------------------------------------------------
@@ -134,11 +135,12 @@ export const HEIGHT_GAIN = 0.5;
  * Pure — a plain function of the sampled heights.
  */
 export function hillshade(sample: HeightSampler, tx: number, ty: number): number {
-  const hC = sample(tx, ty);
-  const gx = sample(tx + 1, ty) - sample(tx - 1, ty);
-  const gy = sample(tx, ty + 1) - sample(tx, ty - 1);
-  const slopeLight = -(gx + gy);
-  return SLOPE_GAIN * slopeLight + HEIGHT_GAIN * (hC - 0.5);
+  // The gradient itself is `@engine/core/render`'s `hillshadeFrom` (audit-61) — MateQuest's map
+  // screen re-derived this same central-difference formula by hand. Citadel's own SLOPE_GAIN /
+  // HEIGHT_GAIN stay HERE and are passed in: MateQuest uses a different slope weight (1.2 vs 1.3)
+  // with no record of why, so the weights are explicit per-game parameters rather than shared
+  // constants. Converging them would be an unrecorded art change.
+  return hillshadeFrom(sample, tx, ty, { slope: SLOPE_GAIN, height: HEIGHT_GAIN });
 }
 
 /** A quantized shade band: −1 shadowed (dark), 0 neutral (base), +1 lit (light). */

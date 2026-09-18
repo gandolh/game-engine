@@ -2,6 +2,8 @@
 
 import { EDG } from "@engine/core";
 import { oceanDepthAt, COAST_DEPTH_MAX } from "@farm/sim-core/render-systems";
+// audit-61: was a byte-identical private copy of ground-noise.ts's hash2, in the same package.
+import { hash2 } from "@engine/core/render";
 
 type AnyCtx2D = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 
@@ -14,13 +16,6 @@ const SPECKLE: ReadonlyArray<{ density: number; alpha: number; colors: readonly 
 ];
 
 const SPECKLE_PX = 2;
-
-function hash2(x: number, y: number, seed: number): number {
-  let h = (seed ^ Math.imul(x, 374761393) ^ Math.imul(y, 668265263)) >>> 0;
-  h = Math.imul(h ^ (h >>> 13), 1274126177) >>> 0;
-  h = (h ^ (h >>> 16)) >>> 0;
-  return h / 4294967296;
-}
 
 const SPECKLE_COLOR_SEED = 0x85ebca6b;
 
