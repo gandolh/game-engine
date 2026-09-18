@@ -50,6 +50,108 @@ describe("AuctionSystem — Vickrey", () => {
     expect(res!.participants.sort()).toEqual([101, 102, 103]);
   });
 
+  // ---------------------------------------------------------------------
+  // audit-38 — one live bid per bidder.
+  //
+  // Re-bidding is the ORDINARY case, not a hostile one: the auction window is
+  // `round(ticksPerDay * 1.5)` (market-wall.ts), so it spans more than a day; the
+  // `openAuction` belief survives until `closesAtTick`; and the intention queue is wiped
+  // and rebuilt every deliberation, with bean-valuation.ts unconditionally re-queueing an
+  // `auction-bid` whenever that belief is present. So every interested farmer bids at least
+  // twice inside a single window.
+  //
+  // Without the dedupe, `resolveVickrey` takes the clearing price from `sorted[i+1]`, which
+  // can be the WINNER'S OWN second bid — charging a second-price auction's winner their own
+  // first price.
+  // ---------------------------------------------------------------------
+  it("a re-bidding farmer is not charged their OWN duplicate bid as the second price", () => {
+    const cfp: AuctionCfpBody = {
+      auctionId: "v-dup",
+      type: "vickrey",
+      item: "golden_bean",
+      reservePrice: 10,
+      closesAtTick: 5,
+    };
+    sys.openAuction(cfp);
+    // Farmer 3 deliberates twice inside the window; so does farmer 7. The true second price
+    // is 110 — farmer 7's bid — not farmer 3's own 300.
+    sys.submitBid({ auctionId: "v-dup", bidderId: 3, amount: 300 }, 1);
+    sys.submitBid({ auctionId: "v-dup", bidderId: 7, amount: 110 }, 1);
+    sys.submitBid({ auctionId: "v-dup", bidderId: 3, amount: 300 }, 2);
+    sys.submitBid({ auctionId: "v-dup", bidderId: 7, amount: 110 }, 2);
+
+    sys.run({ tick: 5 });
+
+    const res = findResult(bus, "v-dup")!;
+    expect(res.winnerId).toBe(3);
+    expect(res.paidPrice).toBe(110); // was 300 — the winner's own duplicate bid
+    expect(res.participants).toEqual([3, 7]);
+  });
+
+  it("a re-bid REPLACES the bidder's previous bid rather than stacking beside it", () => {
+    const cfp: AuctionCfpBody = {
+      auctionId: "v-rev",
+      type: "vickrey",
+      item: "golden_bean",
+      reservePrice: 10,
+      closesAtTick: 9,
+    };
+    sys.openAuction(cfp);
+    sys.submitBid({ auctionId: "v-rev", bidderId: 3, amount: 300 }, 1);
+    sys.submitBid({ auctionId: "v-rev", bidderId: 7, amount: 200 }, 2);
+    // Farmer 3 re-deliberates and now values the bean LOWER (gold spent elsewhere meanwhile).
+    // The newest deliberation is the farmer's current willingness to pay, so it wins out.
+    sys.submitBid({ auctionId: "v-rev", bidderId: 3, amount: 50 }, 3);
+
+    sys.run({ tick: 9 });
+
+    const res = findResult(bus, "v-rev")!;
+    expect(res.winnerId).toBe(7);   // 3's stale 300 must not still be in the ladder
+    expect(res.paidPrice).toBe(50); // second price = 3's CURRENT bid
+  });
+
+  it("a bidder with exactly one bid is unaffected", () => {
+    const cfp: AuctionCfpBody = {
+      auctionId: "v-single",
+      type: "vickrey",
+      item: "golden_bean",
+      reservePrice: 10,
+      closesAtTick: 5,
+    };
+    sys.openAuction(cfp);
+    sys.submitBid({ auctionId: "v-single", bidderId: 101, amount: 50 }, 1);
+    sys.submitBid({ auctionId: "v-single", bidderId: 102, amount: 90 }, 2);
+    sys.submitBid({ auctionId: "v-single", bidderId: 103, amount: 70 }, 3);
+
+    sys.run({ tick: 5 });
+
+    const res = findResult(bus, "v-single")!;
+    expect(res.winnerId).toBe(102);
+    expect(res.paidPrice).toBe(70);
+  });
+
+  it("a single bidder re-bidding still pays only the reserve", () => {
+    const cfp: AuctionCfpBody = {
+      auctionId: "v-solo",
+      type: "vickrey",
+      item: "golden_bean",
+      reservePrice: 10,
+      closesAtTick: 5,
+    };
+    sys.openAuction(cfp);
+    // Before the fix this paid 40 — a one-bidder auction charging a "second price" that was
+    // the same farmer bidding twice.
+    sys.submitBid({ auctionId: "v-solo", bidderId: 42, amount: 40 }, 1);
+    sys.submitBid({ auctionId: "v-solo", bidderId: 42, amount: 40 }, 2);
+
+    sys.run({ tick: 5 });
+
+    const res = findResult(bus, "v-solo")!;
+    expect(res.winnerId).toBe(42);
+    expect(res.paidPrice).toBe(10);
+    expect(res.participants).toEqual([42]);
+  });
+
   it("with 1 bid: paid = reserve price", () => {
     const cfp: AuctionCfpBody = {
       auctionId: "v2",
@@ -361,6 +463,30 @@ describe("AuctionSystem — FPSB", () => {
     expect(res).toBeDefined();
     expect(res!.winnerId).toBe(301); 
     expect(res!.paidPrice).toBe(50); 
+  });
+
+  it("a re-bid replaces the bidder's previous bid here too (audit-38)", () => {
+    // FPSB pays its own bid, so a duplicate could not mis-price the winner — but the dedupe
+    // lives in `submitBid` precisely so the invariant is a property of the DATA rather than of
+    // each resolver. This pins the FPSB half of that.
+    const cfp: AuctionCfpBody = {
+      auctionId: "f-dup",
+      type: "fpsb",
+      item: "golden_bean",
+      reservePrice: 10,
+      closesAtTick: 9,
+    };
+    sys.openAuction(cfp);
+    sys.submitBid({ auctionId: "f-dup", bidderId: 3, amount: 300 }, 1);
+    sys.submitBid({ auctionId: "f-dup", bidderId: 7, amount: 200 }, 2);
+    sys.submitBid({ auctionId: "f-dup", bidderId: 3, amount: 50 }, 3);
+
+    sys.run({ tick: 9 });
+
+    const res = findResult(bus, "f-dup")!;
+    expect(res.winnerId).toBe(7);    // 3's stale 300 is gone from the ladder
+    expect(res.paidPrice).toBe(200); // FPSB: the winner pays their own bid
+    expect(res.participants).toEqual([3, 7]); // first-bid order, one entry each
   });
 
   it("no bids → no winner, paid = reserve", () => {

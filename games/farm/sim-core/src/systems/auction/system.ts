@@ -156,7 +156,31 @@ export class AuctionSystem implements System {
       case "vickrey":
       case "fpsb": {
         if (tick >= a.cfp.closesAtTick) return false;
-        a.bids.push({ bidderId: bid.bidderId, amount: bid.amount, tickReceived: tick });
+        // ONE LIVE BID PER BIDDER, and a re-bid REPLACES the previous one (audit-38).
+        //
+        // WHY DEDUPE AT ALL: the auction window is `round(ticksPerDay * 1.5)` — longer than a
+        // day — the `openAuction` belief survives until `closesAtTick`, and the intention queue
+        // is rebuilt every deliberation, so `bean-valuation.ts` re-queues an `auction-bid` on
+        // every pass. Re-bidding is the NORMAL behaviour of the agent layer, not an abuse, and
+        // the auction is what has to tolerate it. With duplicates in the array,
+        // `resolveVickrey`'s second-price ladder could take the clearing price from the
+        // winner's OWN second bid — the comment there says "the next COMPETING bid", and this
+        // is what makes that word true of the data instead of true of one reader.
+        //
+        // WHY REPLACE RATHER THAN REJECT: each bid is that deliberation's freshly computed
+        // valuation, so the newest one is the farmer's CURRENT willingness to pay — a farmer
+        // whose gold dropped between deliberations should not stay bound to a stale higher
+        // offer. (Solvency is separately re-checked against live gold at resolve time by
+        // `canAfford`.) Rejecting would instead pin the earliest, stalest number.
+        //
+        // The replacement is IN PLACE, so array position stays first-bid order: that keeps
+        // `uniqueParticipants` stable and leaves `compareSealedBids`' total order — which is
+        // determinism-load-bearing — reading a single, well-defined record per bidder.
+        // `tickReceived` moves with the amount: the live bid is the new one, in full.
+        const existing = a.bids.findIndex((b) => b.bidderId === bid.bidderId);
+        const record = { bidderId: bid.bidderId, amount: bid.amount, tickReceived: tick };
+        if (existing >= 0) a.bids[existing] = record;
+        else a.bids.push(record);
         return true;
       }
       case "dutch": {

@@ -259,8 +259,43 @@ export class CombatSystem implements System {
     aCanSwing: boolean,
     bCanSwing: boolean,
   ): void {
-    if (bout.context === "ring") {
+    // MUTUAL EXHAUSTION IS A DRAW, in either context (audit-46).
+    //
+    // Hoisted ABOVE the ring branch because that branch already assumes exactly one side is out
+    // (`aOut = !aCanSwing` → the other one "wins"), and when both are out that silently made `a`
+    // — always `bout.aId`, the INITIATOR — the loser. Ring fights are AP-bound rather than
+    // HP-bound (a fist bout runs out of AP long before a KO), so two fighters starting a day
+    // phase with equal AP alternate swings and hit zero on the SAME interval: the common case,
+    // not a corner. Charging the initiator a stake and writing a fabricated win/loss into both
+    // trust ledgers on every one of those was a systematic drain over a 100-day run.
+    //
+    // The street branch below already modelled this correctly; this is the same rule, applied
+    // to both contexts and checked first.
+    if (!aCanSwing && !bCanSwing) {
+      // The ring's heal is its CONSENSUAL-SPARRING contract ("nobody leaves the ring maimed"),
+      // NOT part of the win/loss settlement — so it survives a draw. Without it, drawing would
+      // be strictly worse than losing a ring bout, which the ring never intended. No gold and no
+      // trust move: those ARE the settlement, and there is nothing to settle.
+      if (bout.context === "ring") {
+        const aEnt = this.findFarmer(bout.aId);
+        const bEnt = this.findFarmer(bout.bId);
+        if (aEnt?.health) aEnt.health.current = aEnt.health.max;
+        if (bEnt?.health) bEnt.health.current = bEnt.health.max;
+      }
+      this.endBout(bout, {
+        context: bout.context,
+        winnerId: null,
+        loserId: null,
+        koed: false,
+        fledId: null,
+        looted: 0,
+      });
+      return;
+    }
 
+    if (bout.context === "ring") {
+      // Reached only when EXACTLY ONE side is out of AP — which is what this branch always
+      // assumed. Unchanged.
       const aOut = !aCanSwing;
       const winner = aOut ? b : a;
       const loser = aOut ? a : b;
@@ -276,10 +311,8 @@ export class CombatSystem implements System {
       return;
     }
 
-    if (!aCanSwing && !bCanSwing) {
-      this.endBout(bout, { context: "street", winnerId: null, loserId: null, koed: false, fledId: null, looted: 0 });
-      return;
-    }
+    // (The street mutual-exhaustion draw that used to live here is now the hoisted check above,
+    // which covers both contexts.)
     bout.nextSwingTick += this.swingInterval; 
   }
 

@@ -104,6 +104,90 @@ describe("CombatSystem — bout lifecycle", () => {
     expect(a.inventory!.gold).toBe(90);
   });
 
+  // ---------------------------------------------------------------------
+  // audit-46 — mutual exhaustion is a DRAW, not a loss for the initiator.
+  //
+  // Ring fights are AP-bound, not HP-bound: at ticksPerDay=1200 a swing costs 2 AP every 24
+  // ticks against a 100-point pool, while FIST_DAMAGE is 4..9 against 100 HP — so a fist bout
+  // runs out of AP long before anyone is knocked out. Two farmers entering with equal AP (the
+  // normal state at the start of a day phase) alternate swings and hit zero on the SAME
+  // interval. `resolveExhaustion` is entered when EITHER side is out, and the ring branch
+  // assumed exactly one was: `aOut = !aCanSwing` made `a` — always `bout.aId`, the INITIATOR —
+  // the loser. Over a 100-day run that is a systematic gold drain on whichever personality
+  // starts ring fights, plus a stream of fabricated win/loss records.
+  // ---------------------------------------------------------------------
+  it("ring mutual exhaustion is a DRAW — no gold moves", () => {
+    // Both one swing from empty: each spends AP_PER_SWING.fist = 2 and hits zero together.
+    const a = makeFighter(world, { gold: 100, ap: 2, hp: 40 });
+    const b = makeFighter(world, { gold: 100, ap: 2, hp: 40 });
+    const { combat } = newCombat(world);
+    combat.startBout(a.id!, b.id!, "ring", 0);
+    runToEnd(combat, a, b);
+
+    expect(combat.isFighting(a.id!)).toBe(false);
+    expect(a.inventory!.gold).toBe(100); // was 90 — the initiator paid the stake for a draw
+    expect(b.inventory!.gold).toBe(100); // was 110
+  });
+
+  it("ring mutual exhaustion applies NO trust delta to either ledger", () => {
+    const a = makeFighter(world, { ap: 2 });
+    const b = makeFighter(world, { ap: 2 });
+    const { combat } = newCombat(world);
+    combat.startBout(a.id!, b.id!, "ring", 0);
+    runToEnd(combat, a, b);
+
+    // A fabricated RING_TRUST_BOND on both ledgers is the other half of the damage.
+    expect(a.trust!.byId.has(b.id!)).toBe(false);
+    expect(b.trust!.byId.has(a.id!)).toBe(false);
+  });
+
+  it("ring mutual exhaustion broadcasts a result with NO winner and NO loser", () => {
+    const a = makeFighter(world, { ap: 2 });
+    const b = makeFighter(world, { ap: 2 });
+    const { combat, bus } = newCombat(world);
+    combat.startBout(a.id!, b.id!, "ring", 0);
+    runToEnd(combat, a, b);
+
+    bus.flush();
+    const results = bus.drain().filter((m) => m.ontology === ONT_COMBAT.RESULT);
+    expect(results.length).toBe(1);
+    const body = results[0]!.body as unknown as { context: string; winnerId: number | null; loserId: number | null; koed: boolean };
+    expect(body.context).toBe("ring"); // still a ring result, not relabelled as a street one
+    expect(body.winnerId).toBeNull();
+    expect(body.loserId).toBeNull();
+    expect(body.koed).toBe(false);
+  });
+
+  it("ring mutual exhaustion still heals both fighters and releases them", () => {
+    // The ring's heal is its CONSENSUAL-SPARRING contract ("nobody leaves the ring maimed"),
+    // not part of the win/loss settlement — so it survives a draw. Without this, drawing would
+    // be strictly worse than losing, which the ring never intended.
+    const a = makeFighter(world, { ap: 2, hp: 12 });
+    const b = makeFighter(world, { ap: 2, hp: 12 });
+    const { combat } = newCombat(world);
+    combat.startBout(a.id!, b.id!, "ring", 0);
+    runToEnd(combat, a, b);
+
+    expect(a.health!.current).toBe(a.health!.max);
+    expect(b.health!.current).toBe(b.health!.max);
+    expect(a.fsm!.current).toBe("WAIT_DAY");
+    expect(b.fsm!.current).toBe("WAIT_DAY");
+  });
+
+  it("ONE-SIDED exhaustion is UNTOUCHED — winner, stake and trust bond all still apply", () => {
+    // The path the ring branch was actually written for. This must not move.
+    const a = makeFighter(world, { gold: 100, ap: 0 });
+    const b = makeFighter(world, { gold: 100, ap: 100 });
+    const { combat } = newCombat(world);
+    combat.startBout(a.id!, b.id!, "ring", 0);
+    runToEnd(combat, a, b);
+
+    expect(b.inventory!.gold).toBe(100 + RING_STAKE_GOLD);
+    expect(a.inventory!.gold).toBe(100 - RING_STAKE_GOLD);
+    expect(a.trust!.byId.get(b.id!)).toBeGreaterThan(0.5);
+    expect(b.trust!.byId.get(a.id!)).toBeGreaterThan(0.5);
+  });
+
   it("bat fighter deals more damage and tends to win vs fists (low HP target)", () => {
     const a = makeFighter(world, { hasBat: true });
     const b = makeFighter(world, { hp: 10 });
