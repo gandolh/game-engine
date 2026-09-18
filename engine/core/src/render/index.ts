@@ -1,3 +1,4 @@
+export { TILE } from "./tile";
 export { Camera2D, MIN_ZOOM, MAX_ZOOM, expSmooth } from "./camera";
 export type { CameraConfig } from "./camera";
 export type { Sprite, Ctx2D } from "./sprite-types";

@@ -15,6 +15,7 @@
 
 import type { Ctx2D } from "./sprite-types";
 import { EDG } from "./palette";
+import { TILE } from "./tile";
 
 export type WeatherKind = "rain" | "snow" | "none";
 
@@ -44,8 +45,6 @@ interface Drop {
   scale: number; // 0.7..1.2 depth cue (longer/larger when "nearer")
   phase: number; // snow sway phase
 }
-
-const TILE = 16;
 const CULL_MARGIN = TILE * 2;
 
 // Per-kind tuning. maxZ is the fall height; vz the fall speed range; density is drops per tile².

@@ -472,8 +472,7 @@ import {
   farmerCue,
 } from "./snapshot-builder/indicators";
 import type { CropKind } from "./components";
-
-const TILE = 16;
+import { TILE } from "@engine/core/render";
 
 function snapAt(sim: ReturnType<typeof bootstrapSim>, tick: number) {
   return buildRenderSnapshot(

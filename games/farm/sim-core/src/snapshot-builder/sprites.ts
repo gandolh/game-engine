@@ -12,8 +12,7 @@ import {
   INTENTION_KIND_TO_GLYPH,
 } from "./constants";
 import { cropCue, farmerCue, UNTINTED_RGBA } from "./indicators";
-
-const TILE = 16;
+import { TILE } from "@engine/core/render";
 
 export class SnapshotSpriteState {
   readonly lastIntention = new Map<

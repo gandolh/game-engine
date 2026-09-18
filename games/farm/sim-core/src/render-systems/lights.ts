@@ -1,4 +1,4 @@
-import { EDG } from "@engine/core/render";
+import { EDG, TILE } from "@engine/core/render";
 import {
   CAMPFIRE_TILE,
   getRegion,
@@ -20,8 +20,6 @@ export interface LightEmitter {
 
   intensity: number;
 }
-
-const TILE = 16;
 
 function farmhouseWindows(): LightEmitter[] {
   return REGIONS.filter((r) => r.kind === "farm").map((r) => ({

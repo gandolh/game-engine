@@ -28,8 +28,7 @@ import type { SnapshotShock } from "@farm/sim-core/snapshot";
 import { createPathfinderFromBytes, Profiler } from "@engine/core";
 import type { PathfinderLike } from "@farm/sim-core/sim-bootstrap";
 import type { Scheduler } from "@engine/core/sim";
-
-const TILE = 16;
+import { TILE } from "@engine/core/render";
 const PROFILE_REPORT_EVERY = 60;
 const MAX_SPEED_MULTIPLIER = 8;
 const MIN_TICK_RATE_HZ = 1;

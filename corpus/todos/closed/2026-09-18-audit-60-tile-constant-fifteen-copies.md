@@ -11,18 +11,18 @@ The tile→world-pixel scale is load-bearing across sim-core sprite production, 
 the client's screen↔tile mapping and the offline PNG renderer. `grep -rn 'TILE = 16;'` returns **22
 hits** (15 in production source, the rest in tests):
 
-- the *exported* one: [`games/farm/client/src/main/config.ts:18`](../../games/farm/client/src/main/config.ts#L18)
-  — imported by 9 client modules including [`screen-to-tile.ts:3`](../../games/farm/client/src/main/screen-to-tile.ts#L3) (`Math.floor(wx / TILE)`)
-- and 14 private redeclarations: [`engine/core/src/render/rain-field.ts:48`](../../engine/core/src/render/rain-field.ts#L48),
-  [`games/farm/server/src/sim-host.ts:32`](../../games/farm/server/src/sim-host.ts#L32),
-  [`tools/world-preview/src/index.ts:17`](../../tools/world-preview/src/index.ts#L17),
-  six under [`games/farm/sim-core/src/render-systems/`](../../games/farm/sim-core/src/render-systems/)
+- the *exported* one: [`games/farm/client/src/main/config.ts:18`](../../../games/farm/client/src/main/config.ts#L18)
+  — imported by 9 client modules including [`screen-to-tile.ts:3`](../../../games/farm/client/src/main/screen-to-tile.ts#L3) (`Math.floor(wx / TILE)`)
+- and 14 private redeclarations: [`engine/core/src/render/rain-field.ts:48`](../../../engine/core/src/render/rain-field.ts#L48),
+  [`games/farm/server/src/sim-host.ts:32`](../../../games/farm/server/src/sim-host.ts#L32),
+  [`tools/world-preview/src/index.ts:17`](../../../tools/world-preview/src/index.ts#L17),
+  six under [`games/farm/sim-core/src/render-systems/`](../../../games/farm/sim-core/src/render-systems/)
   (`frames.ts:6`, `geometry.ts:34`, `interior-decor.ts:22`, `lights.ts:24`, `occluders.ts:7`,
   `snapshot-sprites.ts:5`, `static-layer.ts:29`),
-  [`snapshot-builder/sprites.ts:16`](../../games/farm/sim-core/src/snapshot-builder/sprites.ts#L16),
+  [`snapshot-builder/sprites.ts:16`](../../../games/farm/sim-core/src/snapshot-builder/sprites.ts#L16),
   and three client render modules.
 
-Citadel has its own `TILE_SIZE = 16` ([`world/terrain.ts:22`](../../games/citadel/sim-core/src/world/terrain.ts#L22)).
+Citadel has its own `TILE_SIZE = 16` ([`world/terrain.ts:22`](../../../games/citadel/sim-core/src/world/terrain.ts#L22)).
 No test asserts any two of them agree.
 
 ## The cost

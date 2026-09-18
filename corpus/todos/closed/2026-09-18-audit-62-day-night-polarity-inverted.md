@@ -53,9 +53,9 @@ find out whether any of the three is already wrong, which this sweep did not det
 
 ## Files you OWN
 - a new module in `engine/core/src/` (or an addition to an existing generic one)
-- [`games/farm/sim-core/src/systems/day-phase.ts`](../../games/farm/sim-core/src/systems/day-phase.ts)
-- [`games/citadel/client/src/render/atmosphere.ts`](../../games/citadel/client/src/render/atmosphere.ts)
-- [`games/hollow/client/src/render3d/day-night.ts`](../../games/hollow/client/src/render3d/day-night.ts)
+- [`games/farm/sim-core/src/systems/day-phase.ts`](../../../games/farm/sim-core/src/systems/day-phase.ts)
+- [`games/citadel/client/src/render/atmosphere.ts`](../../../games/citadel/client/src/render/atmosphere.ts)
+- [`games/hollow/client/src/render3d/day-night.ts`](../../../games/hollow/client/src/render3d/day-night.ts)
 
 ## Files you must NOT touch
 - each game's wash **colours** and season tables — locked per-game palettes; extract the curve, not

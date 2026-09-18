@@ -1,8 +1,6 @@
 import { LIGHT_EMITTERS, emitterPx, type LightEmitter } from "@farm/sim-core/render-systems";
-import { rgbOf } from "@engine/core/render";
+import { rgbOf, TILE } from "@engine/core/render";
 import type { Ctx2D } from "@engine/core/render";
-
-const TILE = 16;
 
 interface Glow {
   cx: number;

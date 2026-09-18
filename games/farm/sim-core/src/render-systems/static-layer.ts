@@ -25,8 +25,7 @@ import { SET_PIECES, SET_PIECE_ALPHA } from "./set-pieces";
 import { SEABED_LIFE, SEABED_LIFE_ALPHA } from "./seabed-life";
 import { computeInteriorDecor, INTERIOR_DECOR_ALPHA } from "./interior-decor";
 import { frameToAtlasId } from "./frames";
-
-const TILE = 16;
+import { TILE } from "@engine/core/render";
 
 const SEASON_GRASS: Record<Season, string> = {
   spring: "tile/grass-spring",

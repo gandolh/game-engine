@@ -5,8 +5,7 @@ import type { GameEntity } from "../components";
 import { OCCLUDER_WALLS, CLIFFS, isOccluderWall, WALLS } from "./geometry";
 import { iterStaticSprites } from "./static-layer";
 import { pushOccluderSprites } from "./occluders";
-
-const TILE = 16;
+import { TILE } from "@engine/core/render";
 
 describe("occluder walls", () => {
   it("exist (the archipelago has south-facing stone/wood edges)", () => {

@@ -2,8 +2,7 @@ import type { GameEntity } from "../components";
 import type { Season } from "../protocols/weather";
 import { easeOutQuad } from "@engine/core";
 import { loopClip, sampleCycle } from "./cycle";
-
-const TILE = 16;
+import { TILE } from "@engine/core/render";
 
 export const FOAM_FRAMES = ["tile/foam-a", "tile/foam-b", "tile/foam-c"] as const;
 

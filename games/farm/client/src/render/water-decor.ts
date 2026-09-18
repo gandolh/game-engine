@@ -4,8 +4,7 @@ import type { RendererLike, ParticleSystem } from "@engine/core";
 import { EDG, createRng } from "@engine/core";
 import { oceanDepthAt, LAYER } from "@farm/sim-core/render-systems";
 import { isWalkable, WORLD_WIDTH, WORLD_HEIGHT, WORLD_GEN_SEED } from "@farm/sim-core/world/regions";
-
-const TILE = 16;
+import { TILE } from "@engine/core/render";
 
 const UNDERWATER_TINT = 0xb4ccea_ff; 
 

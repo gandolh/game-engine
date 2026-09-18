@@ -18,8 +18,7 @@ import {
 import { BRIDGE_SET } from "./geometry";
 import { CORAL_REEFS } from "../world/coral";
 import { PORTS } from "../world/ports";
-
-const TILE = 16;
+import { TILE } from "@engine/core/render";
 const QUARTER_TURN = Math.PI / 2;
 
 export interface InteriorDecorTile {

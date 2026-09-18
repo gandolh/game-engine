@@ -3,8 +3,7 @@
 import type { RendererLike } from "@engine/core";
 import { CORAL, LAYER } from "@farm/sim-core/render-systems";
 import { isWalkable, WORLD_WIDTH, WORLD_HEIGHT } from "@farm/sim-core/world/regions";
-
-const TILE = 16;
+import { TILE } from "@engine/core/render";
 
 interface View { left: number; right: number; top: number; bottom: number; }
 

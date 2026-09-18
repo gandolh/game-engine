@@ -19,6 +19,7 @@
  * independently-tested primitives; `simDayPhaseWash` is what `app.ts` now
  * calls for the real per-frame wash.
  */
+import { dayFraction, daylightFactor } from "@engine/core/sim";
 import type { Vec3 } from "@engine/core/render3d";
 import { dayPhase, type DayPhase } from "@hollow/sim-core/world";
 
@@ -36,9 +37,9 @@ const DAY_AMBIENT = 0.42;
  *  accepts a fractional `tick` (render-clock-smoothed) as well as an
  *  integer one. Defensively returns 0 for a degenerate `ticksPerDay`. */
 export function dayNightPhase(tick: number, ticksPerDay: number): number {
-  if (ticksPerDay <= 0) return 0;
-  const t = ((tick % ticksPerDay) + ticksPerDay) % ticksPerDay;
-  return t / ticksPerDay;
+  // Thin wrapper over the engine's shared implementation (audit-62) — this modulo existed three
+  // times across three games, and only two of the three guarded `ticksPerDay <= 0`.
+  return dayFraction(tick, ticksPerDay);
 }
 
 /**
@@ -51,7 +52,11 @@ export function dayNightPhase(tick: number, ticksPerDay: number): number {
  * rather than going fully dark underneath the world.
  */
 export function dayNightFromPhase(phase: number): DayNightState {
-  const dayNight = 0.5 - 0.5 * Math.cos(phase * Math.PI * 2);
+  // `dayNight` is the engine's `daylightFactor`: 0 at midnight, 1 at noon. Citadel's
+  // `nightFactorOf` is the COMPLEMENT (1 at midnight) — both correct for their own call sites, and
+  // the engine now names the pair explicitly so a call site cannot silently mean the other one
+  // (audit-62). Was `0.5 - 0.5 * Math.cos(phase * Math.PI * 2)`, which is identical.
+  const dayNight = daylightFactor(phase);
   const ambient = NIGHT_AMBIENT + (DAY_AMBIENT - NIGHT_AMBIENT) * dayNight;
   const angle = phase * Math.PI * 2 - Math.PI / 2;
   const sunDir: Vec3 = [Math.cos(angle) * 0.6, 0.5, Math.max(0.05, Math.sin(angle))];

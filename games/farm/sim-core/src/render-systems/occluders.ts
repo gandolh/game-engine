@@ -3,8 +3,7 @@ import type { RendererLike } from "@engine/core";
 import { OCCLUDER_WALLS, CLIFFS, BIG_STRUCTURES, BRIDGES } from "./geometry";
 import { frameToAtlasId, seasonalTreeFrame } from "./frames";
 import type { Season } from "../protocols/weather";
-
-const TILE = 16;
+import { TILE } from "@engine/core/render";
 
 const BRIDGE_SWAY_AMP = 1.5; 
 const BRIDGE_ROPE_SAG = 4;   

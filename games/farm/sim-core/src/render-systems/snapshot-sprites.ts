@@ -1,8 +1,7 @@
 import type { RendererLike } from "@engine/core";
 import type { Season } from "../protocols/weather";
 import { frameToAtlasId, resolveFrameAndBob } from "./frames";
-
-const TILE = 16;
+import { TILE } from "@engine/core/render";
 
 function foliageSway(
   frame: string,

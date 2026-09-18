@@ -12,6 +12,7 @@ import {
 } from "../world/regions";
 import { CORAL_REEFS } from "../world/coral";
 import { PORTS } from "../world/ports";
+import { TILE } from "@engine/core/render";
 
 export const TALL_ISLANDS: ReadonlyArray<{ region: RegionId; rows: 1 | 2 }> = [
   { region: "heritage-ruin",  rows: 1 }, 
@@ -30,8 +31,6 @@ export interface CliffTile {
 function cliffVariant(tx: number, ty: number): "a" | "b" {
   return (tx * 3 + ty * 5) % 2 === 0 ? "a" : "b";
 }
-
-const TILE = 16;
 
 export interface FenceTile {
   tx: number;

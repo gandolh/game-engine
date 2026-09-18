@@ -9,8 +9,7 @@ vi.mock("@farm/sim-core/render-systems", () => ({
 
 import { EDG } from "@engine/core";
 import { makeWaterDepthDecorator } from "./water-depth";
-
-const TILE = 16;
+import { TILE } from "@engine/core/render";
 
 function makeRecordingCtx() {
   const calls: Array<{ x: number; y: number; w: number; h: number; color: string; alpha: number }> = [];

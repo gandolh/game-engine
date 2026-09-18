@@ -3,8 +3,7 @@
 import { describe, it, expect } from "vitest";
 import { EDG } from "@engine/core";
 import { makeShoreDescentDecorator } from "./shore-descent";
-
-const TILE = 16;
+import { TILE } from "@engine/core/render";
 
 function makeRecordingCtx() {
   const calls: Array<{ x: number; y: number; w: number; h: number; color: string; alpha: number; op: string }> = [];

@@ -23,6 +23,7 @@
  * against buildings, which a full-screen additive composite cannot do. Citadel
  * passes no `overlay` today (see `main/render-loop.ts`).
  */
+import { dayFraction, nightFactor } from "@engine/core/sim";
 import { CITADEL_PAL as EDG } from "./citadel-palette";
 import { TILE_SIZE } from "@citadel/sim-core";
 import type { BuildingSnapshot } from "@citadel/sim-core";
@@ -34,13 +35,20 @@ import { packTint, type QuadSpec } from "./citadel-renderer";
 
 /**
  * Day fraction in [0, 1): how far through the in-game day we are, derived from
- * the tick within the day. `dawn` ≈ 0.0, `noon` ≈ 0.5, `dusk` ≈ 0.75, midnight
- * wraps back to 0. Pure — only depends on the tick the snapshot carries.
+ * the tick within the day. **Midnight ≈ 0.0**, `dawn` ≈ 0.22, `noon` ≈ 0.5,
+ * `dusk` ≈ 0.78, wrapping back to midnight at 1. Pure — only depends on the tick
+ * the snapshot carries.
+ *
+ * (audit-62 corrected this doc: it used to say "dawn ≈ 0.0", which contradicted
+ * both `nightFactorOf` right below it AND `duskWeight`'s own dawn/dusk band
+ * centres further down the file. Midnight-at-zero is what the code has always
+ * done; only the comment was wrong.)
+ *
+ * Thin wrapper over the engine's shared implementation — the modulo arithmetic
+ * existed three times across three games.
  */
 export function dayFractionOf(tick: number, ticksPerDay: number): number {
-  if (ticksPerDay <= 0) return 0;
-  const m = ((tick % ticksPerDay) + ticksPerDay) % ticksPerDay;
-  return m / ticksPerDay;
+  return dayFraction(tick, ticksPerDay);
 }
 
 /**
@@ -48,11 +56,13 @@ export function dayFractionOf(tick: number, ticksPerDay: number): number {
  * cosine curve over the day fraction — peak darkness at fraction 0 / 1
  * (midnight) and full daylight at 0.5 (noon). Pure.
  *
- * f = (1 + cos(2π · dayFraction)) / 2  → 1 at midnight, 0 at noon.
+ * This is the engine's `nightFactor`. Hollow's `dayNightFromPhase` uses the
+ * COMPLEMENT (`daylightFactor`, 0 at midnight) — both are correct for their own
+ * call sites, and the engine now names the pair explicitly so a call site cannot
+ * silently mean the other one. See `@engine/core/sim`'s day-cycle module.
  */
-export function nightFactorOf(dayFraction: number): number {
-  const f = (1 + Math.cos(2 * Math.PI * dayFraction)) / 2;
-  return Math.max(0, Math.min(1, f));
+export function nightFactorOf(dayFraction_: number): number {
+  return nightFactor(dayFraction_);
 }
 
 // ---------------------------------------------------------------------------

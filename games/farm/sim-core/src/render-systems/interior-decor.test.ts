@@ -17,8 +17,7 @@ import {
   MIN_SPACING,
   THEME_TABLE,
 } from "./interior-decor";
-
-const TILE = 16;
+import { TILE } from "@engine/core/render";
 const key = (x: number, y: number): number => y * WORLD_WIDTH + x;
 const toTile = (px: number): number => Math.floor(px / TILE);
 

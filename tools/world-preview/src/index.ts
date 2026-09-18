@@ -13,8 +13,7 @@ import {
 import type { AtlasManifest } from "@engine/core";
 import type { GameEntity } from "@farm/sim-core/components";
 import { PREFIX_TO_SHEET } from "@farm/atlas-recipes";
-
-const TILE = 16;
+import { TILE } from "@engine/core/render";
 const WORLD_W = WORLD_WIDTH * TILE;
 const WORLD_H = WORLD_HEIGHT * TILE;
 const SCALE = 2;

@@ -15,7 +15,16 @@ export const CONFIG: BootConfig = {
   maxDays: 100,
 };
 
-export const TILE = 16;
+/**
+ * Re-exported so the nine client modules that already import `TILE` from here keep working
+ * unchanged (audit-60). The DEFINITION now lives in `@engine/core/render` — it was a private
+ * `const TILE = 16;` in 15 production files across 4 packages, and sim-core, the server, the client
+ * and the offline renderer all have to agree on it or hover and click silently target the wrong
+ * tile.
+ */
+export { TILE } from "@engine/core/render";
+// ...and imported for this module's own use below.
+import { TILE } from "@engine/core/render";
 
 export const DEFAULT_ZOOM = 3;
 
