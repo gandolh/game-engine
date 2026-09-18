@@ -76,6 +76,16 @@ const CHART_CONFIGS: readonly ChartConfig[] = [
       { column: "antag_window", label: "antagonistic", colorRole: "red" },
     ],
   },
+  // audit-63: hollow-12 (governance/feuds) and hollow-15 (mortality/care) were readable ONLY by
+  // exporting CSV and opening it elsewhere — in a project whose stated purpose is a research
+  // instrument. The sampler already produced both of these; nothing plotted them.
+  {
+    title: "Feuds & disease (per window)",
+    series: [
+      { column: "feud_active_dyads", label: "active feuds", colorRole: "red" },
+      { column: "deaths_disease_window", label: "disease deaths", colorRole: "mauve" },
+    ],
+  },
   {
     title: "Gene drift (mean)",
     series: [

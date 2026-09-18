@@ -25,6 +25,7 @@ import type { BootedHollowSim } from "@hollow/sim-core/sim-bootstrap";
 import type { HollowEntity } from "@hollow/sim-core/sim-bootstrap";
 import type { Genome } from "@hollow/sim-core/components";
 import type { LineageEntry } from "@hollow/sim-core/lineage";
+import { COMMUNITY_DEFAULT_ADMISSION_POLICY } from "@hollow/sim-core/community";
 import { agentName } from "../agent-name";
 import type {
   InspectBdi,
@@ -116,11 +117,23 @@ function buildAliveDetail(sim: BootedHollowSim, entity: InspectableEntity): Insp
   if (entity.communityId !== null) {
     const c = sim.communities.get(entity.communityId);
     if (c) {
+      // audit-63: the snapshot has carried `leaderId` and `standing` every tick since hollow-12a
+      // with NO reader anywhere in the client. Rather than deleting them, they get the reader they
+      // were emitted for — governance is now observable in the app whose purpose is observing it.
+      const leaderId = c.leaderId;
       community = {
         id: c.id,
         memberCount: c.members.length,
         shareRate: c.norms.shareRate,
         cooperationExpectation: c.norms.cooperationExpectation,
+        admissionPolicy: c.norms.admissionPolicy ?? COMMUNITY_DEFAULT_ADMISSION_POLICY,
+        leaderId,
+        leaderName: leaderId === null ? null : agentName(leaderId),
+        isLeader: leaderId === agentId,
+        // Only THIS agent's standing crosses the boundary, not the whole `Record`. The panel shows
+        // one agent, so shipping every member's score would be paying for data nobody reads —
+        // which is exactly the shape of the problem this brief exists to fix.
+        standing: c.standing[agentId] ?? 0,
       };
     }
   }

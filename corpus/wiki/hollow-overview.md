@@ -240,6 +240,23 @@ design-of-record). Five chunks, sim-core then a render pass (`19fa2dc`·`48240fd
   time — inherent to one shared hearth; user accepted it as on-theme. (2) bounded, non-lethal chronic
   hunger on some seeds (the routine funnels foraging) — a food-economy balance item.
 
+## Governance & mortality are OBSERVABLE in the client (audit-63, 2026-09-18)
+hollow-12 (governance/feuds) and hollow-15 (mortality/care) shipped as sim-core + chronicle only, so
+two of Hollow's six milestones were readable *only* by exporting CSV and opening it elsewhere — in a
+project whose stated purpose is a research instrument. Closed 2026-09-18:
+- **Dashboard** gained a seventh chart, *Feuds & disease (per window)*, plotting `feud_active_dyads`
+  and `deaths_disease_window`. The sampler already produced both; nothing plotted them.
+- **Inspect panel** now shows the community's **leader** (by name, or "this agent"), the inspected
+  agent's own **standing**, and **all three** votable norms — `admissionPolicy` included, which is
+  honest only because [audit-49](#load-bearing-decisions) made it binding first.
+- **The snapshot stopped paying for data nobody read.** `standing` — a full `Record<number, number>`
+  of every member's score — was structured-cloned across the worker boundary every tick with zero
+  readers. It is **removed**: the inspect path reads the LIVE community (`worker/inspect.ts`) and
+  needs one agent's score, not the whole map. `leaderId` stays (one number, and now rendered). The
+  live registry remains the source of truth; a per-tick renderer that wants standing back should add
+  it *with* that renderer, not ahead of one.
+- No sim behaviour change: seed 7 over 8 compressed years is byte-identical across all four exports.
+
 ## M6 — Mortality & Care (hollow-15, done 2026-07-21)
 Gave death consequences and a care economy. Sim-core complete + headless-verified; render dispatched
 separately (visual; no longer Chrome-gated since 2026-08-18). Brief: [../todos/2026-07-21-hollow-15-mortality-and-care.md](../todos/closed/2026-07-21-hollow-15-mortality-and-care.md).

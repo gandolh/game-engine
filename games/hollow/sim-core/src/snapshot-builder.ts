@@ -129,7 +129,6 @@ export function getSnapshot(
       admissionPolicy: c.norms.admissionPolicy ?? COMMUNITY_DEFAULT_ADMISSION_POLICY,
     },
     leaderId: c.leaderId,
-    standing: { ...c.standing },
   }));
   return {
     tick,

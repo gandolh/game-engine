@@ -300,10 +300,12 @@ To resume (M4):
    real scarcity) so `steal`/`trade` stop being dormant AND so hollow-12's feud arcs stop being a
    tail phenomenon (they need an aggressive cohort to fire today — see hollow-overview.md "Known
    limitations"). M3's shocks give a lever to stress the economy now.
-3. **Governance/feuds are NOT surfaced in the 3D client / research UI yet** — 12a+12b are sim-core +
-   observe (chronicle events + a metric) only. A follow-up client brief could render leader/standing,
-   norm state, sanctions, and active feuds in the inspect panel / dashboard (headless-unverifiable
-   visual, Chrome-gated like the rest of M2/M3).
+3. ~~**Governance/feuds are NOT surfaced in the 3D client / research UI yet**~~ — **DONE
+   2026-09-18 (audit-63).** The inspect panel now shows leader (by name, or "this agent"), the
+   inspected agent's standing, and all three votable norms; the dashboard gained a *Feuds & disease*
+   chart over `feud_active_dyads` + `deaths_disease_window`. The snapshot's unread `standing` Record
+   was removed rather than kept (see hollow-overview.md). **Sanctions are still not rendered** — the
+   chronicle carries `governance.sanctioned`, and a sanctions view is the remaining piece.
 4. **hollow-13 LLM rationalizer seam** (last M4 brief) spec queued in `corpus/todos/`: bounded
    choose-and-narrate within BDI candidates, event-triggered + async + off-by-default deterministic,
    Haiku default. Dispatch on a Sonnet executor, same verify-gate discipline. It introduces a

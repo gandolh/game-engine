@@ -25,7 +25,10 @@ function makeDetail(overrides: Partial<InspectDetail> = {}): InspectDetail {
       children: [],
       partner: { id: 9, name: "Ivowick" },
     },
-    community: { id: 3, memberCount: 6, shareRate: 0.4, cooperationExpectation: 0.5 },
+    community: {
+      id: 3, memberCount: 6, shareRate: 0.4, cooperationExpectation: 0.5,
+      admissionPolicy: 0.5, leaderId: 9, leaderName: "Bramble", isLeader: false, standing: 0.62,
+    },
     deathCause: null,
     deathTick: null,
     ...overrides,
@@ -103,5 +106,61 @@ describe("renderInspectPanel", () => {
     expect(panel.textContent).toContain("deceased");
     expect(panel.textContent).toContain("starvation");
     expect(panel.querySelector(".hollow-inspect-empty")).not.toBeNull();
+  });
+});
+
+describe("governance is visible in the client (audit-63)", () => {
+  // hollow-12 (governance) and hollow-15 (mortality/care) were sim-core + chronicle only: the
+  // snapshot shipped `leaderId` and a full `standing` Record every tick with NO reader anywhere in
+  // the client, and the inspect payload carried two of the three norms. So two of Hollow's six
+  // milestones were readable only by exporting CSV and opening it elsewhere — in the app whose
+  // stated purpose is observing them.
+  function textOf(detail: InspectDetail): string {
+    const panel = renderInspectPanel(detail, { onClose: vi.fn(), onToggleFollow: vi.fn(), isFollowing: false });
+    return panel.textContent ?? "";
+  }
+
+  it("shows the community's leader by name", () => {
+    expect(textOf(makeDetail())).toContain("Bramble");
+    expect(textOf(makeDetail())).toContain("leader");
+  });
+
+  it("says 'this agent' rather than a name when the inspected agent IS the leader", () => {
+    const d = makeDetail();
+    const detail = {
+      ...d,
+      community: { ...d.community!, leaderId: d.id, leaderName: "Someone", isLeader: true },
+    };
+    const text = textOf(detail);
+    expect(text).toContain("this agent");
+    expect(text).not.toContain("Someone");
+  });
+
+  it("handles a community with no leader yet", () => {
+    const d = makeDetail();
+    const detail = {
+      ...d,
+      community: { ...d.community!, leaderId: null, leaderName: null, isLeader: false },
+    };
+    expect(textOf(detail)).toContain("none yet");
+  });
+
+  it("shows this agent's own standing — the quantity leadership is argmax over", () => {
+    expect(textOf(makeDetail())).toContain("standing");
+    expect(textOf(makeDetail())).toContain("0.62");
+  });
+
+  it("shows ALL THREE votable norms, not two", () => {
+    const text = textOf(makeDetail());
+    for (const label of ["share rate", "cooperation", "admission"]) {
+      expect(text, `norm "${label}" missing from the panel`).toContain(label);
+    }
+  });
+
+  it("renders nothing community-shaped for an unaffiliated agent", () => {
+    const detail = { ...makeDetail(), community: null };
+    const text = textOf(detail);
+    expect(text).not.toContain("standing");
+    expect(text).not.toContain("admission");
   });
 });

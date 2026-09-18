@@ -90,7 +90,12 @@ describe("governance (chunk hollow-12a) wiring — real bootstrapHollowSim", () 
 
     expect(community.leaderId).not.toBeNull();
     expect(community.members).toContain(community.leaderId);
-    expect(Object.keys(community.standing ?? {}).length).toBeGreaterThan(0);
+    // `standing` is no longer in the SNAPSHOT (audit-63 — it had no reader and was a full Record
+    // structured-cloned every tick). It still exists on the live community, which is what the
+    // client's inspect path and the governance system itself read, so assert it there.
+    const live = sim.communities.get(community.id);
+    expect(live).toBeDefined();
+    expect(Object.keys(live?.standing ?? {}).length).toBeGreaterThan(0);
 
     expect(community.norms.shareRate).toBeGreaterThanOrEqual(NORM_SHARE_RATE_MIN);
     expect(community.norms.shareRate).toBeLessThanOrEqual(NORM_SHARE_RATE_MAX);

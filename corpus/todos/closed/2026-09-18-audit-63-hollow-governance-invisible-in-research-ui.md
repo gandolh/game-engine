@@ -15,9 +15,9 @@ BUILD-STATE and never queued.
 
 Still true, and it has a measurable cost on both sides:
 
-- **The snapshot pays for data nobody reads.** [`snapshot-builder.ts:131-132`](../../games/hollow/sim-core/src/snapshot-builder.ts#L131-L132) emits `leaderId: c.leaderId, standing: { ...c.standing }` every tick. `grep -rnw 'leaderId\|standing'` over `games/hollow/client` returns **no readers** (the one hit is prose in a comment about agents standing on adjacent tiles). `standing` is a full `Record<number, number>` structured-cloned to the main thread every tick for nothing.
-- **The client inspect payload carries only two of the norms.** [`worker/inspect.ts:118-124`](../../games/hollow/client/src/worker/inspect.ts#L118-L124) passes `shareRate` + `cooperationExpectation` and nothing else.
-- **The dashboard has six charts and none of them are governance, feuds or disease.** [`dashboard-panel.ts:47-85`](../../games/hollow/client/src/dashboard-panel.ts#L47-L85) plots population, births/deaths, communities, trust/gini, coop-vs-antag and genes — while the sampler already produces `feud_active_dyads` ([`observe/sampler.ts:90`](../../games/hollow/sim-core/src/observe/sampler.ts#L90)) and `deaths_disease_window` ([`:84`](../../games/hollow/sim-core/src/observe/sampler.ts#L84)).
+- **The snapshot pays for data nobody reads.** [`snapshot-builder.ts:131-132`](../../../games/hollow/sim-core/src/snapshot-builder.ts#L131-L132) emits `leaderId: c.leaderId, standing: { ...c.standing }` every tick. `grep -rnw 'leaderId\|standing'` over `games/hollow/client` returns **no readers** (the one hit is prose in a comment about agents standing on adjacent tiles). `standing` is a full `Record<number, number>` structured-cloned to the main thread every tick for nothing.
+- **The client inspect payload carries only two of the norms.** [`worker/inspect.ts:118-124`](../../../games/hollow/client/src/worker/inspect.ts#L118-L124) passes `shareRate` + `cooperationExpectation` and nothing else.
+- **The dashboard has six charts and none of them are governance, feuds or disease.** [`dashboard-panel.ts:47-85`](../../../games/hollow/client/src/dashboard-panel.ts#L47-L85) plots population, births/deaths, communities, trust/gini, coop-vs-antag and genes — while the sampler already produces `feud_active_dyads` ([`observe/sampler.ts:90`](../../../games/hollow/sim-core/src/observe/sampler.ts#L90)) and `deaths_disease_window` ([`:84`](../../../games/hollow/sim-core/src/observe/sampler.ts#L84)).
 
 So hollow-12 (governance) and hollow-15 (mortality/care) are readable only by exporting CSV and opening
 it elsewhere — in a project whose stated purpose is *"a research instrument"*.
@@ -31,7 +31,7 @@ Surface them, and let that decide the snapshot shape rather than the other way r
   stop shipping a whole `Record` across the worker boundary every tick. Both outcomes are wins; decide
   on evidence.
 - **Norm state and sanctions** in inspect, alongside the two norms already there. Note
-  [audit-49](closed/2026-09-18-audit-49-admission-policy-inert-norm.md): do not surface `admissionPolicy` as
+  [audit-49](2026-09-18-audit-49-admission-policy-inert-norm.md): do not surface `admissionPolicy` as
   binding until it is.
 - **Two more dashboard series** — `feud_active_dyads` and `deaths_disease_window` — which is nearly
   free, since the sampler already emits them and the chart machinery exists.
@@ -39,15 +39,15 @@ Surface them, and let that decide the snapshot shape rather than the other way r
 Start with the dashboard series: cheapest, and it immediately makes two milestones observable.
 
 ## Files you OWN
-- [`games/hollow/client/src/dashboard-panel.ts`](../../games/hollow/client/src/dashboard-panel.ts)
-- [`games/hollow/client/src/worker/inspect.ts`](../../games/hollow/client/src/worker/inspect.ts)
-- [`games/hollow/sim-core/src/snapshot-builder.ts`](../../games/hollow/sim-core/src/snapshot-builder.ts) — only if the standing decision says so
-- [`wiki/hollow-overview.md`](../wiki/hollow-overview.md)
+- [`games/hollow/client/src/dashboard-panel.ts`](../../../games/hollow/client/src/dashboard-panel.ts)
+- [`games/hollow/client/src/worker/inspect.ts`](../../../games/hollow/client/src/worker/inspect.ts)
+- [`games/hollow/sim-core/src/snapshot-builder.ts`](../../../games/hollow/sim-core/src/snapshot-builder.ts) — only if the standing decision says so
+- [`wiki/hollow-overview.md`](../../wiki/hollow-overview.md)
 
 ## Files you must NOT touch
 - the governance and feud **systems** — they work; this is an observation brief, and changing
   behaviour while adding a view of it makes both unverifiable
-- [`observe/sampler.ts`](../../games/hollow/sim-core/src/observe/sampler.ts)'s existing metrics — the
+- [`observe/sampler.ts`](../../../games/hollow/sim-core/src/observe/sampler.ts)'s existing metrics — the
   data is already there; this brief consumes it
 - the chronicle/CSV export path — it already works and is the current workaround
 

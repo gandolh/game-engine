@@ -561,13 +561,19 @@ export interface HollowCommunitySnapshot {
   readonly territory: readonly { readonly gx: number; readonly gy: number }[];
   readonly stockpile: Readonly<Record<string, number>>;
   readonly norms: HollowCommunityNormsSnapshot;
-  /** Current emergent (contestable) leader (chunk hollow-12a), or `null`
-   *  before this community's first governance pass. Optional only for
-   *  back-compat with pre-hollow-12a snapshot literals. */
+  /**
+   * Current emergent (contestable) leader (chunk hollow-12a), or `null` before this community's
+   * first governance pass. Optional only for back-compat with pre-hollow-12a snapshot literals.
+   */
   readonly leaderId?: number | null;
-  /** Per-member standing score (chunk hollow-12a), keyed by agent id.
-   *  Optional only for back-compat with pre-hollow-12a snapshot literals. */
-  readonly standing?: Readonly<Record<number, number>>;
+  // `standing` — a full `Record<number, number>` of every member's score — used to be emitted here
+  // every tick, and was REMOVED by audit-63. It had no reader anywhere: governance is now visible
+  // in the client, but the inspect panel reads it off the LIVE sim (`worker/inspect.ts`), which
+  // needs one agent's score rather than the whole map. Structured-cloning a Record across the
+  // worker boundary every tick for nobody is the cost this brief was measuring. The live registry
+  // remains the source of truth; if a per-tick renderer ever wants it, add it back WITH that
+  // renderer, not ahead of one.
+
 }
 
 /** Data-only snapshot for a headless observer (no render state — see CLAUDE.md's sim↔render boundary). */

@@ -62,6 +62,21 @@ export interface InspectCommunity {
   readonly memberCount: number;
   readonly shareRate: number;
   readonly cooperationExpectation: number;
+  /**
+   * The third votable norm (audit-63). Surfaced only now that it is BINDING — audit-49 wired it
+   * into the GROW/join pass. Showing it while it was a pure signal would have been the same
+   * mistake the wiki made: advertising a governance lever that governs nothing.
+   */
+  readonly admissionPolicy: number;
+  /**
+   * The community's emergent leader (argmax standing), or `null` for a community with none yet.
+   * `true` on `isLeader` when it is THIS agent — the panel shows the relationship, not just the id.
+   */
+  readonly leaderId: number | null;
+  readonly leaderName: string | null;
+  readonly isLeader: boolean;
+  /** This agent's own standing within the community — the quantity leadership is argmax over. */
+  readonly standing: number;
 }
 
 /** A dead agent's ever-recorded cause (see `@hollow/sim-core/lineage`'s
