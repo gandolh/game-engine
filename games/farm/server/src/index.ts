@@ -4,8 +4,9 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import { WebSocketServer, type WebSocket } from "ws";
-import type { SimInbound } from "@farm/sim-core/protocol";
+import type { SimRejectedMsg } from "@farm/sim-core/protocol";
 import { SimHost } from "./sim-host";
+import { validateInbound } from "./validate-inbound";
 import { RunRegistry } from "./run-registry";
 import type { ClientSocket } from "./run-registry";
 
@@ -59,15 +60,35 @@ async function main(): Promise<void> {
 
     const socket: ClientSocket = ws;
 
+    const reject = (forType: string | null, code: string, message: string, field?: string): void => {
+      if (ws.readyState !== ws.OPEN) return;
+      const msg: SimRejectedMsg = { type: "rejected", forType, code, message };
+      if (field !== undefined) msg.field = field;
+      ws.send(JSON.stringify(msg));
+    };
+
     ws.on("message", (data) => {
-      let msg: SimInbound;
+      // audit-42: ONE narrowing guard at the wire boundary, before anything reaches
+      // `bootstrapSim` or the ECS. Nothing below this line may throw on hostile input — this
+      // socket is publicly reachable, and a throw here surfaces as an `uncaughtException`.
+      let parsed: unknown;
       try {
-        msg = JSON.parse(data.toString()) as SimInbound;
+        parsed = JSON.parse(data.toString());
       } catch {
-        console.warn("[server] ignoring non-JSON message from client");
+        reject(null, "not-json", "message must be JSON");
         return;
       }
-      registry.handleControl(socket, msg);
+      const result = validateInbound(parsed);
+      if (!result.ok) {
+        const forType =
+          typeof parsed === "object" && parsed !== null && typeof (parsed as { type?: unknown }).type === "string"
+            ? (parsed as { type: string }).type
+            : null;
+        reject(forType, result.error.code, result.error.message, result.error.field);
+        return;
+      }
+      const refusal = registry.handleControl(socket, result.msg);
+      if (refusal !== null) reject(result.msg.type, refusal.code, refusal.message);
     });
 
     ws.on("close", () => registry.detach(socket));

@@ -117,9 +117,27 @@ export interface SimFaultMsg {
   message: string;
 }
 
+/**
+ * A frame the server REFUSED — malformed input, or an `init` it will not serve (audit-42).
+ *
+ * Structured rather than prose so a client can branch on `code`. Non-terminal: the socket stays
+ * open and well-formed traffic keeps working, because one bad frame should not cost a player
+ * their run.
+ */
+export interface SimRejectedMsg {
+  type: "rejected";
+  /** The `type` of the frame that was refused, or `null` when it had none. */
+  forType: string | null;
+  code: string;
+  /** The offending field, when the rejection names one. */
+  field?: string;
+  message: string;
+}
+
 export type SimOutbound =
   | SimStaticLayerMsg
   | SimSnapshotMsg
   | SimProfileMsg
   | SimAttachMsg
+  | SimRejectedMsg
   | SimFaultMsg;

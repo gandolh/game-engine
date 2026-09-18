@@ -93,7 +93,10 @@ function makeSnapshotMsg(day = 1): SimSnapshotMsg {
 
 let stubs: StubHost[] = [];
 
-function makeRegistry(reapGraceMs = 50): { registry: RunRegistry; stubs: StubHost[] } {
+function makeRegistry(
+  reapGraceMs = 50,
+  extra: { maxRuns?: number } = {},
+): { registry: RunRegistry; stubs: StubHost[] } {
   stubs = [];
   const makeHost: MakeHostFn = (send, _init) => {
     const stub = new StubHost(send);
@@ -101,7 +104,7 @@ function makeRegistry(reapGraceMs = 50): { registry: RunRegistry; stubs: StubHos
 
     return stub as unknown as ReturnType<MakeHostFn>;
   };
-  const registry = new RunRegistry(makeHost, { reapGraceMs });
+  const registry = new RunRegistry(makeHost, { reapGraceMs, ...extra });
   return { registry, stubs };
 }
 
@@ -328,7 +331,12 @@ describe("RunRegistry — zero-socket reaping", () => {
 });
 
 describe("RunRegistry — double-init on one socket", () => {
-  it("a socket that inits a second, different run-key is detached from the first run, which then reaps", () => {
+  it("a socket that re-inits has its previous run reaped IMMEDIATELY, not after the grace", () => {
+    // CONTRACT CHANGE, audit-42: this used to arm the 10 s reap grace. The grace exists so a
+    // GENUINELY DETACHED socket can reconnect and find its world still ticking — a socket that is
+    // right here re-`init`ing is not coming back to the old run, and holding it (plus its tick
+    // interval, plus a 21-farmer world) for another 10 s is what let an init loop mint runs faster
+    // than the reaper could free them.
     vi.useFakeTimers();
     const { registry, stubs } = makeRegistry(100);
     const socket = new FakeSocket();
@@ -336,21 +344,132 @@ describe("RunRegistry — double-init on one socket", () => {
     registry.attachInit(socket, makeInit(1));
     const firstKey = registry.runKeyFor(makeInit(1));
     expect(registry.runCount()).toBe(1);
-    expect(registry.getRun(firstKey)?.sockets.has(socket)).toBe(true);
 
     registry.attachInit(socket, makeInit(2));
     const secondKey = registry.runKeyFor(makeInit(2));
 
-    expect(registry.getRun(firstKey)?.sockets.has(socket)).toBe(false);
+    // No timer advance: the old run is already gone and its host already stopped.
+    expect(registry.getRun(firstKey)).toBeUndefined();
+    expect(stubs[0]!.stopped).toBe(true);
     expect(registry.getRun(secondKey)?.sockets.has(socket)).toBe(true);
+    expect(registry.runCount()).toBe(1);
+
+    vi.advanceTimersByTime(101);
+    expect(registry.runCount()).toBe(1);
+    expect(registry.getRun(secondKey)).toBeDefined();
+
+    vi.useRealTimers();
+  });
+
+  it("re-init does NOT reap a run another socket is still attached to", () => {
+    // The immediate reap must be scoped to an EMPTIED run — a shared run keeps ticking for the
+    // peers left on it.
+    vi.useFakeTimers();
+    const { registry, stubs } = makeRegistry(100);
+    const a = new FakeSocket();
+    const b = new FakeSocket();
+
+    registry.attachInit(a, makeInit(1));
+    registry.attachInit(b, makeInit(1)); // same run key — both on run 1
+    const firstKey = registry.runKeyFor(makeInit(1));
+    expect(registry.getRun(firstKey)?.sockets.size).toBe(2);
+
+    registry.attachInit(a, makeInit(2));
+
+    expect(registry.getRun(firstKey)?.sockets.has(b)).toBe(true);
+    expect(stubs[0]!.stopped).toBe(false);
     expect(registry.runCount()).toBe(2);
+
+    vi.useRealTimers();
+  });
+
+  it("a genuinely detached socket still gets its full reconnect grace", () => {
+    // The behaviour the grace was FOR — unchanged.
+    vi.useFakeTimers();
+    const { registry, stubs } = makeRegistry(100);
+    const socket = new FakeSocket();
+
+    registry.attachInit(socket, makeInit(1));
+    const key = registry.runKeyFor(makeInit(1));
+
+    registry.detach(socket); // socket closed, not re-initing
+
+    expect(registry.getRun(key)).toBeDefined();
     expect(stubs[0]!.stopped).toBe(false);
 
     vi.advanceTimersByTime(101);
-
-    expect(registry.runCount()).toBe(1);
+    expect(registry.getRun(key)).toBeUndefined();
     expect(stubs[0]!.stopped).toBe(true);
-    expect(registry.getRun(secondKey)).toBeDefined();
+
+    vi.useRealTimers();
+  });
+});
+
+describe("RunRegistry — concurrent-run cap (audit-42)", () => {
+  it("refuses the run past the cap with a structured error and allocates no world", () => {
+    const { registry, stubs } = makeRegistry(100, { maxRuns: 3 });
+    const sockets = [new FakeSocket(), new FakeSocket(), new FakeSocket(), new FakeSocket()];
+
+    for (let i = 0; i < 3; i++) {
+      expect(registry.attachInit(sockets[i]!, makeInit(i + 1))).toBeNull();
+    }
+    expect(registry.runCount()).toBe(3);
+    const hostsBefore = stubs.length;
+
+    const refusal = registry.attachInit(sockets[3]!, makeInit(99));
+
+    expect(refusal).not.toBeNull();
+    expect(refusal!.code).toBe("run-limit");
+    expect(registry.runCount()).toBe(3);
+    // No half-built run left behind: no host was constructed, and the key is absent.
+    expect(stubs.length).toBe(hostsBefore);
+    expect(registry.getRun(registry.runKeyFor(makeInit(99)))).toBeUndefined();
+  });
+
+  it("an init LOOP with fresh clientIds cannot outgrow the cap", () => {
+    // The actual attack (and the accidental N-tabs case): one socket, a new clientId each time.
+    const { registry } = makeRegistry(100, { maxRuns: 3 });
+    let refusals = 0;
+
+    for (let i = 0; i < 50; i++) {
+      const s = new FakeSocket();
+      if (registry.attachInit(s, { ...makeInit(1), clientId: `c${String(i)}` }) !== null) refusals++;
+    }
+
+    expect(registry.runCount()).toBe(3);
+    expect(refusals).toBe(47);
+  });
+
+  it("attaching to an EXISTING run is never refused, even at the cap", () => {
+    // The cap counts worlds, not sockets — a spectator joining a live run costs nothing.
+    const { registry } = makeRegistry(100, { maxRuns: 2 });
+    const a = new FakeSocket();
+    const b = new FakeSocket();
+    const c = new FakeSocket();
+
+    registry.attachInit(a, makeInit(1));
+    registry.attachInit(b, makeInit(2));
+    expect(registry.runCount()).toBe(2);
+
+    expect(registry.attachInit(c, makeInit(1))).toBeNull();
+    expect(registry.getRun(registry.runKeyFor(makeInit(1)))?.sockets.has(c)).toBe(true);
+  });
+
+  it("a refused socket frees its slot again once a run is reaped", () => {
+    vi.useFakeTimers();
+    const { registry } = makeRegistry(100, { maxRuns: 1 });
+    const a = new FakeSocket();
+    const b = new FakeSocket();
+
+    registry.attachInit(a, makeInit(1));
+    expect(registry.attachInit(b, makeInit(2))?.code).toBe("run-limit");
+
+    registry.detach(a);
+    vi.advanceTimersByTime(101);
+    expect(registry.runCount()).toBe(0);
+
+    expect(registry.attachInit(b, makeInit(2))).toBeNull();
+    expect(registry.runCount()).toBe(1);
 
     vi.useRealTimers();
   });

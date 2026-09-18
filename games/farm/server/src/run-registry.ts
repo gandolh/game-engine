@@ -29,6 +29,21 @@ interface Run {
 export interface RunRegistryOptions {
 
   reapGraceMs?: number;
+
+  /**
+   * Ceiling on simultaneously live runs in this process (audit-42). Each run is a full 21-farmer
+   * world plus its own tick interval, and `attachInit` minted one for every distinct `clientId`
+   * with nothing reading `runCount()` as a limit — so a socket looping `init` with fresh ids grew
+   * worlds faster than the 10 s reap could free them. No malice needed either: the normal client
+   * path is `clientId: crypto.randomUUID()`, so N browser tabs were already N live sims.
+   */
+  maxRuns?: number;
+}
+
+/** Why an `init` was refused — carried to the socket rather than silently dropped. */
+export interface RunRefusal {
+  code: "run-limit";
+  message: string;
 }
 
 export type MakeHostFn = (send: SendFn, init: SimInitMsg) => SimHost;
@@ -36,11 +51,13 @@ export type MakeHostFn = (send: SendFn, init: SimInitMsg) => SimHost;
 export class RunRegistry {
   private readonly makeHost: MakeHostFn;
   private readonly reapGraceMs: number;
+  private readonly maxRuns: number;
   private readonly runs = new Map<string, Run>();
 
   constructor(makeHost: MakeHostFn, opts: RunRegistryOptions = {}) {
     this.makeHost = makeHost;
     this.reapGraceMs = opts.reapGraceMs ?? 10_000;
+    this.maxRuns = opts.maxRuns ?? 32;
   }
 
   runKeyFor(init: SimInitMsg): string {
@@ -50,13 +67,30 @@ export class RunRegistry {
     return init.clientId !== undefined ? `${base}:${init.clientId}` : base;
   }
 
-  attachInit(socket: ClientSocket, init: SimInitMsg): void {
-    this.detach(socket);
+  /**
+   * Attach `socket` to the run `init` names, creating it if needed.
+   *
+   * Returns a {@link RunRefusal} when the process is at its run ceiling, so the caller can tell the
+   * client rather than leaving it waiting on an `attach` that never comes.
+   */
+  attachInit(socket: ClientSocket, init: SimInitMsg): RunRefusal | null {
+    // ONE RUN PER SOCKET, reaped IMMEDIATELY (audit-42). The 10 s grace exists so a genuinely
+    // detached socket can reconnect to its world; a socket that is right here re-`init`ing is not
+    // coming back to the old run, so holding it (and its tick interval) for another 10 s just lets
+    // an init loop outrun the reaper.
+    this.detach(socket, { immediate: true });
 
     const key = this.runKeyFor(init);
     const existing = this.runs.get(key);
 
     if (existing === undefined) {
+      if (this.runs.size >= this.maxRuns) {
+        // Refuse BEFORE allocating anything — no half-built run may be left in the registry.
+        return {
+          code: "run-limit",
+          message: `server is at its limit of ${String(this.maxRuns)} concurrent runs`,
+        };
+      }
 
       const run: Run = {
         host: null as unknown as SimHost, 
@@ -77,6 +111,7 @@ export class RunRegistry {
       run.host.handleInbound(init);
 
       this.sendDirect(socket, { type: "attach", owner: true });
+      return null;
     } else {
 
       if (existing.reapTimer !== null) {
@@ -110,13 +145,13 @@ export class RunRegistry {
             : existing.lastSnapshot;
         this.sendDirectRaw(socket, JSON.stringify(replaySnap));
       }
+      return null;
     }
   }
 
-  handleControl(socket: ClientSocket, msg: SimInbound): void {
+  handleControl(socket: ClientSocket, msg: SimInbound): RunRefusal | null {
     if (msg.type === "init") {
-      this.attachInit(socket, msg);
-      return;
+      return this.attachInit(socket, msg);
     }
 
     for (const run of this.runs.values()) {
@@ -126,13 +161,18 @@ export class RunRegistry {
           run.host.handleInbound(msg);
         }
 
-        return;
+        return null;
       }
     }
-
+    return null;
   }
 
-  detach(socket: ClientSocket): void {
+  /**
+   * Remove `socket` from whichever run holds it. An emptied run is normally kept alive for
+   * `reapGraceMs` so a reconnect finds its world; `immediate` tears it down at once, which is what
+   * a re-`init` from the SAME live socket wants (see `attachInit`).
+   */
+  detach(socket: ClientSocket, opts: { immediate?: boolean } = {}): void {
     for (const [key, run] of this.runs.entries()) {
       if (!run.sockets.has(socket)) continue;
 
@@ -148,6 +188,12 @@ export class RunRegistry {
       }
 
       if (run.sockets.size === 0) {
+        if (opts.immediate === true) {
+          if (run.reapTimer !== null) clearTimeout(run.reapTimer);
+          run.host.stop();
+          this.runs.delete(key);
+          return;
+        }
 
         run.reapTimer = setTimeout(() => {
 

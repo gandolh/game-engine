@@ -116,6 +116,15 @@ export class SimClient {
 
         this.isOwner = msg.owner;
         this.attachCallback?.(msg.owner);
+      } else if (msg.type === "rejected") {
+        // audit-42: the server refused a frame (malformed, or an `init` it will not serve).
+        // NON-terminal — the socket stays open — so this is a console warning, not a banner.
+        // Surfaced rather than swallowed: silently dropping a refused `init` is what would leave
+        // the client waiting forever on an `attach` that is never coming.
+        console.warn(
+          `[sim-client] server rejected ${msg.forType ?? "a message"} (${msg.code}` +
+            `${msg.field !== undefined ? `, field "${msg.field}"` : ""}): ${msg.message}`,
+        );
       } else if (msg.type === "fault") {
 
         // Terminal: the server halted the run mid-tick rather than advance
