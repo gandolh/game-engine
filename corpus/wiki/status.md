@@ -1,11 +1,27 @@
 ---
 summary: The current-state snapshot: one terse line per brief, architecture milestones, current sim/determinism behaviour, and open gaps. The single source for brief state.
-updated: 2026-09-15
+updated: 2026-09-18
 ---
 
 # Project Status
 
 Current-state **snapshot** (2026-08-18, banner below 2026-09-14). Banners below are newest-first.
+
+> **2026-09-18 a second audit sweep filed audit-38..63 — the queue is NOT empty again.**
+> Six scoped finders (sim correctness, client/render, undone work, coverage, debt, ops) over the whole
+> repo; **46 raw findings → 26 filed**, each vetted by re-reading the cited lines. The drops are the
+> signal as much as the keeps: capping Citadel's `commandLog` was rejected because that log **is** the
+> save ([decisions.md](decisions.md) → Sim, event-sourced), and five sim "findings" were dropped as
+> unreachable. Highest-leverage: a Vickrey auction can charge the winner **their own** duplicate bid
+> ([audit-38](../todos/closed/2026-09-18-audit-38-vickrey-self-second-price.md)); `UNPACK_PREMULTIPLY_ALPHA_WEBGL`
+> is set and never restored, so later uploads double-premultiply
+> ([audit-39](../todos/closed/2026-09-18-audit-39-premultiply-alpha-never-restored.md)); `.dockerignore`'s
+> `**/dist` strips the wasm the sim server reads while the Dockerfile's header claims it ships
+> ([audit-40](../todos/2026-09-18-audit-40-dockerignore-strips-wasm.md)). **Three guards proved weaker
+> than their names**: the palette scan never reads HTML/CSS (and Farm ships two off-palette hexes
+> today), the layering guard iterates a hand-written scope list, and the seeded `Rng` has no golden
+> vector — so every determinism gate compares the implementation to itself. Nothing is built yet;
+> these are specs awaiting a pick.
 
 > **2026-09-15 hollow-13 is built — the LLM seam exists, is anchored, and fires ~4% of the time.**
 > The BDI substrate enumerates the feasible options; the model picks one and explains why; anything
@@ -24,7 +40,7 @@ Current-state **snapshot** (2026-08-18, banner below 2026-09-14). Banners below 
 > to protect. `wiki/hollow-overview.md` deliberately not yet updated — hollow-16 will change what
 > there is to describe.
 
-> **2026-09-15 audit-37 is built — the wasm build is all-or-nothing, and the audit queue is empty.**
+> **2026-09-15 audit-37 is built — the wasm build is all-or-nothing, and the audit queue was empty (until the 2026-09-18 sweep above refilled it).**
 > `compile.mjs` published each kernel inside the compile loop, so a build where one kernel failed for
 > a reason unrelated to its source left the successful ones modified in **both tracked locations**
 > while skipping `writeManifest()` — invisible to audit-29's guard, since the recorded source hashes

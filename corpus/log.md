@@ -4,6 +4,54 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-09-18] audit | Second repo-wide sweep — 46 raw findings, 26 filed as audit-38..63
+
+Six scoped finders in parallel (sim correctness+determinism on opus; client/render, undone work,
+coverage, debt, ops on sonnet), each given the locked decisions and the 37 closed audit topics to
+skip. Every finding re-read against the cited lines before filing. **Read-only: nothing was built.**
+
+**The drops are the point.** 46 raw → 26 filed. Rejected outright: capping Citadel's `commandLog`
+(it *is* the save — event-sourced input log, [decisions.md](wiki/decisions.md) → Sim; truncating it
+breaks `loadFromSave`), and five sim findings the finder itself dropped as unreachable. Merged:
+malformed-input test coverage folded into the two server-hardening specs; `SnapshotInterpBuffer` and
+the Citadel speed clamp were each found independently by two lenses.
+
+**Durable lessons worth carrying, independent of whether the briefs get built:**
+
+- **Three guards were weaker than their names.** `palette.test.ts`'s `SOURCE_EXT` is `ts|js|mjs|cjs`,
+  so the 4 `index.html` + 3 `style.css` files were never scanned — and `games/farm/client/index.html:8`
+  ships `#0c0d12`/`#e7eeff`, neither in EDG32, right now. `layering.test.ts`'s tripwire is named
+  "scans every game, tool and engine source file" but iterates a hand-written 10-entry `SCOPES`
+  literal, so a fifth game would be silently unscanned. And `rng.test.ts`'s ten tests are all
+  self-referential — two live instances of the same code — so changing a mulberry32 constant
+  re-baselines four games with nothing going red. `CHECK_DETERMINISM` does not help: it proves
+  **reproducibility**, not **stability**. Those are different properties.
+- **"A guard exists" and "a guard can fail" are different claims**, and only the second is worth
+  anything. Each of the three above passes today and would pass through the regression it exists to
+  catch. Every brief filed from them demands the bug be *demonstrated red first* — the audit-37 rule.
+- **The corpus drifts semantically while `lint.sh` stays green.** Link and frontmatter checks pass
+  with 0 broken live links, while `performance.md` carries an **open checkbox** diagnosing
+  `canvas2d/renderer.ts` (deleted 2026-08-18), `citadel-decisions.md` calls Challenge mode "still
+  unbuilt" four lines above its own table saying "DONE (`c2caecc`)", and both **open** Hollow todos
+  park the 3D visual check behind a WebGPU/Chrome gate that the WebGL2 migration removed a month ago.
+  A stale *open* item is worse than a missing one.
+- **`status.md` is 119 KB (~30k tokens)** — three times the next largest page, against this corpus's
+  own "read index.md then at most 2–3 wiki pages" budget. The page most often read is the one that
+  breaks the rule the corpus exists to keep.
+- **Two ops defects share one shape: degrade-instead-of-fail.** `.dockerignore`'s `**/dist` strips
+  `pathfinding.wasm` while the Dockerfile's own header says it ships; the loader then warns and
+  returns `null`, and `bootstrapSim` omits `TravelSystem` — a healthy-looking container serving a sim
+  whose farmers cannot move. Nothing catches it because no gate builds the image.
+- **The Farm skip-to-highlight drain is a defect at legitimate settings**, not only under attack:
+  `SKIP_MAX_DAYS * ticksPerDay` = 36 000 synchronous ticks in one `setInterval` callback at the
+  production 1200, which blocks the event loop for every *other* run in the process.
+
+Filed: [audit-38..63](todos/) (26 specs). Highest-leverage three: audit-38 (a Vickrey auction charges
+the winner their own duplicate bid, because `sorted[i+1]` never checks `bidderId` while the comment
+above it says "the next **competing** bid"), audit-39 (`UNPACK_PREMULTIPLY_ALPHA_WEBGL` set and never
+restored — the sibling passes document this exact bug class in a comment), audit-40 (the
+`.dockerignore` above).
+
 ## [2026-09-15] build | hollow-13: the LLM seam works, and almost never fires
 
 The optional LLM layer Hollow was built to support. BDI produces the grounded,

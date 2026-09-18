@@ -79,6 +79,40 @@ deliberation layer is intentionally **rng-free** (pure genome/state scoring).
   food 120/tick) so a ~1200-tick run shows multi-generational, bounded, deterministic emergence.
 - **Genome lives on a Hollow component, not the engine `Personality`** (which stays generic
   `{kind}`) — the engine never learns game specifics.
+- **`admissionPolicy` is binding, hinged on its default** (2026-09-18, audit-49). It shipped in
+  hollow-12a as a votable norm that **nothing read** — a third of the advertised governance mechanic
+  was theatre, and since Hollow is a research instrument, a `NORM_CHANGED` series with no causal
+  effect is worse than the feature being absent: it invites a causal reading of a number that
+  causes nothing. *Alternatives rejected:* cutting the norm (two honest norms beat three where one
+  is decorative — but it loses a designed-for axis that the vote machinery already supports), and
+  labelling it "voted, not yet binding" (honest, but a norm nobody obeys confuses every future
+  reader, and that option silently becomes permanent).
+  *How it is wired:* `admissionJoinThreshold` (community/constants.ts) maps the norm to the
+  combined-trust bar the GROW pass demands, **piecewise-linear and hinged on the default** — policy
+  `0.5` returns `COMMUNITY_JOIN_TRUST_THRESHOLD` exactly, so a community that never voted its norm
+  away from neutral behaves precisely as before. That is what confines the re-baselining to the
+  mechanism under test.
+  *Two sub-calls worth knowing:* the open end floors at `COMMUNITY_LEAVE_TRUST_THRESHOLD`, because
+  admitting below the leave bar would break the deliberate join/leave hysteresis and make members
+  flap in and out forever — so the dial is **asymmetric**, and honestly so. And "fully closed" is a
+  threshold just *above* the attainable maximum (1.01, since combined trust is an average of two
+  `[0,1]` scores): exactly `1.0` was tried and rejected on evidence, because trust accrual saturates
+  under sustained co-location and a "closed" community still admitted its oldest neighbours.
+  *Cost, measured:* seed 7 over 3 compressed years is byte-identical; over 8 years the baseline
+  moves (final population 34 → 31, communities formed 13 → 14). Governance drift alone keeps the
+  norm near neutral (~0.48 after 28 `norm-changed` events), so the effect is small in natural play
+  and shows up mainly where a community's membership genuinely votes it away from the default.
+  Reproducibility re-verified: same seed twice → byte-identical across all four exports.
+- **`Ownership` was deleted, not kept as a seam** (2026-09-18, audit-56). Every agent carried an
+  `Ownership` whose `ownerId` was its own id and which **no production code read** — but it was a
+  key in the reproduction query, so an agent spawned without it was *silently sterile*: no error,
+  no log line, it simply never appeared in the query. The features it was a seam for (inheritance,
+  and the `trade` verb) both shipped on `inventory` instead, so the seam was never taken up. A seam
+  kept "for later" that is simultaneously a silent gate is the worst of both.
+  *Guard:* `family/reproduction-query.test.ts` now fails if the query names any component the
+  system does not actually read — closing the class, not just the instance. Removing the component
+  was verified byte-identical across all four Hollow exports, which is what proves the premise
+  ("nothing read it") was true.
 
 ## M1 EXIT-BAR — PASSED (2026-07-20)
 Judged by reading real exported runs (`@tool/hollow-sim`, compressed profile, 12 "years" =
@@ -177,7 +211,9 @@ Depth on the emergent society, both slices sim-core + headless-verifiable (`96f0
 **12a governance** — a `GOVERNANCE` stage gives each community per-member **standing**, a contestable
 **leader** (argmax standing), **votable norms** (shareRate/cooperation/admission drift on a
 standing+genome vote), and **sanctions** (fine / trust penalty / exclusion); norm-clash feeds the
-existing LEAVE/SPLIT. **12b antagonism arcs** — a persistent directed `Feud` grudge (hostility was
+existing LEAVE/SPLIT. **All three norms are binding as of 2026-09-18** — `admissionPolicy` shipped
+in 12a as a pure signal that nothing read, and audit-49 wired it into the GROW/join pass (see
+[Decisions](#load-bearing-decisions)). **12b antagonism arcs** — a persistent directed `Feud` grudge (hostility was
 stateless before) escalated by harm, reconciled by cooperation + decay, with a hysteresis band; it
 biases antagonistic target-selection (spirals) but rarity gates stay on raw trust. Neither slice adds
 an `Rng`/fork (pure arithmetic, id-sorted ties; `nextU32` continuation proves the stream is

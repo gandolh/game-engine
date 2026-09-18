@@ -115,7 +115,6 @@ export function spawnPopulation(world: World<HollowEntity>, rng: Rng, opts: Spaw
         },
       },
       inventory: { goods: {} },
-      ownership: { ownerId: 0 }, // fixed to the real id right below
       fsm: { current: "PERCEIVE", enteredTick: 0 },
       beliefs: { data: {}, revision: 0 },
       desires: { data: {} },
@@ -142,11 +141,8 @@ export function spawnPopulation(world: World<HollowEntity>, rng: Rng, opts: Spaw
       occupation: makeOccupation(),
     } satisfies HollowEntity);
 
-    // Self-ownership (see components/ownership.ts) — needs the id `world.spawn`
-    // just assigned, so it's set as a follow-up rather than in the literal above.
-    if (spawned.ownership && spawned.id !== undefined) {
-      spawned.ownership.ownerId = spawned.id;
-    }
+    // The lineage record needs the id `world.spawn` just assigned, so it is a follow-up rather
+    // than part of the literal above.
     if (spawned.id !== undefined) {
       opts.lineage.record({ id: spawned.id, genome, parents: null, birthTick: 0 });
     }

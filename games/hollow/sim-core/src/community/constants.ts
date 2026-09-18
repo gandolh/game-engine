@@ -144,6 +144,61 @@ export const COMMUNITY_DEFAULT_COOPERATION_EXPECTATION = COMMUNITY_TRUST_THRESHO
  *  votable norm `HollowGovernanceSystem` drifts every governance pass. */
 export const COMMUNITY_DEFAULT_ADMISSION_POLICY = 0.5;
 
+/**
+ * The join threshold a FULLY CLOSED community (`admissionPolicy = 1`) demands (audit-49).
+ *
+ * Combined trust is the average of (candidate→members) and (members→candidate), both in [0, 1], so
+ * it can never exceed 1. A threshold just above that is therefore unreachable BY CONSTRUCTION,
+ * which is what "fully closed" has to mean for the vote to be binding — while keeping the norm a
+ * smooth dial rather than a special-cased hard block.
+ *
+ * Exactly `1` was tried first and REJECTED on evidence: trust accrual is monotonically positive
+ * under sustained co-location, so it saturates, and a community that had voted itself fully closed
+ * still admitted its longest-standing neighbours. The epsilon is small enough that the upper half
+ * of the dial stays useful (policy 0.9 → ~0.93, a demanding but reachable bar) and only the very
+ * top is absolute.
+ */
+export const COMMUNITY_ADMISSION_CLOSED_THRESHOLD = 1.01;
+
+/**
+ * The join threshold a FULLY OPEN community (`admissionPolicy = 0`) demands.
+ *
+ * Deliberately `COMMUNITY_LEAVE_TRUST_THRESHOLD`, not lower. That constant's own comment explains
+ * the hysteresis it buys: the join bar sits ABOVE the leave bar so a member gets slack before being
+ * kicked out, and membership does not flap for trust hovering at the boundary. Letting a voted-open
+ * community admit BELOW the leave threshold would break that invariant — an agent would join one
+ * pass and defect the next, forever. So "fully open" means "as open as the hysteresis allows".
+ *
+ * The consequence is an ASYMMETRIC dial: the closed half has more range than the open half. That is
+ * the honest shape, since the open end is bounded by a real invariant and the closed end is not.
+ */
+export const COMMUNITY_ADMISSION_OPEN_THRESHOLD = COMMUNITY_LEAVE_TRUST_THRESHOLD;
+
+/**
+ * Map a community's `admissionPolicy` norm to the combined-trust threshold its GROW pass demands
+ * (audit-49 — the brief that finally gave the norm a consumer).
+ *
+ * Piecewise-linear, HINGED ON THE DEFAULT: `admissionPolicy = 0.5` returns
+ * `COMMUNITY_JOIN_TRUST_THRESHOLD` exactly, so a community that has never voted its norm away from
+ * neutral behaves precisely as it did before this coupling existed. Only communities whose
+ * governance actually moved the norm see different behaviour — which is what it means for a vote to
+ * be binding, and it confines the re-baselining to the mechanism under test.
+ *
+ *   policy 0.0 → 0.55  (as open as hysteresis allows)
+ *   policy 0.5 → 0.60  (unchanged default)
+ *   policy 1.0 → 1.00  (effectively closed)
+ */
+export function admissionJoinThreshold(admissionPolicy: number): number {
+  const p = Math.max(0, Math.min(1, admissionPolicy));
+  const d: number = COMMUNITY_DEFAULT_ADMISSION_POLICY;
+  if (p <= d) {
+    return COMMUNITY_ADMISSION_OPEN_THRESHOLD +
+      (COMMUNITY_JOIN_TRUST_THRESHOLD - COMMUNITY_ADMISSION_OPEN_THRESHOLD) * (p / d);
+  }
+  return COMMUNITY_JOIN_TRUST_THRESHOLD +
+    (COMMUNITY_ADMISSION_CLOSED_THRESHOLD - COMMUNITY_JOIN_TRUST_THRESHOLD) * ((p - d) / (1 - d));
+}
+
 // --- belonging need coupling (reworked hollow-14c: hearth ATTENDANCE, not
 // raw community membership, is the source — see belonging-system.ts) -------
 

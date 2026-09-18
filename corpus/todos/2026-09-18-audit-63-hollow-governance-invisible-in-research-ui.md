@@ -31,7 +31,7 @@ Surface them, and let that decide the snapshot shape rather than the other way r
   stop shipping a whole `Record` across the worker boundary every tick. Both outcomes are wins; decide
   on evidence.
 - **Norm state and sanctions** in inspect, alongside the two norms already there. Note
-  [audit-49](2026-09-18-audit-49-admission-policy-inert-norm.md): do not surface `admissionPolicy` as
+  [audit-49](closed/2026-09-18-audit-49-admission-policy-inert-norm.md): do not surface `admissionPolicy` as
   binding until it is.
 - **Two more dashboard series** — `feud_active_dyads` and `deaths_disease_window` — which is nearly
   free, since the sampler already emits them and the chart machinery exists.

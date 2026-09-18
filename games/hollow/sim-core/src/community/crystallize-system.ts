@@ -58,6 +58,8 @@ import {
   COMMUNITY_LEAVE_TRUST_THRESHOLD,
   COMMUNITY_MERGE_CROSS_TRUST_THRESHOLD,
   COMMUNITY_MERGE_TERRITORY_RADIUS,
+  COMMUNITY_DEFAULT_ADMISSION_POLICY,
+  admissionJoinThreshold,
 } from "./constants";
 
 export interface CommunitySystemOptions {
@@ -336,7 +338,16 @@ export class HollowCommunitySystem implements System {
         }
         if (n === 0) continue;
         const combined = (toSum / n + fromSum / n) / 2;
-        if (combined >= this.joinTrustThreshold) {
+        // audit-49: the `admissionPolicy` norm is BINDING here. It was votable but read by nothing
+        // — a third of the advertised governance mechanic was theatre, and a researcher reading
+        // NORM_CHANGED out of the chronicle would have drawn causal conclusions from a number with
+        // no causal effect. `admissionJoinThreshold` is hinged on the default, so a community that
+        // never voted its norm away from neutral demands exactly `joinTrustThreshold` as before.
+        const policy = community.norms.admissionPolicy ?? COMMUNITY_DEFAULT_ADMISSION_POLICY;
+        const threshold = policy === COMMUNITY_DEFAULT_ADMISSION_POLICY
+          ? this.joinTrustThreshold
+          : admissionJoinThreshold(policy);
+        if (combined >= threshold) {
           this.registry.addMember(community.id, candidateId);
           candidate.communityId = community.id;
           joinedThisPass.add(candidateId);

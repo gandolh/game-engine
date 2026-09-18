@@ -11,11 +11,11 @@ import { BEHAVIOR_GENES, APTITUDE_SKILLS, GENE_MIN, GENE_MAX } from "./component
 import { STAGE_CHILD_ADULT_TICKS, STAGE_ADULT_ELDER_TICKS } from "./family/constants";
 
 describe("spawnPopulation", () => {
-  it("spawns exactly `population` agents with in-bounds positions, full needs, self-owned empty inventory, and the villager kind", () => {
+  it("spawns exactly `population` agents with in-bounds positions, full needs, an empty inventory, and the villager kind", () => {
     const world = new World<HollowEntity>();
     spawnPopulation(world, createRng(11), { population: 12, lineage: new LineageRegistry() });
 
-    const agents = [...world.query("agent", "needs", "inventory", "ownership", "personality", "fsm")];
+    const agents = [...world.query("agent", "needs", "inventory", "personality", "fsm")];
     expect(agents).toHaveLength(12);
 
     for (const agent of agents) {
@@ -34,7 +34,6 @@ describe("spawnPopulation", () => {
       expect(agent.needs.byKind[NEED_BELONGING]!.decayPerTick).toBe(0);
 
       expect(agent.inventory.goods).toEqual({});
-      expect(agent.ownership.ownerId).toBe(agent.id);
       expect(agent.personality.kind).toBe(VILLAGER_KIND);
       expect(agent.fsm.current).toBe("PERCEIVE");
     }

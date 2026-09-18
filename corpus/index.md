@@ -70,6 +70,15 @@ which is how a "WebGPU-only render path" line outlived the page that already sai
 
 **Open** — the live queue is [todos/](todos/); these are its trackers:
 
+- **Audit sweep 2026-09-18** — **26 filed specs, none built**: `audit-38`..`audit-63` in
+  [todos/](todos/), from a six-lens read-only sweep (46 raw findings vetted down to 26). They are
+  ranked and summarised in the [log.md](log.md) entry for 2026-09-18; the three highest-leverage are
+  [audit-38](todos/closed/2026-09-18-audit-38-vickrey-self-second-price.md) (Vickrey charges the winner their
+  own duplicate bid), [audit-39](todos/closed/2026-09-18-audit-39-premultiply-alpha-never-restored.md)
+  (a context-global GL flag never restored) and
+  [audit-40](todos/2026-09-18-audit-40-dockerignore-strips-wasm.md) (`.dockerignore` strips the wasm
+  the sim server reads). Three of them — 44, 45, 51 — are **guards that cannot currently fail**.
+
 - **Hollow** — 01–12, 14, 15 shipped; **hollow-13** (LLM rationalizer seam) is the one queued brief.
   [todos/2026-07-17-hollow-BUILD-STATE.md](todos/2026-07-17-hollow-BUILD-STATE.md)
 - **@engine/ui incremental improvements** — items 1 and 3 done, item 2 deferred.

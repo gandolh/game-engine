@@ -9,7 +9,6 @@ import type {
 import type { Needs, RelationshipLedger } from "@engine/core/agent";
 import type { HollowAgent } from "./agent";
 import type { Inventory } from "./inventory";
-import type { Ownership } from "./ownership";
 import type { Genome } from "./genome";
 import type { Lifecycle } from "./lifecycle";
 import type { Skills } from "./skills";
@@ -44,7 +43,6 @@ export interface HollowEntity {
   agent?: HollowAgent;
   needs?: Needs;
   inventory?: Inventory;
-  ownership?: Ownership;
   /**
    * The engine's generic directed trust ledger (chunk hollow-04) — this
    * agent's "how do I feel about peer X" scores. Populated by

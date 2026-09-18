@@ -70,7 +70,6 @@ type ReproductionEntity = HollowEntity & {
   lifecycle: NonNullable<HollowEntity["lifecycle"]>;
   genome: NonNullable<HollowEntity["genome"]>;
   inventory: NonNullable<HollowEntity["inventory"]>;
-  ownership: NonNullable<HollowEntity["ownership"]>;
 };
 
 export class HollowReproductionSystem implements System {
@@ -114,7 +113,6 @@ export class HollowReproductionSystem implements System {
       "lifecycle",
       "genome",
       "inventory",
-      "ownership",
     )) {
       const entity = e as ReproductionEntity;
       byId.set(entity.id, entity);
@@ -180,7 +178,6 @@ export class HollowReproductionSystem implements System {
         },
       },
       inventory: { goods: {} },
-      ownership: { ownerId: 0 }, // fixed to the real id right below
       fsm: { current: "PERCEIVE", enteredTick: tick },
       beliefs: { data: {}, revision: 0 },
       desires: { data: {} },
@@ -205,9 +202,6 @@ export class HollowReproductionSystem implements System {
       occupation: makeOccupation(),
     } satisfies HollowEntity);
 
-    if (spawned.ownership && spawned.id !== undefined) {
-      spawned.ownership.ownerId = spawned.id;
-    }
     const childId = spawned.id;
     if (childId === undefined) return;
 
