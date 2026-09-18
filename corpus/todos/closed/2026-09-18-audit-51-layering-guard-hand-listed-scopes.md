@@ -9,7 +9,7 @@ see matters more than usual.
 ## The two gaps
 
 **1. The tripwire only checks what it already knows about.**
-[`layering.test.ts:88`](../../engine/core/src/layering.test.ts#L88):
+[`layering.test.ts:88`](../../../engine/core/src/layering.test.ts#L88):
 
 ```ts
 it("scans every game, tool and engine source file", () => {
@@ -18,14 +18,14 @@ it("scans every game, tool and engine source file", () => {
 });
 ```
 
-`SCOPES` ([`:25`](../../engine/core/src/layering.test.ts#L25)) is a hand-written literal of 10 roots.
+`SCOPES` ([`:25`](../../../engine/core/src/layering.test.ts#L25)) is a hand-written literal of 10 roots.
 The test's name says "every game, tool and engine source file"; what it actually proves is "each of
 the 10 roots I was told about is non-empty". A fifth game, or a new tool, is simply never scanned —
 and `scanned.length > 500` still passes on the other nine. Given this repo went from two games to four,
 a fifth is not hypothetical.
 
 **2. The forbidden-import regex only matches package specifiers.**
-[`:44`](../../engine/core/src/layering.test.ts#L44):
+[`:44`](../../../engine/core/src/layering.test.ts#L44):
 
 ```ts
 return new RegExp(`(?:from\\s+|import\\(\\s*)["']@(?:${alt})/`);
@@ -48,12 +48,12 @@ relative imports are everywhere and must not trip it, and `tools/*` legitimately
 drive.
 
 Consider whether the first gap deserves the same treatment in
-[`palette.test.ts`](../../engine/core/src/render/palette.test.ts) and the two `glsl-lint.test.ts`
+[`palette.test.ts`](../../../engine/core/src/render/palette.test.ts) and the two `glsl-lint.test.ts`
 copies, which use the same "walk from a root" shape. (The glsl globs were checked during this sweep
 and **do** resolve, with their own tripwires — no action needed there, recorded so it is not re-checked.)
 
 ## Files you OWN
-- [`engine/core/src/layering.test.ts`](../../engine/core/src/layering.test.ts)
+- [`engine/core/src/layering.test.ts`](../../../engine/core/src/layering.test.ts)
 
 ## Files you must NOT touch
 - any game or tool source — this brief must find **zero** real violations today; if it finds one, stop

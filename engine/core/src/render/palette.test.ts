@@ -74,7 +74,13 @@ const HERE = fileURLToPath(new URL(".", import.meta.url));
 const REPO_ROOT = join(HERE, "..", "..", "..", "..");
 
 const SKIP_DIRS = new Set(["node_modules", "dist", "build", ".git"]);
-const SOURCE_EXT = /\.(ts|js|mjs|cjs)$/;
+// audit-44: `.html` and `.css` are in scope. CLAUDE.md has always stated the rule as covering
+// "sprites, tiles, particles, day/night wash, HTML/canvas UI" — the doc was right and the guard
+// was narrower than everyone believed. Behind the gap sat a live violation: Farm's index.html set
+// the page background and default text colour, the first thing a player sees, to two hexes in no
+// palette at all. Citadel's style.css happened to use valid Apollo swatches; that was luck, not
+// enforcement.
+const SOURCE_EXT = /\.(ts|js|mjs|cjs|html|css)$/;
 const SKIP_FILE = /\.(test|spec)\.(ts|js)$/; 
 
 const ALLOWLIST_FILES: Record<string, string> = {};
@@ -207,6 +213,57 @@ describe("no source file uses an off-palette color literal", () => {
 
   it("scans a non-trivial number of source files", () => {
     expect(files.length).toBeGreaterThan(20);
+  });
+
+  // audit-44: a scan that silently matches ZERO files of a type is the exact failure mode this
+  // widening exists to remove — the guard was green for months because it never opened these
+  // files, not because they were clean. Count them explicitly, in the style of the tripwire above.
+  it("actually reaches the HTML and CSS files, not just the TypeScript", () => {
+    const html = files.filter((f) => f.endsWith(".html"));
+    const css = files.filter((f) => f.endsWith(".css"));
+    expect(html.length, "no .html files scanned — the widened scan is not reaching them").toBeGreaterThan(0);
+    expect(css.length, "no .css files scanned — the widened scan is not reaching them").toBeGreaterThan(0);
+    // One index.html per client; the four clients are the floor.
+    expect(html.length).toBeGreaterThanOrEqual(4);
+  });
+
+  // HEX_RE was written for TypeScript. CSS has shapes TS does not, and the one that could plausibly
+  // misfire is an id selector: `#app` is three characters after the `#`, so it could match the
+  // 3-digit branch. It does not — `p` is not a hex digit — but "does not" is worth pinning rather
+  // than assuming, since a false positive here would push someone toward the allowlist.
+  it("HEX_RE handles CSS shapes: #fff shorthand matches, an id selector does not", () => {
+    const hits = (src: string): string[] => [...(src.match(HEX_RE) ?? [])];
+    expect(hits("color: #fff;")).toEqual(["#fff"]);
+    expect(hits("color: #ffffff;")).toEqual(["#ffffff"]);
+    expect(hits("#app { margin: 0 }")).toEqual([]);
+    expect(hits("#root, #app-shell { }")).toEqual([]);
+    // A 3-char id that happens to be all hex digits IS indistinguishable from a colour, and is
+    // correctly flagged — renaming such a selector is cheaper than weakening the guard.
+    expect(hits("#abc { }")).toEqual(["#abc"]);
+    // Still no false positive on the GLSL directive the regex was hardened for.
+    expect(hits("#define MAX_MATERIALS 256")).toEqual([]);
+  });
+
+  // The per-scope path mapping must apply to .html/.css exactly as it does to .ts — otherwise the
+  // widened scan would check Hollow's stylesheet against EDG32 and report nonsense. Exercised on
+  // synthetic paths rather than by writing a violation into the tree.
+  it("per-scope palette selection applies to .html and .css paths, not just .ts", () => {
+    const scoped = (rel: string): Scope => scopeOf(rel);
+    expect(scoped("games/citadel/client/src/style.css")).toBe("citadel");
+    expect(scoped("games/citadel/client/index.html")).toBe("citadel");
+    expect(scoped("games/hollow/client/src/style.css")).toBe("hollow");
+    expect(scoped("games/hollow/client/index.html")).toBe("hollow");
+    expect(scoped("games/mathquest/client/src/style.css")).toBe("mathquest");
+    expect(scoped("games/mathquest/client/index.html")).toBe("mathquest");
+    expect(scoped("games/farm/client/index.html")).toBe("default");
+    expect(scoped("engine/core/src/render/palette.ts")).toBe("default");
+  });
+
+  // ALLOWLIST_FILES is empty, and that is a property worth keeping: a boot-screen background is
+  // exactly the surface the palette rule exists for, so the fix for a violation is to map it to a
+  // role, not to exempt the file. If this ever fails, the entry had better carry a written reason.
+  it("the allowlist is still empty", () => {
+    expect(Object.keys(ALLOWLIST_FILES)).toEqual([]);
   });
 
   it("atlas-builder SWATCH RGB tuples are all EDG32 colors", () => {

@@ -5,7 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Farm Valley</title>
     <style>
-      html, body { margin: 0; padding: 0; height: 100%; background: #0c0d12; color: #e7eeff; font-family: ui-sans-serif, system-ui, sans-serif; }
+      /* EDG32 ONLY — this <style> block is scanned by engine/core/src/render/palette.test.ts
+         (audit-44 widened the guard to .html/.css; CLAUDE.md always said "HTML/canvas UI").
+         Every colour below must be an EDG32 swatch: use the role constants' values from
+         engine/core/src/render/palette.ts. This is the boot surface, the first thing a player
+         sees, so it is exactly what the palette rule is for.
+         The two values here were previously off-palette literals in no palette at all; they are
+         now EDG.black and EDG.white. (Note the scan does not distinguish comment from code, here
+         or in .ts — so don't quote an off-palette hex in a comment either.) */
+      :root { --edg-black: #181425; --edg-white: #ffffff; }
+      html, body { margin: 0; padding: 0; height: 100%; background: var(--edg-black); color: var(--edg-white); font-family: ui-sans-serif, system-ui, sans-serif; }
       #app { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
       canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
       #fatal { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; padding: 24px; text-align: center; }

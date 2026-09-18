@@ -7,7 +7,7 @@ load-bearing — *"the ordering encodes real data dependencies"* — and there i
 
 ## The gap
 
-[`engine/core/src/sim/scheduler.ts:50`](../../engine/core/src/sim/scheduler.ts#L50) has two branches:
+[`engine/core/src/sim/scheduler.ts:50`](../../../engine/core/src/sim/scheduler.ts#L50) has two branches:
 
 ```ts
 tick(ctx: SimContext): void {
@@ -24,13 +24,13 @@ tick(ctx: SimContext): void {
 The only test file is `scheduler-audit.test.ts`, and **both** of its tests call
 `scheduler.enableStageAudit(bus)` before ticking (lines 37 and 73). There is no `scheduler.test.ts`.
 The production `else` branch is reached only indirectly, through `bootstrapSim()`-driven game tests
-that are asserting something else entirely. `stages()` ([`:38`](../../engine/core/src/sim/scheduler.ts#L38))
+that are asserting something else entirely. `stages()` ([`:38`](../../../engine/core/src/sim/scheduler.ts#L38))
 and the `.stage()` grouping semantics have no test at all.
 
-Related and in scope: [`message-bus.ts:135`](../../engine/core/src/sim/message-bus.ts#L135)
+Related and in scope: [`message-bus.ts:135`](../../../engine/core/src/sim/message-bus.ts#L135)
 `notifySubscribers` runs handlers in a bare `for…of` with no isolation — one throwing ontology
 subscriber aborts delivery for every later message in the tick — and `drain()`
-([`:76`](../../engine/core/src/sim/message-bus.ts#L76)) returns the **live internal array** rather than
+([`:76`](../../../engine/core/src/sim/message-bus.ts#L76)) returns the **live internal array** rather than
 a copy. Neither is covered.
 
 ## Failure scenario
@@ -60,14 +60,14 @@ before "fixing" it, and if it is deliberate, write that down instead.
 
 ## Files you OWN
 - a new `engine/core/src/sim/scheduler.test.ts`
-- [`engine/core/src/sim/message-bus.test.ts`](../../engine/core/src/sim/message-bus.test.ts)
-- [`engine/core/src/sim/message-bus.ts`](../../engine/core/src/sim/message-bus.ts) — only if the
+- [`engine/core/src/sim/message-bus.test.ts`](../../../engine/core/src/sim/message-bus.test.ts)
+- [`engine/core/src/sim/message-bus.ts`](../../../engine/core/src/sim/message-bus.ts) — only if the
   isolation decision says so
 
 ## Files you must NOT touch
-- [`scheduler.ts`](../../engine/core/src/sim/scheduler.ts) — this brief pins current behaviour. Any
+- [`scheduler.ts`](../../../engine/core/src/sim/scheduler.ts) — this brief pins current behaviour. Any
   change to the tick loop is a determinism change across four games and needs its own spec.
-- any game's `bootstrapSim` registration order — [`wiki/system-ordering.md`](../wiki/system-ordering.md)
+- any game's `bootstrapSim` registration order — [`wiki/system-ordering.md`](../../wiki/system-ordering.md)
   is authoritative and unchanged here
 
 ## Acceptance

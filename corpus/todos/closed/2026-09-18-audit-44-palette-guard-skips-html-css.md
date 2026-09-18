@@ -7,16 +7,16 @@ is not — and there is a live violation sitting behind the gap right now.
 
 ## The gap
 
-[`palette.test.ts:77`](../../engine/core/src/render/palette.test.ts#L77):
+[`palette.test.ts:77`](../../../engine/core/src/render/palette.test.ts#L77):
 
 ```ts
 const SOURCE_EXT = /\.(ts|js|mjs|cjs)$/;
 ```
 
-and [`:96`](../../engine/core/src/render/palette.test.ts#L96) only pushes a file if it matches. So the
+and [`:96`](../../../engine/core/src/render/palette.test.ts#L96) only pushes a file if it matches. So the
 four `index.html` files and three `src/style.css` files in the repo are **never read**.
 
-The live violation — [`games/farm/client/index.html:8`](../../games/farm/client/index.html#L8):
+The live violation — [`games/farm/client/index.html:8`](../../../games/farm/client/index.html#L8):
 
 ```html
 html, body { margin: 0; padding: 0; height: 100%; background: #0c0d12; color: #e7eeff; … }
@@ -25,7 +25,7 @@ html, body { margin: 0; padding: 0; height: 100%; background: #0c0d12; color: #e
 Neither `#0c0d12` nor `#e7eeff` is in EDG32 (nearest: `#181425`, `#ffffff`). These are the page
 background and default text colour — the first thing a player sees.
 
-And [`CLAUDE.md`](../../CLAUDE.md) states the rule as covering *"sprites, tiles, particles, day/night
+And [`CLAUDE.md`](../../../CLAUDE.md) states the rule as covering *"sprites, tiles, particles, day/night
 wash, **HTML/canvas UI**"*. The doc and the guard disagree; the doc is right.
 
 Citadel's `style.css` happens to use valid Apollo swatches. That is luck, not enforcement.
@@ -45,8 +45,8 @@ Then resolve the two Farm hexes: either map them to `EDG.*` roles, or add them t
 rule exists for, and the allowlist is currently empty, which is a property worth keeping.
 
 ## Files you OWN
-- [`engine/core/src/render/palette.test.ts`](../../engine/core/src/render/palette.test.ts)
-- [`games/farm/client/index.html`](../../games/farm/client/index.html)
+- [`engine/core/src/render/palette.test.ts`](../../../engine/core/src/render/palette.test.ts)
+- [`games/farm/client/index.html`](../../../games/farm/client/index.html)
 - the other `index.html` / `src/style.css` files, if the widened scan turns up more violations
 
 ## Files you must NOT touch
