@@ -7,7 +7,7 @@ BUILD-STATE and never queued.
 
 ## The gap
 
-[`2026-07-17-hollow-BUILD-STATE.md`](2026-07-17-hollow-BUILD-STATE.md) records it:
+[`2026-07-17-hollow-BUILD-STATE.md`](../2026-07-17-hollow-BUILD-STATE.md) records it:
 
 > *"**Governance/feuds are NOT surfaced in the 3D client / research UI yet** — 12a+12b are sim-core +
 > observe (chronicle events + a metric) only. A follow-up client brief could render leader/standing,
