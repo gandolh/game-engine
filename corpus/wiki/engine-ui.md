@@ -115,8 +115,25 @@ absolute screen-space, rect vestigial) and Citadel `minimap` (`node()`/`setFrame
 laid-out rect origin; clicks stay separate via `trySeek`, since a custom node is non-interactive).
 There is no longer any bespoke `drawX(surface, …)` pass beside `renderTree` in either render loop.
 
-## Known gap
+## Known gap — no grid/tabular layout, and that is still the right call
 
-`villager-panel.ts` was audited + fixed (`width: 200`→`288`) for the wider font on 2026-07-22.
-No known text-metric gaps remain; the grid/tabular layout (backlog item 2) is still unbuilt (no
-panel demands it yet).
+`villager-panel.ts` was audited + fixed (`width: 200`→`288`) for the wider font on 2026-07-22. No
+known text-metric gaps remain.
+
+**The toolkit is flexbox-lite: row/column/grow, no grid and no constraint solver.** Adding a grid was
+the last open item of the 2026-07-22 improvements backlog, which was closed on **2026-09-19** with it
+deliberately unbuilt. Its own rule was *"add a grid layout prop **when** a panel needs it, not
+before"*, and re-checked against the code, none does.
+
+**The nearest thing to a table is Farm's relationship matrix**, and it is fine:
+[relationship-matrix.ts](../../games/farm/client/src/ui/canvas/relationship-matrix.ts) builds a
+21×21 trust grid as a `column` box of `row` boxes of `label` cells — ordinary primitives, no by-hand
+pixel math. Columns line up because **every cell is a single initial in a fixed-width bitmap font**,
+so every cell measures the same.
+
+**That last sentence is the trigger condition.** The alignment is a property of the *content*, not of
+the layout engine. Build the grid prop when a panel needs columns to align across rows whose cells
+have **different intrinsic widths** — a real table with varying-length values. At that point
+independent `row` boxes stop working and no amount of `gap` tuning will save it. Until then a grid
+prop would be a speculative abstraction with one hypothetical consumer, which is what the backlog
+told us not to build.

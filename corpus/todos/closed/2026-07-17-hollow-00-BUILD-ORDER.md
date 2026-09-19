@@ -1,8 +1,16 @@
 # Hollow — BUILD ORDER (design of record + milestone map)
 
-status: todo
+status: **CLOSED 2026-09-19 — every milestone in this map shipped**
 created: 2026-07-17
-updated: 2026-09-19 (audit-53: decision #7 said raw WebGPU; the renderer is WebGL2)
+updated: 2026-09-19 (closeout; and audit-53 corrected decision #7, which said raw WebGPU)
+
+> **Closeout note (2026-09-19).** This is the *milestone map* for Hollow, and M1–M5 are all built
+> (01–15, plus hollow-13's LLM seam). A plan whose every milestone shipped is history, not a queue
+> item. The live design-of-record is [wiki/hollow-overview.md](../../wiki/hollow-overview.md); the
+> live progress tracker — still open, because Hollow work continues — is
+> [2026-07-17-hollow-BUILD-STATE.md](../2026-07-17-hollow-BUILD-STATE.md). The **decisions** in this
+> file are still worth reading; they are why the build looks the way it does. Note decision #7's
+> correction: the renderer is WebGL2, not the raw WebGPU this file originally specified.
 
 **Hollow** is a third game on the shared engine: a director/observer **multi-generational
 social simulation**. You author personas, seed a small town, press play, and study emergent
@@ -58,7 +66,7 @@ briefs. It supersedes nothing (new game). When M1 lands, fold a durable summary 
      contribution, sanction a rule-breaker. **Higher-order — deferred to M4.**
 7. **Rendering = true 3D, raw WebGL2, promoted into `@engine/core`.** Not sprites; not
    Citadel's software rasterizer. A generic 3D renderer lives in the engine (so it can
-   name no game) at [`engine/core/src/render3d/webgl2/`](../../engine/core/src/render3d/webgl2/).
+   name no game) at [`engine/core/src/render3d/webgl2/`](../../../engine/core/src/render3d/webgl2/).
    Cozy look = **flat shading (one tone per face by normal) + ambient occlusion
    + warm palette-snapped ramps**, optional toon ramp. Meshes are **baked from parametric
    primitives** (box/cylinder/cone/pyramid/gable → indexed triangle mesh) — the same
@@ -68,7 +76,7 @@ briefs. It supersedes nothing (new game). When M1 lands, fold a durable summary 
 
    > **Corrected 2026-09-19 (audit-53).** This decision said **raw WebGPU** and `render3d/webgpu/`
    > was what M2 actually built. WebGPU was deleted repo-wide on **2026-08-18** in favour of a
-   > single WebGL2 backend (see [decisions.md](../wiki/decisions.md)), and the 3D layer was ported.
+   > single WebGL2 backend (see [decisions.md](../../wiki/decisions.md)), and the 3D layer was ported.
    > The decision *above* — true 3D, generic, in the engine, flat-shaded, meshes baked from
    > parametric primitives — survived the port unchanged; only the API under it moved. This
    > matters here because the old wording is what kept this file's sibling BUILD-STATE parking

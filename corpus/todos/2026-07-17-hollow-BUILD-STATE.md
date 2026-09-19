@@ -1,7 +1,18 @@
 # Hollow — BUILD STATE / RESUME (live tracker)
 
 status: in-progress
-updated: 2026-09-19 (audit-53: the WebGPU/Chrome visual gate is gone — see below)
+updated: 2026-09-19 (hollow-16 closed; hollow-17 queued; audit-53's WebGPU/Chrome gate removed)
+
+> **Where Hollow stands (2026-09-19).** M1–M5 are built: 01–15, plus **hollow-13**'s LLM rationalizer
+> seam. **hollow-16** closed it out by measuring the seam rather than arguing about it — it is
+> *low-rate and genuinely live* (~12% adoption under the contrarian diagnostic; when an answer is
+> adopted the world provably diverges), and every headless run now prints its own adoption rate. See
+> [decisions.md](../wiki/decisions.md) → *Hollow — the LLM-rationalizer seam*.
+> **The one queued spec is [hollow-17](2026-09-19-hollow-17-rationalizer-attachment-point.md)**:
+> move the seam to a decision whose subject outlives the 40-tick answer-lag. This file stays in the
+> live queue because it is the tracker that work records itself in; the milestone *map* it was
+> written against is closed at
+> [todos/closed/2026-07-17-hollow-00-BUILD-ORDER.md](closed/2026-07-17-hollow-00-BUILD-ORDER.md).
 
 > **Correction 2026-09-19 (audit-53).** Every "needs a human in a WebGPU Chrome" note in this file was
 > written against a **WebGPU** 3D renderer that was **deleted on 2026-08-18** when the repo moved to a
@@ -12,7 +23,7 @@ updated: 2026-09-19 (audit-53: the WebGPU/Chrome visual gate is gone — see bel
 > original text, because the reasoning is still worth reading; only the verdicts changed.
 
 **Read this first to resume the Hollow build.** Design-of-record + all brief specs are in
-`corpus/todos/2026-07-17-hollow-00-BUILD-ORDER.md` and `…-hollow-01..13-*.md`. This file is the
+`corpus/todos/closed/2026-07-17-hollow-00-BUILD-ORDER.md` and `…-hollow-01..13-*.md`. This file is the
 live progress tracker + the API handoffs needed to dispatch the next brief.
 
 ## How we're building it

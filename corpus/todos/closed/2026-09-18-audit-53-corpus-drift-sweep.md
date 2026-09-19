@@ -31,7 +31,7 @@ has it end to end ([`sim-worker.ts:83-117`](../../../games/citadel/client/src/wo
 that question gets two phantom items and skips the real ones.
 
 **3. Both OPEN Hollow todos park a task behind a blocker that was removed.**
-[`2026-07-17-hollow-00-BUILD-ORDER.md`](../2026-07-17-hollow-00-BUILD-ORDER.md) decision #7 says
+[`2026-07-17-hollow-00-BUILD-ORDER.md`](2026-07-17-hollow-00-BUILD-ORDER.md) decision #7 says
 *"Rendering = true 3D, **raw WebGPU**"*; [`2026-07-17-hollow-BUILD-STATE.md`](../2026-07-17-hollow-BUILD-STATE.md)
 at lines 164 and 172-180 says the visual acceptance is un-self-verifiable and needs *"Chrome 113+ (or
 enable `chrome://flags` → 'Unsafe WebGPU')"*. The renderer is WebGL2
@@ -57,7 +57,7 @@ splitting pages here.
 ## Files you OWN
 - [`wiki/performance.md`](../../wiki/performance.md), [`wiki/asset-pipeline.md`](../../wiki/asset-pipeline.md)
 - [`wiki/citadel-decisions.md`](../../wiki/citadel-decisions.md)
-- [`2026-07-17-hollow-00-BUILD-ORDER.md`](../2026-07-17-hollow-00-BUILD-ORDER.md), [`2026-07-17-hollow-BUILD-STATE.md`](../2026-07-17-hollow-BUILD-STATE.md)
+- [`2026-07-17-hollow-00-BUILD-ORDER.md`](2026-07-17-hollow-00-BUILD-ORDER.md), [`2026-07-17-hollow-BUILD-STATE.md`](../2026-07-17-hollow-BUILD-STATE.md)
 - `corpus/index.md` + `corpus/log.md` entries for the change
 
 ## Files you must NOT touch

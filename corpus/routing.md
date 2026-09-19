@@ -93,7 +93,7 @@ before you *act*.
 | Farm gameplay | the todo, games/farm/sim-core/src, corpus/wiki/system-ordering.md | other games' code | — |
 | Hollow (social-emergence sim) | the todo, corpus/wiki/hollow-overview.md, corpus/todos/2026-07-17-hollow-BUILD-STATE.md, games/hollow/sim-core/src | Farm/Citadel/MateQuest code, 2D renderer internals | — |
 | Hollow 3D / render3d | the todo, engine/core/src/render3d, games/hollow/client/src/render3d | every sim-core, the 2D render path | — |
-| MateQuest (math roguelike) | the todo, corpus/wiki/mathquest-overview.md, corpus/todos/2026-07-21-mathquest-BUILD-STATE.md, games/mathquest/{sim-core,client}/src | other games' code | — (RO is the default language; MATE_PAL = Resurrect 64) |
+| MateQuest (math roguelike) | the todo, corpus/wiki/mathquest-overview.md, corpus/todos/closed/2026-07-21-mathquest-BUILD-STATE.md, games/mathquest/{sim-core,client}/src | other games' code | — (RO is the default language; MATE_PAL = Resurrect 64) |
 | Renderer / @engine/core/render | the todo, engine/core/src/render/webgl2, corpus/wiki/decisions.md (Renderer) | game sim-cores | — (WebGL2 only; GLSL ES 3.00; a glsl-lint test guards each shader dir) |
 
 ## Conventions (locked — see corpus/wiki/decisions.md)

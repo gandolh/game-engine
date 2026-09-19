@@ -1,7 +1,7 @@
 # MateQuest — M3: map & runs (brief)
 
 status: ready
-milestone: M3 (see corpus/todos/2026-07-21-mathquest-BUILD-STATE.md)
+milestone: M3 (see corpus/todos/closed/2026-07-21-mathquest-BUILD-STATE.md)
 design-of-record: corpus/wiki/mathquest-overview.md
 builds on: M2 problem-generator seam (branch `mathquest`, committed)
 

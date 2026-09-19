@@ -1,7 +1,7 @@
 # MateQuest — M3.1: spatial "Mewgenics-style" progressive map (brief)
 
 status: ready
-milestone: M3.1 (polish on M3; see corpus/todos/2026-07-21-mathquest-BUILD-STATE.md)
+milestone: M3.1 (polish on M3; see corpus/todos/closed/2026-07-21-mathquest-BUILD-STATE.md)
 design-of-record: corpus/wiki/mathquest-overview.md
 builds on: M3 map & runs (branch `mathquest`, committed)
 

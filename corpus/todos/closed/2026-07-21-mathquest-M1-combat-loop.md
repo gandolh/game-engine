@@ -1,7 +1,7 @@
 # MateQuest — M1: turn-combat loop (brief)
 
 status: ready
-milestone: M1 (see corpus/todos/2026-07-21-mathquest-BUILD-STATE.md)
+milestone: M1 (see corpus/todos/closed/2026-07-21-mathquest-BUILD-STATE.md)
 design-of-record: corpus/wiki/mathquest-overview.md
 builds on: M0 scaffold (branch `mathquest`, already merged)
 

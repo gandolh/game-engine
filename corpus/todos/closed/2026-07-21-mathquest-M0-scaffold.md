@@ -1,7 +1,7 @@
 # MateQuest — M0: workspace scaffold (brief)
 
 status: ready
-milestone: M0 (see corpus/todos/2026-07-21-mathquest-BUILD-STATE.md)
+milestone: M0 (see corpus/todos/closed/2026-07-21-mathquest-BUILD-STATE.md)
 design-of-record: corpus/wiki/mathquest-overview.md
 
 **Goal:** MateQuest exists as a fourth game in the monorepo — two workspaces that typecheck, a

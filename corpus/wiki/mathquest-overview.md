@@ -11,7 +11,7 @@ updated: 2026-08-18
 > an optional post-plan backlog (grades V–VIII generators), not the plan itself. Working name
 > **MateQuest** (codename / package `@mathquest/*`); proposed Romanian title **_Cetatea Cifrelor_**
 > ("The Citadel of Digits") — provisional. Per-milestone record + handoffs:
-> [todos/2026-07-21-mathquest-BUILD-STATE.md](../todos/2026-07-21-mathquest-BUILD-STATE.md).
+> [todos/closed/2026-07-21-mathquest-BUILD-STATE.md](../todos/closed/2026-07-21-mathquest-BUILD-STATE.md).
 
 MateQuest is the **fourth game** on the shared TypeScript ECS engine (`@engine/*`), alongside Farm
 Valley, Citadel, and Hollow. It is an **educational math roguelike**: a turn-based dungeon-crawl where

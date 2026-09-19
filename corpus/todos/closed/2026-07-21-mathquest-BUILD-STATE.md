@@ -1,7 +1,18 @@
 # MateQuest — BUILD STATE / RESUME (live tracker)
 
-status: **M0–M5 COMPLETE** — the whole milestone plan is done (all controller-verified in-browser) on branch `mathquest`
-updated: 2026-07-23 (M5 slice 2 RO/EN i18n toggle — the final slice)
+status: **CLOSED 2026-09-19 — M0–M5 COMPLETE**, the whole milestone plan done and
+controller-verified in-browser
+updated: 2026-09-19 (closeout; scope settled at grades I–IV by audit-54)
+
+> **Closeout note (2026-09-19).** Moved out of the live queue because there is nothing queued. M0–M5
+> shipped; the two items that *were* pending — grades V–VIII generators and the mastery-unlock that
+> depended on them — were closed by
+> [audit-54](2026-09-18-audit-54-mathquest-grades-v-viii.md), which settled MateQuest's scope at
+> **grades I–IV**. What remains under "Still outstanding" below is an **ideas list, not a queue**:
+> companions, higher-fidelity art, sound, menus, balance. None is specced, none is committed to, and
+> a list of maybes in `todos/` makes the queue look like it holds work it does not.
+> The design-of-record is [wiki/mathquest-overview.md](../../wiki/mathquest-overview.md); this file
+> stays the build history and the resume document if MateQuest is picked up again.
 
 ## Locked convention: Romanian is the DEFAULT language
 Per user directive 2026-07-22: MateQuest UI defaults to **Romanian** until a locale toggle (M5) lets
@@ -10,7 +21,7 @@ the user change it. `strings.ts` holds RO values; generator `prompt`/`teach` tex
 legible in-canvas.
 
 **Read this first to resume the MateQuest build.** Design-of-record is
-[corpus/wiki/mathquest-overview.md](../wiki/mathquest-overview.md) — read it before any brief.
+[corpus/wiki/mathquest-overview.md](../../wiki/mathquest-overview.md) — read it before any brief.
 This file is the live progress tracker + the milestone plan.
 
 MateQuest = the **fourth game** on the shared engine: a Romanian-curriculum (programa școlară,

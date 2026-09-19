@@ -4,6 +4,48 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-09-19] change | The queue is down to two entries, and three of the four closures were "not built, on purpose"
+
+`todos/` held five files. Four were not work:
+
+- **[engine-ui improvements](todos/closed/2026-07-22-engine-ui-improvements.md)** — items 1 and 3
+  shipped in 2026-07; item 2 (grid/tabular layout) sat as "deferred". Its own rule was *"add a grid
+  layout prop **when** a panel needs it, not before"*, so the question is simply whether one does.
+  Checked: the nearest thing to a table is Farm's relationship matrix, which builds a 21×21 grid from
+  plain `column`/`row`/`label` boxes with **no by-hand pixel math**, and its columns align because
+  every cell is a single initial in a fixed-width bitmap font. Precondition not met → **closed
+  unbuilt**, which is a different state from "deferred again". The **trigger condition** moved to
+  [wiki/engine-ui.md](wiki/engine-ui.md) → *Known gap*, where someone building a table will look:
+  build it when a panel needs columns to align across rows whose cells have **different intrinsic
+  widths**. A conditional does not belong in the live queue pretending to be work.
+- **[MateQuest BUILD-STATE](todos/closed/2026-07-21-mathquest-BUILD-STATE.md)** — M0–M5 complete, and
+  its two genuinely-pending items (grades V–VIII and the mastery-unlock that depended on them) were
+  closed by audit-54. What was left under "Still outstanding" is an **ideas list** — companions, art
+  fidelity, sound, menus, balance — explicitly marked *NOT part of M0–M5*. Closed.
+- **[Hollow BUILD-ORDER](todos/closed/2026-07-17-hollow-00-BUILD-ORDER.md)** — the milestone *map*,
+  every milestone shipped. Closed; its decisions are still worth reading, and decision #7's WebGPU
+  correction rides along.
+- **[Hollow BUILD-STATE](todos/2026-07-17-hollow-BUILD-STATE.md)** — **kept open**, and this is the
+  one that is not a judgement call: it is the tracker that Hollow work records itself in, and
+  hollow-17 is queued. Closing it would freeze the file the next piece of work needs to edit
+  (`todos/closed/` is immutable by convention).
+
+**So the queue is hollow-17 plus that tracker.** `index.md`'s "Build programs" section was rewritten
+to say so — it had been describing the audit sweep as *"26 filed specs, none built"* with all 26 now
+closed, and listing the engine-ui backlog under **Open**.
+
+**The pattern worth naming**, because it recurred three times in one pass: a queue accumulates items
+whose *precondition* never arrived, and they read as backlog. "Deferred" and "closed because its
+trigger has not fired" look identical in a directory listing and mean opposite things to whoever
+picks the queue up. Write the trigger into the page that owns the topic and close the item — the
+trigger is what is durable, not the queue entry.
+
+One mechanical note: moving a spec into `todos/closed/` shifts its relative-link depth, and the
+fix-up script over-applied it to links written *after* the move was planned (a `../../../wiki/` that
+should be `../../wiki/`), plus eight sibling files that referenced the moved trackers as `../name.md`
+when they are now same-directory. `corpus/lint.sh` caught all ten. Run it after every move; the
+depth shift is not optional bookkeeping.
+
 ## [2026-09-19] decision | hollow-16: the rationalizer seam is low-rate and genuinely live — and the "inert" reading came from one seed
 
 hollow-13 shipped a seam that is architecturally correct and unit-provably live. hollow-16 was filed
@@ -1041,7 +1083,7 @@ full-viewport root (not multi-anchored subtrees):** `hitTest` bails when the poi
 stayed a real widget node → a11y mirror + ALL `combat-screen.test.ts` cases passed UNCHANGED (32
 combat/sprite, 67 client, 10 palette; typecheck clean). Rect-only + `MATE_PAL` (no WebGPU, no raw
 hex). Verified in-browser (action-menu + answer phases + map regression). Commit `c2327fe`. Detail:
-[todos/2026-07-21-mathquest-BUILD-STATE.md](todos/2026-07-21-mathquest-BUILD-STATE.md) ("Post-plan
+[todos/closed/2026-07-21-mathquest-BUILD-STATE.md](todos/closed/2026-07-21-mathquest-BUILD-STATE.md) ("Post-plan
 polish log").
 
 ## [2026-07-23] build | MateQuest M5 slice 2 — RO/EN i18n toggle (M5 + the whole M0–M5 plan COMPLETE)
@@ -1100,7 +1142,7 @@ pui/Strigoi/Căpcăun, elite Muma Pădurii/Vârcolac/Balaur, boss Zmeu bătrân.
 → `STRINGS.heroName`; enemy epithet line under the name. No new fork (pure functions of kind/row).
 In-browser: forest fight showed "Zmeu pui" + "puiul balaurului" + hero "Făt-Frumos". Gate: typecheck
 19/19; sim-core **280**; client **43**; palette **10**; scope `games/mathquest/**`. Full detail:
-[todos/2026-07-21-mathquest-BUILD-STATE.md](todos/2026-07-21-mathquest-BUILD-STATE.md) (M5 slice 1
+[todos/closed/2026-07-21-mathquest-BUILD-STATE.md](todos/closed/2026-07-21-mathquest-BUILD-STATE.md) (M5 slice 1
 section). Next: **M5 slice 2 — RO/EN i18n toggle**, then slice 3 (authored pixel art).
 
 ## [2026-07-23] build | MateQuest M4c — persistent per-topic mastery (M4 COMPLETE)
@@ -1125,7 +1167,7 @@ solved 1 subtraction + 2 comparisons → won → `localStorage` held EXACTLY tho
 a high store + reloaded → HUD "8/12" AND the elite node appeared on the same seed (mastery drives map
 gen). Gate: typecheck 19/19; sim-core **267**; client **41**; palette **10**; scope `games/mathquest/**`.
 **M4 is COMPLETE** (M4a stats + M4b lifelines + M4c mastery). Full detail:
-[todos/2026-07-21-mathquest-BUILD-STATE.md](todos/2026-07-21-mathquest-BUILD-STATE.md) (M4c section).
+[todos/closed/2026-07-21-mathquest-BUILD-STATE.md](todos/closed/2026-07-21-mathquest-BUILD-STATE.md) (M4c section).
 Next: **M5 — theme, art, i18n** (the last milestone: folklore skin + authored pixel art + RO/EN toggle).
 
 ## [2026-07-23] build | MateQuest M4b — math lifelines (hint / 50-50 / skip)
@@ -1147,7 +1189,7 @@ consumes `"fifty"`, `disabledChoices:[]`, `hint:null`). **In-browser:** hint rev
 skip dropped Zmeu pui 24→16 with no solve; on "Compară: 10 și 7", 50-50 greyed `=` (a wrong option),
 leaving `<`/`>` — answer `>` preserved; per-kind disable logic (out-of-charges / fifty-on-typed /
 already-used) all correct. Gate: typecheck 19/19, sim-core **214**, client **39**, palette **10**; scope
-`games/mathquest/**` only. Full detail: [todos/2026-07-21-mathquest-BUILD-STATE.md](todos/2026-07-21-mathquest-BUILD-STATE.md)
+`games/mathquest/**` only. Full detail: [todos/closed/2026-07-21-mathquest-BUILD-STATE.md](todos/closed/2026-07-21-mathquest-BUILD-STATE.md)
 (M4b section). Next: **M4c — persistent per-topic mastery** (first cross-run localStorage persistence).
 
 ## [2026-07-23] build | MateQuest M4a — in-run progression + loot/equipment
@@ -1178,14 +1220,14 @@ domain-warped height + a moisture field + wavy zone seams from a terrain-gen res
 Games / Quilez / Jiménez / noiseposti.ng). Ground is built once and cached (no per-frame noise cost);
 the engine-idiomatic `renderer.bakeStaticLayer` offscreen bake is noted as the future perf lever but
 not wired (UISurface exposes no raw ctx / image blit). Commits `8ba5b40` → `36ff94f` → `15da63f` →
-`2cbb7fa` → `1715b08` → `fbc475e`. Full detail: [todos/2026-07-21-mathquest-BUILD-STATE.md](todos/2026-07-21-mathquest-BUILD-STATE.md) (M3.4 section). Next: **M4 — progression & loot**.
+`2cbb7fa` → `1715b08` → `fbc475e`. Full detail: [todos/closed/2026-07-21-mathquest-BUILD-STATE.md](todos/closed/2026-07-21-mathquest-BUILD-STATE.md) (M3.4 section). Next: **M4 — progression & loot**.
 
 ## [2026-07-21] design | MateQuest — new (FOURTH) game: Romanian-curriculum math roguelike (design-of-record v0.1, pre-build)
 
 A new game seeded this session: **MateQuest** — an educational math roguelike on the shared engine,
 aligned to the Romanian *programa școlară* (grades I–VIII). Design settled via a `grill-me` interview
 after a short web-research pass; **no code yet**. Design-of-record: [wiki/mathquest-overview.md](wiki/mathquest-overview.md);
-build plan + milestones: [todos/2026-07-21-mathquest-BUILD-STATE.md](todos/2026-07-21-mathquest-BUILD-STATE.md).
+build plan + milestones: [todos/closed/2026-07-21-mathquest-BUILD-STATE.md](todos/closed/2026-07-21-mathquest-BUILD-STATE.md).
 - **Pillar:** *solving the problem IS the combat action* (Raizada's "we need better math games" — avoid
   the Prodigy toll-gate failure mode). Pokémon-style Attack/Heal/Shield menu + Slay-the-Spire turn
   stakes: choose an action, solve a curriculum problem to make it land (wrong = fizzle), enemies
@@ -3109,7 +3151,7 @@ Farm client HUD polish pass (inline, browser-verified via Playwright at dpr=1) p
 - **World→screen `dpr` bug (load-bearing).** `worldToCanvasCss`/`screenToWorld` (+ camera drag, juice) multiplied the world↔CSS scale by `Math.min(devicePixelRatio,2)`. The renderer draws into a `clientWidth*dpr` backing store and the browser scales it back down by dpr, so a sprite's CSS position is `(w−left)/(worldUnitsX/clientWidth)` — **dpr cancels**. The stray `*dpr` shifted every world-anchored panel toward top-left by `1/dpr` (invisible at dpr=1; the "inspect card off-centre" report on a hi-DPI Windows display). Removed it from the whole family. Lesson: UISurface/computeLayout/mouse events are all CSS px; never reintroduce dpr into world↔screen.
 - **Inspect card** now scales with zoom (`k = clamp(0.85·zoom/DEFAULT_ZOOM, 0.6, 1.2)`), anchors its head-gap in world units (hugs the sprite at every zoom), and only renders within 5% of `MAX_ZOOM`.
 - **Right column merged behind one master "Panels" tab** (`PanelPrefs` key `"column"`, default collapsed) enclosing the three sub-sections in a single background `panel()` with flush (`gap:0`) tabs; sub-sections keep their own independent collapse.
-- **engine-ui backlog item 1 (foundation + overlay + 4 consumers).** New `custom` node kind — the custom-draw escape hatch (draws during `renderTree` in tree order under inherited alpha; pass-through hit-test; inert a11y). Added `LayoutProps.overlay` — an out-of-flow child that fills the parent's inner box without consuming a slot/gap or shifting siblings — so an on-top overlay folds into a panel's tree instead of a post-`renderTree` pass. Folded in: `wealth-graph` (standalone node), `slate-billboard` (crop icons + bar fills), `hotbar` (icons + selected border + drag ghost), `inventory` (icons + border + ghost); their `drawIcons`/`drawGhost` methods + the host draw passes are gone. Left as-is on purpose: `minimap` (interactive click-to-recenter — a pass-through node would break it) and `pip-farm-marker` (world-space overlay — a fold is ceremony). Backlog item 3 done (villager-panel width 200→288 for the scale-2 job headline). See [todos/2026-07-22-engine-ui-improvements.md](todos/2026-07-22-engine-ui-improvements.md).
+- **engine-ui backlog item 1 (foundation + overlay + 4 consumers).** New `custom` node kind — the custom-draw escape hatch (draws during `renderTree` in tree order under inherited alpha; pass-through hit-test; inert a11y). Added `LayoutProps.overlay` — an out-of-flow child that fills the parent's inner box without consuming a slot/gap or shifting siblings — so an on-top overlay folds into a panel's tree instead of a post-`renderTree` pass. Folded in: `wealth-graph` (standalone node), `slate-billboard` (crop icons + bar fills), `hotbar` (icons + selected border + drag ghost), `inventory` (icons + border + ghost); their `drawIcons`/`drawGhost` methods + the host draw passes are gone. Left as-is on purpose: `minimap` (interactive click-to-recenter — a pass-through node would break it) and `pip-farm-marker` (world-space overlay — a fold is ceremony). Backlog item 3 done (villager-panel width 200→288 for the scale-2 job headline). See [todos/closed/2026-07-22-engine-ui-improvements.md](todos/closed/2026-07-22-engine-ui-improvements.md).
 
 ## [2026-06-11] era | Render-polish + pseudo-3D + brief-66→79 wave + wiki audit
 

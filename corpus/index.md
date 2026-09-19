@@ -64,39 +64,47 @@ which is how a "WebGPU-only render path" line outlived the page that already sai
 
 ### MateQuest
 
-- [wiki/mathquest-overview.md](wiki/mathquest-overview.md) — What MateQuest is (the **fourth** game — a Romanian-curriculum, **grades I–IV**, math roguelike where **solving a problem IS the combat action**): **built and playable** (design settled 2026-07-21, M0–M5 complete 2026-07-23). Pokémon-style Attack/Heal/Shield + Slay-the-Spire turn stakes; branching runs; two-layer progression (in-run XP + persistent per-topic mastery); soft-roguelike death; loot grants math lifelines; bilingual RO/EN; Romanian-folklore theme; Resurrect-64 palette; Web-Worker solo build like Citadel. Build plan + milestones: [todos/2026-07-21-mathquest-BUILD-STATE.md](todos/2026-07-21-mathquest-BUILD-STATE.md).
+- [wiki/mathquest-overview.md](wiki/mathquest-overview.md) — What MateQuest is (the **fourth** game — a Romanian-curriculum, **grades I–IV**, math roguelike where **solving a problem IS the combat action**): **built and playable** (design settled 2026-07-21, M0–M5 complete 2026-07-23). Pokémon-style Attack/Heal/Shield + Slay-the-Spire turn stakes; branching runs; two-layer progression (in-run XP + persistent per-topic mastery); soft-roguelike death; loot grants math lifelines; bilingual RO/EN; Romanian-folklore theme; Resurrect-64 palette; Web-Worker solo build like Citadel. Build plan + milestones: [todos/closed/2026-07-21-mathquest-BUILD-STATE.md](todos/closed/2026-07-21-mathquest-BUILD-STATE.md).
 
 ## Build programs
 
-**Open** — the live queue is [todos/](todos/); these are its trackers:
+**The queue holds exactly two things.** Both are in [todos/](todos/); everything else is closed.
 
-- **Audit sweep 2026-09-18** — 26 filed specs (`audit-38`..`audit-63`, from a six-lens read-only sweep
-  that vetted 46 raw findings down to 26). **22 built and closed** as of 2026-09-19; they are in
-  [todos/closed/](todos/closed/) and ranked/summarised in the [log.md](log.md) entry for 2026-09-18.
-  The three highest-leverage all shipped:
+- **[hollow-17](todos/2026-09-19-hollow-17-rationalizer-attachment-point.md)** — move Hollow's LLM
+  rationalizer seam to a decision whose **subject outlives the 40-tick answer-lag**. Measured
+  constraint: 43 of 43 rejected answers were refused because the chosen *peer* was gone, and in 33 of
+  those the same verb was live against a **different person** — which is why the cheap fix (match on
+  verb alone) is refused, not merely deferred. It is candidate-enumeration work on a system-driven
+  pass, and it starts at the design end.
+- **[Hollow BUILD-STATE](todos/2026-07-17-hollow-BUILD-STATE.md)** — not a task: the live tracker
+  Hollow work records itself in, kept open because hollow-17 is queued.
+
+**Closed programs** (kept because the *why* is still load-bearing):
+
+- **Audit sweep 2026-09-18 — all 26 built and closed** (`audit-38`..`audit-63`, from a six-lens
+  read-only sweep that vetted 46 raw findings down to 26). Ranked and summarised in the
+  [log.md](log.md) entry for 2026-09-18. The three highest-leverage:
   [audit-38](todos/closed/2026-09-18-audit-38-vickrey-self-second-price.md) (Vickrey charged the winner
   their own duplicate bid), [audit-39](todos/closed/2026-09-18-audit-39-premultiply-alpha-never-restored.md)
   (a context-global GL flag never restored) and
-  [audit-40](todos/closed/2026-09-18-audit-40-dockerignore-strips-wasm.md) (`.dockerignore` stripped the wasm
-  the sim server reads). Three — 44, 45, 51 — were **guards that could not fail**, and are now guards
-  that can. **Four remain open**, and two of them are open *because they need a decision, not because
-  they need work*:
-  [audit-53](todos/closed/2026-09-18-audit-53-corpus-drift-sweep.md) (corpus drift sweep),
-  [audit-54](todos/closed/2026-09-18-audit-54-mathquest-grades-v-viii.md) (**build grades V–VIII, or narrow the
-  I–VIII claim to I–IV** — a content-design call),
-  [audit-58](todos/closed/2026-09-18-audit-58-status-md-retrieval-budget.md) (split `wiki/status.md`'s 119 KB;
-  land 53 first) and
-  [audit-59](todos/closed/2026-09-18-audit-59-deploy-not-in-version-control.md) (**settled**: this repo
-  builds the sim server image; the deployment configuration lives outside it).
-
-- **Hollow** — 01–15 shipped, including hollow-13's LLM rationalizer seam (measured and characterised
-  by hollow-16, 2026-09-19). One queued spec: **hollow-17**, moving the seam to a decision point whose
-  subject outlives the 40-tick answer-lag.
-  [todos/2026-07-17-hollow-BUILD-STATE.md](todos/2026-07-17-hollow-BUILD-STATE.md)
-- **@engine/ui incremental improvements** — items 1 and 3 done, item 2 deferred.
-  [todos/2026-07-22-engine-ui-improvements.md](todos/2026-07-22-engine-ui-improvements.md)
-
-**Shipped** (kept because the *why* is still load-bearing):
+  [audit-40](todos/closed/2026-09-18-audit-40-dockerignore-strips-wasm.md) (`.dockerignore` stripped the
+  wasm the sim server reads). Three — 44, 45, 51 — were **guards that could not fail** and are now
+  guards that can. The last four were decisions rather than code:
+  [53](todos/closed/2026-09-18-audit-53-corpus-drift-sweep.md) (three pages described deleted code),
+  [54](todos/closed/2026-09-18-audit-54-mathquest-grades-v-viii.md) (MateQuest narrowed to **grades
+  I–IV**), [58](todos/closed/2026-09-18-audit-58-status-md-retrieval-budget.md) (`status.md`
+  119 KB → 11 KB) and
+  [59](todos/closed/2026-09-18-audit-59-deploy-not-in-version-control.md) (this repo builds the sim
+  server image; the deployment configuration lives outside it).
+- **Hollow** — 01–15 shipped, including hollow-13's LLM rationalizer seam, measured and characterised
+  by [hollow-16](todos/closed/2026-09-15-hollow-16-rationalizer-adoption-latency.md). Milestone map:
+  [todos/closed/2026-07-17-hollow-00-BUILD-ORDER.md](todos/closed/2026-07-17-hollow-00-BUILD-ORDER.md).
+- **MateQuest** — M0–M5 complete and playable; scope settled at **grades I–IV**.
+  [todos/closed/2026-07-21-mathquest-BUILD-STATE.md](todos/closed/2026-07-21-mathquest-BUILD-STATE.md).
+- **@engine/ui incremental improvements** — items 1 and 3 done; item 2 (grid/tabular layout) closed
+  **unbuilt by its own rule** — no panel demands it. The trigger condition is recorded in
+  [wiki/engine-ui.md](wiki/engine-ui.md) → *Known gap*.
+  [todos/closed/2026-07-22-engine-ui-improvements.md](todos/closed/2026-07-22-engine-ui-improvements.md)
 
 - **WebGL2 migration** (2026-08-18, complete) — collapsed to **one render backend**: deleted Canvas2D,
   deleted WebGPU, moved all four games plus Hollow's 3D to **WebGL2**, because WebGPU is still
@@ -107,7 +115,7 @@ which is how a "WebGPU-only render path" line outlived the page that already sai
   final state: [todos/closed/2026-08-18-webgl2-BUILD-STATE.md](todos/closed/2026-08-18-webgl2-BUILD-STATE.md) ·
   decision: [wiki/decisions.md](wiki/decisions.md) (Renderer).
 - **MateQuest M0–M5** (2026-07-23, complete) —
-  [todos/2026-07-21-mathquest-BUILD-STATE.md](todos/2026-07-21-mathquest-BUILD-STATE.md)
+  [todos/closed/2026-07-21-mathquest-BUILD-STATE.md](todos/closed/2026-07-21-mathquest-BUILD-STATE.md)
 
 ## Briefs — historical task specs (immutable archives)
 

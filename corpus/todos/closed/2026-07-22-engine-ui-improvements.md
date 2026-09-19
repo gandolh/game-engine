@@ -1,11 +1,23 @@
 # engine-ui — incremental improvements (not a rewrite)
 
-Status: in progress (item 1 COMPLETE — all 6 consumers folded, 2026-07-23; item 3 done; item 2 deferred)
+Status: **CLOSED 2026-09-19.** Item 1 COMPLETE (all 6 consumers folded, 2026-07-23); item 3 done;
+**item 2 (grid/tabular layout) closed UNBUILT, by its own rule.**
+
+> **Closeout note (2026-09-19).** This backlog's standing instruction was *"do each only when a real
+> panel demands it — don't build speculatively"*, and item 2 said *"add a grid layout prop **when** a
+> panel needs it, not before"*. Re-checked against the code: none does. The nearest thing to a table,
+> Farm's relationship matrix, builds its 21×21 grid from ordinary `column`/`row`/`label` primitives
+> with no by-hand pixel math, and its columns align because every cell is a single initial in a
+> fixed-width bitmap font. So the item was not "deferred again" — its precondition is simply not met,
+> and a conditional does not belong in the live queue pretending to be work.
+> The **trigger condition** is recorded where someone building a table will actually look:
+> [wiki/engine-ui.md](../../wiki/engine-ui.md) → *Known gap*. Build it when a panel needs columns to
+> align across rows whose cells have **different intrinsic widths**.
 
 ## Progress (2026-07-23) — Farmers width fix + last two folds + Relations/Wealth docking
 
 - **Multi-line label/button width bug (engine-level, load-bearing) — FIXED.**
-  [layout/layout.ts](../../engine/ui/src/layout/layout.ts) `textSize()` measured a multi-line
+  [layout/layout.ts](../../../engine/ui/src/layout/layout.ts) `textSize()` measured a multi-line
   label/button's WIDTH with `measureText` (which counts `\n` as a glyph and treats the whole string
   as one line), while measuring HEIGHT correctly via `layoutText`. So an N-line row (e.g. a 6-line
   observer farmer row) was measured ~N× too wide, dragging its panel — and the whole right column,
@@ -30,7 +42,7 @@ Status: in progress (item 1 COMPLETE — all 6 consumers folded, 2026-07-23; ite
   - (Earlier consumers: `wealth-graph.ts`, and overlay nodes in `slate-billboard.ts`/`hotbar.ts`/`inventory.ts`.)
   So **all 6 files named in the backlog below are now folded**; the "last real by-hand pixel math" is gone.
 - **Relations + Wealth docked into the right column (user request).** They were floating bottom-left
-  panels; now they're two more sections in the `Panels` sidebar ([right-column.ts](../../games/farm/client/src/ui/canvas/right-column.ts)
+  panels; now they're two more sections in the `Panels` sidebar ([right-column.ts](../../../games/farm/client/src/ui/canvas/right-column.ts)
   `RightColumnExtras`), built in `panels.ts` and handed in. They keep their OWN `Relations`/`Wealth`
   collapse toggles (same tab styling; R/G hotkeys still drive them); their separate a11y roots +
   bottom-left render/anchor passes in the Farm render loop are removed (they render + a11y through the
@@ -45,7 +57,7 @@ Status: in progress (item 1 COMPLETE — all 6 consumers folded, 2026-07-23; ite
 (`computeLayout` two-pass measure/arrange, dirty-tracked `refresh()`-gated layout,
 hit-testing, input dispatch, a11y DOM mirror, tweens) live in ~39 panels across
 both games. The retained-vs-immediate question is **settled (retained)** — see
-[../wiki/engine-ui.md](../wiki/engine-ui.md) and brief 17. Retained is the right
+[../wiki/engine-ui.md](../../wiki/engine-ui.md) and brief 17. Retained is the right
 call here specifically because of the a11y screen-reader mirror, which needs
 stable node identity that immediate mode can't cheaply provide.
 
@@ -57,7 +69,7 @@ build speculatively.
 
 1. **Custom-draw escape hatch inside `renderTree`.** *(highest value)*
    Charts, minimap, inventory grids currently bypass the widget tree and draw
-   raw quads next to it — [minimap.ts:8-10](../../games/citadel/client/src/ui/minimap.ts)
+   raw quads next to it — [minimap.ts:8-10](../../../games/citadel/client/src/ui/minimap.ts)
    literally documents "no escape hatch for custom draws." Add a `canvas`/`custom`
    node kind that receives its computed rect + a draw callback, so those ~6 files
    (`wealth-graph.ts`, `minimap.ts`, `hotbar.ts`, `inventory.ts`,
@@ -70,16 +82,16 @@ build speculatively.
    **when** a panel needs it, not before.
 
 3. **Audit `villager-panel.ts` for the wider UNSCII font.** Known gap flagged in
-   [../wiki/engine-ui.md](../wiki/engine-ui.md) (~lines 95-97): fixed `width: 200`
+   [../wiki/engine-ui.md](../../wiki/engine-ui.md) (~lines 95-97): fixed `width: 200`
    was never re-checked against the wider bitmap font. Verify it doesn't clip.
 
 ## Context
 
-- Toolkit source: [../../engine/ui/src/](../../engine/ui/src/) — `layout/layout.ts`,
+- Toolkit source: [../../engine/ui/src/](../../../engine/ui/src/) — `layout/layout.ts`,
   `layout/props.ts`, `widget/`, `input/`, `a11y/mirror.ts`.
 - Origin decision: `briefs/engine/done/17-engine-ui-framework.md`.
 - The "reflow trap" lessons (layout-by-constant vs layout-by-rect) are already
-  documented in [../wiki/engine-ui.md](../wiki/engine-ui.md); recent churn is
+  documented in [../wiki/engine-ui.md](../../wiki/engine-ui.md); recent churn is
   polish/consumption, not framework work.
 
 ## Acceptance
