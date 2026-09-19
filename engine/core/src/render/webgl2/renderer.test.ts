@@ -56,7 +56,11 @@ vi.mock("./gl-atlas-store", () => ({
     uv(): { u0: number; v0: number; u1: number; v1: number; layer: number } {
       return { u0: 0, v0: 0, u1: 1, v1: 1, layer: 0 };
     }
+    uvInto(_a: string, _f: string, out: { u0: number; v0: number; u1: number; v1: number }): void {
+      out.u0 = 0; out.v0 = 0; out.u1 = 1; out.v1 = 1;
+    }
     texture(): object { return { __tex: true }; }
+    whiteTexture(): object { return { __white: true }; }
     dispose(): void {}
   },
 }));
@@ -150,6 +154,29 @@ vi.mock("../overlay-2d", () => ({
 
 vi.mock("../ui-draw", () => ({
   drawUIQuad: () => { rec.order.push("uiQuad"); },
+}));
+
+// The screen-space UI pass (sweep-04). Mocked like every other pass: what this
+// file pins is WHEN the renderer packs and draws it relative to the rest of the
+// frame, and which of the two UI paths it chooses. The packing arithmetic and the
+// group coalescing are the real pass's own unit tests (./ui-quad-pass.test.ts).
+vi.mock("./ui-quad-pass", () => ({
+  UiQuadPass: class {
+    groups = 0;
+    instances = 0;
+    get groupCount(): number { return this.groups; }
+    get instanceCount(): number { return this.instances; }
+    pack(_b: unknown, _s: unknown, _a: unknown, _q: unknown, len: number): void {
+      rec.order.push("ui.pack");
+      this.groups = len > 0 ? 1 : 0;
+      this.instances = len;
+    }
+    draw(): void { rec.order.push("ui.draw"); }
+    reset(): void { rec.life.push("ui.reset"); this.groups = 0; this.instances = 0; }
+  },
+  screenSpaceView: (w: number, h: number) => ({
+    scaleX: 2 / w, scaleY: -2 / h, offsetX: -1, offsetY: 1, timeSec: 0, windStrength: 0,
+  }),
 }));
 
 // A stand-in RainField so `instanceof` resolves against the same module the renderer
@@ -404,8 +431,8 @@ describe("WebGl2Renderer effect branching", () => {
   });
 });
 
-describe("WebGl2Renderer UI draw-list", () => {
-  it("flushes submitted UI quads last, in screen transform", () => {
+describe("WebGl2Renderer UI draw-list (sweep-04: instanced, on the GL canvas)", () => {
+  it("packs the UI before the batch upload and draws it after the wash, last on the GL canvas", () => {
     const r = makeRenderer();
     r.beginFrame();
     r.push(makeSprite());
@@ -413,12 +440,86 @@ describe("WebGl2Renderer UI draw-list", () => {
     r.pushUI({ x: 0, y: 0, width: 4, height: 4, color: "#000000" });
     r.pushUI({ x: 8, y: 8, width: 4, height: 4, color: "#000000" });
     r.endUI();
+    r.endFrame({ color: "#000000", alpha: 0.5 });
+
+    // The CPU rasterizer must not run at all on this path.
+    expect(rec.order).not.toContain("uiQuad");
+
+    // Packed into the shared instance buffer before anything is drawn...
+    expect(rec.order.indexOf("ui.pack")).toBeGreaterThanOrEqual(0);
+    expect(rec.order.indexOf("ui.pack")).toBeLessThan(rec.order.indexOf("clear"));
+    // ...and drawn after the day/night wash, which is where the old CPU flush
+    // sat in the composite.
+    expect(rec.order.indexOf("tint")).toBeLessThan(rec.order.indexOf("ui.draw"));
+    // Last thing on the GL canvas: nothing GL-side happens after it.
+    expect(rec.order.indexOf("ui.draw")).toBeLessThan(rec.order.indexOf("overlay.beginFrame"));
+    expect(rec.order[rec.order.length - 1]).toBe("overlay.beginFrame");
+  });
+
+  it("reports the GPU path and its group count through the profileUi seam", () => {
+    const r = makeRenderer();
+    r.profileUi = true;
+    r.beginFrame();
+    r.push(makeSprite());
+    r.beginUI();
+    r.pushUI({ x: 0, y: 0, width: 4, height: 4, color: "#000000" });
+    r.endUI();
     r.endFrame();
 
-    expect(rec.order.filter((s) => s === "uiQuad")).toHaveLength(2);
+    expect(r.lastUiDraw).toEqual({ gpu: true, groups: 1, instances: 1 });
+    expect(r.lastUiFlush.quads).toBe(1);
+  });
+
+  it("falls back to the CPU flush when the 2D overlay also paints, so UI is never buried under it", () => {
+    // Overlay2D is CSS-stacked ABOVE the GL canvas. A non-RainField WeatherLike
+    // paints on it, so the UI has to stay on that same canvas (drawn after the
+    // weather) rather than moving down to the GL one.
+    const r = makeRenderer();
+    const custom: WeatherLike = { count: 2, draw: () => { rec.order.push("custom.cpuDraw"); } };
+
+    r.profileUi = true;
+    r.beginFrame();
+    r.push(makeSprite());
+    r.beginUI();
+    r.pushUI({ x: 0, y: 0, width: 4, height: 4, color: "#000000" });
+    r.endUI();
+    r.endFrame(undefined, undefined, custom);
+
+    expect(rec.order).not.toContain("ui.draw");
+    expect(rec.order).toContain("uiQuad");
+    expect(rec.order.indexOf("custom.cpuDraw")).toBeLessThan(rec.order.indexOf("uiQuad"));
     expect(rec.order.indexOf("overlay.resetTransform")).toBeLessThan(rec.order.indexOf("uiQuad"));
-    // UI is the last thing that happens in the frame.
-    expect(rec.order[rec.order.length - 1]).toBe("uiQuad");
+    expect(r.lastUiDraw).toEqual({ gpu: false, groups: 0, instances: 0 });
+  });
+
+  it("falls back to the CPU flush when GPU effects are off and the overlay draws particles", () => {
+    const r = makeRenderer();
+    r.useGpuEffects = false;
+
+    r.beginFrame();
+    r.push(makeSprite());
+    r.beginUI();
+    r.pushUI({ x: 0, y: 0, width: 4, height: 4, color: "#000000" });
+    r.endUI();
+    r.endFrame(undefined, particles, makeRain(4));
+
+    expect(rec.order).not.toContain("ui.draw");
+    expect(rec.order.indexOf("particles.cpuDraw")).toBeLessThan(rec.order.indexOf("uiQuad"));
+  });
+
+  it("still takes the GPU path with GPU effects off when nothing actually paints on the overlay", () => {
+    const r = makeRenderer();
+    r.useGpuEffects = false;
+
+    r.beginFrame();
+    r.push(makeSprite());
+    r.beginUI();
+    r.pushUI({ x: 0, y: 0, width: 4, height: 4, color: "#000000" });
+    r.endUI();
+    r.endFrame();
+
+    expect(rec.order).toContain("ui.draw");
+    expect(rec.order).not.toContain("uiQuad");
   });
 
   it("drops quads pushed without beginUI (layer inert)", () => {
@@ -429,6 +530,7 @@ describe("WebGl2Renderer UI draw-list", () => {
     r.endFrame();
 
     expect(rec.order).not.toContain("uiQuad");
+    expect(rec.order).not.toContain("ui.draw");
   });
 
   it("beginFrame resets the UI list, so a consumer that stops calling beginUI does not redraw forever", () => {
@@ -440,13 +542,14 @@ describe("WebGl2Renderer UI draw-list", () => {
     r.pushUI({ x: 0, y: 0, width: 4, height: 4, color: "#000000" });
     r.endUI();
     r.endFrame();
-    expect(rec.order).toContain("uiQuad");
+    expect(rec.order).toContain("ui.draw");
 
     // Frame 2: no beginUI, no pushUI. The stale quad must be gone.
     rec.order.length = 0;
     r.beginFrame();
     r.push(makeSprite());
     r.endFrame();
+    expect(rec.order).not.toContain("ui.draw");
     expect(rec.order).not.toContain("uiQuad");
   });
 });

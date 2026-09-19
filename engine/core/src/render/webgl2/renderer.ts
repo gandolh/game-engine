@@ -24,6 +24,7 @@ import { TintPass } from "./tint-pass";
 import { CloudShadowPass } from "./cloud-shadow-pass";
 import { OverlayLightPass } from "./overlay-light-pass";
 import type { OverlayLightView } from "./overlay-light-pass";
+import { UiQuadPass, screenSpaceView } from "./ui-quad-pass";
 import { RainField } from "../rain-field";
 import { compareSprite, spritesOverlap } from "../raster2d";
 
@@ -91,10 +92,16 @@ function tintFloats(tintRgba: number | undefined, spriteAlpha: number): [number,
  *
  * **Draw order is load-bearing.** water → static → shadows → sprites (grouped by
  * atlas) → GPU particles → GPU weather → additive overlay light → cloud → day/night
- * wash, then the 2D overlay canvas on top (CPU effects fallback, then UI quads last
- * in screen space). Reordering produces a plausible-looking but wrong frame — e.g.
- * night glows darkened by the very wash they are meant to lift, or UI buried under
- * the world.
+ * wash → screen-space UI quads (instanced; sweep-04), then the 2D overlay canvas on
+ * top for the CPU effects fallback. Reordering produces a plausible-looking but
+ * wrong frame — e.g. night glows darkened by the very wash they are meant to lift,
+ * or UI buried under the world.
+ *
+ * The UI is the one pass with TWO homes. It normally draws last on the GL canvas
+ * through `UiQuadPass`; on a frame where the `Overlay2D` canvas also paints (CPU
+ * particles/weather), it falls back to the pre-sweep-04 `drawUIQuad` flush on that
+ * overlay instead, because the overlay is stacked above the GL canvas and would
+ * otherwise cover it. See `_overlayWillPaint`.
  */
 export class WebGl2Renderer implements RendererLike {
   readonly camera: Camera2D;
@@ -127,15 +134,26 @@ export class WebGl2Renderer implements RendererLike {
   private _shadowQueue: ShadowRecord[] = [];
   private _shadowLen = 0;
 
-  // Screen-space UI draw-list, flushed via the Overlay2D layer in endFrame.
+  // Screen-space UI draw-list, flushed at the tail of endFrame. Normally through
+  // `_uiPass` (instanced, on the GL canvas); through `drawUIQuad` on the Overlay2D
+  // canvas only on the frames where the overlay also paints CPU effects — see
+  // `_overlayWillPaint` for why that fallback exists.
   private _uiQueue: UIQuad[] = [];
   private _uiLen = 0;
   private _uiActive = false;
+
+  private readonly _uiPass = new UiQuadPass();
 
   // Dev-only UI-flush profiling seam (see RendererLike.profileUi). Off by default;
   // the host flips it when profiling so production frames pay nothing.
   profileUi = false;
   lastUiFlush = { ms: 0, quads: 0 };
+
+  // Dev-only (sweep-04), under the SAME `profileUi` flag: which UI path ran last
+  // frame and what the GPU path cost in draw calls. `gpu` false means the CPU
+  // `drawUIQuad` fallback ran because the Overlay2D canvas also painted this
+  // frame (see `_overlayWillPaint`); `groups` is then 0.
+  lastUiDraw = { gpu: false, groups: 0, instances: 0 };
 
   // Dev-only draw-group profiling seam (sweep-05), guarded by the SAME
   // `profileUi` flag as above rather than a second flag — one dev switch for
@@ -283,6 +301,8 @@ export class WebGl2Renderer implements RendererLike {
     // Draw groups cache WebGLTexture handles from the old, now-dead store.
     this._groupLen = 0;
     for (const grp of this._groups) grp.texture = null;
+    // Same for the UI pass's groups (its white texel died with the old store too).
+    this._uiPass.reset();
 
     // Atlas textures re-upload from the retained LoadedAtlasImage objects.
     for (const atlas of this._atlases.values()) this._store.add(atlas);
@@ -541,6 +561,34 @@ export class WebGl2Renderer implements RendererLike {
     return this._batch.add(inst);
   }
 
+  /**
+   * Will the `Overlay2D` canvas actually PAINT this frame (CPU particles / CPU
+   * weather), as opposed to just being cleared?
+   *
+   * This decides which UI path runs, and it exists for exactly one reason:
+   * composite order. `Overlay2D` is a second canvas CSS-stacked one z-index
+   * ABOVE the GL canvas, so anything drawn on it lands over everything GL draws.
+   * Until sweep-04 the UI flush was the LAST thing painted on that overlay, i.e.
+   * above the CPU effects. Moving it onto the GL canvas would silently bury it
+   * under them on any frame the overlay paints.
+   *
+   * In every shipping configuration this returns false — `useGpuEffects` is
+   * never turned off by any game, and Farm/Citadel both pass a `RainField`,
+   * which goes to the GPU weather pass — so the GPU UI path is the one that
+   * runs. The fallback is here so the dev-only CPU-effects switch and a custom
+   * `WeatherLike` stay CORRECT rather than merely untested.
+   *
+   * Mirrors the condition on the overlay block at the tail of `endFrame`; the two
+   * must not drift apart.
+   */
+  private _overlayWillPaint(particles?: ParticleSystem, weather?: WeatherLike): boolean {
+    if (!this.useGpuEffects) {
+      return (particles !== undefined && particles.count > 0) ||
+        (weather !== undefined && weather.count > 0);
+    }
+    return weather !== undefined && !(weather instanceof RainField) && weather.count > 0;
+  }
+
   endFrame(wash?: WashOptions, particles?: ParticleSystem, weather?: WeatherLike, overlay?: OverlayFn): void {
     if (this._glCtx.isLost() || this._restoring) return;
     if (this._atlases.size === 0) return;
@@ -668,6 +716,25 @@ export class WebGl2Renderer implements RendererLike {
       k = m;
     }
 
+    // UI quads ride in the SAME instance buffer as the world sprites — packed
+    // after them so their group ranges sit past the sprite/ghost ranges, and
+    // BEFORE the single `upload()` below so one bufferSubData covers both. The
+    // pass draws its own range later, with its own screen-space view.
+    const uiDpr = this._uiLen > 0 ? effectiveDpr() : 1;
+    const uiOnGpu = this._uiLen > 0 && !this._overlayWillPaint(particles, weather);
+    // `uiFlushMs` accumulates the CPU cost of WHICHEVER UI path runs, so the
+    // `ui.flush` profile counter stays comparable across the sweep-04 change:
+    // for the GPU path that is pack + GL submission (NOT the GPU's own work),
+    // for the CPU path it is the drawImage loop, exactly as before.
+    let uiFlushMs = 0;
+    if (uiOnGpu) {
+      const packT0 = this.profileUi ? performance.now() : 0;
+      this._uiPass.pack(this._batch, this._store, this._atlases, this._uiQueue, this._uiLen, uiDpr);
+      if (this.profileUi) uiFlushMs += performance.now() - packT0;
+    } else {
+      this._uiPass.reset();
+    }
+
     this._batch.upload();
 
     this._shadowBatch.begin();
@@ -734,6 +801,17 @@ export class WebGl2Renderer implements RendererLike {
       this._tintPass.draw(wash.color, wash.alpha);
     }
 
+    // Screen-space UI, LAST on the GL canvas — exactly where the CPU flush used
+    // to sit in the composite (the Overlay2D canvas it drew on is stacked above
+    // everything GL draws, and the UI was the last thing painted on it). After
+    // the wash and the light pass, so the UI is not darkened by the day/night
+    // tint; see the class doc comment's draw-order note.
+    if (uiOnGpu) {
+      const drawT0 = this.profileUi ? performance.now() : 0;
+      this._uiPass.draw(gl, this._batch, screenSpaceView(canvasW, canvasH));
+      if (this.profileUi) uiFlushMs += performance.now() - drawT0;
+    }
+
     this._overlay.beginFrame();
     const overlayCtx = this._overlay.ctx;
 
@@ -747,26 +825,31 @@ export class WebGl2Renderer implements RendererLike {
       }
     }
 
-    // Screen-space UI layer: drawn last, in identity (screen) transform on the
-    // Overlay2D canvas which sits one z-index above the GL canvas. Unaffected by
-    // the world camera. drawUIQuad applies DPR scaling internally.
-    const uiFlushT0 = this.profileUi ? performance.now() : 0;
-    if (this._uiLen > 0) {
+    // CPU UI fallback (pre-sweep-04 path, now reached only when the overlay also
+    // painted this frame — see `_overlayWillPaint`). Drawn last, in identity
+    // (screen) transform on the Overlay2D canvas, so it stays ABOVE the CPU
+    // particles/weather just drawn there. drawUIQuad applies DPR scaling itself.
+    if (!uiOnGpu && this._uiLen > 0) {
+      const cpuT0 = this.profileUi ? performance.now() : 0;
       this._overlay.resetTransform();
       // Force nearest-neighbour: applyWorldTransform (the only per-frame place that sets
       // this false) is skipped when no particles/weather are active, so a (re)sized backing
       // store leaves smoothing at its default `true` → blurry scaled UI.
       overlayCtx.imageSmoothingEnabled = false;
       overlayCtx.globalCompositeOperation = "source-over";
-      const dpr = effectiveDpr();
       for (let ui = 0; ui < this._uiLen; ui += 1) {
-        drawUIQuad(overlayCtx, this._atlases, this._uiQueue[ui]!, dpr);
+        drawUIQuad(overlayCtx, this._atlases, this._uiQueue[ui]!, uiDpr);
       }
       overlayCtx.globalAlpha = 1;
+      if (this.profileUi) uiFlushMs += performance.now() - cpuT0;
     }
     if (this.profileUi) {
-      this.lastUiFlush.ms = performance.now() - uiFlushT0;
+      this.lastUiFlush.ms = uiFlushMs;
       this.lastUiFlush.quads = this._uiLen;
+
+      this.lastUiDraw.gpu = uiOnGpu;
+      this.lastUiDraw.groups = uiOnGpu ? this._uiPass.groupCount : 0;
+      this.lastUiDraw.instances = uiOnGpu ? this._uiPass.instanceCount : 0;
 
       this.lastDrawStats.sprites = this._queueLen;
       this.lastDrawStats.groups = mainGroupLen;

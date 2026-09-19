@@ -120,6 +120,66 @@ describe("GlAtlasStore#uv", () => {
     const store = new GlAtlasStore(gl);
     expect(() => store.uv("missing", "f")).toThrow(/missing/);
   });
+
+  it("uvInto writes the identical fractions uv() returns, without allocating", () => {
+    // The UI pass calls `uvInto` per quad; if the two ever disagree, every glyph
+    // samples a different part of the sheet than the CPU rasterizer did.
+    const { gl } = makeFakeGl();
+    const store = new GlAtlasStore(gl);
+    store.add(fakeAtlas("sheetA", 100, 200, { f: { x: 10, y: 20, w: 30, h: 40 } }));
+
+    const out = { u0: -1, v0: -1, u1: -1, v1: -1 };
+    store.uvInto("sheetA", "f", out);
+
+    const { layer, ...expected } = store.uv("sheetA", "f");
+    expect(out).toEqual(expected);
+    expect(layer).toBe(0);
+  });
+
+  it("uvInto throws for an unloaded atlas id, like uv()", () => {
+    const { gl } = makeFakeGl();
+    const store = new GlAtlasStore(gl);
+    expect(() => store.uvInto("missing", "f", { u0: 0, v0: 0, u1: 0, v1: 0 })).toThrow(/missing/);
+  });
+});
+
+describe("GlAtlasStore#whiteTexture (sweep-04: solid UI quads)", () => {
+  it("gives the white texel the SAME NEAREST/CLAMP_TO_EDGE sampler state as an atlas sheet", () => {
+    // This is half the pixel-fidelity guarantee for the GPU UI path: leaving the
+    // GL defaults on a non-mipmapped texture makes it incomplete (samples as
+    // opaque black), and LINEAR would soften a pixel-art UI.
+    const { gl, raw } = makeFakeGl();
+    const store = new GlAtlasStore(gl);
+
+    const tex = store.whiteTexture() as unknown as FakeTexture;
+
+    expect(tex.params[raw.TEXTURE_MIN_FILTER]).toBe(raw.NEAREST);
+    expect(tex.params[raw.TEXTURE_MAG_FILTER]).toBe(raw.NEAREST);
+    expect(tex.params[raw.TEXTURE_WRAP_S]).toBe(raw.CLAMP_TO_EDGE);
+    expect(tex.params[raw.TEXTURE_WRAP_T]).toBe(raw.CLAMP_TO_EDGE);
+  });
+
+  it("creates it once and returns the same handle thereafter", () => {
+    const { gl, raw } = makeFakeGl();
+    const store = new GlAtlasStore(gl);
+
+    const first = store.whiteTexture();
+    const second = store.whiteTexture();
+
+    expect(second).toBe(first);
+    expect((raw.createTexture as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(1);
+  });
+
+  it("is released by dispose() along with the sheets", () => {
+    const { gl, deletedTextures } = makeFakeGl();
+    const store = new GlAtlasStore(gl);
+    store.add(fakeAtlas("a", 64, 64, { f: { x: 0, y: 0, w: 16, h: 16 } }));
+    store.whiteTexture();
+
+    store.dispose();
+
+    expect(deletedTextures.length).toBe(2);
+  });
 });
 
 describe("GlAtlasStore#texture / dispose", () => {
