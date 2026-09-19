@@ -1,6 +1,6 @@
 ---
 title: Citadel
-description: A cozy settlement sim — a placement puzzle you read by watching the town live. Threats dent happiness, never destroy. WebGPU 3D meshes, sim in a Web Worker.
+description: A cozy settlement sim — a placement puzzle you read by watching the town live. Threats dent happiness, never destroy. In-code 3D meshes, sim in a Web Worker.
 ---
 
 import { Card, CardGrid, Aside, Badge } from '@astrojs/starlight/components'
@@ -65,15 +65,22 @@ out-produces a starved one (~2.08×) without anything ever hitting zero.
 
 ## Rendering: meshes, not sprites
 
-<Badge text="WebGPU-only" variant="success" /> &nbsp; <Badge text="true 2:1 dimetric" variant="note" />
+<Badge text="WebGL2" variant="success" /> &nbsp; <Badge text="true 2:1 dimetric" variant="note" />
 
 Terrain is drawn flat on a 32×16 dimetric grid with `x+y` painter's depth;
 relief is a hillshade over a heightfield + fBm. Buildings, though, are **in-code
-3D meshes** (2026-07-14) — indexed triangle primitives fed to a software
-rasterizer with back-face culling, a per-pixel z-buffer, and flat-shading onto
-three adjacent Apollo palette steps. Deleting the old 2D ASCII-recipe path
+3D meshes** (2026-07-14) — indexed triangle primitives fed to a *deterministic
+software* rasterizer with back-face culling, a per-pixel z-buffer, and
+flat-shading onto three adjacent Apollo palette steps. The result is packed into
+the sprite atlas once at client boot (byte-identical every run, so no PNG needs
+committing), and the GPU still only ever draws quads — the meshes are an **asset
+pipeline**, not a runtime 3D path. Deleting the old 2D ASCII-recipe path
 removed **1,964 lines**. Night adds emissive window glow via the same day
 factory, so lit and unlit frames can't drift.
+
+Since 2026-08-18 the only render backend is **WebGL2**, for Citadel as for every
+other game here — Canvas2D and both WebGPU backends were deleted. Hollow is the
+one game with a genuine runtime 3D layer.
 
 ## How it runs
 

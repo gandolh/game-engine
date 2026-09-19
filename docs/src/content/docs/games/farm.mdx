@@ -64,7 +64,7 @@ drag-from-world hotbar, diegetic HUD — renders through the game-agnostic
 
 <Badge text="server-side sim" variant="success" /> &nbsp; <Badge text="WebSocket transport" variant="note" />
 
-Uniquely among the three games, Farm Valley runs its sim **server-side** in a
+Uniquely among the four games, Farm Valley runs its sim **server-side** in a
 Node `SimHost`. The browser client opens a WebSocket, receives one
 `RenderSnapshot` per tick, and interpolates between the latest two. Input crosses
 the socket behind an owner gate — spectators can watch, but can't drive Pip.

@@ -4,6 +4,59 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [todos/closed/](todos/closed/), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-09-19] maintenance | The reader-facing docs were a year behind the corpus — README and the Starlight site refreshed
+
+The corpus has been kept current through the audit and sweep waves. **The two surfaces a human
+actually arrives at had not been**, and the gap had grown to the point where the repo's front door
+described a different project.
+
+### What the README claimed
+
+It was written as a **single-game Farm Valley README** (last substantive edit 2026-08-18) and still
+said so: Citadel appeared as "a second game", Hollow and MateQuest did not appear at all. Also wrong,
+each traceable to a decision the corpus already records:
+
+- **"Node 20+"** — `engines` pins `>=24`, and [status.md](wiki/status.md) had already named this line
+  as the drift when the pin was settled. The README was the last copy still saying it.
+- **"fails CI on any off-palette color literal"** — there is no hosted CI since 2026-09-19. The guard
+  is real; the enforcement mechanism named was not. Now points at `npm run gates`.
+- **one palette** — the guard has been per-scope by path since 2026-07-13 (EDG32 / Apollo-46 /
+  Resurrect-64).
+- **`worker/sim-client/`** — that path is `net/sim-client/` since the client/server split.
+- **four farmers in a four-row table** — the field has been 21 (5 named + 16 procedural) since the
+  radial reorg.
+
+Rewritten as a four-game monorepo README: the game table with its transport and port per game, the
+enforced layering rule, the per-game palettes, the gates, and pointers into `corpus/` and `docs/`.
+
+### What the docs site claimed
+
+`docs/` had never been told about the fourth game. `index.mdx` said "Two-and-a-bit games" and
+"**3** games, one engine"; the sidebar had no MateQuest entry; `LayerStack.astro` listed three
+`sim-core`s and closed with "the two games never import each other".
+
+The **WebGPU** references were the worse half, because they survived the backend's deletion:
+Citadel's page carried a `WebGPU-only` badge, and Hollow's build state listed "M2–M4 ⬜ — true-3D
+WebGPU rendering" as *unbuilt* — describing work that shipped, on a backend that no longer exists.
+
+Fixed: a new `games/mathquest.mdx`; Hollow's page rewritten to M1–M5 shipped with the WebGL2 port and
+hollow-16's measured **~12% adoption** in place of "0 LLM calls in v1"; Citadel's rendering section
+corrected (the mesh rasterizer is an **asset pipeline** — meshes rasterize into the boot-built atlas,
+so the GPU still only draws quads); architecture's "dual-backend renderer" → WebGL2, three games →
+four, and the transport card now names all three Worker games. Verified by building the site:
+27 pages, clean.
+
+### One corpus page was stale too
+
+[hollow-overview.md](wiki/hollow-overview.md) still opened with "Built on branch **`hollow`** (local,
+unpushed)… Milestone **M1 is complete**". Hollow has been on `main` since the WebGL2 port and is
+M1–M5. Corrected in place.
+
+**The pattern worth keeping:** a doc refresh should start by diffing the *reader-facing* surfaces
+against the corpus, not the corpus against the code. The corpus is maintained per-brief and stays
+honest; README and the site are maintained by whoever remembers, and nothing routes to them — so the
+drift accumulates exactly there, and it accumulates as claims about deleted technology.
+
 ## [2026-09-19] build | The sweep queue built out — nine specs, and three of them corrected their own premise
 
 `sweep-01`..`sweep-09` all built and closed, from the two read-only sweeps earlier the same day.

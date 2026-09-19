@@ -1,0 +1,110 @@
+---
+title: MateQuest
+description: A Romanian-curriculum math roguelike for grades I–IV, where solving a problem IS the combat action — not a toll gate in front of one.
+---
+
+import { Card, CardGrid, Aside, Badge } from '@astrojs/starlight/components'
+import Metrics from '../../../components/Metrics.astro'
+
+<Badge text="built and playable" variant="success" /> &nbsp; <Badge text="grades I–IV" variant="note" /> &nbsp; <Badge text="Romanian by default" variant="tip" />
+
+MateQuest is the fourth game on the shared engine, and the one that isn't a
+watch-it-play sim: an **educational math roguelike** aligned to the Romanian
+national curriculum (*programa școlară*), where **solving a curriculum problem
+_is_ the combat action**.
+
+<Metrics
+  items={[
+    { v: 'I–IV', k: 'curriculum grades' },
+    { v: '3', k: 'actions: attack / heal / shield' },
+    { v: '2', k: 'progression layers' },
+    { v: '64', k: 'Resurrect palette colours' },
+    { v: 'RO', k: 'default UI language' },
+  ]}
+/>
+
+## The pillar: the solve *is* the swing
+
+Most math games bolt a math widget next to a game, and children engage only with
+the wrapper. The north star here is Raizada's principle — *solving the problem
+and the fun action must be the same act* — so math is never a toll gate you clear
+to reach the game (the Prodigy failure mode).
+
+In a Pokémon-style battle you pick **Attack / Heal / Shield**, and a curriculum
+problem for that action appears. **Answering correctly is what makes the action
+land**, with damage/heal/shield scaled by difficulty and speed; a wrong answer
+*fizzles*. Add Slay-the-Spire stakes — enemies telegraph intent and strike on
+their turn, there's a real HP bar, enough wrong answers is death — and the math
+carries genuine, low-anxiety tension.
+
+<CardGrid>
+  <Card title="Wrong answers teach" icon="pencil">
+    A fizzle (plus possible retaliation) leads to a **teach card with a worked
+    step**, and the problem — or a twin of it — **re-queues later in the run**.
+    Light spaced repetition, built into the loop.
+  </Card>
+  <Card title="Two progression layers" icon="seti:plan">
+    **In-run:** correct solves → XP → level up → pick an upgrade (resets per run).
+    **Persistent:** a per-topic **mastery meter** that survives death, gates the
+    hard branches, and is an honest learning signal.
+  </Card>
+  <Card title="Loot is lifelines" icon="rocket">
+    Equipment grants combat bonuses **plus math lifelines** — hint, 50-50 on
+    multiple choice, show-a-step, skip, extra time. The
+    *Who-Wants-to-Be-a-Millionaire* items.
+  </Card>
+  <Card title="Failure is soft" icon="heart">
+    A party wipe sends you home: you lose in-run gear, levels and gold, but
+    **keep mastery and blueprints**. No permadeath dread for the child who is
+    struggling — which is the child this is for.
+  </Card>
+</CardGrid>
+
+Difficulty *is* grade, and the player chooses it: the branching node map
+bifurcates into easy and hard paths, where the hard branch means tougher math and
+better loot. An incentive to climb, not a forced climb. The theme is Romanian
+folklore — a Făt-Frumos-style hero trio against **Zmeu**, **Balaur** and **Muma
+Pădurii**.
+
+## Scope, stated honestly
+
+<Aside type="caution" title="Grades I–IV — and not all of that band">
+  The design was drawn against the curriculum's full **I–VIII** ladder. The game
+  implements the **primary band only** (`Grade = 1 | 2 | 3 | 4`), and every
+  document that said "I–VIII" was describing an intention rather than the build —
+  narrowed to match the code on 2026-09-19.
+
+  Within I–IV it covers **addition, subtraction, multiplication and comparison**,
+  with ranges widening per rung and multiplication withheld from grade I (the
+  *programa* introduces it in clasa a II-a, and the generator throws if dispatched
+  there). **Division, intro fractions, units of measure and intuitive geometry are
+  in that curriculum row and none of them is implemented.** "Grades I–IV" is
+  honest about the *rung*, not a claim of full coverage within it.
+</Aside>
+
+V–VIII was narrowed away rather than built, and the reason is a design finding
+worth keeping: it is not "the same with bigger numbers". Fractions and negatives
+need **answer-input affordances that don't exist** — plausibly a larger job than
+the generators — and a multi-step equation may not fit a few-seconds-under-turn-
+pressure loop at all. The bar is also higher here than elsewhere in this repo: in
+this game **a wrong answer is a wrong thing taught to a child**, so every topic
+needs an *independent* answer check, and the test helper now fails if one is
+missing.
+
+## How it runs
+
+Like Citadel and Hollow, MateQuest runs its sim in an **in-browser Web Worker**
+and needs no server — it ships as a static site a school can host. Problem
+generators are **deterministic**, driven by the seeded `Rng`, which is what makes
+curriculum content unit-testable: the same seed yields the same problem set, so a
+generator's output can be asserted rather than eyeballed.
+
+The UI defaults to Romanian, with a bilingual RO/EN toggle from day one behind
+centralized i18n. The palette is **Resurrect-64** (`MATE_PAL.*`) — the fourth
+palette scope in the repo, validated by the same per-path guard test that holds
+EDG32 and Apollo-46 in place.
+
+<Aside type="note">
+  Design of record, the settled decision table, and the full scope decision:
+  [MateQuest overview](/wiki/mathquest-overview/).
+</Aside>

@@ -42,7 +42,8 @@ export default defineConfig({
           items: [
             { label: 'Farm Valley', link: '/games/farm/' },
             { label: 'Citadel', link: '/games/citadel/' },
-            { label: 'Hollow (WIP)', link: '/games/hollow/' },
+            { label: 'Hollow', link: '/games/hollow/' },
+            { label: 'MateQuest', link: '/games/mathquest/' },
           ],
         },
         {
@@ -64,12 +65,15 @@ export default defineConfig({
           ],
         },
         {
-          label: 'Citadel corpus',
+          label: 'Per-game corpus',
           collapsed: true,
           items: [
+            { label: 'Farm overview', link: '/wiki/overview/' },
             { label: 'Citadel overview', link: '/wiki/citadel-overview/' },
             { label: 'Citadel decisions', link: '/wiki/citadel-decisions/' },
             { label: 'Citadel rendering', link: '/wiki/citadel-rendering/' },
+            { label: 'Hollow overview', link: '/wiki/hollow-overview/' },
+            { label: 'MateQuest overview', link: '/wiki/mathquest-overview/' },
           ],
         },
         {

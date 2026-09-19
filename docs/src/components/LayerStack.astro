@@ -1,18 +1,18 @@
 ---
 // The four-layer dependency rule, drawn. Each layer depends only downward; the
-// engine never imports a game and the two games never import each other.
+// engine never imports a game and no game imports another.
 // Light-only, literal colors (not Starlight's contrast-relative tokens),
 // scoped <style>. Greens are EDG32 roles.
 const layers = [
   {
     tag: 'clients / servers',
-    pkgs: '@farm/client · @farm/server · @citadel/client · @hollow/client',
+    pkgs: '@farm/client · @farm/server · @citadel/client · @hollow/client · @mathquest/client',
     note: 'Renderer + transport. Never touched by sim logic.',
     depth: 3,
   },
   {
     tag: 'game sim-cores',
-    pkgs: '@farm/sim-core · @citadel/sim-core · @hollow/sim-core',
+    pkgs: '@farm/sim-core · @citadel/sim-core · @hollow/sim-core · @mathquest/sim-core',
     note: 'Deterministic sim. Node + browser safe. Never imports a renderer.',
     depth: 2,
   },
@@ -43,7 +43,7 @@ const layers = [
       </div>
     ))
   }
-  <div class="rule">↑ imports only ever point downward &nbsp;·&nbsp; the two games never import each other</div>
+  <div class="rule">↑ imports only ever point downward &nbsp;·&nbsp; no game ever imports another</div>
 </div>
 
 <style>

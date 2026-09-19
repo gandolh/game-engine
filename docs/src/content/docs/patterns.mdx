@@ -11,7 +11,7 @@ A tour of the load-bearing ideas — the ones worth stealing. Each links into th
 
 ## BDI agents as ECS components
 
-Every farmer (and villager) is a **Belief–Desire–Intention** agent whose mental
+Every Farm farmer and Hollow villager is a **Belief–Desire–Intention** agent whose mental
 state *is* ECS data: `Beliefs` / `Desires` / `Intentions` / `FsmState` /
 `Personality` components, cycled by a per-tick FSM (`PERCEIVE → ACT`).
 Deliberation dispatches by `personality.kind` through a registry — each
@@ -67,6 +67,20 @@ Threats (fire, disease, raids) are *cozy-demoted*: they dent local happiness,
 taxing productivity to that ~60–70% floor, then pass — nothing you built is ever
 taken from you. The destructive path still exists, frozen byte-identical behind
 `cozyThreats: false` for Challenge mode.
+
+## Deterministic generators as testable content
+
+MateQuest's curriculum problems are **procedurally generated from the seeded
+`Rng`**, which is what makes educational content assertable rather than
+eyeballed: the same seed yields the same problem set, so a generator's output —
+and, crucially, its *answer* — can be unit-tested per topic.
+
+That pays off at the one place this repo's stakes are unusual: **a wrong answer
+is a wrong thing taught to a child**. So every topic needs an *independent*
+answer check, and the test helper fails if a topic doesn't have one — a
+verification gap can't hide behind a generator that merely agrees with itself.
+The per-rung topic table (`TOPICS_FOR_GRADE`) is data, so what ships at each
+grade is readable rather than inferred.
 
 ## Procedural worlds, fully seeded
 
@@ -233,10 +247,14 @@ sim, so determinism is free). It's built bottom-up in
 
 - **Y-sort with a pseudo-3D height axis** — depth by `(layer, y)`; a `z` height
   lifts the draw (`screenY = y − z`) while the sort key stays the ground `y`.
+- **WebGL2 is the only backend**, 2D and 3D, since 2026-08-18 — Canvas2D and both
+  WebGPU backends are deleted, and `createRenderer` takes no `backend` option.
+  Shaders are GLSL ES 3.00, enforced by a per-directory lint.
 - **Citadel: true 2:1 dimetric, meshes not sprites** — buildings are in-code
-  indexed triangle meshes fed to a software rasterizer (back-face cull, per-pixel
-  z-buffer, flat-shade onto 3 adjacent palette steps). The old ASCII-recipe path
-  was deleted, −1,964 lines.
+  indexed triangle meshes fed to a *deterministic software* rasterizer (back-face
+  cull, per-pixel z-buffer, flat-shade onto 3 adjacent palette steps), then packed
+  into the sprite atlas at boot. The old ASCII-recipe path was deleted, −1,964
+  lines.
 - **Bitmap UI font baked at boot** — the vendored UNSCII font bakes to an atlas on
   startup: byte-identical text everywhere, no runtime font load or measurement.
 

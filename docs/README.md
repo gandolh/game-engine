@@ -1,8 +1,8 @@
 # @game-engine/docs-site
 
 A light-themed [Starlight](https://starlight.astro.build/) documentation site for
-this monorepo — an **introduction and showcase** for the shared ECS engine and
-the games built on it (Farm Valley, Citadel, and the WIP Hollow).
+this monorepo — an **introduction and showcase** for the shared ECS engine and the
+four games built on it (Farm Valley, Citadel, Hollow and MateQuest).
 
 ## The contract
 

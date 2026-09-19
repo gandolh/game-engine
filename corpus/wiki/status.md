@@ -119,6 +119,12 @@ step, and it was not kept in step.
 
 Newest first, one line each. Detail is in the [log.md](../log.md) entry for the same date.
 
+- **2026-09-19** — the reader-facing docs refreshed against this corpus. The root README was still a
+  single-game Farm Valley README (Node 20, "fails CI", one palette, 4 farmers, `worker/sim-client/`);
+  the Starlight site had never been told about MateQuest and still carried **WebGPU** claims,
+  including Hollow's M2–M4 listed as *unbuilt* on a deleted backend. Both rewritten, a
+  `games/mathquest` page added, and `hollow-overview.md`'s "branch `hollow`, local, unpushed / M1
+  complete" opener corrected. Site builds clean (27 pages).
 - **2026-09-19** — the `sweep-01`..`sweep-09` queue built out, all nine. Three repo-wide guards that
   can fail (determinism across every `sim-core`, `.js` suffixes, version pinning); the client bundler
   target pinned to `es2022`; one `effectiveDpr()` with Hollow's 3D finally applying the cap; Apollo-46

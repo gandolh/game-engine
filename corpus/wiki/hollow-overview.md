@@ -1,20 +1,22 @@
 ---
 summary: What Hollow is (generational social-emergence sim on the shared engine) — M1 headless sim (exit-bar PASSED), M2 3D layer (engine **WebGL2** renderer + gene-driven cozy town), M3 research surfaces (observe module + chronicle/dashboard + persona authoring + shocks/replay), M4 hollow-12 governance + antagonism arcs, M5 hollow-14 Daily Life (leader-assigned jobs + diurnal routine + one central hearth + rare/private interaction), M6 hollow-15 Mortality & Care (3-day starvation death + persistent corpses + graveyard/grave-digger burial + rot→disease + medic), plus load-bearing decisions + known traits.
-updated: 2026-08-18
+updated: 2026-09-19
 ---
 
 # Hollow — overview
 
 Hollow is the **third game** on the shared TypeScript ECS engine (`@engine/*`), alongside Farm
-Valley and Citadel. It is a **generational social-emergence sim / research instrument**: a town of
+Valley, Citadel and MateQuest (the fourth, added after it). It is a **generational social-emergence sim / research instrument**: a town of
 villager agents that have needs, gather from scarce resources, build trust, coalesce into emergent
 communities, pair-bond, reproduce with **heritable genomes**, choose **cooperative and antagonistic
 social moves**, and die — over many generations, deterministically, headless. The point is to
 *study* what emerges (dynasties, cooperation-vs-sabotage divergence, community rise/fall) from
 seeded initial conditions, not to hand-author a story.
 
-Built on branch **`hollow`** (local, unpushed) via `plan-split-dispatch` (opus controller, Sonnet
-executors). Milestone **M1 is complete** — see the exit-bar results below.
+Built via `plan-split-dispatch` (opus controller, Sonnet executors). **On `main` since 2026-08-18** —
+the old `hollow` working branch is history, and `games/hollow/` is part of the default checkout.
+**M1–M5 are complete** (01–15) plus hollow-13's LLM rationalizer seam; see the exit-bar results below
+and the [BUILD-STATE tracker](../todos/2026-07-17-hollow-BUILD-STATE.md) for the per-brief record.
 
 ## Packages
 - **`@hollow/sim-core`** — the transport-agnostic, deterministic sim (systems, agents, world,
@@ -30,7 +32,7 @@ executors). Milestone **M1 is complete** — see the exit-bar results below.
 Layering obeys the monorepo rule: `@engine/core` → `@hollow/sim-core` → `@hollow/client` /
 `@tool/hollow-sim`. The engine never imports a game; Hollow imports only `@engine/*`. hollow-02
 promoted the generic agent kernel (needs, deliberation registry, relationship ledger, CNP
-`OfferLedger`) up into `@engine/core/agent` so all three games share it.
+`OfferLedger`) up into `@engine/core/agent` so Farm and Hollow share one kernel.
 
 ## The tick (scheduler order)
 `bootstrapHollowSim()` registers systems in this deliberate order (each has an inline data-dep

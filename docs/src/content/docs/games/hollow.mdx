@@ -1,24 +1,24 @@
 ---
-title: Hollow (work in progress)
-description: A director's-eye multi-generational social sim — needs, scarcity, emergent communities, and heritable genomes on the engine's promoted agent kernel.
+title: Hollow
+description: A director's-eye multi-generational social sim — needs, scarcity, emergent communities, heritable genomes, governance and mortality — and the one game here with a real 3D layer.
 ---
 
 import { Card, CardGrid, Aside, Badge, Steps } from '@astrojs/starlight/components'
 import Metrics from '../../../components/Metrics.astro'
 
-<Badge text="work in progress" variant="caution" /> &nbsp; <Badge text="branch: hollow, local" variant="note" />
+<Badge text="M1–M5 shipped" variant="success" /> &nbsp; <Badge text="the only 3D game" variant="note" /> &nbsp; <Badge text="research instrument" variant="tip" />
 
 Hollow is the third game — and the strongest test that the engine is really
 generic. It's a **director/observer multi-generational social simulation**: no
 player avatar. You author personas, seed a small town, then observe and perturb
-it as it lives, reproduces, and dies across generations.
+it as it lives, works, reproduces, quarrels and dies across generations.
 
 <Metrics
   items={[
     { v: '30–60', k: 'agents (seeded)' },
     { v: '64', unit: '²', k: 'town grid' },
     { v: '~15–65', k: 'stable population plateau' },
-    { v: '0', k: 'LLM calls in v1' },
+    { v: '~12', unit: '%', k: 'LLM answers adopted' },
   ]}
 />
 
@@ -38,39 +38,64 @@ games *more* isolated, not less.
     their own — never authored.
   </Card>
   <Card title="Multi-generational" icon="seti:clock">
-    Aging, death (age / starvation / violence), pair-bonding, children — open-ended
-    lineages, not a fixed cast.
+    Aging, death (age / starvation / violence / disease), pair-bonding, children —
+    open-ended lineages, not a fixed cast.
   </Card>
   <Card title="Genome = behaviour" icon="puzzle">
     A genome carries behaviour (BDI), aptitude, and appearance — heritable via
     crossover + mutation, and visible in 3D. Personality is inherited; lived
     beliefs and desires are not.
   </Card>
-  <Card title="A bounded LLM seam" icon="rocket">
-    v1 has no LLM (byte-deterministic). Later milestones let an LLM only *choose
-    among* BDI-generated feasible actions and narrate why — it can't invent actions,
-    and it's off by default.
+  <Card title="Governance & antagonism" icon="approve-check">
+    Leaders emerge, assign jobs, and are followed or resented. Feuds, sabotage and
+    care all run as first-class social verbs.
   </Card>
 </CardGrid>
 
-## Build state
+## What's built
 
 Built via a plan-split-dispatch orchestration (an Opus controller, Sonnet
-executors), M1 is a serial chain of briefs. As of 2026-07-20 (local, unpushed):
+executors), one brief per wave. All of it is on `main`.
 
 <Steps>
 
-1. **hollow-01 – 06 ✅** — workspace skeleton; engine agent-kernel promotion +
-   Farm refactor; needs / economy / scarcity; relationships & emergent
-   communities; lifecycle, pair-bonding & genetics; social verbs (cooperative,
-   antagonistic, kinship + a violence-death seam).
+1. **M1 — the headless sim ✅** (`hollow-01…07`) — workspace skeleton; engine
+   agent-kernel promotion + a Farm refactor onto it; needs / economy / scarcity;
+   relationships & emergent communities; lifecycle, pair-bonding & genetics;
+   social verbs; the headless CLI + export. The **M1 exit bar passed** 2026-07-20.
 
-2. **hollow-07 ⬜** — headless CLI + export, then the **M1 exit-bar gate**.
+2. **M2 — the 3D layer ✅** (`hollow-08…09`) — a true-3D renderer promoted into
+   `@engine/core/render3d`, plus the gene-driven cozy town scene. Built first on
+   WebGPU, **ported to WebGL2 on 2026-08-18** when WebGL2 became the repo's only
+   backend; the live image was re-verified in-sandbox 2026-09-19 and is no longer
+   Chrome-gated.
 
-3. **M2 – M4 ⬜** — true-3D WebGPU rendering promoted into the engine, plus the
-   bounded LLM seam. Specs written and queued.
+3. **M3 — research surfaces ✅** (`hollow-10…11`) — the event chronicle +
+   dashboard, persona authoring, shocks and replay. The client and the headless
+   CLI share one set of `observe` serializers, so a metric can't mean two things.
+
+4. **M4 — governance & antagonism ✅** (`hollow-12`) — emergent leadership, job
+   assignment, feuds and sabotage arcs.
+
+5. **M5 — daily life & mortality ✅** (`hollow-14`, `hollow-15`) — leader-assigned
+   jobs, a diurnal routine around one central hearth, rare private interactions;
+   then starvation death, persistent corpses, graveyard burial by a grave-digger,
+   rot → disease, and a medic.
 
 </Steps>
+
+## The LLM seam, and the number that justifies it
+
+`hollow-13` added the bounded LLM **rationalizer**: it may only *choose among*
+the feasible actions BDI already generated, and narrate why. It cannot invent an
+action, it is **off by default**, and with it off the sim is byte-identical.
+
+The interesting part is that the seam was *measured* rather than asserted
+(`hollow-16`). Under a contrarian diagnostic, **~12% of answers are adopted** —
+low-rate but genuinely live, and when an answer is adopted the world provably
+diverges. Every run now prints its own adoption rate, so the seam can't quietly
+become decorative. One spec remains queued: moving the attachment point to a
+decision whose subject outlives the ~40-tick answer lag.
 
 <Aside type="caution" title="A war story worth keeping">
   Lifecycle first showed population **bistability** — food scarcity alone couldn't
@@ -80,6 +105,7 @@ executors), M1 is a serial chain of briefs. As of 2026-07-20 (local, unpushed):
 </Aside>
 
 <Aside type="note">
-  Hollow doesn't have dedicated corpus wiki pages yet — its state lives in the
-  build tracker and [Status](/wiki/status/). This page will grow as M1 closes.
+  Hollow's design of record — the tick order, the genome, the economy, the
+  governance and mortality models — is [Hollow overview](/wiki/hollow-overview/).
+  Current state across all four games is [Status](/wiki/status/).
 </Aside>
