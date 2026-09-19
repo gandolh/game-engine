@@ -4,6 +4,48 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-09-19] correction | "Citadel has 4 pre-existing failing tests" was my test invocation, not a bug
+
+Recorded during the audit sweep and repeated in the audit-60/62 commit message: *`games/citadel/client`
+has 4 pre-existing failing tests — `Math.random` in `weather.ts` and `ambient-crowd.ts`, a gaitOffset
+parity check, and a TICKS_PER_DAY baseline — verified identical on the pre-existing commit, out of
+scope.* **All four claims are false.** `grep -c 'Math.random'` on both files returns **0**.
+
+The failures were real output, but they came from **how the suite was invoked**:
+
+```
+npx vitest run --root games/citadel/client     →  4 failed | 567 passed
+npm run test -w @citadel/client                →  0 failed | 571 passed
+```
+
+Same `vitest run`, same config. The difference is `process.cwd()`. These four are **source-reading
+guards** — the same family as the palette and layering guards — and they resolve their target
+relative to the working directory:
+
+```ts
+const src = readFileSync(resolve(process.cwd(), "src/render/weather.ts"), "utf8");
+```
+
+`--root` changes where vitest *looks for the project*; it does **not** change the process's cwd. Run
+from the repo root, `process.cwd()` is the repo root, the guard reads a path that isn't there, and it
+fails while reporting something that sounds like a real finding — "weather.ts contains no Math.random
+call" reads as a source problem, not a path problem.
+
+**The rule: run a workspace's tests with `npm run test -w <pkg>`, not `npx vitest run --root <dir>`.**
+The repo's own CLAUDE.md already documents the `-w` form; `--root` is the shortcut that looks
+equivalent and is not. Anything that reads source off disk will disagree between them.
+
+**Why this was worth chasing rather than shrugging at.** It failed in the direction that *looks* like
+a finding, so it got written down as one and carried for a whole session — a determinism-adjacent
+accusation (`Math.random` in render code) against two files that are clean. A guard that fails for
+environmental reasons is worse than one that doesn't exist, because it spends someone's attention and
+then gets believed.
+
+The inverse was checked too, since a false green is the more dangerous half: the widened palette guard
+([audit-44](todos/closed/2026-09-18-audit-44-palette-guard-scans-no-markup.md)) asserts non-empty file
+counts — *"no .html files scanned — the widened scan is not reaching them"* — so it cannot silently
+pass on zero files, and it does not use `cwd`. No guard run this session passed vacuously.
+
 ## [2026-09-19] decision | audit-59: the repo builds an image; the deploy lives outside it
 
 `find` over this repo, excluding `node_modules`/`.git`, returned **no** `deploy*`, `Caddyfile*`,
