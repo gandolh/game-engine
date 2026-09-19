@@ -3,7 +3,7 @@
 status: todo
 created: 2026-09-19
 context: found by a read-only structure/performance/compatibility sweep on 2026-09-19. Sibling of
-[sweep-04](../2026-09-19-sweep-04-ui-quads-still-cpu-rasterized.md) — both are in the render hot path, but
+[sweep-04](2026-09-19-sweep-04-ui-quads-still-cpu-rasterized.md) — both are in the render hot path, but
 this one is **unmeasured**, and its first chunk is the instrument, not the fix. Do not skip step 1.
 
 ## The gap

@@ -68,14 +68,8 @@ which is how a "WebGPU-only render path" line outlived the page that already sai
 
 ## Build programs
 
-**The queue holds three things.** All in [todos/](todos/); everything else is closed.
+**The queue holds two things.** All in [todos/](todos/); everything else is closed.
 
-- **[sweep-04](todos/2026-09-19-sweep-04-ui-quads-still-cpu-rasterized.md)** — the UI is the only
-  surface left on the **CPU rasterizer**: ~7,272 Canvas2D `drawImage` calls per frame, measured
-  `ui.flush` 3.49 ms inside a `frame` whose p95 (17.10 ms) is over the 16.6 ms budget — with an
-  instanced GPU `SpriteBatch`, per-instance tint included, four files away. The last of the nine
-  sweep specs, and the one whose risk is **glyph fidelity**: pixel art under a fixed palette, where
-  the GPU sampler replaces `imageSmoothingEnabled = false`.
 - **[hollow-17](todos/2026-09-19-hollow-17-rationalizer-attachment-point.md)** — move Hollow's LLM
   rationalizer seam to a decision whose **subject outlives the 40-tick answer-lag**. Measured
   constraint: 43 of 43 rejected answers were refused because the chosen *peer* was gone, and in 33 of
@@ -87,9 +81,8 @@ which is how a "WebGPU-only render path" line outlived the page that already sai
 
 **Closed programs** (kept because the *why* is still load-bearing):
 
-- **Sweep 2026-09-19 (structure / performance / compatibility) — 8 of 9 built and closed.**
-  `sweep-01`..`sweep-09` from two read-only sweeps the same day; only
-  [sweep-04](todos/2026-09-19-sweep-04-ui-quads-still-cpu-rasterized.md) is still open. The three
+- **Sweep 2026-09-19 (structure / performance / compatibility) — all 9 built and closed.**
+  `sweep-01`..`sweep-09` from two read-only sweeps the same day, all nine built. The three
   with the longest reach: [sweep-01](todos/closed/2026-09-19-sweep-01-determinism-has-no-guard.md)
   gave the repo's most load-bearing invariant a guard that can actually fail (it was enforced by two
   tests in Citadel's *client render* layer and none over any `sim-core`);

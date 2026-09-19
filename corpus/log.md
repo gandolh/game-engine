@@ -4,11 +4,97 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [todos/closed/](todos/closed/), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-09-19] build | The sweep queue built out — nine specs, and three of them corrected their own premise
+
+`sweep-01`..`sweep-09` all built and closed, from the two read-only sweeps earlier the same day.
+Dispatched in three waves grouped by file overlap, each spec verified by the controller rather than
+on its executor's word. The interesting part is not the nine landings; it is the three places where
+doing the work contradicted the spec that ordered it.
+
+### What the measurements overturned
+
+**sweep-05 blamed the wrong layer.** Its spec proved the mechanism statically — `compareSprite` is
+`(layer, sortY)` and ignores `atlasId`, `LAYER.ACTOR === LAYER.BUILDING === 50`, four atlas sheets
+draw there — and filed itself as *unmeasured* with the fix gated on a number. Measured: 419 sprites,
+4 atlases, **49 draw groups, 12.3× the floor**. But **seven of eight layers coalesce perfectly into
+one group each**, and layer **40** — scattered world dressing mixing the `props` and `buildings`
+sheets and sorting by Y — produces **40 of the 49**. Layer 50 contributes 6. The mechanism was right
+and the layer was wrong, which re-ranks the fix: texture arrays across the whole sprite path is a
+large change aimed at a problem living in one layer with two sheets. Numbers in
+[performance-measurements.md](wiki/performance-measurements.md).
+
+**The measurement method had to change too.** The plan was a browser reading. Farm's client cannot
+complete startup in this sandbox — its Vite→`:8787` WebSocket proxy resets — so `draw.groups` was
+measured **headlessly** instead, which turned out to be the better instrument for that number: a
+group count is a pure CPU function of the sprite queue, so a software-rendering sandbox cannot
+distort it, and it is seed-pinned and reproducible.
+[`probe-draw-groups.ts`](../tools/run-sim/src/probes/probe-draw-groups.ts).
+
+**sweep-07's central claim was provable rather than arguable.** `esnext` vs `es2022`: rebuilding Farm
+under each produced **byte-identical output, down to matching content-hash filenames**. Nothing in
+the tree needs newer-than-ES2022 syntax.
+
+### Verified in a real browser, after the first route failed
+
+Farm could not be driven, but **Citadel runs its sim in a Worker with no WebSocket**, so it boots.
+That gave two results the unit tests could not:
+
+- **sweep-04's whole risk, visually closed.** Citadel's complete HUD — top bar, Status panel, ruleset
+  modal, 20+ build-bar icon buttons, minimap, debug overlay — renders correctly through the **new GPU
+  UI path**, with crisp pixel-art glyphs and on-palette colour.
+- **sweep-03's three acceptance gestures, using a state signal rather than pixels.** Pixel-diffing the
+  button row was the planned method and was the wrong one here (the build bar is translucent over an
+  animating world). The status line's `Mode:` field is the better signal: press+release **inside** →
+  `None` → `Place house` (activates); press + window **blur** → stayed `None`; press + release
+  **outside the canvas** → stayed `Place house`, not `Place farm` (no activation). Nothing left
+  rendering as pressed.
+
+**What is still not verified, stated plainly:** synthetic `MouseEvent`s do not drive the in-canvas UI
+reliably here — the same reason Farm's Start button never fired — so this is behaviour-level evidence,
+not the pixel-identity A/B sweep-04's acceptance asks for. And no before/after `?profile` ms pair
+exists: Farm is the only client wired for it and it will not start in this sandbox. `lastUiFlush`
+keeps its shape so that comparison stays valid whenever it is run on real hardware. sweep-04's
+residual risk is narrow and named in its commit: a display ratio strictly between 1 and 2, where
+Canvas2D's antialiased outer boundary on a fractional destination rect could differ from GL resolving
+coverage at pixel centres.
+
+### Corrections made to delivered work, not just accepted
+
+- **sweep-07's guard regex read the wrong field.** It matched the first quoted `target:` in each Vite
+  config, which in Farm's and Citadel's is the dev proxy's upstream URL — harmless only because both
+  write it as an env expression. Scoped to the `build: { … }` block and proven to ignore a decoy proxy
+  `target: "esnext"` while still failing on real drift.
+- **sweep-09 proved its key round-trip with a throwaway script.** The spec's acceptance asked for it,
+  and a one-off proves it once. Rebuilt as two committed guards, split across packages because
+  `@engine/ui` is browser-scoped and carries no Node types: the behavioural half there, the key-drift
+  pin in `@engine/core`. Both demonstrated red.
+- **sweep-06's new pointer test restated `Math.min(dpr, 2)`** — one more copy of the literal that spec
+  exists to remove. Repointed at `effectiveDpr()`, safe because `dpr.test.ts` pins the clamp
+  independently against both the constant and the literal.
+
+### One process failure, which was mine
+
+sweep-07 was given the `engines` field of `engine/ui/package.json` and sweep-09 the `exports` map of
+**the same file**. Staging by path took both, so sweep-09's exports entry is committed under
+sweep-07's message, and commit `91969cf` is not independently checkout-able — it references
+`./src/state/` before that directory exists. History was left alone (another agent was mid-edit;
+rewriting a shared tree to fix an attribution is not worth the risk) and the split is recorded in
+sweep-09's commit. **With several agents on one working tree, ownership has to be per-file, not
+per-path.**
+
+### Lenses that stayed clean
+
+The four hypotheses that died during the sweeps (unbounded relationship graph, `localStorage` in a
+sim-core, per-sprite allocation in the render hot path, missing focus-loss key reset in three games)
+were not revisited and none resurfaced. Two of those had died because the "evidence" was a comment —
+which is now a third data point for the same rule: on this repo a symbol grep has a high
+false-positive rate **by design**, because the conventions are documented at the sites they constrain.
+
 ## [2026-09-19] audit | A fourth sweep — structure, performance, compatibility: six specs, and four hypotheses that died
 
 Run after the third sweep (below) closed, deliberately on **three lenses it had not used**: code
 structure, performance, and compatibility. Read-only; nothing was implemented. Six specs filed as
-[sweep-04](todos/2026-09-19-sweep-04-ui-quads-still-cpu-rasterized.md) …
+[sweep-04](todos/closed/2026-09-19-sweep-04-ui-quads-still-cpu-rasterized.md) …
 [sweep-09](todos/closed/2026-09-19-sweep-09-layering-rule-read-as-licence-to-duplicate.md).
 
 ### The two that matter most are both in the render path

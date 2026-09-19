@@ -73,7 +73,14 @@ edit the matching line below.
   `@engine/core` + `@engine/ui` + `@engine/wasm-modules`, installs the tarballs into
   `examples/library-consumer` *outside* the workspaces, and runs its Node smoke. It is the last
   step of `npm run gates`.
-- **Path-scoped guard tests** that fail on drift rather than on opinion: the per-game palette scan
+- **Path-scoped guard tests** that fail on drift rather than on opinion: **determinism across all four
+  `sim-core` packages plus `engine/core/src/{sim,ecs,runtime}`, the `.js`-suffix ban and the
+  version-pinning rule** ([conventions.test.ts](../../engine/core/src/conventions.test.ts), sweep-01 —
+  all three were previously enforced by comments and reviewer memory); the **client `build.target`**
+  ([build-target.test.ts](../../engine/core/src/build-target.test.ts)); the **single
+  `devicePixelRatio` reader** ([dpr-guard.test.ts](../../engine/core/src/dpr-guard.test.ts)); the
+  **panel-prefs storage keys** ([panel-storage-keys.test.ts](../../engine/core/src/panel-storage-keys.test.ts));
+  the per-game palette scan
   ([palette.test.ts](../../engine/core/src/render/palette.test.ts), which reads HTML and CSS too, not
   just TS), the layering rule ([layering.test.ts](../../engine/core/src/layering.test.ts), which
   classifies every workspace **on disk**), the per-directory GLSL lint, and the wasm drift check.
@@ -112,6 +119,13 @@ step, and it was not kept in step.
 
 Newest first, one line each. Detail is in the [log.md](../log.md) entry for the same date.
 
+- **2026-09-19** — the `sweep-01`..`sweep-09` queue built out, all nine. Three repo-wide guards that
+  can fail (determinism across every `sim-core`, `.js` suffixes, version pinning); the client bundler
+  target pinned to `es2022`; one `effectiveDpr()` with Hollow's 3D finally applying the cap; Apollo-46
+  collapsed from five copies to one; `panel-prefs` promoted to `@engine/ui`; Farm's boot no longer
+  dies over plain HTTP; the UI moved off the CPU rasterizer onto the sprite batch. **The measurement
+  that matters:** draw-group fragmentation is real (49 groups, 12.3× the floor) but lives in **one
+  layer** — seven of eight coalesce perfectly.
 - **2026-09-19** — audit sweep build-out: 23 of the 26 `audit-38..63` specs shipped. Four guards that
   could not fail now can (palette reads HTML/CSS, layering reads the filesystem, the `Rng` has golden
   vectors, the scheduler has a branch-agreement test); a Vickrey auction stopped charging the winner

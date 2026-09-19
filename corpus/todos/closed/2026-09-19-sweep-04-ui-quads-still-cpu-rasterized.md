@@ -12,7 +12,7 @@ they are the reason this is new work and not a re-run of brief 118.
 Every UI quad — every glyph, icon shade-mask, panel background, hotbar slot — is rasterized on the
 **CPU**, one `drawImage` per quad, onto a second stacked `<canvas>`:
 
-[`engine/core/src/render/webgl2/renderer.ts`](../../engine/core/src/render/webgl2/renderer.ts) (the tail
+[`engine/core/src/render/webgl2/renderer.ts`](../../../engine/core/src/render/webgl2/renderer.ts) (the tail
 of `endFrame`, ~line 712):
 
 ```ts
@@ -22,12 +22,12 @@ for (let ui = 0; ui < this._uiLen; ui += 1) {
 ```
 
 `overlayCtx` is a `CanvasRenderingContext2D` from
-[`Overlay2D`](../../engine/core/src/render/overlay-2d.ts) — a transparent canvas CSS-stacked one
+[`Overlay2D`](../../../engine/core/src/render/overlay-2d.ts) — a transparent canvas CSS-stacked one
 z-index above the GL canvas. `drawUIQuad` lives in
-[`ui-draw.ts`](../../engine/core/src/render/ui-draw.ts) and reaches the per-`(atlas, frame, rgb)`
+[`ui-draw.ts`](../../../engine/core/src/render/ui-draw.ts) and reaches the per-`(atlas, frame, rgb)`
 `tintCaches` WeakMap of pre-composited canvases that brief 118 added.
 
-**Measured, on the record** ([performance.md](../wiki/performance.md), post-migration reading
+**Measured, on the record** ([performance.md](../../wiki/performance.md), post-migration reading
 2026-08-18, Farm via `?profile`):
 
 | metric | value |
@@ -41,7 +41,7 @@ z-index above the GL canvas. `drawUIQuad` lives in
 over the 16.6 ms 60 Hz budget** — so this is not a hypothetical headroom argument.
 
 Meanwhile, four files away, the engine already owns
-[`SpriteBatch`](../../engine/core/src/render/webgl2/sprite-batch.ts): instanced, 16 floats per quad
+[`SpriteBatch`](../../../engine/core/src/render/webgl2/sprite-batch.ts): instanced, 16 floats per quad
 into one `Float32Array`, one `drawArraysInstanced` for thousands of quads, **with a per-instance
 tint already in the vertex format** (`LOC.tint`, `inst.r/g/b/a`). The tint cache exists to emulate on
 the CPU exactly what that attribute does for free.
@@ -52,12 +52,12 @@ Read these before dismissing this brief — I checked both.
 
 1. **The WebGL2 migration did not decide the UI belongs on Canvas2D.** It ported `Overlay2D` forward
    as a like-for-like port
-   ([webgl2-05](closed/2026-08-18-webgl2-05-tint-overlay-and-ui.md), whose brief title is literally
+   ([webgl2-05](2026-08-18-webgl2-05-tint-overlay-and-ui.md), whose brief title is literally
    "tint + overlay-2d + UI quads"), and its BUILD-STATE records *"Two stacked canvases at 1280×577
    (GL + `Overlay2D`), exactly as designed"* — i.e. the port matched its own spec. There is **no entry
-   in [decisions.md](../wiki/decisions.md)** saying the UI flush stays on the CPU. Nothing to relitigate.
+   in [decisions.md](../../wiki/decisions.md)** saying the UI flush stays on the CPU. Nothing to relitigate.
 2. **Brief 118's non-goal is the emission *API*, not the flush backend.**
-   [118](closed/118-fps-regression-ui-glyph-tint-path.md) locks *"the per-glyph quad emission API"*
+   [118](118-fps-regression-ui-glyph-tint-path.md) locks *"the per-glyph quad emission API"*
    as a non-goal. This brief does not touch it: `@engine/ui` keeps emitting the same quads through the
    same call, and `_uiQueue` keeps the same shape. Only what consumes `_uiQueue` changes. Say so in the
    closeout so the next reader does not have to re-derive it.
@@ -77,7 +77,7 @@ warned about.
 - a full-surface `clearRect` every frame;
 - CSS `width`/`height`/`left`/`top`/`z-index` kept in sync with the GL canvas every frame;
 - a **third hardcoded copy of the DPR cap** (`overlay-2d.ts` line ~94 — see
-  [sweep-06](closed/2026-09-19-sweep-06-dpr-cap-duplicated-and-hollow-uncapped.md)).
+  [sweep-06](2026-09-19-sweep-06-dpr-cap-duplicated-and-hollow-uncapped.md)).
 
 Two canvases that must stay pixel-aligned is a standing compatibility surface. Retiring the UI half of
 `Overlay2D`'s job shrinks it.
@@ -86,7 +86,7 @@ Two canvases that must stay pixel-aligned is a standing compatibility surface. R
 
 1. **Re-measure first, on real hardware.** The 3.49 ms figure is from 2026-08-18. Capture a fresh
    `?profile` export with all panels open at default zoom, same conditions as
-   [performance-measurements.md](../wiki/performance-measurements.md)'s table style. If `ui.flush` has
+   [performance-measurements.md](../../wiki/performance-measurements.md)'s table style. If `ui.flush` has
    moved, the ranking changes and this brief may need re-scoping. **A number from a previous session is
    not a baseline for this one.**
 2. **Add a screen-space sprite pass**, not a new renderer. Push `_uiQueue` through `SpriteBatch` with
@@ -98,11 +98,11 @@ Two canvases that must stay pixel-aligned is a standing compatibility surface. R
    `createOffscreen`-per-(atlas,frame,rgb) machinery become dead and should be deleted — with the
    caveat below.
 4. **Keep `Overlay2D` alive.** Particles, weather, and the day/night wash still use it
-   ([overlay-2d.ts](../../engine/core/src/render/overlay-2d.ts) header), and its shadow-mode note
+   ([overlay-2d.ts](../../../engine/core/src/render/overlay-2d.ts) header), and its shadow-mode note
    explains why `multiply` cannot move here. This brief removes the **UI** flush from it, nothing else.
 5. **Do not delete `drawUIQuad` or `raster2d.ts`'s tint path yet.** The same CPU rasterizer bakes
    textures for `static-layer-pass`, `water-pass` and `overlay-light-pass`, and
-   [performance.md](../wiki/performance.md) records it as *"still load-bearing for texture baking."*
+   [performance.md](../../wiki/performance.md) records it as *"still load-bearing for texture baking."*
    Grep the callers before removing anything.
 
 ## The risk that decides whether this ships
@@ -125,7 +125,7 @@ it: the acceptance below asks for a pixel comparison, not a screenshot that look
 
 ## Acceptance
 - **A before/after `?profile` export pair** on the same machine, in
-  [performance-measurements.md](../wiki/performance-measurements.md), same table shape as the
+  [performance-measurements.md](../../wiki/performance-measurements.md), same table shape as the
   2026-07-15 and 2026-08-18 entries. `ui.flush` and `frame` p95 both reported. If `frame` p95 does not
   drop below 16.6 ms, say so plainly rather than reporting the `ui.flush` win alone.
 - **UI pixels identical.** A cropped pixel diff of the panel area, at rest, before and after — the
@@ -134,7 +134,7 @@ it: the acceptance below asks for a pixel comparison, not a screenshot that look
 - Palette guard green (`palette.test.ts`) — no colour may enter the shader path as a literal; the GLSL
   lint applies to any new shader.
 - `npm run gates`. The startup smokes matter here: this touches a barrel-adjacent render module, and
-  [decisions.md](../wiki/decisions.md) → Renderer records that typecheck plus 689 green tests missed
+  [decisions.md](../../wiki/decisions.md) → Renderer records that typecheck plus 689 green tests missed
   exactly that class of break.
 - Determinism untouched by construction (render-only). No sim run needed; say that in the closeout
   rather than running one for form.
