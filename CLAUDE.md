@@ -73,6 +73,11 @@ npm run hollow         # Hollow client (vite :5175) — sim runs in an in-browse
 npm run mathquest      # MateQuest client (vite :5176) — sim runs in an in-browser Web Worker, no server
 npm run build          # production build of the Farm client
 npm run typecheck      # tsc --noEmit across all workspaces — run before committing
+npm run gates          # the FULL gate sequence: typecheck -> test -> build -> four startup smokes
+                        # (sim, sim:citadel, sim:hollow, preview) -> pack-smoke. There is NO hosted
+                        # CI — the GitHub Actions workflow was removed 2026-09-19 — so nothing runs
+                        # this for you. The smokes are the point: typecheck and tests both stayed
+                        # green through a .glsl import break that threw on every real entry point.
 npm run test           # vitest run across all workspaces
 npm run sim            # headless deterministic Farm sim (no browser, no server, no Worker)
 npm run sim:citadel    # headless Citadel sim
@@ -84,7 +89,7 @@ npm run build-ui       # build @engine/ui's dist/ (for npm pack/publish; not nee
 npm run pack-smoke     # npm-pack @engine/core + @engine/ui + @engine/wasm-modules, install the tarballs
                         # into examples/library-consumer (outside the workspaces, so it resolves from
                         # tarballs, not source) and run its Node smoke — proves the publish contract, not
-                        # just that `npm pack` exits 0. ~7-12s; runs in CI on every push.
+                        # just that `npm pack` exits 0. ~7-12s; also the last step of `npm run gates`.
 ```
 
 Single test / single workspace (tests live in the package that owns the code):

@@ -4,6 +4,40 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-09-19] change | The GitHub Actions workflow is gone; the checks it ran are `npm run gates`
+
+User directive: remove the GitHub CI. `.github/` is deleted.
+
+**What was deliberately NOT lost.** The workflow's value was never GitHub — it was the **startup
+smokes**. `npm run typecheck` and `npm run test` both stayed green through a `.glsl` dynamic-import
+break that made every Node consumer of the renderer throw at import time
+([decisions.md](wiki/decisions.md) → Renderer); only *starting* the real entry points caught it. So
+the sequence is preserved verbatim as [`scripts/gates.mjs`](../scripts/gates.mjs), run with
+**`npm run gates`**: typecheck → test → build → `sim` → `sim:citadel` → `sim:hollow` → `preview` →
+`pack-smoke`. It continues past a failure (one red gate should not hide the other seven) and exits
+non-zero with the list. Verified end to end: **8 of 8 green in ~128 s**, of which the test suite is
+110 s and every smoke is under 5 s.
+
+**What WAS lost, stated plainly rather than glossed.** Nothing schedules it. The gate is now run when
+a human remembers — which is precisely the condition
+[audit-06](todos/closed/2026-09-13-audit-06-ci-gate.md) was written to end, two months after it ended
+it. The repo is **reproducibly checkable** and **not automatically checked**, and those are different
+claims. Every page that said "runs in CI on every push" now says which of the two it means:
+`CLAUDE.md`'s command list, `decisions.md` → *Build & verify gates*, `status.md` → *Gates that run*,
+and the comment in `dockerignore.test.ts` that cited the workflow by path.
+
+**Scope call.** The instruction said "github related code (github actions or pipeline)", so the
+pipeline went and the *links* stayed: `docs/astro.config.mjs`'s repo link and
+`docs/scripts/sync-corpus.mjs`'s `GITHUB_BLOB_BASE`, which rewrites links to non-rendered corpus
+files so the docs site can point at source. Removing that base would break every such link in the
+docs — a different change, with a different consequence, and not one that was asked for.
+
+**A small thing worth keeping:** `sim:hollow` takes `MAX_YEARS`, not `MAX_DAYS`/`TICKS_PER_DAY` like
+the other two sims (`tools/hollow-sim/src/env.ts`), and passing `MAX_DAYS` silently no-ops into a
+full-length run. That trap was documented in the deleted workflow's comments; it is now in
+`gates.mjs` and in `status.md`, because a fact that only lives in a file you are deleting is a fact
+you are deleting.
+
 ## [2026-09-19] correction | "Citadel has 4 pre-existing failing tests" was my test invocation, not a bug
 
 Recorded during the audit sweep and repeated in the audit-60/62 commit message: *`games/citadel/client`
@@ -561,7 +595,7 @@ re-periodizing one, and batch overrun (previously undefined in all three workers
 the debt, never accumulate** — enforced structurally, since the primitive does no wall-clock accounting
 at all and therefore has no code path that could catch up.
 
-**CI now exists** ([.github/workflows/ci.yml](../.github/workflows/ci.yml)) and the audit's own gaps
+**CI now exists** (`.github/workflows/ci.yml` — *removed 2026-09-19; the checks live on as [`scripts/gates.mjs`](../scripts/gates.mjs)*) and the audit's own gaps
 showed up in it: `engine/wasm-modules/dist/` is gitignored but seven Node consumers read it, so CI
 needed a `build-wasm` step — which in turn neuters the new drift guard in CI (filed as audit-34). The
 publish fixture `examples/library-consumer`, which nothing had ever run, is now a CI step proven to go

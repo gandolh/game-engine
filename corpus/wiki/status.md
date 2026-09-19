@@ -50,25 +50,27 @@ edit the matching line below.
 
 ## Gates that run
 
-- **CI exists** (since 2026-09-14, [audit-06](../todos/closed/2026-09-13-audit-06-ci-gate.md)) — push
-  and PR run `npm ci` → typecheck → test, then **five startup-smoke steps** that prove the real entry
-  points still *start* (`build`, `sim`, `sim:citadel`, `sim:hollow`, `preview`) at tiny budgets. That
-  is the gate class that would have caught the `.glsl` dynamic-import break
-  ([decisions.md](decisions.md) → Renderer) which typecheck and 689 tests both missed.
-  Workflow: [.github/workflows/ci.yml](../../.github/workflows/ci.yml).
-  - `sim:hollow`'s smoke step uses **`MAX_YEARS=1`**, not `MAX_DAYS`/`TICKS_PER_DAY` like the other
-    two sims — `tools/hollow-sim` reads a different env var for run length
-    (`tools/hollow-sim/src/env.ts`), and passing `MAX_DAYS` to it silently no-ops.
-  - No `.turbo` cache is restored across CI runs — deliberate; the workflow's own comment states the
-    condition to revisit. CI can use turbo normally because
-    [audit-01](../todos/closed/2026-09-13-audit-01-turbo-cache-false-green.md) fixed the
-    topological-cache false green.
+- **There is no hosted CI.** `.github/` and its Actions workflow were **removed 2026-09-19** at the
+  user's request. The workflow is gone; the checks are not — the sequence it ran is now
+  [`scripts/gates.mjs`](../../scripts/gates.mjs), run with **`npm run gates`**: typecheck → test →
+  build → four **startup smokes** (`sim`, `sim:citadel`, `sim:hollow`, `preview`) → `pack-smoke`. It
+  keeps going after a failure and exits non-zero with the list.
+  - **The smokes are the part that matters.** `typecheck` and `test` both stayed green through a
+    `.glsl` dynamic-import break that made every Node consumer of the renderer throw at import
+    ([decisions.md](decisions.md) → Renderer). Only *starting* the real entry points caught it.
+  - **Be honest about what was lost:** nothing schedules this any more. It runs when a human
+    remembers, which is the state [audit-06](../todos/closed/2026-09-13-audit-06-ci-gate.md) existed
+    to fix. The gate is reproducible; the *enforcement* is not.
+  - `sim:hollow` takes **`MAX_YEARS`**, not `MAX_DAYS`/`TICKS_PER_DAY` like the other two sims —
+    `tools/hollow-sim` reads a different env var for run length (`tools/hollow-sim/src/env.ts`), and
+    passing `MAX_DAYS` silently no-ops into a full-length run.
 - **Node `>=24`** is pinned in the root `package.json` `engines` field. It matches
   `infrastructure/Dockerfile`'s `node:24-alpine` — the one pin backed by a real deploy constraint —
   and clears both vite's and vitest's own `engines` ranges. (README's old "Node 20+" was the drift.)
 - **`npm run pack-smoke`** proves the publish contract, not just that `npm pack` exits 0: it packs
   `@engine/core` + `@engine/ui` + `@engine/wasm-modules`, installs the tarballs into
-  `examples/library-consumer` *outside* the workspaces, and runs its Node smoke. Runs in CI.
+  `examples/library-consumer` *outside* the workspaces, and runs its Node smoke. It is the last
+  step of `npm run gates`.
 - **Path-scoped guard tests** that fail on drift rather than on opinion: the per-game palette scan
   ([palette.test.ts](../../engine/core/src/render/palette.test.ts), which reads HTML and CSS too, not
   just TS), the layering rule ([layering.test.ts](../../engine/core/src/layering.test.ts), which
@@ -118,6 +120,7 @@ Newest first, one line each. Detail is in the [log.md](../log.md) entry for the 
   **1 decision in 27**; the latency is filed as
   [hollow-16](../todos/2026-09-15-hollow-16-rationalizer-adoption-latency.md), a design call.
   Also: the 2026-09-13 audit backlog (30 specs) and audit-32..37 all landed.
-- **2026-09-14** — CI exists (see *Gates that run*).
+- **2026-09-14** — a CI gate was added (`audit-06`); **removed again 2026-09-19** by user
+  request, with its checks preserved as `npm run gates` (see *Gates that run*).
 - **2026-08-18** — WebGL2 became the single render backend; a corpus audit found the work queue was
   fiction and 452 links were dead.

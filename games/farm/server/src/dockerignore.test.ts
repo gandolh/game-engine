@@ -7,11 +7,14 @@
  * and the runtime resolved it by warning once on stdout and serving a sim whose farmers could never
  * move, under a process compose reported as healthy.
  *
- * WHY THIS IS A TEST AND NOT A CI IMAGE BUILD: nothing in CI builds the container. That is the root
- * cause — `.github/workflows/ci.yml` runs typecheck, tests, five startup smokes and pack-smoke, and
- * none of them touch the image, so the only signal was a log line nobody reads. A real build is the
- * stronger check and the Dockerfile now carries a `RUN test -f` for it, but this runs on every push
- * for free and catches the `.dockerignore` half directly.
+ * WHY THIS IS A TEST AND NOT AN IMAGE BUILD: nothing in this repo's gates builds the container. That
+ * is the root cause. `npm run gates` (scripts/gates.mjs) runs typecheck, tests, a build and four
+ * startup smokes, and not one of them touches the image — so the only signal this bug ever produced
+ * was a log line nobody reads. A real `docker build` is the stronger check, and the Dockerfile now
+ * carries a `RUN test -f` that fails the build outright, but that check only fires where a Docker
+ * daemon exists, which is NOT here (and, since 2026-09-19, not in a hosted CI either — the GitHub
+ * Actions workflow was removed). This test needs no daemon, runs in milliseconds with the rest of the
+ * suite, and catches the `.dockerignore` half directly.
  */
 import { describe, it, expect } from "vitest";
 import { readFileSync, existsSync } from "node:fs";

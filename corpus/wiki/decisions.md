@@ -105,6 +105,15 @@ would fight that ownership rather than fit it.
 
 ## Build & verify gates
 
+**There is no hosted CI; the gate is `npm run gates`.** (2026-09-19, user directive — supersedes
+audit-06's GitHub Actions workflow, which is deleted along with `.github/`.) The sequence is
+preserved verbatim in [`scripts/gates.mjs`](../../scripts/gates.mjs): typecheck → test → build →
+four startup smokes (`sim`, `sim:citadel`, `sim:hollow`, `preview`) → `pack-smoke`, continuing past
+a failure and exiting non-zero with the list. **The checks survived; the enforcement did not** — it
+now runs when a human remembers, which is the condition audit-06 was written to end. Say that
+plainly rather than describing the repo as gated. `sim:hollow` takes `MAX_YEARS`, not `MAX_DAYS`.
+
+
 **`typecheck`/`test` use topological (`^task`) deps, not `dependsOn: []`.** (audit-01, 2026-09-13.)
 The original `dependsOn: []` was a *deliberate* choice with a sound-sounding rationale written into
 [turbo.json](../../turbo.json) — maximum parallelism, and each package reporting its own failure
@@ -131,8 +140,8 @@ Node test) crashes with `ERR_UNKNOWN_FILE_EXTENSION` the moment a barrel pulls t
 **value** import. Type-only reaches are fine, because they erase. This is invisible in the code: the
 offending line looks like an ordinary export and typechecks perfectly. Before adding a value export
 to a barrel, check the gate — and note that a green `npm run typecheck` plus a full green test suite
-did **not** catch this class of break when it last happened (see Renderer), which is why CI has
-startup-smoke steps that merely prove the entry points *start*.
+did **not** catch this class of break when it last happened (see Renderer), which is why the gate
+sequence has **startup-smoke steps** that merely prove the entry points *start*.
 
 **The publish fixture carries no lockfile.** (audit-35, 2026-09-15.)
 `examples/library-consumer/` installs `@engine/core`, `@engine/ui` and `@engine/wasm-modules` from
