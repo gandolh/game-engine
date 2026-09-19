@@ -20,6 +20,15 @@
  * whether the world is blocked for that gesture's move/up/click. This copies Citadel's fix for pan
  * stutter / lost drags / release-point mis-routing (see citadel `main.ts` ~293-410).
  *
+ * ## Gestures that end off-canvas
+ * A press released outside the canvas never produces a canvas `mouseup`, which is the only thing
+ * that clears a dispatcher's `active` node — so the widget would render pressed forever. This host
+ * abandons such a gesture via `dispatcher.cancelPointer()` (`@engine/ui`, see
+ * corpus/wiki/engine-ui.md → "Pointer gestures that end off-canvas") from a window-level `mouseup`
+ * outside the canvas and from `blur`, converged 2026-09-19 onto the same primitive MateQuest uses
+ * (sweep-03). `uiGestureWasUI` stays host-side: suppressing the stray canvas `click` for a gesture
+ * that ended outside is a host concern the dispatcher has no way to know about.
+ *
  * ## Extensibility
  * Later chunks register their own panels via {@link UIHost.registerRoot}, which wires a dispatcher
  * (fed the panel's live-or-null root) and, when a mount is given, an a11y mirror with a focus
@@ -100,10 +109,6 @@ export function createUIHost(renderer: RendererLike, canvas: HTMLCanvasElement):
   // click that fires just after mouseup (so we suppress the world click only for UI gestures).
   let uiPressActive = false;
   let uiGestureWasUI = false;
-  // Last pointer position in canvas CSS px — the only coordinates available to a release that
-  // arrives without one (a window blur mid-drag).
-  let lastPointerX = 0;
-  let lastPointerY = 0;
 
   /** After a focus-moving event, mirror each root's dispatcher focus into its a11y DOM. */
   function syncFocusToMirrors(): void {
@@ -157,15 +162,13 @@ export function createUIHost(renderer: RendererLike, canvas: HTMLCanvasElement):
       const btn = pointerButtonOf(e);
       // Always forward so hover visuals update; only block the world (pan/drag) while the UI owns
       // the active gesture. Mere hover must NOT block world pan/drag.
-      lastPointerX = x;
-      lastPointerY = y;
       for (const r of roots) r.dispatcher.pointerMove(x, y, btn);
       if (uiPressActive) e.stopImmediatePropagation();
     },
     { capture: true },
   );
 
-  // audit-48 — THE INVARIANT: a gesture that can START must always be able to END.
+  // audit-48 / sweep-03 — THE INVARIANT: a gesture that can START must always be able to END.
   //
   // The canvas-bound `mouseup` above only fires when the release lands on the canvas. Press a
   // slider, drag onto the browser chrome or a second monitor, release there, and `uiPressActive`
@@ -177,21 +180,31 @@ export function createUIHost(renderer: RendererLike, canvas: HTMLCanvasElement):
   // `window`); this brings the UI host in line. The capture-phase canvas listener keeps owning
   // DISPATCH — this is only about ownership-clearing.
   //
+  // Originally (audit-48) this replayed the release as a real `pointerUp(x, y, btn)` at whatever
+  // CSS px the outside event mapped to (clamped to nothing — it could land anywhere, including a
+  // blur, which has no coordinates at all and fell back to the last-seen pointer position). That
+  // predates `@engine/ui`'s `cancelPointer()` primitive; sweep-03 converges onto it, as MateQuest
+  // already does (`games/mathquest/client/src/main.ts`). `cancelPointer()` abandons the press
+  // without activating anything and needs no coordinates — a drag in flight still gets its "end"
+  // event, with `cancelled: true`, reported at the press origin, so it settles rather than sticking.
+  //
   // ORDERING: the window listener is BUBBLE phase, so for a release inside the canvas the canvas
   // capture listener has already run and set `uiGestureWasUI`. When it owned the gesture it also
   // called stopImmediatePropagation(), so the event never even reaches here. The containment guard
   // makes that independent of the propagation detail rather than reliant on it.
   const hostWindow = canvas.ownerDocument.defaultView ?? window;
 
-  function endGestureOutsideCanvas(x: number, y: number, btn: "primary" | "secondary" | "auxiliary"): void {
+  function endGestureOutsideCanvas(): void {
     if (!uiPressActive) return;
-    // Complete the gesture in the UI so a slider/drag settles rather than sticking mid-drag.
-    for (const r of roots) r.dispatcher.pointerUp(x, y, btn);
+    // Abandon the press in every root rather than replaying it as a pointerUp at a coordinate that
+    // may not even correspond to anything (outside the canvas, or absent entirely on a blur).
+    for (const r of roots) r.dispatcher.cancelPointer();
     uiPressActive = false;
     // No `click` will reach the canvas for this gesture: a click fires on the nearest common
     // ancestor of the press and release targets, which is not the canvas when the release landed
     // outside it. So there is nothing to suppress, and leaving ownership set would instead eat the
-    // player's NEXT legitimate world click.
+    // player's NEXT legitimate world click. `cancelPointer()` has no notion of "the click that was
+    // about to fire" — suppressing it is a host-level concern, so `uiGestureWasUI` stays here.
     uiGestureWasUI = false;
   }
 
@@ -200,15 +213,14 @@ export function createUIHost(renderer: RendererLike, canvas: HTMLCanvasElement):
     const target = e.target;
     // Released inside the canvas → the capture-phase listener above already did the bookkeeping.
     if (target instanceof Node && (target === canvas || canvas.contains(target))) return;
-    const { x, y } = eventToCssPx(canvas, e);
-    endGestureOutsideCanvas(x, y, pointerButtonOf(e));
+    endGestureOutsideCanvas();
   });
 
   // Belt and braces: focus can be lost mid-drag with no mouseup delivered anywhere (Alt-Tab, a
   // native context menu, an OS-level window switch). Twin of audit-47's keyboard reset.
   hostWindow.addEventListener("blur", () => {
     if (roots.length === 0) return;
-    endGestureOutsideCanvas(lastPointerX, lastPointerY, "primary");
+    endGestureOutsideCanvas();
   });
 
   canvas.addEventListener(

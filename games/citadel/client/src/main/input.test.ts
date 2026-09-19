@@ -16,8 +16,8 @@
  * this way, without dragging in sim-client.ts's live WebSocket/Worker — see that file).
  */
 import { describe, it, expect, afterEach, beforeAll, beforeEach, vi } from "vitest";
-import { createInputDispatcher } from "@engine/ui";
-import type { InputDispatcher, A11yMirror, ConsumeResult } from "@engine/ui";
+import { createInputDispatcher, button, panel, computeLayout } from "@engine/ui";
+import type { InputDispatcher, A11yMirror, ConsumeResult, ButtonNode } from "@engine/ui";
 import { createStatusPanel } from "./status-panel";
 import type { PanelPrefs } from "@engine/ui";
 import type { PanelId } from "./hud-panels";
@@ -374,5 +374,81 @@ describe("input.ts pointer ownership survives a release outside the canvas (audi
     canvas.dispatchEvent(mouse("mousemove", 30, 30));
     expect(worldSawMove).toBe(true);
     undo();
+  });
+});
+
+/**
+ * sweep-03 — Citadel converges onto `dispatcher.cancelPointer()` (the primitive MateQuest was
+ * fixed onto 2026-09-19), replacing `endUiGestureOutsideCanvas`'s hand-rolled replay of the
+ * release as a `pointerUp` at a coordinate that might not correspond to anything real. Unlike the
+ * `audit-48` suite above (which only needs to observe whether the WORLD sees events again), these
+ * probe the WIDGET side directly: a real button behind a real dispatcher, so "click fires" and
+ * "nothing left rendering as pressed" are checked on the actual node, not inferred.
+ */
+describe("input.ts pointer gestures that end off-canvas — the four acceptance behaviours (sweep-03)", () => {
+  let canvas: HTMLCanvasElement;
+  let btn: ButtonNode;
+  let activations: number;
+
+  function mouse(type: string, x: number, y: number): MouseEvent {
+    return new MouseEvent(type, { clientX: x, clientY: y, button: 0, bubbles: true, cancelable: true });
+  }
+
+  beforeEach(async () => {
+    const dom = await import("./dom");
+    canvas = dom.canvas;
+    canvas.getBoundingClientRect = () =>
+      ({ left: 0, top: 0, width: 800, height: 600, right: 800, bottom: 600, x: 0, y: 0, toJSON() {} }) as DOMRect;
+    activations = 0;
+    btn = button("go", { layout: { width: 200, height: 60 }, onActivate: () => { activations++; } });
+    const tree = panel({ width: 200, height: 60 }, [btn]);
+    computeLayout(tree, 0, 0);
+    refs.uiDispatcher = createInputDispatcher(() => tree);
+  });
+
+  afterEach(() => {
+    refs.uiDispatcher = undefined;
+    // Leave no gesture in flight for the next test — a wedged flag is precisely the bug.
+    window.dispatchEvent(mouse("mouseup", 900, 700));
+  });
+
+  it("press-and-release INSIDE the canvas on the same widget activates it (click fires)", () => {
+    canvas.dispatchEvent(mouse("mousedown", 10, 10));
+    canvas.dispatchEvent(mouse("mouseup", 10, 10));
+
+    expect(activations).toBe(1);
+    expect(btn.state).toBe("hover"); // released while still over it — never "active"
+  });
+
+  it("press-and-release OUTSIDE the canvas: no click, and nothing left rendering as pressed", () => {
+    canvas.dispatchEvent(mouse("mousedown", 10, 10));
+    window.dispatchEvent(mouse("mouseup", 900, 700));
+
+    expect(activations).toBe(0);
+    expect(btn.state).toBe("normal");
+  });
+
+  it("alt-tab mid-press (window blur): no click, and nothing left rendering as pressed", () => {
+    canvas.dispatchEvent(mouse("mousedown", 10, 10));
+    window.dispatchEvent(new Event("blur"));
+
+    expect(activations).toBe(0);
+    expect(btn.state).toBe("normal");
+  });
+
+  it("drag-out-then-back-in: pointer leaves the canvas mid-press without releasing, returns, and a release over the original widget still activates it", () => {
+    canvas.dispatchEvent(mouse("mousedown", 10, 10));
+    // The pointer leaves the canvas element entirely — with no capture set, a real browser simply
+    // stops delivering mousemove to the canvas; nothing here should cancel the gesture (only an
+    // outside mouseup or a blur does that). Dispatched on `window` (not a descendant of canvas) so
+    // it never reaches the canvas's own capture-phase listener, mirroring that.
+    window.dispatchEvent(mouse("mousemove", 900, 700));
+
+    // The pointer comes back over the canvas and over the SAME widget, then releases there.
+    canvas.dispatchEvent(mouse("mousemove", 10, 10));
+    canvas.dispatchEvent(mouse("mouseup", 10, 10));
+
+    expect(activations).toBe(1);
+    expect(btn.state).toBe("hover");
   });
 });
