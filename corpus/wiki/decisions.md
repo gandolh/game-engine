@@ -172,6 +172,46 @@ exits 1, aborting the pack before `postpack`/`--restore` can run — so it has t
 does, in a `--clean-dist` mode wired ahead of the build. `postpack` still removes `dist/` on the
 success path.
 
+**The client bundler target is pinned to `es2022`, tracking `tsconfig.base.json`.** (sweep-07,
+2026-09-19.) All four `games/*/client/vite.config.ts` used Vite's `esnext`, while
+[`tsconfig.base.json`](../../tsconfig.base.json) says `"target": "ES2022"` — the two halves of the
+build disagreed and neither was written down anywhere in this corpus. `esnext` is not a baseline; it
+means *whatever the current esbuild considers newest*, so every dependency bump could silently narrow
+the set of browsers that can parse the bundle, with no lockfile signal — the one unpinned thing in a
+repo whose first locked convention is *"pinned versions, reproducibility wins"*. And the failure mode
+is a **blank page**: a syntax the browser cannot parse never evaluates, which is precisely what the
+Renderer decision above rejected WebGPU to avoid, citing WebGL2's ~98% reach. Shipping that renderer
+inside a newest-engines-only bundle gives the reach back.
+**Nothing in the tree needs it** — no top-level await, no decorators, no `using` declarations; the
+newest syntax present is `.at()` and `??=`. Proven rather than argued: rebuilding Farm under each
+target produced **byte-identical output, down to matching content-hash filenames**. Guarded by
+[`engine/core/src/build-target.test.ts`](../../engine/core/src/build-target.test.ts), which globs the
+configs off disk so a fifth game trips a count tripwire instead of going unscanned, and scopes its
+match to the `build: { … }` block — unscoped, it reads the first quoted `target:`, which in Farm's and
+Citadel's configs is the dev proxy's upstream URL.
+Alongside it: the three **published** manifests now declare `engines: node >=24`, matching the root
+and the `node:24-alpine` deploy constraint. Previously only the root declared it, so a registry
+consumer installing `@engine/core`, `@engine/ui` or `@engine/wasm-modules` got no Node floor at all.
+
+**Duplicate-vs-promote: "games never import each other" forbids a game→game edge, not a shared
+engine helper.** (sweep-09, 2026-09-19.) The layering rule is real and enforced
+([`layering.test.ts`](../../engine/core/src/layering.test.ts)), but it was being read as a licence to
+duplicate. Citadel's `panel-prefs.ts` said so in its own header — *"Citadel never imports Farm code
+(games never import each other — see CLAUDE.md), so this is a from-scratch port"* — every clause true,
+the conclusion wrong: both clients already depend on `@engine/ui`.
+**The test.** A helper is a *promotion* candidate when it contains no game concept, only types and
+values its caller supplies (a `Storage`-backed keyed-boolean store parameterised by key, ids and
+defaults). It *stays duplicated* — and should say so in its header — when it encodes a game's own
+rules, geometry, balance or vocabulary (iso projection, tick pacing, a game's snapshot shape).
+**Why it earns an entry: getting it wrong compounds silently.** The two `panel-prefs` copies had
+already diverged. Citadel's gained per-id defaults; Farm's `isOpen` stayed `load()[id] === true`, so
+Farm could not express a default-open panel *at all* — its five panels defaulted closed partly because
+the implementation had no way to say otherwise. The improvement was made on the copy and never
+travelled back. Promoted to `@engine/ui/state`, following the `createTickPump` precedent (audit-26,
+*Tick pump* above) which established the same pattern for Citadel/Hollow's speed semantics.
+This does **not** license a sweep of the ~15 other Citadel files that cite Farm as their source; most
+of those genuinely encode game-specific things and stay duplicated.
+
 ## Hollow — the LLM-rationalizer seam
 
 **The seam is low-rate and genuinely live, and the rate is printed by every run.** (hollow-16,

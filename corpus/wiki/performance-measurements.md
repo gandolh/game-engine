@@ -1,12 +1,70 @@
 ---
 summary: The Farm Valley profiling record — how to measure (Profiler + ?profile + DebugOverlay), plus the 2026-06-05/06-10/07-15 measured tick/frame results that every optimization claim is scored against.
-updated: 2026-07-15
+updated: 2026-09-19
 ---
 
 # Performance — measurement harness & measured results
 
 The **backlog** these numbers justify lives in [performance.md](performance.md).
 This page is the evidence: never promote an optimization here without a before/after number.
+
+## Measured results (2026-09-19, sweep-05 — draw-group fragmentation)
+
+**The first number for a cost that had never been counted.** The renderer coalesces sprites into
+draw groups and nothing reported how many, so the coalescing loop's effectiveness had only ever been
+designed, not observed. `?profile` now carries `draw.groups` / `draw.ghostGroups` / `draw.sprites` /
+`draw.atlases` (`lastDrawStats`, on the same `profileUi` flag as `lastUiFlush`).
+
+**Measured headlessly, on purpose.** The group count is a pure CPU function of the sprite queue —
+sort by `compareSprite`, count maximal same-atlas runs — so no GPU is involved and a
+software-rendering sandbox cannot distort it, unlike any ms figure. It is also seed-pinned and
+reproducible. Probe: [`probe-draw-groups.ts`](../../tools/run-sim/src/probes/probe-draw-groups.ts),
+`SEED=0xc0ffee TICKS_PER_DAY=1200 DAYS=3`, WASM pathfinder.
+
+| | value |
+|---|---|
+| sprites in queue | 419 |
+| distinct atlases (the floor) | 4 |
+| **draw groups** | **49 — 12.3× the floor** |
+| groups / sprite | 0.351 |
+| GL calls / frame | 1,421 at 29 per group (was 2,107 at 43) |
+
+**The aggregate hides the finding; the per-layer split is the result.**
+
+| layer | sprites | atlases | groups |
+|---|---|---|---|
+| 4 | 10 | 1 | 1 |
+| 10 | 65 | 1 | 1 |
+| 20 | 7 | 1 | 1 |
+| 30 | 206 | 1 | 1 |
+| **40** | **92** | **2** | **40** |
+| 45 | 5 | 1 | 1 |
+| 50 | 13 | 2 | 6 |
+| 100 | 21 | 1 | 1 |
+
+**Seven of eight layers coalesce perfectly into one group each. One layer produces 40 of the 49.**
+Layer 40 is scattered world dressing ([`world/region-setup/placement.ts`](../../games/farm/sim-core/src/world/region-setup/placement.ts)),
+which mixes `decoration/*` frames (→ `props` sheet) with `structure/*` frames (→ `buildings` sheet)
+across the map and then sorts them by Y — maximal alternation by construction.
+
+**This corrected the spec that ordered the work.**
+[sweep-05](../todos/closed/2026-09-19-sweep-05-draw-groups-fragment-and-nothing-counts-them.md) named
+`LAYER.ACTOR === LAYER.BUILDING === 50` as the mechanism. The *mechanism* — atlas alternation inside
+one layer — is right, but layer 50 contributes 6 groups, not the bulk. So the spec's ranked fix list
+reads differently now: option **(b)**, texture arrays across the whole sprite path, is a large change
+aimed at a problem living in **one layer with two sheets**. Merging `props` and `buildings`, or giving
+layer-40 dressing its own sheet, collapses 40 groups to 1 for an atlas-builder change. Not yet done —
+it needs its own spec.
+
+**Scope, so the number is not over-quoted:** this counts the `buildSprites` snapshot queue only. The
+live client also pushes the static layer, ambient scenery, occluder ghosts and indicator quads into
+the same queue, so the real in-browser count is **higher**. This is a lower bound; `?profile`'s
+`draw.groups` is the whole truth.
+
+**Also landed, and measurable without a GPU:** `SpriteBatch` gained `beginPass`/`endPass`, so the
+program, the four view uniforms, the texture unit, the blend state and the VAO bind are issued once
+per frame instead of once per group. Per-group cost **43 → 29** GL calls; only `bindTexture` and the
+attribute re-point vary per group (the latter exists solely because WebGL2 has no `firstInstance`).
 
 ## Measured results (2026-07-15, brief 118 — UI glyph-tint regression, before/after)
 

@@ -75,8 +75,12 @@ column's three sub-panels — **Farmers** (observer), **Shop** (slate), **Activi
 collapse independently, plus **Relations** (matrix) and **Wealth** (graph) bottom-left. Playback,
 help, clock, hotbar, and the pre-existing toggles (Tab/E/J) are unchanged.
 
-- **State** lives in [`ui/canvas/panel-prefs.ts`](../../games/farm/client/src/ui/canvas/panel-prefs.ts)
-  (`createPanelPrefs(storage)`): write-through `localStorage` under `farm.ui.panels.v1`, default
+- **State** lives in [`@engine/ui`'s `state/panel-prefs.ts`](../../engine/ui/src/state/panel-prefs.ts)
+  (`createPanelPrefs<Id>({ storageKey, ids, defaults, storage })`) — promoted out of Farm's
+  `ui/canvas/panel-prefs.ts` by **sweep-09** (2026-09-19), which found Farm's and Citadel's copies had
+  already diverged. Farm constructs it in
+  [`main/panels.ts`](../../games/farm/client/src/main/panels.ts): write-through `localStorage` under
+  `farm.ui.panels.v1`, default
   closed, in-memory fallback on any storage throw, and a parse **allowlist** (fixed 5-id union,
   boolean values only — stored JSON is external input; wholesale copying would admit a literal
   `__proto__` key). One shared instance is built in `main/panels.ts` and injected into the widgets.
@@ -96,9 +100,12 @@ help, clock, hotbar, and the pre-existing toggles (Tab/E/J) are unchanged.
   bottom edge above the playback bar's rect — the open matrix pushes the bottom-left strip toward
   the canvas centre at narrow widths.
 
-**Citadel counterpart (2026-07-16, `d3952ad`):** Citadel's Status strip uses the same pattern via
-its own `main/panel-prefs.ts` + `main/status-panel.ts` (`citadel.ui.panels.v1`; a from-scratch port —
-games never import each other). Its Status panel defaults **OPEN** (it's the siege warning signal,
+**Citadel counterpart (2026-07-16, `d3952ad`; consolidated 2026-09-19):** Citadel's Status strip uses
+the same store, now the shared `@engine/ui` one, constructed in `main/hud-panels.ts` alongside
+`main/status-panel.ts` (`citadel.ui.panels.v1`). It *was* a from-scratch port under "games never
+import each other" — **sweep-09** corrected that reading: the rule forbids a game→game edge, not two
+games importing the same engine helper (see [decisions.md](decisions.md) → *Duplicate-vs-promote*).
+Its Status panel defaults **OPEN** (it's the siege warning signal,
 not an opt-in data dive) and `status-panel.ts` is kept separate from `hud-panels.ts` so it
 unit-tests without `sim-client.ts`'s import-time live client. The engine `DebugOverlay` also grew an
 additive `OverlayCorner` option (`43617b9`) — Farm's default is unchanged; Citadel mounts it

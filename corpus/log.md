@@ -4,6 +4,116 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [todos/closed/](todos/closed/), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-09-19] audit | A fourth sweep — structure, performance, compatibility: six specs, and four hypotheses that died
+
+Run after the third sweep (below) closed, deliberately on **three lenses it had not used**: code
+structure, performance, and compatibility. Read-only; nothing was implemented. Six specs filed as
+[sweep-04](todos/2026-09-19-sweep-04-ui-quads-still-cpu-rasterized.md) …
+[sweep-09](todos/closed/2026-09-19-sweep-09-layering-rule-read-as-licence-to-duplicate.md).
+
+### The two that matter most are both in the render path
+
+**[sweep-04] The UI never left the CPU.** Every glyph, icon mask and panel quad is rasterized by
+`drawUIQuad` — one Canvas2D `drawImage` per quad — onto the stacked `Overlay2D` canvas, at a measured
+mean of **7,272 quads/frame** for **3.49 ms**, ~29% of a `frame` whose **p95 is 17.10 ms against a
+16.6 ms budget**. Four files away sits `SpriteBatch`: instanced, one `drawArraysInstanced` for
+thousands of quads, **with a per-instance tint attribute** — the exact thing brief 118's CPU tint cache
+was built to emulate. Checked before filing: the WebGL2 migration ported `Overlay2D` forward as a
+like-for-like port (webgl2-05) and there is **no `decisions.md` entry** putting the UI on Canvas2D, and
+brief 118's non-goal is the per-glyph *emission API*, which this does not touch. Both checks are written
+into the spec so the next reader does not redo them.
+
+**[sweep-05] Draw groups fragment by construction, and nothing counts them.** `compareSprite` is
+`(layer, sortY)` — `atlasId` is not a key. `LAYER.ACTOR` and `LAYER.BUILDING` are **the same number
+(50)**, and `FRAME_PREFIX_TO_ATLAS` sends `characters`/`buildings`/`crops`/`props` all onto that layer,
+so the atlas alternates down the Y axis and the coalescing loop — which only merges *consecutive* runs —
+splits accordingly. Each group then costs **43 GL calls**, 27 of them from `_setupInstanceAttribs`,
+which exists only because WebGL2 has no `firstInstance`. Only **2 of the 43** differ between groups.
+
+**Filed as unmeasured, on purpose.** There is no draw-group counter — the profiler has `ui.quads` and
+nothing for `_groupLen` — so the mechanism is provable statically and the magnitude is not knowable
+today. Chunk 1 of that spec is the instrument; the fix is gated on the number, and
+`groups/sprites ≈ 1/6` closes it as *measured, not a problem*. The real fix if it is bad is a
+`TEXTURE_2D_ARRAY` (one group, no attribute re-point), **not** sorting by atlas — `(layer, sortY)` *is*
+the painter's algorithm.
+
+### The compatibility lens was the most productive, because nobody had used it
+
+- **[sweep-07] `build.target: "esnext"` in all four clients, `tsconfig` says ES2022.** Zero prior
+  mentions of `esnext` / `build.target` / `browserslist` anywhere in the corpus — wiki or any of the 345
+  closed specs. Audited what could justify it: **no top-level await, no decorators, no `using`
+  declarations**; the newest syntax in the tree is `.at()` and `??=`, both ES2022 or older. So it buys
+  nothing, it *drifts* with every esbuild upgrade, and a parse failure is a blank page — the precise
+  failure mode `decisions.md` → Renderer chose WebGL2 to avoid, citing its ~98% reach. The renderer was
+  picked for reach and the bundle hands it back. Rides along: `engines` is on the **root** manifest only,
+  absent from all three *published* packages.
+- **[sweep-08] `crypto.randomUUID()` on Farm's boot path.** Secure-context-only, called inside
+  `client.init(…)`, so over plain HTTP to a LAN IP the client throws before its first frame. What makes
+  it a *missed site* rather than a missing habit: the `navigator.clipboard` call **44 lines above it in
+  the same file** is properly guarded, and Hollow's equivalent is in a try/catch. Same API class, two
+  handled, one not — and the unhandled one is the only one on a critical path.
+- **[sweep-06] The DPR cap.** `MAX_DPR = 2` is private to `gl-context.ts`, and the same clamp is
+  re-derived in **seven** production sites (six as a bare literal `2`) plus four prose restatements.
+  **Hollow's three 3D sites omit the clamp**, so the one game with depth-tested per-fragment shading
+  renders 2.25× the fragments the 2D path caps at on a DPR-3 display. And `GlContext.resize` takes CSS
+  pixels *and clamps*, while `SceneRenderer3D.resize` takes device pixels *and does not* — two
+  same-signature methods in one engine with opposite contracts.
+
+### Four hypotheses that died on contact with the code
+
+Recorded so the next sweep does not re-run them.
+
+1. **"The relationship graph grows unbounded while population is bounded."** Plausible: Hollow bounds
+   live population but `accrueGroup` pairs everyone on the hearth tile every gather tick. **Refuted
+   twice.** `TRUST_CLEANUP_EPSILON` prunes near-neutral entries, so a dead peer's edge decays and is
+   deleted; and a measured 1500-tick run (seed `0x1a1100`, 1.7 s wall) holds population at **24 → 37**
+   with 238 births, so the O(k²) pairing peaks around 666 pairs. Not worth promoting.
+2. **"`localStorage` is reached from inside a sim-core."** MateQuest's `sim-core` has 31 `localStorage`
+   matches and its sim runs in a Worker, where the API does not exist. **All 31 are comments** — several
+   of them `mastery.ts`'s and `main.ts`'s explanations of why the main thread owns persistence and the
+   worker must never touch it. Zero real calls in any of the four sim-cores. Good architecture, caught
+   by reading it instead of grepping for a symbol.
+3. **"The render hot path allocates per sprite."** `SpriteBatch.add` takes a 16-field object, so 7,000
+   quads/frame looked like 7,000 short-lived objects. **Refuted:** `_packSprite` writes into a single
+   reused `this._inst`, and `_groups` records are pooled too. The renderer is already careful here; the
+   cost is GL calls, not GC.
+4. **"Three games hand-roll keyboard input without the engine's focus-loss reset."** True that
+   `@engine/core`'s `Keyboard` (layout-independent `event.code`, plus `blur`/`pagehide`/
+   `visibilitychange` held-key release — added because *"Farm drove Pip into the map edge this way"*) is
+   **Farm-only**. But **no game outside Farm drives continuous input from a held key** — Citadel,
+   Hollow and MateQuest use discrete `keydown` handlers only — so the bug class cannot bite them. The
+   residual is `e.key` being layout-dependent, and MateQuest's digit answer-select is unaffected because
+   Romanian layouts are QWERTY-based with diacritics on the punctuation keys. Not filed.
+
+### Lenses that came back clean
+
+- **Cross-game duplication at the export level:** **no** exported name is shared by three or more of the
+  four games; 18 are shared by exactly two. The Apollo trio belongs to sweep-02, `screenToWorld` is
+  already recorded there as not worth promoting, and the rest (`bootstrapSim`, `WORLD_WIDTH`,
+  `getSnapshot`, `isWalkable`, `personalityRegistry`) are same-name-different-thing — the collision
+  hazard `code-graph.md` documents. Only `createPanelPrefs` and `createInspectPanel` were real;
+  **[sweep-09]** takes the first.
+- **WebGL2 context loss:** handled properly in `gl-context.ts` (cancelable event, `preventDefault`,
+  restore rebuild) and **inherited** by the 3D path, which reuses `createGlContext` rather than rolling a
+  second one.
+- **Browser-storage hardening:** every one of the ~10 access sites across four games is try/catch-wrapped
+  and degrades. The finding is four *copies* of the idiom, not an unguarded one.
+- **Secure-context API surface beyond sweep-08:** no `crypto.subtle`, `navigator.storage`,
+  `navigator.locks`, file-system pickers, or real `SharedArrayBuffer` use.
+- **`wealthSeries` growing unbounded** — a live claim in `performance-measurements.md` — is **fixed
+  since**: capped by `MAX_WEALTH_ROWS` and rebuilt only when the row count changes. The page's prose is
+  stale, not the code.
+- **The tick pump** is already converged on `createTickPump` (audit-26), which is the precedent
+  sweep-09's proposed rule cites.
+
+### The method note worth keeping
+
+**Two of the four dead hypotheses died because the "evidence" was a comment.** Grepping `localStorage`
+in a sim-core and `Math.random` in sim code both return hits that are the codebase *asserting the rule*,
+which is exactly what the third sweep found for determinism. On this repo a symbol grep has a high
+false-positive rate by design, because the conventions are documented at the sites they constrain. Read
+the hit before counting it.
+
 ## [2026-09-19] audit | A third sweep — one real bug, three specs, and a lot of clean lenses
 
 Run inline after the `audit-38..63` queue closed, so the easy findings were already gone. **What came
@@ -51,17 +161,17 @@ correct and cheapest fix, and the other three each reinvented something worse. W
 
 ### Three specs filed rather than fixed
 
-- **[sweep-01](todos/2026-09-19-sweep-01-determinism-has-no-guard.md)** — *"Determinism is
+- **[sweep-01](todos/closed/2026-09-19-sweep-01-determinism-has-no-guard.md)** — *"Determinism is
   load-bearing"* is the repo's most important invariant, and the **only** tests that enforce it read
   two files in Citadel's *client render* layer. No guard covers any `sim-core`. The rule is currently
   held up by comments and reviewer memory. Zero violations today — which is exactly why the guard has
   to go in now, while it passes. Two smaller siblings ride along: the `.js`-suffix and version-pinning
   rules also have no enforcement, and `npm install` writes a caret by default.
-- **[sweep-02](todos/2026-09-19-sweep-02-apollo-palette-five-copies.md)** — Apollo-46 is
+- **[sweep-02](todos/closed/2026-09-19-sweep-02-apollo-palette-five-copies.md)** — Apollo-46 is
   hand-maintained in **five** copies, and `nearestApollo` is **character-for-character identical**
   between Citadel and Hollow. Each pair is self-pinned, so nothing would catch the two games drifting
   apart. Filed honestly as **debt, not a live bug**.
-- **[sweep-03](todos/2026-09-19-sweep-03-converge-pointer-gesture-handling.md)** — converge Farm and
+- **[sweep-03](todos/closed/2026-09-19-sweep-03-converge-pointer-gesture-handling.md)** — converge Farm and
   Citadel onto `cancelPointer()`. **Deliberately not done during the sweep that found it**: both
   work today, and live gesture code whose bugs are subtle and intermittent is the exact profile of
   change that should not ride along at the end of an unrelated pass.
@@ -1858,7 +1968,7 @@ the fixes inline. Farmers/Shop/Activity (independent right-column sub-panels), R
 Wealth each sit behind an always-visible labeled toggle button — the button is the open AND
 close affordance, with the panel body below it while open. State persists write-through in
 `localStorage` (`farm.ui.panels.v1`) via the new
-[panel-prefs.ts](../games/farm/client/src/ui/canvas/panel-prefs.ts) (default closed, in-memory
+panel-prefs.ts (default closed, in-memory
 fallback on storage throws, allowlisted parse). Shortcuts **F/O/T/R/G** (help modal updated —
 the `KEY_BINDINGS` rows live in `playback-controls.ts`, on the brief's not-touch list; data-only
 edit, controller-authorized deviation). Wheel routing is gated on open state, so a collapsed

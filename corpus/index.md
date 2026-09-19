@@ -68,19 +68,14 @@ which is how a "WebGPU-only render path" line outlived the page that already sai
 
 ## Build programs
 
-**The queue holds five things.** All in [todos/](todos/); everything else is closed.
+**The queue holds three things.** All in [todos/](todos/); everything else is closed.
 
-- **[sweep-01](todos/2026-09-19-sweep-01-determinism-has-no-guard.md)** — *"Determinism is
-  load-bearing"* is enforced by **two tests, both in Citadel's client render layer**. No guard covers
-  any of the four `sim-core` packages. Zero violations today, which is why the guard must be added
-  now. Same class as audit-44/45/51.
-- **[sweep-02](todos/2026-09-19-sweep-02-apollo-palette-five-copies.md)** — Apollo-46 is
-  hand-maintained in **five** copies and `nearestApollo` is duplicated character-for-character
-  between Citadel and Hollow. Debt, not a live bug.
-- **[sweep-03](todos/2026-09-19-sweep-03-converge-pointer-gesture-handling.md)** — four games, four
-  different answers to "the pointer was released off-canvas". Deliberately not done during the sweep
-  that found it: Farm and Citadel work, and this is live gesture code.
-
+- **[sweep-04](todos/2026-09-19-sweep-04-ui-quads-still-cpu-rasterized.md)** — the UI is the only
+  surface left on the **CPU rasterizer**: ~7,272 Canvas2D `drawImage` calls per frame, measured
+  `ui.flush` 3.49 ms inside a `frame` whose p95 (17.10 ms) is over the 16.6 ms budget — with an
+  instanced GPU `SpriteBatch`, per-instance tint included, four files away. The last of the nine
+  sweep specs, and the one whose risk is **glyph fidelity**: pixel art under a fixed palette, where
+  the GPU sampler replaces `imageSmoothingEnabled = false`.
 - **[hollow-17](todos/2026-09-19-hollow-17-rationalizer-attachment-point.md)** — move Hollow's LLM
   rationalizer seam to a decision whose **subject outlives the 40-tick answer-lag**. Measured
   constraint: 43 of 43 rejected answers were refused because the chosen *peer* was gone, and in 33 of
@@ -91,6 +86,21 @@ which is how a "WebGPU-only render path" line outlived the page that already sai
   Hollow work records itself in, kept open because hollow-17 is queued.
 
 **Closed programs** (kept because the *why* is still load-bearing):
+
+- **Sweep 2026-09-19 (structure / performance / compatibility) — 8 of 9 built and closed.**
+  `sweep-01`..`sweep-09` from two read-only sweeps the same day; only
+  [sweep-04](todos/2026-09-19-sweep-04-ui-quads-still-cpu-rasterized.md) is still open. The three
+  with the longest reach: [sweep-01](todos/closed/2026-09-19-sweep-01-determinism-has-no-guard.md)
+  gave the repo's most load-bearing invariant a guard that can actually fail (it was enforced by two
+  tests in Citadel's *client render* layer and none over any `sim-core`);
+  [sweep-07](todos/closed/2026-09-19-sweep-07-build-target-esnext-unrecorded.md) pinned the client
+  bundler target to `es2022`, proving `esnext` bought nothing by rebuilding Farm under each and
+  getting **byte-identical output**; and
+  [sweep-06](todos/closed/2026-09-19-sweep-06-dpr-cap-duplicated-and-hollow-uncapped.md) collapsed
+  seven copies of the DPR cap into one and found Hollow's **3D layer never applied it**.
+  [sweep-05](todos/closed/2026-09-19-sweep-05-draw-groups-fragment-and-nothing-counts-them.md) is the
+  one whose measurement corrected its own spec — see
+  [performance-measurements.md](wiki/performance-measurements.md) (2026-09-19).
 
 - **Audit sweep 2026-09-18 — all 26 built and closed** (`audit-38`..`audit-63`, from a six-lens
   read-only sweep that vetted 46 raw findings down to 26). Ranked and summarised in the

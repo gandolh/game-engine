@@ -1,6 +1,6 @@
 ---
 summary: The shared in-canvas UI toolkit (@engine/ui) — the UNSCII text stack, the palette-agnostic icon pipeline, the widget vocabulary, the custom-draw escape hatch, and the layout traps that bite when text metrics change.
-updated: 2026-08-23
+updated: 2026-09-19
 ---
 
 # @engine/ui — the in-canvas UI toolkit
@@ -114,13 +114,35 @@ gesture can end where the canvas cannot see it. It is idempotent.
   press origin (where the pointer actually went is unknowable by definition). A handler that commits
   a value on `"end"` should check that flag.
 
-**Three games solved this three different ways, which is the real lesson.** Hollow got it right and
-cheapest — [`render3d/camera-input.ts`](../../games/hollow/client/src/render3d/camera-input.ts) calls
-`canvas.setPointerCapture(e.pointerId)` on pointerdown, so the browser itself routes the release back
-to the canvas wherever it happens. Farm and Citadel each hand-rolled window listeners with their own
-bookkeeping (audit-48). MateQuest had no handling at all until 2026-09-19. If you are writing a new
-pointer path, **prefer pointer capture**; `cancelPointer()` is for the mouse-event paths that already
-exist.
+**Four games, four answers — converged 2026-09-19 (sweep-03).** The divergence was the real lesson;
+the end state is:
+
+| game | approach |
+|---|---|
+| **Hollow** | `canvas.setPointerCapture(e.pointerId)` on pointerdown ([`render3d/camera-input.ts`](../../games/hollow/client/src/render3d/camera-input.ts)) — the browser routes the release back to the canvas wherever it lands. Never was vulnerable. |
+| **Farm** | window `mouseup`/`blur` → `cancelPointer()` on every registered root ([`ui/canvas/ui-host.ts`](../../games/farm/client/src/ui/canvas/ui-host.ts)) |
+| **Citadel** | the same, across all seven canvas UI roots ([`main/input.ts`](../../games/citadel/client/src/main/input.ts)) |
+| **MateQuest** | the same ([`main.ts`](../../games/mathquest/client/src/main.ts)) — fixed first, 2026-09-19, and the shape the others converged on |
+
+Farm and Citadel previously replayed the outside release as a real `pointerUp(x, y, btn)` at whatever
+coordinates the outside event mapped to — or, on `blur`, which carries no coordinates at all, at a
+remembered last-pointer-position. `cancelPointer()` needs no coordinates, which is why it deletes that
+bookkeeping.
+
+**Two host-level flags survive the convergence and must not be "tidied" away.** `uiPressActive`
+decides whether the capture-phase handlers should `stopImmediatePropagation()` to block the world
+during a live UI gesture; `uiGestureWasUI` suppresses the canvas `click` that fires on the common
+ancestor of the mousedown/mouseup targets after a UI-owned press. The dispatcher has no notion of
+"should the host block the world" or "a click is about to fire" — both are DOM-event concerns owned by
+the host, not press state owned by the dispatcher.
+
+**Pointer capture was considered for Farm and Citadel and rejected** (sweep-03), so do not re-propose
+it without new information. Hollow's capture is one narrow, single-purpose 3D-camera listener.
+Citadel's `input.ts` interleaves seven named UI dispatchers with right-button camera pan and
+road/wall placement drag, all keyed off `e.button` and `clientX/Y`; migrating means a mouse-event →
+pointer-event rewrite across all of it, and capture changes button semantics — a captured element
+keeps receiving events for that pointer id regardless of which button is down. For a **new** pointer
+path, still prefer capture; `cancelPointer()` is for the mouse-event paths that already exist.
 
 ## Accessibility
 

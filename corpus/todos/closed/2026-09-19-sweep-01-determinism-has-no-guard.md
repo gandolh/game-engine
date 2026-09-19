@@ -3,14 +3,14 @@
 status: todo
 created: 2026-09-19
 context: found by a read-only sweep on 2026-09-19, after the audit-38..63 queue closed. This is the
-same shape as [audit-44](closed/2026-09-18-audit-44-palette-guard-skips-html-css.md),
-[audit-45](closed/2026-09-18-audit-45-rng-golden-vector.md) and
-[audit-51](closed/2026-09-18-audit-51-layering-guard-hand-listed-scopes.md) — a rule everyone believes
+same shape as [audit-44](2026-09-18-audit-44-palette-guard-skips-html-css.md),
+[audit-45](2026-09-18-audit-45-rng-golden-vector.md) and
+[audit-51](2026-09-18-audit-51-layering-guard-hand-listed-scopes.md) — a rule everyone believes
 is enforced, which is not.
 
 ## The gap
 
-Root [`CLAUDE.md`](../../CLAUDE.md) states the repo's most load-bearing invariant:
+Root [`CLAUDE.md`](../../../CLAUDE.md) states the repo's most load-bearing invariant:
 
 > **Determinism is load-bearing.** All randomness flows through the seeded mulberry32 `Rng` …
 > **Never** use `Math.random()` or `Date.now()` in sim code.
@@ -39,7 +39,7 @@ exactly the point: it must be added *while* it passes.
 
 ## Two smaller siblings, same shape
 
-[`CLAUDE.md`](../../CLAUDE.md)'s "Locked conventions" lists two more rules with **no** enforcement.
+[`CLAUDE.md`](../../../CLAUDE.md)'s "Locked conventions" lists two more rules with **no** enforcement.
 Both have zero violations today:
 
 - **"No `.js` import suffixes."** Nothing checks. A single `from "./foo.js"` would work under Vite and
@@ -51,8 +51,8 @@ Both have zero violations today:
 ## What to do
 
 Add a path-scoped guard in `engine/core/src/` alongside
-[`layering.test.ts`](../../engine/core/src/layering.test.ts) and
-[`palette.test.ts`](../../engine/core/src/render/palette.test.ts) — the two existing repo-wide guards.
+[`layering.test.ts`](../../../engine/core/src/layering.test.ts) and
+[`palette.test.ts`](../../../engine/core/src/render/palette.test.ts) — the two existing repo-wide guards.
 Copy their structure; it is already the house pattern.
 
 1. **The determinism scan.** Every `.ts` under each `games/*/sim-core/src` plus
@@ -72,7 +72,7 @@ Copy their structure; it is already the house pattern.
 
 ## Files you OWN
 - a new guard test under `engine/core/src/`
-- [`corpus/wiki/decisions.md`](../wiki/decisions.md) → *Build & verify gates*, to record that the rule
+- [`corpus/wiki/decisions.md`](../../wiki/decisions.md) → *Build & verify gates*, to record that the rule
   is now enforced rather than asserted
 
 ## Files you must NOT touch

@@ -3,7 +3,7 @@
 status: todo — small, and deliberately NOT done during the sweep that found it
 created: 2026-09-19
 context: the residue of the 2026-09-19 sweep, which fixed MateQuest's half of this and added the
-missing engine primitive. Read [`wiki/engine-ui.md`](../wiki/engine-ui.md) → *Pointer gestures that
+missing engine primitive. Read [`wiki/engine-ui.md`](../../wiki/engine-ui.md) → *Pointer gestures that
 end off-canvas* first.
 
 ## The state of play
@@ -12,9 +12,9 @@ One problem — a press that ends where the canvas cannot see it — with four d
 
 | game | approach | verdict |
 |---|---|---|
-| **Hollow** | `canvas.setPointerCapture(e.pointerId)` on pointerdown ([`render3d/camera-input.ts`](../../games/hollow/client/src/render3d/camera-input.ts)) | **Correct and cheapest.** The browser routes the release back to the canvas wherever it lands. Never was vulnerable. |
-| **Farm** | hand-rolled `hostWindow` mouseup + blur, with `uiGestureWasUI` bookkeeping ([`ui/canvas/ui-host.ts`](../../games/farm/client/src/ui/canvas/ui-host.ts)) | Works. Written before the engine had a cancel primitive. |
-| **Citadel** | the same hand-rolled pattern, separately ([`main/input.ts`](../../games/citadel/client/src/main/input.ts)) | Works. A second copy of Farm's bookkeeping. |
+| **Hollow** | `canvas.setPointerCapture(e.pointerId)` on pointerdown ([`render3d/camera-input.ts`](../../../games/hollow/client/src/render3d/camera-input.ts)) | **Correct and cheapest.** The browser routes the release back to the canvas wherever it lands. Never was vulnerable. |
+| **Farm** | hand-rolled `hostWindow` mouseup + blur, with `uiGestureWasUI` bookkeeping ([`ui/canvas/ui-host.ts`](../../../games/farm/client/src/ui/canvas/ui-host.ts)) | Works. Written before the engine had a cancel primitive. |
+| **Citadel** | the same hand-rolled pattern, separately ([`main/input.ts`](../../../games/citadel/client/src/main/input.ts)) | Works. A second copy of Farm's bookkeeping. |
 | **MateQuest** | `hostWindow` mouseup/blur → `dispatcher.cancelPointer()` | Fixed 2026-09-19; the shape the others should converge on. |
 
 Farm and Citadel predate `cancelPointer()`, so each reconstructed the behaviour by hand — including a

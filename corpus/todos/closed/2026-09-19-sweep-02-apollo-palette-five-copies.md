@@ -3,22 +3,22 @@
 status: todo
 created: 2026-09-19
 context: found by a read-only sweep on 2026-09-19. Same class as
-[audit-60](closed/2026-09-18-audit-60-tile-constant-fifteen-copies.md) (one `TILE`) and
-[audit-61](closed/2026-09-18-audit-61-noise-stack-duplicated-four-ways.md) (one noise core) — a value that must be
+[audit-60](2026-09-18-audit-60-tile-constant-fifteen-copies.md) (one `TILE`) and
+[audit-61](2026-09-18-audit-61-noise-stack-duplicated-four-ways.md) (one noise core) — a value that must be
 identical everywhere, kept identical by hand.
 
 ## The gap
 
-Citadel and Hollow both use **Apollo-46** ([`CLAUDE.md`](../../CLAUDE.md)). The 46 hex values exist in
+Citadel and Hollow both use **Apollo-46** ([`CLAUDE.md`](../../../CLAUDE.md)). The 46 hex values exist in
 **five** hand-maintained copies:
 
 | # | file | what |
 |---|---|---|
-| 1 | [`games/citadel/client/src/render/citadel-palette.ts`](../../games/citadel/client/src/render/citadel-palette.ts) | `APOLLO` — production |
+| 1 | [`games/citadel/client/src/render/citadel-palette.ts`](../../../games/citadel/client/src/render/citadel-palette.ts) | `APOLLO` — production |
 | 2 | `games/citadel/client/src/render/citadel-palette.test.ts` | `CANONICAL_APOLLO` — pins #1 |
-| 3 | [`games/hollow/client/src/render/hollow-palette.ts`](../../games/hollow/client/src/render/hollow-palette.ts) | `APOLLO` — production |
+| 3 | [`games/hollow/client/src/render/hollow-palette.ts`](../../../games/hollow/client/src/render/hollow-palette.ts) | `APOLLO` — production |
 | 4 | `games/hollow/client/src/render/hollow-palette.test.ts` | `CANONICAL_APOLLO` — pins #3 |
-| 5 | [`engine/core/src/render/palette.test.ts`](../../engine/core/src/render/palette.test.ts) | inline copy — the engine-side scan's membership set |
+| 5 | [`engine/core/src/render/palette.test.ts`](../../../engine/core/src/render/palette.test.ts) | inline copy — the engine-side scan's membership set |
 
 Verified byte-identical today (`diff` of the extracted literals). Each pair is self-consistent, and
 the engine scan catches a *wrong* colour appearing in either game's source. So this is **debt, not a
@@ -38,12 +38,12 @@ games nobody diffs side by side.
 
 ## The constraint that shaped the current design — do not break it
 
-[`CLAUDE.md`](../../CLAUDE.md): *"The engine never imports a game, so each non-EDG swatch list is
+[`CLAUDE.md`](../../../CLAUDE.md): *"The engine never imports a game, so each non-EDG swatch list is
 inlined in the engine-side scan and pinned to its game's module by a colocated test there."* That
 explains copy #5 and is **correct** — the engine's palette *test* cannot import Citadel.
 
 But it does not require the *data* to live in the games. The engine already ships `EDG32` in
-[`palette.ts`](../../engine/core/src/render/palette.ts) as ordinary exported data; a palette is not a
+[`palette.ts`](../../../engine/core/src/render/palette.ts) as ordinary exported data; a palette is not a
 game. **The engine exporting `APOLLO` and a generic nearest-swatch helper, which both games import, is
 allowed by the layering rule and collapses five copies to one.**
 
@@ -64,8 +64,8 @@ allowed by the layering rule and collapses five copies to one.**
 
 ## Secondary, lower priority — `screenToWorld`
 
-[`games/farm/client/src/main/screen-to-tile.ts`](../../games/farm/client/src/main/screen-to-tile.ts)
-and [`games/citadel/client/src/render/transform.ts`](../../games/citadel/client/src/render/transform.ts)
+[`games/farm/client/src/main/screen-to-tile.ts`](../../../games/farm/client/src/main/screen-to-tile.ts)
+and [`games/citadel/client/src/render/transform.ts`](../../../games/citadel/client/src/render/transform.ts)
 implement the **same inverse-camera formula** (`screen * worldUnits/canvasSize + (center - worldUnits/2)`)
 with different signatures — Farm takes a canvas element and CSS px, Citadel takes explicit dimensions
 and device px. `@engine/core/render` already owns `Camera2D` but exposes no inverse.
