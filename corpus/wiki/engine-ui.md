@@ -96,6 +96,32 @@ is one unwrapped line that will run straight off a fixed-width panel. Any label 
 sim-authored text inside a pinned-width panel needs `maxWidth` — OR pre-wrap/pre-truncate the string
 yourself with explicit `\n` (what the observer/event-feed rows do), which now measures correctly.
 
+## Pointer gestures that end off-canvas — `cancelPointer()`
+
+Every host listens for pointer events on the **canvas**. A press released *outside* it therefore
+never produces a `pointerUp` — and `pointerUp` was the only thing that cleared the dispatcher's
+`active` node and restored the pressed leaf's resting state. The widget stayed rendering as pressed
+for the rest of the session. `blur()` does not help (it moves focus, not press state), and
+`pointerMove` deliberately refuses to disturb the active node.
+
+**`dispatcher.cancelPointer()`** abandons an in-flight press without activating anything. Call it
+from a window-level `mouseup` whose target is outside the canvas, and from `blur` — the two ways a
+gesture can end where the canvas cannot see it. It is idempotent.
+
+- A cancel is **not** a click: `onActivate` / `toggle` never fire.
+- The node returns to `"normal"`, never `"hover"` — the pointer is not over it.
+- A drag in flight still gets its `"end"` event, carrying **`cancelled: true`**, reported at the
+  press origin (where the pointer actually went is unknowable by definition). A handler that commits
+  a value on `"end"` should check that flag.
+
+**Three games solved this three different ways, which is the real lesson.** Hollow got it right and
+cheapest — [`render3d/camera-input.ts`](../../games/hollow/client/src/render3d/camera-input.ts) calls
+`canvas.setPointerCapture(e.pointerId)` on pointerdown, so the browser itself routes the release back
+to the canvas wherever it happens. Farm and Citadel each hand-rolled window listeners with their own
+bookkeeping (audit-48). MateQuest had no handling at all until 2026-09-19. If you are writing a new
+pointer path, **prefer pointer capture**; `cancelPointer()` is for the mouse-event paths that already
+exist.
+
 ## Accessibility
 
 An icon-only button still passes its **text label** as the accessible name — the a11y mirror

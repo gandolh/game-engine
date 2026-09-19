@@ -37,6 +37,7 @@ function stubDispatcher(): InputDispatcher {
     key: (): ConsumeResult => ({ consumed: false }),
     focus: (): void => {},
     blur: (): void => {},
+    cancelPointer: (): void => {},
     focused: () => null,
     hitTest: () => null,
   };

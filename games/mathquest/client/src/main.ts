@@ -415,6 +415,34 @@ async function main(): Promise<void> {
     panDown = false;
     panDragging = false;
   });
+  // A gesture that ENDS outside the canvas never delivers `mouseup` here, and
+  // `mouseup` is the only thing that clears the dispatcher's pressed widget — so
+  // a button released off-canvas stayed rendered as pressed for the rest of the
+  // session. `mouseleave` above only ever covered the map-pan half of that.
+  //
+  // Farm and Citadel hit this first (audit-48) and each hand-rolled window
+  // listeners; the underlying gap was that `@engine/ui` had no way to abandon a
+  // press. It does now — `cancelPointer()` — so this is the whole fix here.
+  //
+  // `ownerDocument.defaultView` rather than the global `window`: the canvas may
+  // live in another document (jsdom, an iframe), where the global is the wrong
+  // window and the listener would never fire.
+  const hostWindow = canvas.ownerDocument.defaultView ?? window;
+  hostWindow.addEventListener("mouseup", (e) => {
+    // Only for releases the canvas did NOT see; a release over the canvas is
+    // already handled above, and cancelling it would swallow the click.
+    const target = e.target;
+    if (target instanceof Node && canvas.contains(target)) return;
+    panDown = false;
+    panDragging = false;
+    dispatcher.cancelPointer();
+  });
+  hostWindow.addEventListener("blur", () => {
+    // Alt-tab / focus loss: no mouseup is coming at all.
+    panDown = false;
+    panDragging = false;
+    dispatcher.cancelPointer();
+  });
   canvas.addEventListener("mousemove", (e) => {
     const { x, y } = cssPx(e);
     if (latest !== null && latest.mode === "map") {

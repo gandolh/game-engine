@@ -54,6 +54,13 @@ export interface DragEvent {
   /** Screen-space delta from the press point (`x - startX`, `y - startY`). */
   dx: number;
   dy: number;
+  /**
+   * `true` only on an `"end"` produced by {@link InputDispatcher.cancelPointer} —
+   * the gesture was abandoned (released off-canvas, or the window lost focus)
+   * rather than completed. Optional, so existing `onDrag` handlers are
+   * unaffected; a handler that commits a value on `"end"` should check it.
+   */
+  cancelled?: boolean;
 }
 
 /** A normalized keyboard event — the host adapts its `KeyboardEvent` (or synthetic) to this. */
@@ -87,6 +94,27 @@ export interface InputDispatcher {
   pointerDown(x: number, y: number, button?: PointerButton): ConsumeResult;
   /** Pointer released at (x,y). Fires `onActivate` on a same-node click; ends any drag. */
   pointerUp(x: number, y: number, button?: PointerButton): ConsumeResult;
+  /**
+   * Abandon an in-progress press WITHOUT activating anything.
+   *
+   * Every pointer listener is scoped to the canvas, so a press that is released
+   * **outside** it never produces a `pointerUp` — and `pointerUp` is the only
+   * thing that clears `active` and restores the pressed leaf's resting state.
+   * The result is a widget stuck rendering as pressed for the rest of the
+   * session; no other API call clears it (`blur()` only moves focus, and
+   * `pointerMove` deliberately refuses to disturb the active node).
+   *
+   * Hosts should call this from a window-level `mouseup` that landed outside the
+   * canvas, and from `blur` — the two ways a gesture can end off-canvas. It is
+   * idempotent and safe to call when no press is in flight.
+   *
+   * A cancel is NOT a click: `onActivate`/`toggle` never fire. A drag in
+   * progress does get its `"end"` event, so a host mid-drag can unwind — with
+   * `cancelled: true` so it can distinguish an abandoned drag from a completed
+   * one. It is reported at the press origin, because where the pointer actually
+   * went is unknown by definition.
+   */
+  cancelPointer(): void;
   /** Wheel scrolled by `dy` at (x,y). Consumed iff the point is over a hittable node. */
   wheel(x: number, y: number, dy: number): ConsumeResult;
   /** A keyboard event. Tab/Shift-Tab move focus; Enter/Space activate the focused button. */
@@ -249,6 +277,36 @@ export function createInputDispatcher(
     return { consumed };
   }
 
+  /** See {@link InputDispatcher.cancelPointer}. */
+  function cancelPointer(): void {
+    if (pressNode === null && active === null) return;
+
+    if (pressNode && onDrag && dragging) {
+      // Reported at the press origin with zero delta: the pointer's real
+      // position is unknowable here (that is why this path exists at all).
+      onDrag({
+        phase: "end",
+        node: pressNode,
+        x: pressX,
+        y: pressY,
+        startX: pressX,
+        startY: pressY,
+        dx: 0,
+        dy: 0,
+        cancelled: true,
+      });
+    }
+
+    // Resting state, never "hover": the pointer is not over this node — it is
+    // off-canvas or the window lost focus.
+    if (active) active.state = "normal";
+    if (hovered === active) hovered = null;
+
+    active = null;
+    pressNode = null;
+    dragging = false;
+  }
+
   function wheel(x: number, y: number, _dy: number): ConsumeResult {
     return { consumed: ht(x, y) !== null };
   }
@@ -342,6 +400,7 @@ export function createInputDispatcher(
     key,
     focus,
     blur,
+    cancelPointer,
     focused: () => focusedNode,
     hitTest: ht,
   };
