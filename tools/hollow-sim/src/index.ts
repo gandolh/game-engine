@@ -22,6 +22,7 @@
  */
 import { runResearch, type RunResult } from "./run-core";
 import { selectRationalizer } from "./rationalizer/select";
+import { summarizeRationalizerDecisions, formatRationalizerSummary } from "./rationalizer-summary";
 import { metricsCsv, metricsJson, eventsJsonl, lineageJson, summaryJson, writeExportFile } from "./export";
 import { runDeterminismCheck } from "./determinism";
 import {
@@ -63,7 +64,14 @@ function printSummary(result: RunResult): void {
   // chronicle cap, so "never silently short" holds whether or not this run
   // actually dropped anything.
   console.log(`  chronicle events dropped: ${s.droppedEventCount}`);
+  printRationalizerSummary(result);
   console.log("=".repeat(72));
+}
+
+function printRationalizerSummary(result: RunResult): void {
+  const summary = summarizeRationalizerDecisions(result.events);
+  if (summary === null) return;
+  for (const line of formatRationalizerSummary(summary)) console.log(line);
 }
 
 function main(): void {

@@ -89,7 +89,9 @@ which is how a "WebGPU-only render path" line outlived the page that already sai
   [audit-59](todos/closed/2026-09-18-audit-59-deploy-not-in-version-control.md) (**settled**: this repo
   builds the sim server image; the deployment configuration lives outside it).
 
-- **Hollow** — 01–12, 14, 15 shipped; **hollow-13** (LLM rationalizer seam) is the one queued brief.
+- **Hollow** — 01–15 shipped, including hollow-13's LLM rationalizer seam (measured and characterised
+  by hollow-16, 2026-09-19). One queued spec: **hollow-17**, moving the seam to a decision point whose
+  subject outlives the 40-tick answer-lag.
   [todos/2026-07-17-hollow-BUILD-STATE.md](todos/2026-07-17-hollow-BUILD-STATE.md)
 - **@engine/ui incremental improvements** — items 1 and 3 done, item 2 deferred.
   [todos/2026-07-22-engine-ui-improvements.md](todos/2026-07-22-engine-ui-improvements.md)

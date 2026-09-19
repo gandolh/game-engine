@@ -295,8 +295,34 @@ separately (visual; no longer Chrome-gated since 2026-08-18). Brief: [../todos/2
   still suffer a heavier disease toll than a well-organized one — seed-dependent divergence, on-theme
   for the emergence sim, not a bug.
 
-## Next (hollow-13)
-hollow-13 LLM rationalizer seam (bounded choose-and-narrate within BDI candidates, event-triggered +
-async + off-by-default deterministic) is the last queued brief — and the hearth (and now a funeral /
-outbreak) gives it natural drama to narrate. The economy-deepening idea is largely **absorbed by
-hollow-14** (jobs → stockpile); what remains is optional food-economy balancing.
+## The LLM rationalizer seam — built, and how often it actually fires
+
+hollow-13 **shipped** the seam (bounded choose-and-narrate within BDI candidates, event-triggered,
+async, off-by-default and byte-identical when off). hollow-16 then measured it, because the one
+property a reader will get wrong is the **rate**.
+
+**It is not steering the town, and it is not inert.** With the `contrarian` diagnostic provider —
+which disagrees with the substrate on *every* decision, so it bounds how often the seam can change
+anything — across four seeds at 1500 ticks: **52 consultations, 6 adopted (11.5%), 43 rejected, all
+`stale-candidates`.** An answer lands ~42 ticks later (one `SOCIAL_COOLDOWN_TICKS`), and in **43 of
+43** rejections the peer the model chose was no longer actionable.
+
+**When an answer does land, it matters.** Seed 11 (4 adoptions) diverges from seam-OFF at **303 vs
+284 births, 19 vs 21 generations, 719 vs 426 cooperative events, 33 vs 25 communities formed**, with
+`lineage.json` differing — different people are born. A handful of adopted choices cascade through a
+generational sim. (Seed 7 is byte-identical to seam-OFF for the honest reason that it adopted
+nothing; that once read as evidence the seam was dead.)
+
+So: **occasional influence, by design and in fact.** Every headless run now prints its own
+`rationalizer —` block (consultations, adopted + %, rejection reasons, median lag), so this figure
+never has to be taken on a wiki page's word. Full reasoning, and the two "fixes" that are refused
+because they would falsify the stated-vs-revealed record, are in
+[decisions.md](decisions.md) → *Hollow — the LLM-rationalizer seam*.
+
+## Next (hollow-17)
+[hollow-17](../todos/2026-09-19-hollow-17-rationalizer-attachment-point.md) moves the seam to a
+decision whose **subject outlives the answer-lag** (a community, a norm, a leader — not a peer who
+wanders off in 40 ticks). It is candidate-enumeration work on a system-driven pass, not a change to
+the seam's adoption logic, which the measurement says is correct. The economy-deepening idea is
+largely **absorbed by hollow-14** (jobs → stockpile); what remains is optional food-economy
+balancing.

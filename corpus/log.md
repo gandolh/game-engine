@@ -4,6 +4,60 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-09-19] decision | hollow-16: the rationalizer seam is low-rate and genuinely live — and the "inert" reading came from one seed
+
+hollow-13 shipped a seam that is architecturally correct and unit-provably live. hollow-16 was filed
+because a CLI measurement said it adopted **1 answer in 27** and left seed 7's world byte-identical to
+seam-OFF. Four options were on the table and the spec said, correctly, *do NOT just pick one*. So this
+was settled by measuring, and **two of the measurements changed the answer**.
+
+**First: the "it changes nothing" finding was an artifact of seed choice.** Re-measured across four
+seeds at 1500 ticks with the `contrarian` provider (which disagrees on *every* decision, so it bounds
+what the seam can possibly do): **52 consultations, 6 adopted (11.5%), 43 rejected.** Seed 7 adopts
+**zero** — so of course its world is identical; that is the definition, not a defect. Seed 11 adopts 4
+and diverges hard: **303 vs 284 births, 19 vs 21 generations of descent, 719 vs 426 cooperative
+events, 33 vs 25 communities formed**, with `lineage.json` differing — *different people are born*.
+Four adopted choices cascade through a generational sim. The seam is **low-rate, not inert**, and
+those are very different verdicts.
+
+**Second: the cause of the 83% rejection rate is not what the brief said.** The brief attributed it to
+trust decay re-scoring options out of the set. Instrumenting every rejection with "is this same
+`kind`+`targetId` still live?" gave a sharper answer: in **43 of 43** the chosen *peer* was gone. Not
+once was the option merely re-scored or re-sized. The subject of the decision turns over faster than
+the answer can arrive.
+
+**That measurement is what kills the tempting option.** Loosening choice identity to `kind` alone was
+option 1, and the brief already flagged it as the dangerous one. The numbers make it worse than
+"dangerous": in **33 of those 43** the same verb *was* available **against a different person**. So
+kind-only matching would adopt, in the large majority of cases, an action aimed at someone the model
+never reasoned about — while the chronicle faithfully records its rationale about the original target.
+For an instrument built to compare **stated** against **revealed** reasoning, that does not improve the
+adoption rate; it **falsifies the record**. I went looking for a middle version of this (match
+`kind`+`target`, ignore the substrate's own sizing like `amount`/`offerGood`) and the same data killed
+it: it would have fixed **zero** of the 43, because the target was always the thing that vanished.
+
+**Decision: accept the rate, state it correctly, and make it self-reporting.** The seam is for
+"occasional significant decisions" and that is exactly what it delivers. `tools/hollow-sim` now prints
+a `rationalizer —` block in every run summary — consultations, adopted + %, rejection reasons, median
+answer-lag — plus an explicit line when zero were adopted, which is precisely the case that once read
+as a broken seam. **A figure in a wiki page drifts from the code that produces it; a figure every run
+prints cannot.** The computation is a pure function (`rationalizer-summary.ts`) with 10 tests, not
+logic buried in a printer.
+
+**What is deliberately NOT done.** The latency is unfixed, and fixing it means moving the attachment
+point, not loosening anchoring (falsifies the record) and not preempting on arrival (which redirects an
+agent mid-intention — a behavioural change well beyond this seam, and a break of `seam.ts`'s
+"superset, never a different shape" guarantee). Filed as
+[hollow-17](todos/2026-09-19-hollow-17-rationalizer-attachment-point.md), carrying the measurement as
+a constraint so the next person does not re-derive it — including the instruction that **a
+zero-adoption run is not a pass**.
+
+**Method note worth keeping:** the instrumentation was a temporary `console.error` inside the seam's
+rejection path, run over four seeds, then reverted (verified by `git diff` returning clean). The
+question "is the same verb+peer still on the table?" cannot be answered from `events.jsonl`, because
+the live candidate set only exists inside the seam. Reach for a throwaway probe before reaching for a
+new permanent field.
+
 ## [2026-09-19] change | The GitHub Actions workflow is gone; the checks it ran are `npm run gates`
 
 User directive: remove the GitHub CI. `.github/` is deleted.

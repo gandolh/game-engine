@@ -30,9 +30,11 @@ edit the matching line below.
   [citadel-mp-deprecated.md](citadel-mp-deprecated.md)
 - **Hollow** — M1–M5 shipped (headless sim, 3D layer, research surfaces, governance/antagonism, Daily
   Life), plus hollow-13's LLM rationalizer seam (**off by default, byte-identical when off**). The 3D
-  image is **no longer Chrome-gated** — it is WebGL2 and renders in-sandbox. One queued spec:
-  [hollow-16](../todos/2026-09-15-hollow-16-rationalizer-adoption-latency.md), a design decision about
-  adoption latency, not a bug. [hollow-overview.md](hollow-overview.md) ·
+  image is **no longer Chrome-gated** — it is WebGL2 and renders in-sandbox. The seam is **low-rate
+  and genuinely live**: ~12% adoption under the contrarian diagnostic, and when an answer is adopted
+  the world provably diverges (hollow-16, 2026-09-19 — every run now prints its own rate). One queued
+  spec: [hollow-17](../todos/2026-09-19-hollow-17-rationalizer-attachment-point.md), moving the seam
+  to a decision whose subject outlives the 40-tick answer-lag. [hollow-overview.md](hollow-overview.md) ·
   [BUILD-STATE](../todos/2026-07-17-hollow-BUILD-STATE.md)
 - **MateQuest** — built and playable, M0–M5 complete. Romanian-curriculum math roguelike; UI defaults
   to Romanian. **Grades I–IV** — settled 2026-09-19
@@ -116,9 +118,9 @@ Newest first, one line each. Detail is in the [log.md](../log.md) entry for the 
   their own duplicate bid; `.dockerignore` stopped stripping the wasm the sim server reads.
   audit-53 corrected three pages that described deleted code.
 - **2026-09-18** — a second six-lens audit sweep filed `audit-38..63` (46 raw findings → 26 filed).
-- **2026-09-15** — hollow-13: the LLM seam exists, is anchored per-choice by identity, and adopts
-  **1 decision in 27**; the latency is filed as
-  [hollow-16](../todos/2026-09-15-hollow-16-rationalizer-adoption-latency.md), a design call.
+- **2026-09-15** — hollow-13: the LLM seam exists and is anchored per-choice by identity. Its
+  adoption rate was settled by
+  [hollow-16](../todos/closed/2026-09-15-hollow-16-rationalizer-adoption-latency.md) on 2026-09-19.
   Also: the 2026-09-13 audit backlog (30 specs) and audit-32..37 all landed.
 - **2026-09-14** — a CI gate was added (`audit-06`); **removed again 2026-09-19** by user
   request, with its checks preserved as `npm run gates` (see *Gates that run*).

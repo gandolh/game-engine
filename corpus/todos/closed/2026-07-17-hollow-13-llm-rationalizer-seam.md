@@ -82,7 +82,7 @@ set — stronger, not weaker. Recorded in [decisions.md](../../wiki/decisions.md
 seeds, median answer-lag 40–46 ticks, and on one seed the world trajectory was byte-identical to
 seam OFF. Not provider latency — the stub answers instantly; an answer can only be applied at the
 agent's next social deliberation, 40 ticks later, by which point the chosen option has genuinely
-left the candidate set. Filed as [hollow-16](../2026-09-15-hollow-16-rationalizer-adoption-latency.md),
+left the candidate set. Filed as [hollow-16](2026-09-15-hollow-16-rationalizer-adoption-latency.md),
 which is a **design decision, not a bug fix** — the obvious fix (loosen choice identity) buys
 adoption by spending the exact property that stops this reproducing the prior agent-society study's
 failure.

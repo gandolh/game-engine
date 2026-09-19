@@ -2,7 +2,7 @@
 
 status: todo — needs a DESIGN decision before any code
 created: 2026-09-15
-context: measured during [hollow-13](closed/2026-07-17-hollow-13-llm-rationalizer-seam.md)'s closeout, through
+context: measured during [hollow-13](../closed/2026-07-17-hollow-13-llm-rationalizer-seam.md)'s closeout, through
 the CLI rather than in unit tests. hollow-13 met every acceptance gate it was written with; this is a
 property nobody had numbers for until the seam was actually run.
 
@@ -39,7 +39,7 @@ than reasoning about.
 1. **Loosen choice identity to `kind` only** (drop the grounded payload). "Teach someone" survives a
    target change; "teach agent 7" does not. Raises adoption, **weakens the anchoring guarantee** —
    the adopted action is no longer provably the one reasoned about. Directly trades against
-   [decisions.md](../wiki/decisions.md) → *Hollow — the LLM-rationalizer seam*.
+   [decisions.md](../../wiki/decisions.md) → *Hollow — the LLM-rationalizer seam*.
 2. **Let an answer preempt, instead of waiting for the next deliberation.** Apply it when it arrives,
    re-validated against the live set at that moment. Much better adoption; needs care, because an
    agent mid-intention being redirected is a behavioural change well beyond this seam.
@@ -55,12 +55,12 @@ property that makes this seam different from the prior agent-society study it wa
 repeating.
 
 ## Files likely involved
-- [`games/hollow/sim-core/src/rationalize/seam.ts`](../../games/hollow/sim-core/src/rationalize/seam.ts) — when answers are adopted
-- [`games/hollow/sim-core/src/rationalize/validate.ts`](../../games/hollow/sim-core/src/rationalize/validate.ts) — `candidateOptionKey` identity
-- [`games/hollow/sim-core/src/rationalize/policy.ts`](../../games/hollow/sim-core/src/rationalize/policy.ts) — which decisions are consulted at all
+- [`games/hollow/sim-core/src/rationalize/seam.ts`](../../../games/hollow/sim-core/src/rationalize/seam.ts) — when answers are adopted
+- [`games/hollow/sim-core/src/rationalize/validate.ts`](../../../games/hollow/sim-core/src/rationalize/validate.ts) — `candidateOptionKey` identity
+- [`games/hollow/sim-core/src/rationalize/policy.ts`](../../../games/hollow/sim-core/src/rationalize/policy.ts) — which decisions are consulted at all
 
 ## Acceptance
-- A decision recorded in [decisions.md](../wiki/decisions.md), with the adoption rate before and after.
+- A decision recorded in [decisions.md](../../wiki/decisions.md), with the adoption rate before and after.
 - The contrarian diagnostic (`RATIONALIZER=contrarian`) shows a materially higher adoption rate, and
   the world trajectory **provably diverges** from seam OFF — compare `metrics.json`/`lineage.json`,
   **not** `events.jsonl`, which differs trivially because it carries the rationalize rows themselves.

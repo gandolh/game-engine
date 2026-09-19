@@ -174,6 +174,51 @@ success path.
 
 ## Hollow — the LLM-rationalizer seam
 
+**The seam is low-rate and genuinely live, and the rate is printed by every run.** (hollow-16,
+2026-09-19.) Measured with the `contrarian` diagnostic provider — which disagrees with the substrate
+on *every* decision, so it is the **upper bound** on how often the seam can change anything — over
+four seeds at 1500 ticks:
+
+| | value |
+|---|---|
+| consultations | **52** |
+| adopted | **6 (11.5%)** |
+| kept-default | 3 |
+| rejected | **43 — every one `stale-candidates`** |
+| median answer-lag | 40–46 ticks |
+
+**Why most answers are refused, measured rather than assumed.** The seam's own brief attributed it to
+trust decay. The real cause is narrower and sharper: **the chosen peer is no longer actionable.** In
+**43 of 43** rejections the chosen `kind`+`targetId` pair was absent from the live candidate set — not
+once was it merely re-scored or re-sized. An answer lands ~42 ticks later (one `SOCIAL_COOLDOWN_TICKS`),
+and over that window the set of peers an agent can act on turns over completely.
+
+**This is why relaxing choice identity to `kind` alone is refused.** In **33 of those 43**, the same
+verb *was* available — against a **different person**. A kind-only match would therefore have adopted,
+in the large majority of cases, an action aimed at someone the model never reasoned about, while the
+chronicle carried the model's rationale about the original target. For an instrument whose purpose is
+comparing **stated** against **revealed** reasoning, that does not raise the adoption rate; it
+falsifies the record. Do not "fix" the rate this way.
+
+**And the seam is not inert — that reading came from one seed.** hollow-13's closeout found seed 7
+byte-identical to `RATIONALIZER=off` and concluded the seam changed nothing. Seed 7 has **zero**
+adoptions, so identity was the expected result, not a finding. Seed 11 (4 adoptions) diverges
+substantially: **303 vs 284 births, 19 vs 21 generations of descent, 719 vs 426 cooperative events,
+33 vs 25 communities formed**, with `lineage.json` differing — *different people are born*. A handful
+of adopted choices cascade. Compare `metrics.csv`/`lineage.json`/`summary.json`, **never**
+`events.jsonl`, which differs trivially because it carries the rationalize rows themselves.
+
+**So the accepted position is: occasional influence, stated honestly and self-reported.** The seam is
+for "occasional significant decisions" and that is what it delivers. `tools/hollow-sim` now prints a
+`rationalizer —` block in every run summary (consultations, adopted + %, rejection reasons, median
+lag), including an explicit note when zero were adopted. A figure in a wiki page drifts from the code
+that produces it; a figure every run prints cannot.
+
+**The latency itself is unfixed, and fixing it means moving the attachment point** — not loosening
+anchoring and not preempting mid-intention (which would redirect an agent between deliberations, a
+behavioural change well beyond this seam and a break of its "superset, never a different shape"
+guarantee). Filed as [hollow-17](../todos/2026-09-19-hollow-17-rationalizer-attachment-point.md).
+
 **Anchoring is per-choice by identity, not per-set by position.** (hollow-13, 2026-09-15.) The seam
 hands the model a set of BDI-produced candidates and takes back a choice among them. The obvious
 guard — remember the set, and accept an index into it — **does not work here, and the failure is
