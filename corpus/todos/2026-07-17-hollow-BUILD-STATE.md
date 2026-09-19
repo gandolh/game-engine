@@ -1,7 +1,15 @@
 # Hollow — BUILD STATE / RESUME (live tracker)
 
 status: in-progress
-updated: 2026-07-21 (hollow-15 Mortality & Care sim-core done)
+updated: 2026-09-19 (audit-53: the WebGPU/Chrome visual gate is gone — see below)
+
+> **Correction 2026-09-19 (audit-53).** Every "needs a human in a WebGPU Chrome" note in this file was
+> written against a **WebGPU** 3D renderer that was **deleted on 2026-08-18** when the repo moved to a
+> single WebGL2 backend ([decisions.md](../wiki/decisions.md)). The 3D layer now lives at
+> `engine/core/src/render3d/webgl2/` and **renders in the sandbox browser** — verified 2026-09-19, with
+> the evidence recorded under the M2 checklist. The carried-forward blocker list is empty. Nothing in
+> Hollow is waiting on a human with a GPU. The strikethroughs and *(as written)* markers below keep the
+> original text, because the reasoning is still worth reading; only the verdicts changed.
 
 **Read this first to resume the Hollow build.** Design-of-record + all brief specs are in
 `corpus/todos/2026-07-17-hollow-00-BUILD-ORDER.md` and `…-hollow-01..13-*.md`. This file is the
@@ -47,12 +55,12 @@ live progress tracker + the API handoffs needed to dispatch the next brief.
 | **hollow-06 social verbs** | ✅ **done, verified** (split 6a+6b) | `5bd92c5` + `b802738` |
 | **hollow-07 headless CLI + export** | ✅ **done, verified** | (this wave) |
 | **M1 EXIT-BAR GATE** | ✅ **PASSED** (2026-07-20) — see wiki/hollow-overview.md | — |
-| **hollow-08 engine WebGPU 3D renderer** | ✅ **done, verified** (split 8a+8b) | `b5f146e` + `575b9d0` |
+| **hollow-08 engine 3D renderer** (built on WebGPU; ported to WebGL2 2026-08-18) | ✅ **done, verified** (split 8a+8b) | `b5f146e` + `575b9d0` |
 | **hollow-09 cozy 3D town scene** | ✅ **done, verified** (split 9a+9b+9c) | `0848664` + `c3b8441` + `4bd5994` |
-| **M2 GATE** | ✅ headless-verified; **live 3D image Chrome-gated** (not self-verifiable) | — |
+| **M2 GATE** | ✅ **fully verified** — headless, and the live 3D image self-verified in-sandbox 2026-09-19 (was "Chrome-gated" until the WebGL2 port) | — |
 | **hollow-10 chronicle + dashboard** | ✅ **done, verified** (split 10a+10b) | `d71f372` + `e2fbdc7` |
 | **hollow-11 authoring + perturbation** | ✅ **done, verified** (split 11a+11b) | `66444c2` + `4716203` |
-| **M3 GATE** | ✅ headless + DOM-flow verified; **live 3D image Chrome-gated** | — |
+| **M3 GATE** | ✅ **fully verified** — headless + DOM-flow, and the live 3D image self-verified in-sandbox 2026-09-19 | — |
 | **hollow-12 governance & antagonism arcs** | ✅ **done, verified** (split 12a+12b) | `96f0bf5` + `1b32909` |
 | **hollow-14 Daily Life (jobs/routine/hearth)** | ✅ **done, verified** (14a·14b·14c-1·14c-2·14d) | `19fa2dc`·`48240fd`·`d404d3e`·`53f78fd`·`8382a8e` |
 | **hollow-15 Mortality & Care (starve-death/corpses/graveyard/disease/medic)** | ✅ **sim-core done, headless-verified** (opus-built, not split); render dispatched to Sonnet | (uncommitted — see below) |
@@ -159,25 +167,45 @@ skin×hair×pose mesh-variant scheme + walk cycle/poses) + 9c (glyph/`[T]`-tag o
 read-only worker `inspect` → DOM panel + follow-cam). Every slice controller-verified (typecheck +
 narrow tests + layering/palette/scope + determinism where relevant) and committed only-my-paths.
 
-**The load-bearing M2 reality:** WebGPU cannot render headless in this environment (Citadel finding),
+**The load-bearing M2 reality — RESOLVED 2026-09-19, see the box under the checklist below.** *(As
+written, and true at the time:)* WebGPU cannot render headless in this environment (Citadel finding),
 so the *visual* acceptance gates (08b's lit scene, 09's walking gene-visible town, glyphs/tags/
 inspect) are **NOT self-verified** — they need a human in a WebGPU Chrome. Mitigation applied: all
 CPU-side logic (mesh geometry, mat4, camera, ray-pick, buffer/instance/material packing, screen
 projection, humanoid builder, pose/anim math, inspect assembly, name/glyph mapping) was factored
 into **pure functions with unit tests**, so ~everything except the thin GPU/DOM orchestration is
 verified. `@hollow/client` 143 + `@engine/core` 269 green; whole-workspace typecheck clean (18 pkgs,
-Farm/Citadel untouched). **Human Chrome checklist** is in the controller's M2 handoff (below) + the
+Farm/Citadel untouched). **Visual-verify checklist** is in the controller's M2 handoff (below) + the
 per-slice commit messages.
 
-### Human Chrome-verify checklist (the ONLY unverified part of M2)
+### Visual-verify checklist — M2 (no longer human-gated)
 `npm run hollow` (repo root) → open the Vite URL (port per `games/hollow/client/vite.config.ts`) in
-Chrome 113+ (or enable `chrome://flags` → "Unsafe WebGPU"). Expect: grassy 64² ground w/ gentle
+**any WebGL2 browser, including the sandbox one** — the old "Chrome 113+ / `chrome://flags` → Unsafe
+WebGPU" gate was removed by the 2026-08-18 WebGL2 port and is no longer required. Expect: grassy 64² ground w/ gentle
 relief; soft community territory tints; clustered homes that grow with family size; distinct
 crop-bush vs rock nodes shrinking as depleted; **humanoids that walk, strike action poses, and whose
 skin/hair colors visibly track lineage** (children resemble parents); golden day↔night with glowing
 windows. Overlay: action glyphs over active agents; press **T** for name+need bars; **click** an
 agent → gold highlight + side panel (genome/needs/mind/relationships/kin/community); **F** to
 follow-cam. Engine-only sanity: `npm run demo3d -w @hollow/client` (static primitive scene).
+
+> **✅ Gate removed, and the scene was actually looked at — 2026-09-19 (audit-53).**
+> The renderer is [`engine/core/src/render3d/webgl2/`](../../engine/core/src/render3d/webgl2/); WebGPU
+> was deleted repo-wide 2026-08-18. `npm run hollow` was opened in the **sandbox** browser, Start
+> clicked, and the live scene screenshotted at tick 288 and tick 642: a green ground plane in true
+> perspective, ~20 gabled houses with per-face flat shading (lit roof vs shaded wall — so normals and
+> the light direction are right, not a flat silhouette), clustered humanoids, distinct crop-bush vs
+> rock nodes, and a glowing hearth. The overlay reported **fps 60.0 / frame 0.82–0.86 ms mean, 1.10 ms
+> p95**, `ents 40`, with the chronicle filling (Y1 → Y3) and the dashboard charting population.
+> Pressing **T** toggled the name/need tags on. `gl.getParameter(VERSION)` → `WebGL 2.0 (OpenGL ES 3.0
+> Chromium)`.
+>
+> **What this does NOT prove:** lineage-visible skin/hair inheritance and the walk-cycle/action poses
+> need frames compared over time (and the genome to be read alongside), which a single screenshot
+> cannot show; and the click→inspect panel did not open under synthetic mouse events in this pass —
+> the page's own note at M3 says that DOM flow was verified headless via agent-browser, so it is
+> covered, just not re-verified here. Everything that *was* blocked on "a human with a GPU" no longer
+> is.
 
 ## M3 — how it went (2026-07-20)
 Four slices. **10a** promoted the metrics/chronicle/export serializers into a browser-safe
@@ -196,10 +224,12 @@ every existing derived stream keeps its position and existing behavior is byte-p
 enter via `scheduleShock` → applied in the tick-boundary SHOCK stage → logged. Verified: client 253 +
 sim-core 170 + tool 26 green; whole-workspace typecheck clean.
 
-**Browser reality (still true):** the sandbox Chrome has **no WebGPU adapter** — the 3D image is
-Chrome-gated. BUT the M3 features are mostly DOM + worker (no GPU), so the full interaction flow
-(author → start → pause/step → fire famine → chronicle reacts → Share link → identical replay) WAS
-verified headless via agent-browser. Only the literal 3D scene needs a human in a GPU Chrome.
+**Browser reality — SUPERSEDED 2026-09-19 (audit-53).** *(As written:)* the sandbox Chrome has no
+WebGPU adapter, so the 3D image is Chrome-gated; the M3 features are mostly DOM + worker (no GPU), so
+the full interaction flow (author → start → pause/step → fire famine → chronicle reacts → Share link →
+identical replay) WAS verified headless via agent-browser; only the literal 3D scene needs a human in a
+GPU Chrome. **That last sentence is no longer true** — the 3D layer is WebGL2 and the sandbox browser
+renders it. Nothing about M3 is human-gated any more.
 
 ## hollow-12 — how it went (2026-07-20)
 Split into two sequential Sonnet dispatches, both fully headless-verifiable (no Chrome gate) —
@@ -261,7 +291,7 @@ hearth all gather at**.
   homogenizing everyone into one community, fixed with a weak `TRUST_GATHERING_DELTA` (1/10th) so
   distinct groups still crystallize from work/home proximity.
 - **14d** (`8382a8e`): render-only — glowing emissive hearth, day/night wash synced to the SIM day so
-  dusk coincides with the convergence, job-cue badges (`J` toggle). Visual is WebGPU-Chrome-gated.
+  dusk coincides with the convergence, job-cue badges (`J` toggle). Visual was WebGPU-Chrome-gated when written; since the WebGL2 port it is verifiable in-sandbox like everything else.
 
 **Controller's independent emergence verification** (own headless run, seeds 1/33, 2000t): interaction
 volume down ~6–66× (the chronicle flood is gone); governance (635–674 events) + feuds (start AND
@@ -287,15 +317,17 @@ fix. Findings + the full story are in [../wiki/hollow-overview.md](../wiki/hollo
 whole-workspace typecheck **17/17** (Farm/Citadel untouched). Everything local on `hollow`, unpushed.
 Commits are only-my-paths each slice.
 
-**⚠ Carried-forward, still open (M2 did NOT close these):**
-- **M2's live 3D image is human-unverified** (WebGPU headless unavailable). Someone must run the
+**⚠ Carried-forward — this list is now EMPTY (cleared 2026-09-19, audit-53):**
+- ~~**M2's live 3D image is human-unverified** (WebGPU headless unavailable). Someone must run the
   Chrome checklist above before trusting the *visual* acceptance — the headless surface is all green
-  but a shader/camera/scene bug that only shows on-screen would not have been caught here.
+  but a shader/camera/scene bug that only shows on-screen would not have been caught here.~~
+  **CLOSED.** The blocker was WebGPU, which no longer exists in this repo; the scene was rendered and
+  looked at. Evidence in the box below the M2 checklist.
 
 To resume (M4):
 1. Confirm baseline: `npm run test -w @hollow/client` (253) + `npm run test -w @hollow/sim-core`
    (193) + `npm run test -w @tool/hollow-sim` (26) + whole-workspace `npm run typecheck`. For the
-   visual + interaction: run the Chrome checklist below.
+   visual + interaction: run the visual checklist below (no special browser needed).
 2. **Recommended before/alongside hollow-13:** an **economy-deepening brief** (persistent inventory /
    real scarcity) so `steal`/`trade` stop being dormant AND so hollow-12's feud arcs stop being a
    tail phenomenon (they need an aggressive cohort to fire today — see hollow-overview.md "Known
@@ -314,15 +346,15 @@ To resume (M4):
 4. Housekeeping: stale `git stash@{0}` (if present) — drop when convenient; ensure `hollow-out/`
    (CLI EXPORT_DIR) is gitignored.
 
-### Human Chrome-verify checklist — M3 (interaction + visual)
-`npm run hollow` in a WebGPU Chrome. **Authoring:** the setup screen lists archetype presets; add rows
+### Visual-verify checklist — M3 (interaction + visual; no longer human-gated)
+`npm run hollow` in any WebGL2 browser. **Authoring:** the setup screen lists archetype presets; add rows
 + counts, tune gene sliders, lock a gene + Randomize (locked holds), set seed/density → Start boots a
 town whose founders match. **Research:** the left rail chronicle fills with readable lines and clicking
 one jumps the camera; the dashboard charts update per year; the three export buttons download files.
 **Perturbation:** pause/step/1–8× pace the sim; fire Famine/Boom/Disaster/Plague → they appear in the
 chronicle and move the dashboard. **Share:** the Share button writes a URL hash; opening it in a fresh
-tab replays the identical town. (The DOM half of all this was verified headless; the 3D scene needs your
-GPU Chrome.)
+tab replays the identical town. (The DOM half of all this was verified headless at the time; since the
+WebGL2 port the 3D scene is verifiable in-sandbox too — see the evidence box under the M2 checklist.)
 
 ---
 

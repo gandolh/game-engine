@@ -4,6 +4,67 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-09-19] build | audit-53: three pages described code that no longer exists, and one of them was blocking Hollow
+
+Semantic drift, not broken links — `corpus/lint.sh` passed the whole time, because a page that
+resolves fine can still say false things. The rule applied throughout: **verify against the code
+before rewriting**, and answer the question the page was trying to answer rather than deleting the
+stale word.
+
+**1. `wiki/performance.md` profiled a renderer deleted on 2026-08-18.** Five `canvas2d/renderer.ts`
+references, and the worst was an **open checkbox** — perf item 4, "dynamic sprites/shadows are still
+not viewport-culled". Re-read against WebGL2, **three of its four asks had shipped and nobody knew**:
+`push()` and `pushShadow()` cull against a camera box with a 32 px margin (testing sprite half-extents,
+not just the origin), `StaticLayerPass.draw` takes a `VisibleRect` and samples only it, and the queue
+is reused via `_queueLen` instead of reallocated. One ask survives — the per-frame
+`_queue.sort(compareSprite)` — and **it got more load-bearing, not less**: in Canvas2D that sort only
+fixed draw order, but the WebGL2 path then walks the sorted queue to coalesce same-`atlasId` runs into
+draw groups, so the sort now also sets the frame's draw-call count. Any sort-on-dirty scheme has to
+keep atlas runs contiguous, not merely keep z-order correct. Ticked with evidence; the remainder
+carried forward as its own narrowed item.
+
+> **The general lesson: a stale open item is worse than a missing one.** For eleven months this page
+> told every agent doing perf work that culling was absent. The work was done in the migration and the
+> checkbox never moved, so the migration got no credit and the page got believed.
+
+**2. `wiki/citadel-decisions.md` contradicted its own table, two rows apart.** #24 said Challenge mode
+was "unblocked; still unbuilt" while the same page's summary table said **DONE 2026-07-13 (`c2caecc`)**
+— and the code has it end to end (`sim-worker.ts` derives `challenge` and flips `cozyThreats`,
+`seedTown`, `deferThreatsUntilBuildings`; `new-game-modal.ts` and a `?challenge` fast-path select it).
+Same for brief 113 "raid gets a body", filed as "not built" with `raid-spawn.ts`, `raider-movement.ts`,
+`sharp-raid-path.test.ts` and `raider-departure.test.ts` all on disk. #24 is that page's own "what is
+left on Citadel" list, so anyone asking that question got two phantom items and skipped the real ones.
+The *decisions* were right; only the status lines had rotted.
+
+**3. Both open Hollow todos parked work behind a blocker that no longer exists — and this one was
+load-bearing.** `hollow-00-BUILD-ORDER` decision #7 said "Rendering = true 3D, **raw WebGPU**", and
+`hollow-BUILD-STATE` gated the entire visual acceptance on "a human in a WebGPU Chrome (Chrome 113+ or
+`chrome://flags` → Unsafe WebGPU)". WebGPU was deleted repo-wide on 2026-08-18. These are the two files
+whose headers say *read this first to resume Hollow*, so the effect was that a now-free task looked
+permanently blocked on hardware nobody had.
+
+**So the gate was tested instead of just edited.** `npm run hollow`, opened in the **sandbox** browser,
+Start clicked: the scene renders. Green ground plane in true perspective, ~20 gabled houses with
+per-face flat shading (lit roof against shaded wall — so normals and light direction are right, not a
+flat silhouette), clustered humanoids, crop-bush vs rock nodes, a glowing hearth; overlay reading
+**fps 60.0, frame 0.82–0.86 ms mean / 1.10 ms p95**, `ents 40`, chronicle filling Y1→Y3, dashboard
+charting population. `gl.getParameter(VERSION)` → `WebGL 2.0 (OpenGL ES 3.0 Chromium)`. The
+carried-forward blocker list in BUILD-STATE is now empty.
+
+Two things deliberately **not** claimed: lineage-visible skin/hair inheritance and the walk-cycle poses
+need frames compared over time, which one screenshot cannot show; and click→inspect did not open under
+synthetic mouse events in this pass (the page's own M3 note records that DOM flow as verified headless,
+so it is covered, just not re-verified). Recorded as limits in the evidence box rather than rounded up.
+
+One trap worth naming for next time: `gl.readPixels` on the default framebuffer after a frame has been
+composited returns all-black regardless of what was drawn, unless the context was made with
+`preserveDrawingBuffer`. It read as a blank canvas and it was not. **Screenshot the page; do not
+readPixels the swapchain.**
+
+Original text is kept throughout — struck through, or marked *(as written, and true at the time)* —
+because the reasoning still reads well and only the verdicts changed. No source code was touched:
+verifying perf item 4 turned up no real culling gap, so there was nothing to file.
+
 ## [2026-09-18] audit | Second repo-wide sweep — 46 raw findings, 26 filed as audit-38..63
 
 Six scoped finders in parallel (sim correctness+determinism on opus; client/render, undone work,

@@ -173,7 +173,16 @@ any caller. ⚠️ Gate the handler in the same change as the flip, or you creat
 
 ### #24 — Challenge mode is solo-only
 See the note on #13. It sheds lethal PvP (#23) and the MP bundle (#21), keeping `cozyThreats:false`,
-no `seedTown`, no threat-defer. Unblocked; still unbuilt.
+no `seedTown`, no threat-defer. **Decision holds; the mode is BUILT** — this line read "Unblocked;
+still unbuilt" until 2026-09-19, contradicting this page's own table below (which has said
+**DONE** 2026-07-13 `c2caecc` all along). The shape shipped is exactly the one decided here:
+[`sim-worker.ts:83-117`](../../games/citadel/client/src/worker/sim-worker.ts#L83-L117) derives
+`const challenge = msg.mode === "challenge"` and flips `cozyThreats: !challenge`,
+`seedTown: !challenge`, `deferThreatsUntilBuildings: challenge ? 0 : 6`, with `multiplayer: false`
+and `enableArmy: false` fixed — solo-only, as decided. The mode is chosen in
+[`new-game-modal.ts`](../../games/citadel/client/src/ui/new-game-modal.ts) (`GameMode = "cozy" |
+"challenge"`) or via the `?challenge` / `?cozy` URL fast-path
+([`boot.ts:158-161`](../../games/citadel/client/src/main/boot.ts#L158-L161)).
 
 ### #25 — Solvability guarantees distance, not just reachability
 `repairSolvability` guarantees ≥1 **reachable** Forest and Stone by 4-connected flood-fill. On 96×96
@@ -238,7 +247,7 @@ tests already pass). Filed from the [palette-evaluation todo](../todos/closed/20
 |---|---|
 | [110](../briefs/game/done/110-citadel-client-world-size.md) world size | **DONE** (`0fd66c0`, after part 1 `8e930f3`). Reshaped: *solo grows to 192*, not *client adopts server*. |
 | [100](../briefs/game/done/100-citadel-economy-growth-pass.md) economy growth | **DONE** 2026-07-10. Curve `0.6 → 1.0 → 1.25` shipped; `grow` 60d pop **12**/18, in the 12–15 target. |
-| [113](../briefs/game/done/113-citadel-raid-gets-a-body.md) raid gets a body | **New** (#23). Filed, not built. |
+| [113](../briefs/game/done/113-citadel-raid-gets-a-body.md) raid gets a body | **New** (#23) when this table was written — since **BUILT**. `raid-spawn.ts` + `raider-movement.ts` exist under [`games/citadel/sim-core/src/systems/`](../../games/citadel/sim-core/src/systems/), covered by `sharp-raid-path.test.ts` and `raider-departure.test.ts`. Row corrected 2026-09-19. |
 | [103](../briefs/game/done/103-citadel-challenge-mode.md) Challenge mode | **DONE** 2026-07-13 (`c2caecc`). Solo-only (#24); decrees re-pointed (#27). |
 | [105](../briefs/game/done/105-citadel-crowd-honesty-mp-owner-filter.md) crowd honesty | Reshaped: ambient-crowd half only. The MP owner-filter half is deprecated with MP. |
 | [111](../briefs/game/superseded/111-citadel-mp-room-keys-and-session-semantics.md) room keys | **Superseded** (#21). Its hazard is real; it is a revival precondition. |

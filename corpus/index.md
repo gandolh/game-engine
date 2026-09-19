@@ -70,14 +70,24 @@ which is how a "WebGPU-only render path" line outlived the page that already sai
 
 **Open** — the live queue is [todos/](todos/); these are its trackers:
 
-- **Audit sweep 2026-09-18** — **26 filed specs, none built**: `audit-38`..`audit-63` in
-  [todos/](todos/), from a six-lens read-only sweep (46 raw findings vetted down to 26). They are
-  ranked and summarised in the [log.md](log.md) entry for 2026-09-18; the three highest-leverage are
-  [audit-38](todos/closed/2026-09-18-audit-38-vickrey-self-second-price.md) (Vickrey charges the winner their
-  own duplicate bid), [audit-39](todos/closed/2026-09-18-audit-39-premultiply-alpha-never-restored.md)
+- **Audit sweep 2026-09-18** — 26 filed specs (`audit-38`..`audit-63`, from a six-lens read-only sweep
+  that vetted 46 raw findings down to 26). **22 built and closed** as of 2026-09-19; they are in
+  [todos/closed/](todos/closed/) and ranked/summarised in the [log.md](log.md) entry for 2026-09-18.
+  The three highest-leverage all shipped:
+  [audit-38](todos/closed/2026-09-18-audit-38-vickrey-self-second-price.md) (Vickrey charged the winner
+  their own duplicate bid), [audit-39](todos/closed/2026-09-18-audit-39-premultiply-alpha-never-restored.md)
   (a context-global GL flag never restored) and
-  [audit-40](todos/closed/2026-09-18-audit-40-dockerignore-strips-wasm.md) (`.dockerignore` strips the wasm
-  the sim server reads). Three of them — 44, 45, 51 — are **guards that cannot currently fail**.
+  [audit-40](todos/closed/2026-09-18-audit-40-dockerignore-strips-wasm.md) (`.dockerignore` stripped the wasm
+  the sim server reads). Three — 44, 45, 51 — were **guards that could not fail**, and are now guards
+  that can. **Four remain open**, and two of them are open *because they need a decision, not because
+  they need work*:
+  [audit-53](todos/closed/2026-09-18-audit-53-corpus-drift-sweep.md) (corpus drift sweep),
+  [audit-54](todos/2026-09-18-audit-54-mathquest-grades-v-viii.md) (**build grades V–VIII, or narrow the
+  I–VIII claim to I–IV** — a content-design call),
+  [audit-58](todos/2026-09-18-audit-58-status-md-retrieval-budget.md) (split `wiki/status.md`'s 119 KB;
+  land 53 first) and
+  [audit-59](todos/2026-09-18-audit-59-deploy-not-in-version-control.md) (**which deploy story is real** —
+  the wiki describes pm2 + Caddy + a `deploy.ts` that is nowhere on disk).
 
 - **Hollow** — 01–12, 14, 15 shipped; **hollow-13** (LLM rationalizer seam) is the one queued brief.
   [todos/2026-07-17-hollow-BUILD-STATE.md](todos/2026-07-17-hollow-BUILD-STATE.md)

@@ -64,7 +64,13 @@ Ranked by likelihood × impact-for-effort (each names the file:line so it can be
 
 - [ ] **3. Gate the whole panel-update block on tick change.** [render-loop.ts:419-431](../../games/farm/client/src/main/render-loop.ts#L419-L431) calls all 9 panel `update()`s every frame though their data changes at ≤20 Hz. Even with per-panel guards this re-reads client state 60×/s. Wrap the block in `if (client.tick !== lastPanelTick)`. Cheap, removes a class of future regressions.
 
-- [ ] **4. Tier 2 culling now actually bites (was deferred when world was small).** Dynamic sprites/shadows are still **not viewport-culled** and `this.queue.sort(compareSprite)` runs **every frame** (`canvas2d/renderer.ts`); the static layer is blitted full-frame. With the 160-wide world + 21 farmers + ambient + always-on animated pushes (foam culled, but forge fire/smoke/waterfall/campfire/beacon at [render-loop.ts:167-246](../../games/farm/client/src/main/render-loop.ts#L167-L246) are not), the deferred Tier 2 wins below are worth taking now: cull dynamic sprites to `[viewLeft,viewRight]×[viewTop,viewBottom]`, clip the static blit to the visible source rect, and sort-on-dirty.
+- [x] **4. ~~Tier 2 culling now actually bites (was deferred when world was small).~~ — MOSTLY SHIPPED, verified 2026-09-19 against WebGL2.** The original finding named `canvas2d/renderer.ts`, a file deleted on 2026-08-18; re-read against the backend that exists, three of its four asks are **in**:
+  - **Dynamic sprites are viewport-culled** — [`webgl2/renderer.ts:428-439`](../../engine/core/src/render/webgl2/renderer.ts#L428-L439) rejects in `push()` against a `[_cullLeft,_cullRight]×[_cullTop,_cullBottom]` box rebuilt per frame from the camera ([:413-416](../../engine/core/src/render/webgl2/renderer.ts#L413-L416)) with a 32 px `CULL_MARGIN`, testing the sprite's half-extents, not just its origin.
+  - **Shadows too** — `pushShadow` early-returns on `_inView` ([:441-442](../../engine/core/src/render/webgl2/renderer.ts#L441-L442)).
+  - **The static layer is no longer blitted full-frame** — `StaticLayerPass.draw` takes a `VisibleRect` and samples only it ([`static-layer-pass.ts:189-192`](../../engine/core/src/render/webgl2/static-layer-pass.ts#L189-L192)).
+  - **The per-frame queue realloc is gone** too (the Tier 2b item below): the queue is a persistent array reused via `_queueLen` ([:404, :437-438](../../engine/core/src/render/webgl2/renderer.ts#L404)), not `= []`.
+
+  **What survives — and it got *more* load-bearing, not less:** `this._queue.sort(compareSprite)` still runs every frame ([`webgl2/renderer.ts:573`](../../engine/core/src/render/webgl2/renderer.ts#L573)). In Canvas2D that sort only fixed draw order. In WebGL2 the sorted queue is then walked to coalesce **runs of the same `atlasId` into one draw group** ([:575-606](../../engine/core/src/render/webgl2/renderer.ts#L575-L606)) — so the sort now also determines how many GL draw calls a frame costs, which makes sort-on-dirty both a bigger win and a riskier change (a stale order silently fragments batching, it doesn't just mis-layer sprites). Carried forward as its own item below ("Sort only when the set changes"). Nothing here needs a new culling spec: the culling gap this item was filed for is closed.
 
 - [ ] **5. Ambient layer cost (brief 68).** `ambient.update` + `ambient.pushSprites` run every frame ([render-loop.ts:413-414](../../games/farm/client/src/main/render-loop.ts#L413-L414)). New since baseline; profile its sprite count and confirm it's culled to `view` (it's passed `view` — verify it uses it).
 
@@ -105,7 +111,7 @@ Profiled live via Playwright `?profile` (seed `0xc0ffee`, `#c0ffee-64-3c` → `t
 ## Already done — do not redo
 
 - **Query iteration is pooled.** `for...of` over a query borrows a scratch buffer and returns it; steady-state iteration allocates zero arrays — [world.ts:65-97](../../engine/core/src/ecs/world.ts#L65-L97).
-- **Static layer + water pattern baked once** to OffscreenCanvas, blitted with one `drawImage`/`fillRect` per frame — `canvas2d/renderer.ts`. This is the textbook "layer caching" win, already shipped (brief 07).
+- **Static layer + water pattern baked once**, then drawn as one pass per frame — shipped as brief 07's Canvas2D `drawImage`, and it survived the WebGL2 migration intact: the CPU bake is still `createOffscreen` + sorted `drawSprite` onto an offscreen 2D canvas ([`webgl2/static-layer-pass.ts`](../../engine/core/src/render/webgl2/static-layer-pass.ts)), only the *presentation* changed (one `texImage2D` upload, then an attributeless `drawArrays(TRIANGLE_STRIP, 0, 4)` over the visible sub-rect). The textbook "layer caching" win, already shipped.
 - **Message bus uses buffer-swap** (`inflight`↔`deliverable`) instead of reallocating — [message-bus.ts](../../engine/core/src/sim/message-bus.ts).
 - **Coastline foam bubbles are viewport-culled** — [main/render-loop.ts](../../games/farm/client/src/main/render-loop.ts). (The *only* culling currently in the renderer — see Tier 2.)
 - **Test-suite runtime tuned (2026-06-10).** sim-core runs with `pool: "threads"` + `isolate: false` ([vitest.config.ts](../../games/farm/sim-core/vitest.config.ts) — module-state safety rationale in the file; verified green under shuffled file order), and the three heaviest live-sim test files (coral-fishing, orchard, tile-features) each drive ONE shared deterministic run in `beforeAll` and latch per-milestone observations instead of booting near-identical sims per spec. Full suite ~66s → ~45s wall; sim-core 54s → ~25s solo. Don't re-split the shared runs or re-enable per-file isolation without re-measuring; the floor is now coral-fishing's single ~12k-tick JsPathfinder run (~24s).
@@ -158,12 +164,20 @@ TODOs, in impact-for-effort order:
 
 ## Tier 2 — Culling & clipping (classic strategies, currently mostly absent)
 
-The static backdrop is blitted each frame — now **clipped to the visible world rect** (`canvas2d/renderer.ts` `endFrame`), so zoomed-in frames only blit the on-screen portion. The world grew **160→240 on 2026-06-12** (2.25× the cells); `DEFAULT_ZOOM` rose 2→3 to keep on-screen tile density, so at the default zoom the viewport is now smaller than the whole **240×240** world and the clip/cull DO bite. At the lowest zoom (full-world establishing view) the clip is a no-op and the full baked canvas rasters every frame; dynamic sprites/shadows are viewport-culled in `push()` (also a no-op only at full-world zoom). So the classic 2D wins still matter here:
+**Status 2026-09-19: this tier is done except the last bullet.** Kept for the reasoning, and because the
+last bullet is still open. The static backdrop is drawn each frame but **clipped to the visible world
+rect** — in WebGL2 that is the `VisibleRect` handed to [`static-layer-pass.ts`](../../engine/core/src/render/webgl2/static-layer-pass.ts)'s
+`draw`, so zoomed-in frames sample only the on-screen portion of the baked texture. The world grew
+**160→240 on 2026-06-12** (2.25× the cells); `DEFAULT_ZOOM` rose 2→3 to keep on-screen tile density, so at
+the default zoom the viewport is now smaller than the whole **240×240** world and the clip/cull DO bite. At
+the lowest zoom (full-world establishing view) the clip is a no-op and the whole baked texture is sampled
+every frame; dynamic sprites and shadows are viewport-culled in `push()`/`pushShadow()` (also a no-op only
+at full-world zoom). So the classic 2D wins still matter here:
 
-- **Viewport culling of dynamic sprites/shadows.** Skip `push`/`drawSprite` for anything whose bounds fall outside `[viewLeft,viewRight]×[viewTop,viewBottom]` — the same test already used for foam in [main/render-loop.ts](../../games/farm/client/src/main/render-loop.ts). Cheap, and grows in value as entity count / world size grows.
-- **Clip the static-layer blit to the visible source rect.** `drawImage(staticLayer, sx,sy,sw,sh, dx,dy,dw,dh)` using only the camera-visible region instead of the whole baked canvas. Saves fill work when zoomed in.
-- **`ctx.clip()` / dirty-rectangle redraw.** Lower priority — the wash + full sprite repaint each frame make a true dirty-rect scheme awkward, but a clip region around the camera viewport prevents overdraw outside it.
-- **Sort only when the set changes.** `this.queue.sort(compareSprite)` runs every frame (`canvas2d/renderer.ts`); z-order rarely changes frame-to-frame. Bucket by layer or sort-on-dirty.
+- ~~**Viewport culling of dynamic sprites/shadows.**~~ **DONE** — `push()` and `pushShadow()` test sprite bounds against the camera box + a 32 px margin ([`webgl2/renderer.ts:419-450`](../../engine/core/src/render/webgl2/renderer.ts#L419-L450)).
+- ~~**Clip the static-layer blit to the visible source rect.**~~ **DONE** — the pass takes a `VisibleRect` and samples only it ([`static-layer-pass.ts:189-192`](../../engine/core/src/render/webgl2/static-layer-pass.ts#L189-L192)).
+- ~~**`ctx.clip()` / dirty-rectangle redraw.**~~ **MOOT under WebGL2** — this was a Canvas2D overdraw trick. The GL path already scissors to the canvas and the wash is a full-screen pass by design; a dirty-rect scheme would fight the passes, not help them.
+- [ ] **Sort only when the set changes — the one Tier 2 item still open.** `this._queue.sort(compareSprite)` runs every frame ([`webgl2/renderer.ts:573`](../../engine/core/src/render/webgl2/renderer.ts#L573)); z-order rarely changes frame-to-frame. Bucket by layer or sort-on-dirty. **Read [:575-606](../../engine/core/src/render/webgl2/renderer.ts#L575-L606) first:** the sorted queue is walked to coalesce same-`atlasId` runs into draw groups, so the sort controls draw-call count as well as layering, and any incremental scheme has to keep atlas runs contiguous — not merely keep z-order correct.
 
 ## Tier 2b-pre — Sim tick re-verified at 21 farmers (2026-06-10)
 
@@ -181,7 +195,7 @@ Small individually, all in the hot path, trivial to fix (the `length = 0` reuse 
 
 - [crop-growth.ts:55](../../games/farm/sim-core/src/systems/farming/crop-growth.ts#L55) — `[...world.query("plot")]` spreads a fresh array just to sort it. Reuse a persistent scratch array, sort in place.
 - [event-feed/system.ts](../../games/farm/sim-core/src/systems/event-feed/system.ts) — `const fresh = []` every tick. Reuse a member buffer.
-- Render queue: `this.queue = []` each frame (`canvas2d/renderer.ts`) → reuse with `length = 0`.
+- ~~Render queue: `this.queue = []` each frame~~ **DONE** — the WebGL2 renderer keeps one persistent `_queue` and resets `_queueLen = 0` per frame, trimming the array only when it shrank ([`webgl2/renderer.ts:404, 437-438, 572`](../../engine/core/src/render/webgl2/renderer.ts#L404)).
 
 ## Tier 3 — Perceived smoothness & game feel — TODO (queued 2026-06-10, online-research pass)
 

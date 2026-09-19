@@ -2,6 +2,7 @@
 
 status: todo
 created: 2026-07-17
+updated: 2026-09-19 (audit-53: decision #7 said raw WebGPU; the renderer is WebGL2)
 
 **Hollow** is a third game on the shared engine: a director/observer **multi-generational
 social simulation**. You author personas, seed a small town, press play, and study emergent
@@ -55,14 +56,23 @@ briefs. It supersedes nothing (new game). When M1 lands, fold a durable summary 
    - **Bonding/kinship** — court, pair-bond, cohabit, raise children, inherit on death, mourn.
    - **Governance/collective** — vote/appoint a leader, set a community norm, levy a shared
      contribution, sanction a rule-breaker. **Higher-order — deferred to M4.**
-7. **Rendering = true 3D, raw WebGPU, promoted into `@engine/core`.** Not sprites; not
-   Citadel's software rasterizer. A generic WebGPU 3D renderer lives in the engine (so it can
-   name no game). Cozy look = **flat shading (one tone per face by normal) + ambient occlusion
+7. **Rendering = true 3D, raw WebGL2, promoted into `@engine/core`.** Not sprites; not
+   Citadel's software rasterizer. A generic 3D renderer lives in the engine (so it can
+   name no game) at [`engine/core/src/render3d/webgl2/`](../../engine/core/src/render3d/webgl2/).
+   Cozy look = **flat shading (one tone per face by normal) + ambient occlusion
    + warm palette-snapped ramps**, optional toon ramp. Meshes are **baked from parametric
    primitives** (box/cylinder/cone/pyramid/gable → indexed triangle mesh) — the same
-   "assets are code" approach as Citadel's mesh building generators, but rendered live in
-   WebGPU instead of rasterized to an atlas. This is the 3D analog of the project's
+   "assets are code" approach as Citadel's mesh building generators, but rendered live on
+   the GPU instead of rasterized to an atlas. This is the 3D analog of the project's
    established bake-from-recipes principle.
+
+   > **Corrected 2026-09-19 (audit-53).** This decision said **raw WebGPU** and `render3d/webgpu/`
+   > was what M2 actually built. WebGPU was deleted repo-wide on **2026-08-18** in favour of a
+   > single WebGL2 backend (see [decisions.md](../wiki/decisions.md)), and the 3D layer was ported.
+   > The decision *above* — true 3D, generic, in the engine, flat-shaded, meshes baked from
+   > parametric primitives — survived the port unchanged; only the API under it moved. This
+   > matters here because the old wording is what kept this file's sibling BUILD-STATE parking
+   > the visual acceptance behind a "needs a WebGPU Chrome" gate that no longer exists.
 8. **Isolation + reuse.** Games never import each other (enforced). Farm's generic agent
    machinery (needs, FSM PERCEIVE→ACT loop, deliberate-registry, Contract-Net trade,
    trust/relationship primitives) is **promoted up into `@engine/core`**; Farm is refactored
@@ -133,8 +143,8 @@ cooperation-vs-sabotage divergence between seeds; multi-generation lineages with
 trait drift; population held in a stable band by scarcity (not exploding, not instantly
 extinct). Deterministic (byte-identical re-run). This is the go/no-go for M2.
 
-### M2 — Engine WebGPU 3D renderer + cozy town. (briefs `hollow-08`, `hollow-09`)
-- `hollow-08-engine-webgpu-3d-renderer` — generic `@engine/core` WebGPU 3D layer (device/
+### M2 — Engine 3D renderer + cozy town. (briefs `hollow-08`, `hollow-09`)
+- `hollow-08-engine-webgpu-3d-renderer` — generic `@engine/core` 3D layer (built on WebGPU, ported to WebGL2 2026-08-18) (device/
   pipeline cache, depth buffer, camera + bind-group scheme, flat-shade-by-normal + AO pass,
   warm ramp) + promote a generic **primitive→mesh** module (box/cylinder/cone/pyramid/gable +
   transform/merge) from Citadel's mesh generators into the engine.

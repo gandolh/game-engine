@@ -83,7 +83,7 @@ failure.
 - `todos/closed/` and `briefs/` — frozen
 - the **content** of decisions: this is a reorganisation. Nothing may change meaning, and no locked
   decision may be dropped in the move.
-- [audit-53](2026-09-18-audit-53-corpus-drift-sweep.md)'s three stale pages — that brief fixes what
+- [audit-53](closed/2026-09-18-audit-53-corpus-drift-sweep.md)'s three stale pages — that brief fixes what
   they *say*; this one changes where things *live*. Land 53 first if both are picked, or the drift
   gets copied into the new pages.
 
