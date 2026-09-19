@@ -13,52 +13,28 @@
 // so call sites keep referring to `EDG.rust`, `EDG.steel`, … unchanged.
 //
 // Migration decision recorded in the corpus (Apollo palette for Citadel).
+//
+// sweep-02: the 46-swatch APOLLO list and the nearest-swatch search used to be
+// hand-maintained here (identical, character-for-character, to Hollow's copy
+// and the engine's own scan-list copy), with nothing asserting the copies
+// agreed. A palette is data, not a game, so APOLLO and the generic
+// `nearestSwatch` search now live in @engine/core/render (alongside EDG32,
+// which was already ordinary exported data) and this module just imports
+// them — collapsing what used to be five hand-copied lists into one.
+// `nearestApollo` below is kept as a thin alias because call sites read
+// better fixed to this palette.
 
-import { rgbOf } from "@engine/core/render";
+import { APOLLO, APOLLO_SET, nearestSwatch, type ApolloColor } from "@engine/core/render";
 
-/**
- * The 46 Apollo colours (lowercase, 6-digit), grouped by hue family.
- * Ordered dark→light within each family so ramps read naturally.
- */
-export const APOLLO = [
-  // blues
-  "#172038", "#253a5e", "#3c5e8b", "#4f8fba", "#73bed3", "#a4dddb",
-  // greens
-  "#19332d", "#25562e", "#468232", "#75a743", "#a8ca58", "#d0da91",
-  // browns / timber
-  "#4d2b32", "#7a4841", "#ad7757", "#c09473", "#d7b594", "#e7d5b3",
-  // ochre / gold
-  "#341c27", "#602c2c", "#884b2b", "#be772b", "#de9e41", "#e8c170",
-  // red / orange
-  "#241527", "#411d31", "#752438", "#a53030", "#cf573c", "#da863e",
-  // purple / pink
-  "#1e1d39", "#402751", "#7a367b", "#a23e8c", "#c65197", "#df84a5",
-  // neutrals (dark→light)
-  "#090a14", "#10141f", "#151d28", "#202e37", "#394a50", "#577277",
-  "#819796", "#a8b5b2", "#c7cfcc", "#ebede9",
-] as const;
-
-export type ApolloColor = (typeof APOLLO)[number];
-
-export const APOLLO_SET: ReadonlySet<string> = new Set(APOLLO);
+export { APOLLO, APOLLO_SET };
+export type { ApolloColor };
 
 /**
- * Nearest Apollo colour by squared RGB distance (same shape as the engine's
- * `nearestEdg32`; reuses `rgbOf` so hex parsing lives in one place).
+ * Nearest Apollo colour by squared RGB distance — a thin alias over the
+ * engine's generic `nearestSwatch`.
  */
 export function nearestApollo(hex: string): ApolloColor {
-  const [r, g, b] = rgbOf(hex);
-  let best: ApolloColor = APOLLO[0];
-  let bestD = Infinity;
-  for (const c of APOLLO) {
-    const [cr, cg, cb] = rgbOf(c);
-    const d = (r - cr) ** 2 + (g - cg) ** 2 + (b - cb) ** 2;
-    if (d < bestD) {
-      bestD = d;
-      best = c;
-    }
-  }
-  return best;
+  return nearestSwatch(hex, APOLLO);
 }
 
 /**

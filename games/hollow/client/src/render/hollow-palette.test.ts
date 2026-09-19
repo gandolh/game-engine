@@ -1,22 +1,16 @@
 import { describe, it, expect } from "vitest";
 import { EDG } from "@engine/core";
+import { APOLLO as ENGINE_APOLLO } from "@engine/core/render";
 import { APOLLO, APOLLO_SET, HOLLOW_PAL, nearestApollo } from "./hollow-palette";
 
-// Canonical Apollo (46) list — mirrored by the inline copy in the engine-side
-// palette guard (engine/core/src/render/palette.test.ts) and by Citadel's own
-// citadel-palette.ts. Pinning the module to this literal here keeps all three
-// in sync: the engine cannot import a game, so this colocated test is the
-// single source of truth for THIS module's contents.
-const CANONICAL_APOLLO = [
-  "#172038", "#253a5e", "#3c5e8b", "#4f8fba", "#73bed3", "#a4dddb",
-  "#19332d", "#25562e", "#468232", "#75a743", "#a8ca58", "#d0da91",
-  "#4d2b32", "#7a4841", "#ad7757", "#c09473", "#d7b594", "#e7d5b3",
-  "#341c27", "#602c2c", "#884b2b", "#be772b", "#de9e41", "#e8c170",
-  "#241527", "#411d31", "#752438", "#a53030", "#cf573c", "#da863e",
-  "#1e1d39", "#402751", "#7a367b", "#a23e8c", "#c65197", "#df84a5",
-  "#090a14", "#10141f", "#151d28", "#202e37", "#394a50", "#577277",
-  "#819796", "#a8b5b2", "#c7cfcc", "#ebede9",
-];
+// sweep-02: this file used to pin the module's own hand-copied APOLLO to a
+// CANONICAL_APOLLO literal (the same 46 hexes copied a fourth time), to catch
+// this module drifting from the engine-side scan list and from Citadel's own
+// copy. That copy is gone — hollow-palette.ts now imports APOLLO from
+// @engine/core/render (the SAME list Citadel imports), so there is nothing
+// left for this module to drift FROM. What still needs a colocated test (the
+// engine cannot import a game) is that HOLLOW_PAL's own role values stay
+// valid Apollo members — see below.
 
 // Perceived luminance (Rec. 601) — used to assert shading ramps never invert.
 function lum(hex: string): number {
@@ -39,10 +33,10 @@ function assertAscending(names: readonly (keyof typeof HOLLOW_PAL)[]): void {
 }
 
 describe("Hollow Apollo palette", () => {
-  it("APOLLO has exactly 46 unique colors matching the canonical list", () => {
+  it("re-exports the engine's Apollo-46 list unchanged", () => {
     expect(APOLLO).toHaveLength(46);
     expect(new Set(APOLLO).size).toBe(46);
-    expect([...APOLLO]).toEqual(CANONICAL_APOLLO);
+    expect(APOLLO).toBe(ENGINE_APOLLO);
   });
 
   it("every HOLLOW_PAL role value is one of the 46 Apollo swatches", () => {

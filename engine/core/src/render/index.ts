@@ -16,8 +16,13 @@ export {
   normalizeHex,
   rgbOf,
   nearestEdg32,
+  APOLLO,
+  APOLLO_SET,
+  RESURRECT64,
+  RESURRECT64_SET,
+  nearestSwatch,
 } from "./palette";
-export type { Edg32Color } from "./palette";
+export type { Edg32Color, ApolloColor, Resurrect64Color } from "./palette";
 export { MAX_DEVICE_PIXEL_RATIO, effectiveDpr } from "./dpr";
 
 export type { RendererLike, WashOptions, WeatherLike, DecorateFn, CloudOptions, OverlayFn, UIQuad } from "./renderer";

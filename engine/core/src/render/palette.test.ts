@@ -2,73 +2,31 @@ import { describe, it, expect } from "vitest";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { EDG32, EDG32_SET, EDG, isEdg32, nearestEdg32, normalizeHex, rgbOf } from "./palette";
+import {
+  EDG32,
+  EDG32_SET,
+  EDG,
+  isEdg32,
+  nearestEdg32,
+  normalizeHex,
+  rgbOf,
+  APOLLO,
+  APOLLO_SET,
+  RESURRECT64,
+  RESURRECT64_SET,
+  nearestSwatch,
+} from "./palette";
 
-// The palette guard is scoped by path: files under games/citadel/ are Citadel's
-// Apollo palette, everything else is the engine's EDG32. The engine must never
-// import a game (locked convention), and this test lives in @engine/core, so the
-// 46 Apollo colours are inlined here for the scan. They are the SINGLE authoritative
-// list mirrored by games/citadel/client/src/render/citadel-palette.ts, whose own
-// colocated test (citadel-palette.test.ts) pins the module's APOLLO to this exact
-// list and validates CITADEL_PAL against it — so the two cannot silently drift.
-const APOLLO = [
-  "#172038", "#253a5e", "#3c5e8b", "#4f8fba", "#73bed3", "#a4dddb",
-  "#19332d", "#25562e", "#468232", "#75a743", "#a8ca58", "#d0da91",
-  "#4d2b32", "#7a4841", "#ad7757", "#c09473", "#d7b594", "#e7d5b3",
-  "#341c27", "#602c2c", "#884b2b", "#be772b", "#de9e41", "#e8c170",
-  "#241527", "#411d31", "#752438", "#a53030", "#cf573c", "#da863e",
-  "#1e1d39", "#402751", "#7a367b", "#a23e8c", "#c65197", "#df84a5",
-  "#090a14", "#10141f", "#151d28", "#202e37", "#394a50", "#577277",
-  "#819796", "#a8b5b2", "#c7cfcc", "#ebede9",
-] as const;
-const APOLLO_SET: ReadonlySet<string> = new Set(APOLLO);
-function nearestApollo(hex: string): string {
-  const [r, g, b] = rgbOf(hex);
-  let best: string = APOLLO[0];
-  let bestD = Infinity;
-  for (const c of APOLLO) {
-    const [cr, cg, cb] = rgbOf(c);
-    const d = (r - cr) ** 2 + (g - cg) ** 2 + (b - cb) ** 2;
-    if (d < bestD) {
-      bestD = d;
-      best = c;
-    }
-  }
-  return best;
-}
-
-// The Resurrect-64 scan list (used for games/mathquest/ files — MateQuest's own
-// dedicated 64-colour palette, distinct from EDG32 and Apollo). The
-// AUTHORITATIVE module-backed integrity checks — MATE_PAL ⊆ RESURRECT64, keys
-// == EDG keys, nearestResurrect64 — live in
-// games/mathquest/client/src/render/mate-palette.test.ts (the engine cannot
-// import a game). This inline copy just guards the scan list itself stays
-// valid and matches Resurrect-64's cardinality (mirrors the Apollo scan
-// list's own precedent above).
-const RESURRECT64 = [
-  "#2e222f", "#3e3546", "#625565", "#966c6c", "#ab947a", "#694f62", "#7f708a", "#9babb2", "#c7dcd0", "#ffffff",
-  "#6e2727", "#b33831", "#ea4f36", "#f57d4a", "#ae2334", "#e83b3b", "#fb6b1d", "#f79617", "#f9c22b", "#7a3045",
-  "#9e4539", "#cd683d", "#e6904e", "#fbb954", "#4c3e24", "#676633", "#a2a947", "#d5e04b", "#fbff86", "#165a4c",
-  "#239063", "#1ebc73", "#91db69", "#cddf6c", "#313638", "#374e4a", "#547e64", "#92a984", "#b2ba90", "#0b5e65",
-  "#0b8a8f", "#0eaf9b", "#30e1b9", "#8ff8e2", "#323353", "#484a77", "#4d65b4", "#4d9be6", "#8fd3ff", "#45293f",
-  "#6b3e75", "#905ea9", "#a884f3", "#eaaded", "#753c54", "#a24b6f", "#cf657f", "#ed8099", "#831c5d", "#c32454",
-  "#f04f78", "#f68181", "#fca790", "#fdcbb0",
-] as const;
-const RESURRECT64_SET: ReadonlySet<string> = new Set(RESURRECT64);
-function nearestResurrect64(hex: string): string {
-  const [r, g, b] = rgbOf(hex);
-  let best: string = RESURRECT64[0];
-  let bestD = Infinity;
-  for (const c of RESURRECT64) {
-    const [cr, cg, cb] = rgbOf(c);
-    const d = (r - cr) ** 2 + (g - cg) ** 2 + (b - cb) ** 2;
-    if (d < bestD) {
-      bestD = d;
-      best = c;
-    }
-  }
-  return best;
-}
+// sweep-02: the Apollo-46 and Resurrect-64 scan lists used to be inlined here
+// (a fifth and third hand-copied literal respectively). Both are now
+// exported data from ./palette (imported above), like EDG32 already was —
+// the engine test *can* import the engine. The module-backed integrity
+// checks — CITADEL_PAL / HOLLOW_PAL ⊆ APOLLO, MATE_PAL ⊆ RESURRECT64, keys ==
+// EDG keys — still live in each game's own colocated test (the engine cannot
+// import a game), but all three now import the SAME engine-owned list instead
+// of each hand-copying it.
+const nearestApollo = (hex: string): string => nearestSwatch(hex, APOLLO);
+const nearestResurrect64 = (hex: string): string => nearestSwatch(hex, RESURRECT64);
 
 const HERE = fileURLToPath(new URL(".", import.meta.url));
 const REPO_ROOT = join(HERE, "..", "..", "..", "..");
@@ -125,14 +83,13 @@ describe("EDG32 palette is the single source of truth", () => {
 });
 
 // The Apollo scan list (used for games/citadel/ AND games/hollow/ files —
-// Hollow reuses the same Apollo-46 palette as Citadel, via its own
-// HOLLOW_PAL module rather than a shared import — games can't import each
-// other). The AUTHORITATIVE module-backed integrity checks — CITADEL_PAL /
-// HOLLOW_PAL ⊆ APOLLO, keys == EDG keys, nearestApollo — live in
+// both now import this same engine-owned APOLLO rather than hand-copying it,
+// sweep-02). The AUTHORITATIVE module-backed integrity checks — CITADEL_PAL /
+// HOLLOW_PAL ⊆ APOLLO, keys == EDG keys — live in
 // games/citadel/client/src/render/citadel-palette.test.ts and
 // games/hollow/client/src/render/hollow-palette.test.ts respectively (the
-// engine cannot import a game). These two guard that the inline scan list
-// stays valid and matches Apollo's cardinality.
+// engine cannot import a game). These two guard that APOLLO still has the
+// expected cardinality from this side too.
 describe("Apollo scan list (Citadel + Hollow scope)", () => {
   it("has exactly 46 unique colors", () => {
     expect(APOLLO).toHaveLength(46);
@@ -171,13 +128,24 @@ describe("no source file uses an off-palette color literal", () => {
   // source (games/hollow/) are validated against Apollo; MateQuest source
   // (games/mathquest/) is validated against Resurrect-64; everything else
   // (Farm + engine + tools) stays on EDG32.
-  type Scope = "citadel" | "hollow" | "mathquest" | "default";
+  //
+  // sweep-02: `palette.ts` itself is the one exception. It is now the
+  // canonical SOURCE of all three named palettes' data (EDG32, APOLLO,
+  // RESURRECT64), not just EDG32's — so a hex literal there may legitimately
+  // belong to any of the three, and it gets its own scope checked against
+  // their union rather than being flagged as an EDG32 violation for
+  // containing Apollo/Resurrect-64 swatches.
+  const PALETTE_SOURCE_REL = "engine/core/src/render/palette.ts";
+  type Scope = "citadel" | "hollow" | "mathquest" | "paletteSource" | "default";
   const scopeOf = (rel: string): Scope => {
+    if (rel === PALETTE_SOURCE_REL) return "paletteSource";
     if (rel.startsWith("games/citadel/")) return "citadel";
     if (rel.startsWith("games/hollow/")) return "hollow";
     if (rel.startsWith("games/mathquest/")) return "mathquest";
     return "default";
   };
+
+  const ALL_NAMED_SWATCHES: ReadonlySet<string> = new Set([...EDG32_SET, ...APOLLO_SET, ...RESURRECT64_SET]);
 
   const violations: string[] = [];
   for (const file of files) {
@@ -186,7 +154,8 @@ describe("no source file uses an off-palette color literal", () => {
     const scope = scopeOf(rel);
     const usesApollo = scope === "citadel" || scope === "hollow";
     const usesResurrect = scope === "mathquest";
-    const allowed = usesApollo ? APOLLO_SET : usesResurrect ? RESURRECT64_SET : EDG32_SET;
+    const allowed =
+      scope === "paletteSource" ? ALL_NAMED_SWATCHES : usesApollo ? APOLLO_SET : usesResurrect ? RESURRECT64_SET : EDG32_SET;
     const palName =
       scope === "citadel"
         ? "Apollo (Citadel)"
@@ -194,7 +163,9 @@ describe("no source file uses an off-palette color literal", () => {
           ? "Apollo (Hollow)"
           : scope === "mathquest"
             ? "Resurrect-64 (MateQuest)"
-            : "EDG32";
+            : scope === "paletteSource"
+              ? "EDG32/Apollo/Resurrect-64 (canonical source)"
+              : "EDG32";
     const text = readFileSync(file, "utf8");
     const lines = text.split("\n");
     lines.forEach((line, i) => {
@@ -256,7 +227,10 @@ describe("no source file uses an off-palette color literal", () => {
     expect(scoped("games/mathquest/client/src/style.css")).toBe("mathquest");
     expect(scoped("games/mathquest/client/index.html")).toBe("mathquest");
     expect(scoped("games/farm/client/index.html")).toBe("default");
-    expect(scoped("engine/core/src/render/palette.ts")).toBe("default");
+    // palette.ts itself is the canonical source of EDG32 + Apollo +
+    // Resurrect-64, so it gets its own scope rather than being flagged for
+    // containing the other two palettes' swatches (sweep-02).
+    expect(scoped("engine/core/src/render/palette.ts")).toBe("paletteSource");
   });
 
   // ALLOWLIST_FILES is empty, and that is a property worth keeping: a boot-screen background is
