@@ -574,6 +574,15 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
       frameProfiler.add("ui.flush", renderer.lastUiFlush.ms);
       frameProfiler.add("ui.quads", renderer.lastUiFlush.quads);
     }
+    // sweep-05: draw-group coalescing counters. `draw.groups` is the MAIN sprite
+    // pass only; `draw.ghostGroups` is the separate occluder-redraw pass, kept
+    // apart so it can't inflate the groups/sprites ratio this exists to measure.
+    if (PROFILE_ENABLED && renderer.lastDrawStats !== undefined) {
+      frameProfiler.add("draw.groups", renderer.lastDrawStats.groups);
+      frameProfiler.add("draw.ghostGroups", renderer.lastDrawStats.ghostGroups);
+      frameProfiler.add("draw.sprites", renderer.lastDrawStats.sprites);
+      frameProfiler.add("draw.atlases", renderer.lastDrawStats.atlases);
+    }
 
     overlay.update({ tick: client.tick, alpha: 0, entityCount: client.entityCount });
 

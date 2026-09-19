@@ -210,7 +210,7 @@ describe("SpriteBatch#upload — growable GPU buffer", () => {
   });
 });
 
-describe("SpriteBatch#drawRange", () => {
+describe("SpriteBatch#beginPass/drawRange/endPass (sweep-05 hoist)", () => {
   it("issues drawArraysInstanced(TRIANGLES, 0, 6, count)", () => {
     const { gl, raw, drawCalls } = makeFakeGl();
     const batch = new SpriteBatch(gl);
@@ -219,7 +219,9 @@ describe("SpriteBatch#drawRange", () => {
     batch.add(instance());
     batch.upload();
 
+    batch.beginPass(gl);
     batch.drawRange(gl, {} as WebGLTexture, 0, 2);
+    batch.endPass(gl);
 
     expect(drawCalls).toEqual([[raw.TRIANGLES, 0, 6, 2]]);
   });
@@ -228,7 +230,9 @@ describe("SpriteBatch#drawRange", () => {
     const { gl, drawCalls } = makeFakeGl();
     const batch = new SpriteBatch(gl);
     batch.setView(VIEW);
+    batch.beginPass(gl);
     batch.drawRange(gl, {} as WebGLTexture, 0, 0);
+    batch.endPass(gl);
     expect(drawCalls).toEqual([]);
   });
 
@@ -242,7 +246,9 @@ describe("SpriteBatch#drawRange", () => {
 
     const STRIDE = 16 * 4;
     const first = 3;
+    batch.beginPass(gl);
     batch.drawRange(gl, {} as WebGLTexture, first, 2);
+    batch.endPass(gl);
 
     // location 0 (a_pos) should have been re-pointed at first*STRIDE + 0.
     const posCall = attribCalls.find((c) => c.location === 0);
@@ -252,14 +258,16 @@ describe("SpriteBatch#drawRange", () => {
     expect(tintCall?.offset).toBe(first * STRIDE + 40);
   });
 
-  it("sets premultiplied-alpha blend state literally translated from the WebGPU pipeline", () => {
+  it("sets premultiplied-alpha blend state literally translated from the WebGPU pipeline, in beginPass", () => {
     const { gl, raw } = makeFakeGl();
     const batch = new SpriteBatch(gl);
     batch.setView(VIEW);
     batch.add(instance());
     batch.upload();
 
+    batch.beginPass(gl);
     batch.drawRange(gl, {} as WebGLTexture, 0, 1);
+    batch.endPass(gl);
 
     expect(raw.blendFuncSeparate).toHaveBeenCalledWith(raw.ONE, raw.ONE_MINUS_SRC_ALPHA, raw.ONE, raw.ONE_MINUS_SRC_ALPHA);
     expect(raw.blendEquationSeparate).toHaveBeenCalledWith(raw.FUNC_ADD, raw.FUNC_ADD);
@@ -274,9 +282,60 @@ describe("SpriteBatch#drawRange", () => {
     batch.upload();
     const tex = { __kind: "texture" } as unknown as WebGLTexture;
 
+    batch.beginPass(gl);
     batch.drawRange(gl, tex, 0, 1);
+    batch.endPass(gl);
 
     expect(raw.activeTexture).toHaveBeenCalledWith(raw.TEXTURE0);
     expect(raw.bindTexture).toHaveBeenCalledWith(raw.TEXTURE_2D, tex);
+  });
+
+  it("issues the invariant GL state ONCE per frame regardless of how many groups drawRange draws (sweep-05)", () => {
+    const { gl, raw } = makeFakeGl();
+    const batch = new SpriteBatch(gl);
+    batch.setView(VIEW);
+    batch.add(instance());
+    batch.add(instance());
+    batch.add(instance());
+    batch.upload();
+
+    (raw.useProgram as ReturnType<typeof vi.fn>).mockClear();
+    (raw.enable as ReturnType<typeof vi.fn>).mockClear();
+    (raw.blendEquationSeparate as ReturnType<typeof vi.fn>).mockClear();
+    (raw.blendFuncSeparate as ReturnType<typeof vi.fn>).mockClear();
+    (raw.activeTexture as ReturnType<typeof vi.fn>).mockClear();
+    (raw.uniform1i as ReturnType<typeof vi.fn>).mockClear();
+    (raw.bindVertexArray as ReturnType<typeof vi.fn>).mockClear();
+    const bindBufferCallsBefore = (raw.bindBuffer as ReturnType<typeof vi.fn>).mock.calls.length;
+
+    const tex1 = { __kind: "texture", id: 1 } as unknown as WebGLTexture;
+    const tex2 = { __kind: "texture", id: 2 } as unknown as WebGLTexture;
+
+    batch.beginPass(gl);
+    batch.drawRange(gl, tex1, 0, 1);
+    batch.drawRange(gl, tex2, 1, 1);
+    batch.drawRange(gl, tex1, 2, 1);
+    batch.endPass(gl);
+
+    // The invariant state is set exactly once, not once per group (3 groups here).
+    expect(raw.useProgram).toHaveBeenCalledTimes(1);
+    expect(raw.enable).toHaveBeenCalledTimes(1);
+    expect(raw.blendEquationSeparate).toHaveBeenCalledTimes(1);
+    expect(raw.blendFuncSeparate).toHaveBeenCalledTimes(1);
+    expect(raw.activeTexture).toHaveBeenCalledTimes(1);
+    expect(raw.uniform1i).toHaveBeenCalledTimes(1);
+    // bindVertexArray: once to bind (in beginPass), once to unbind (null, in endPass).
+    expect(raw.bindVertexArray).toHaveBeenCalledTimes(2);
+    const vaoCalls = (raw.bindVertexArray as ReturnType<typeof vi.fn>).mock.calls;
+    expect(vaoCalls[0]?.[0]).not.toBeNull();
+    expect(vaoCalls[1]?.[0]).toBeNull();
+
+    // Only bindTexture (per-group, one per drawRange call) varies.
+    expect(raw.bindTexture).toHaveBeenCalledTimes(3);
+
+    // bindBuffer(ARRAY_BUFFER, instanceBuffer) is issued once in beginPass and
+    // once more (null) in endPass — not once per group.
+    const bindBufferCallsAfter = (raw.bindBuffer as ReturnType<typeof vi.fn>).mock.calls.length;
+    expect(bindBufferCallsAfter - bindBufferCallsBefore).toBe(2);
   });
 });

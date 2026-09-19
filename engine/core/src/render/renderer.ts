@@ -163,6 +163,20 @@ export interface RendererLike {
   profileUi?: boolean;
   lastUiFlush?: { ms: number; quads: number };
 
+  /**
+   * Dev-only profiling seam for sprite draw-group coalescing (sweep-05), gated
+   * by the same `profileUi` flag as `lastUiFlush` above. `groups` is the MAIN
+   * sprite pass's draw-group count; `ghostGroups` is the separate occluder/ghost
+   * redraw pass's own group count (kept apart because it draws over
+   * already-drawn geometry and would otherwise skew the ratio this exists to
+   * observe); `sprites` is the culled sprite-queue length submitted this frame;
+   * `atlases` is the number of distinct atlases actually bound in the main pass
+   * — the theoretical floor `groups` is measured against. Optional: backends
+   * may omit it (zero overhead when unset or false); it must never affect
+   * rendered output.
+   */
+  lastDrawStats?: { groups: number; ghostGroups: number; sprites: number; atlases: number };
+
   endFrame(
     wash?: WashOptions,
     particles?: ParticleSystem,

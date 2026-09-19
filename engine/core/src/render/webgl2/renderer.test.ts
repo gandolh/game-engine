@@ -68,7 +68,9 @@ vi.mock("./sprite-batch", () => ({
     setView(): void { rec.order.push("sprite.setView"); }
     add(): number { this.count += 1; return this.count - 1; }
     upload(): void {}
+    beginPass(): void { rec.order.push("sprite.beginPass"); }
     drawRange(): void { rec.order.push("sprites"); }
+    endPass(): void { rec.order.push("sprite.endPass"); }
   },
 }));
 
@@ -231,7 +233,9 @@ describe("WebGl2Renderer draw order", () => {
       "water",
       "static",
       "shadows",
+      "sprite.beginPass",
       "sprites",
+      "sprite.endPass",
       "particles",
       "weather",
       "overlayLight",
@@ -273,6 +277,62 @@ describe("WebGl2Renderer draw order", () => {
     r.endFrame({ color: "#000000", alpha: 0.5 });
 
     expect(rec.order).not.toContain("overlayLight");
+  });
+});
+
+describe("WebGl2Renderer sprite draw-group hoist (sweep-05)", () => {
+  it("brackets ALL of this frame's draw groups with exactly one beginPass/endPass, however many groups the queue produces", () => {
+    const r = makeRenderer();
+    r.beginFrame();
+    // Same layer/sortY-adjacent sprites with alternating atlasId force three
+    // separate groups out of the coalescing loop (a, b, a) — compareSprite
+    // doesn't know atlases exist, which is exactly sweep-05's premise.
+    r.push(makeSprite({ atlasId: "a", y: 0 }));
+    r.push(makeSprite({ atlasId: "b", y: 1 }));
+    r.push(makeSprite({ atlasId: "a", y: 2 }));
+    r.endFrame();
+
+    expect(rec.order.filter((s) => s === "sprite.beginPass")).toHaveLength(1);
+    expect(rec.order.filter((s) => s === "sprite.endPass")).toHaveLength(1);
+    // Three draw groups (a, b, a) -> three drawRange calls, bracketed once.
+    expect(rec.order.filter((s) => s === "sprites")).toHaveLength(3);
+    expect(rec.order.indexOf("sprite.beginPass")).toBeLessThan(rec.order.indexOf("sprites"));
+    expect(rec.order.lastIndexOf("sprite.endPass")).toBeGreaterThan(rec.order.lastIndexOf("sprites"));
+  });
+
+  it("issues no beginPass/endPass when there is nothing to draw", () => {
+    const r = makeRenderer();
+    r.beginFrame();
+    r.endFrame();
+    expect(rec.order).not.toContain("sprite.beginPass");
+    expect(rec.order).not.toContain("sprite.endPass");
+  });
+});
+
+describe("WebGl2Renderer draw-group profiling seam (sweep-05)", () => {
+  it("leaves lastDrawStats at its zeroed default when profileUi is off", () => {
+    const r = makeRenderer();
+    r.beginFrame();
+    r.push(makeSprite({ atlasId: "a" }));
+    r.push(makeSprite({ atlasId: "b" }));
+    r.endFrame();
+
+    expect(r.lastDrawStats).toEqual({ groups: 0, ghostGroups: 0, sprites: 0, atlases: 0 });
+  });
+
+  it("reports the main-pass group count, sprite-queue length, and distinct atlas count when profileUi is on", () => {
+    const r = makeRenderer();
+    r.profileUi = true;
+    r.beginFrame();
+    r.push(makeSprite({ atlasId: "a", y: 0 }));
+    r.push(makeSprite({ atlasId: "b", y: 1 }));
+    r.push(makeSprite({ atlasId: "a", y: 2 }));
+    r.endFrame();
+
+    expect(r.lastDrawStats.sprites).toBe(3);
+    expect(r.lastDrawStats.groups).toBe(3); // a, b, a — three groups, two atlases
+    expect(r.lastDrawStats.atlases).toBe(2);
+    expect(r.lastDrawStats.ghostGroups).toBe(0); // no occludable sprites pushed
   });
 });
 

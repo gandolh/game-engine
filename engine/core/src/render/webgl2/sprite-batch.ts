@@ -22,6 +22,18 @@
 // which the caller (brief 08's renderer) must call once per frame, before any
 // `drawRange` calls, exactly where it would otherwise do `pass.setBindGroup(0, ...)`.
 // See the handoff notes in the brief's completion report for the exact call order.
+//
+// beginPass/drawRange/endPass (sweep-05): `drawRange` used to re-issue the FULL
+// GL state (program, view uniforms, texture unit, blend mode, VAO bind) on every
+// draw group, even though only the bound texture and the attribute byte offsets
+// (see `_setupInstanceAttribs` below) actually differ between groups. That is 41
+// of 43 GL calls repeated identically per group for no reason. `beginPass` now
+// sets everything invariant ONCE per frame; `drawRange` issues only the two
+// things that vary; `endPass` unwinds the VAO/buffer bind so the next pass in
+// `endFrame` (particles, weather, overlay-light, …) starts from a known state.
+// Callers MUST NOT let another pass touch BLEND, the current program, or the
+// bound VAO between `beginPass()` and `endPass()` — see renderer.ts's endFrame
+// for why the group-draw loop is the only safe place to bracket this.
 import vertSrc from "./shaders/sprite.vert.glsl?raw";
 import fragSrc from "./shaders/sprite.frag.glsl?raw";
 import { compileProgram, uniformLocations, setupAttrib, createVao } from "./program";
@@ -167,8 +179,47 @@ export class SpriteBatch {
   }
 
   /**
+   * Set every GL call that is IDENTICAL across every draw group in this pass —
+   * program, view uniforms, texture unit + sampler binding, blend mode, and the
+   * VAO + instance buffer bind. Call exactly once per frame, immediately before
+   * the first `drawRange` of the pass, and pair with a matching `endPass()`
+   * immediately after the last one (see sweep-05 and the file header comment).
+   *
+   * Binding the instance buffer here (rather than per-group) is safe because
+   * `drawRange`'s attribute re-point (`_setupInstanceAttribs`) only ever needs
+   * `ARRAY_BUFFER` bound to `instanceBuffer` at the moment it calls
+   * `vertexAttribPointer` — WebGL2 attribute state captures the bound buffer at
+   * setup time, not continuously, so leaving the bind in place across the whole
+   * group loop is equivalent to re-binding it every group.
+   */
+  beginPass(gl: WebGL2RenderingContext): void {
+    gl.useProgram(this.program);
+
+    const view = this.lastView;
+    gl.uniform2f(this.uniforms.u_scale, view.scaleX, view.scaleY);
+    gl.uniform2f(this.uniforms.u_offset, view.offsetX, view.offsetY);
+    gl.uniform1f(this.uniforms.u_time_sec, view.timeSec);
+    gl.uniform1f(this.uniforms.u_wind_strength, view.windStrength);
+
+    // The sampler always reads texture unit 0; only WHICH texture is bound to
+    // that unit changes per group, and that bind lives in drawRange.
+    gl.activeTexture(gl.TEXTURE0);
+    gl.uniform1i(this.uniforms.u_atlas, 0);
+
+    // Premultiplied-alpha blend, translated literally from the WebGPU pipeline's
+    // blend descriptor (see file header comment). Identical for every group.
+    gl.enable(gl.BLEND);
+    gl.blendEquationSeparate(gl.FUNC_ADD, gl.FUNC_ADD);
+    gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+
+    gl.bindVertexArray(this.vao);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.instanceBuffer);
+  }
+
+  /**
    * Draws instances `[first, first + count)` from the currently uploaded buffer.
-   * Signature is the one change the brief permits: WebGPU's
+   * Must be called between `beginPass()` and `endPass()`. Signature is the one
+   * change the original WebGPU-port brief permitted: WebGPU's
    * `drawRange(pass: GPURenderPassEncoder, atlasBindGroup: GPUBindGroup, first, count)`
    * becomes `drawRange(gl, atlasTexture, first, count)` — GL context + texture
    * handle standing in for the pass encoder + bind group.
@@ -178,36 +229,25 @@ export class SpriteBatch {
    * there is no ANGLE/core WebGL2 equivalent of `glDrawArraysInstancedBaseInstance`).
    * The workaround, standard for GL: re-point every per-instance attribute at
    * `first * STRIDE_BYTES` into the instance buffer before the draw, then always
-   * draw instances `[0, count)` relative to that offset.
+   * draw instances `[0, count)` relative to that offset. That re-point (and the
+   * bound texture) are the only two things that differ between groups — see
+   * `beginPass` above for everything else.
    */
   drawRange(gl: WebGL2RenderingContext, atlasTexture: WebGLTexture, first: number, count: number): void {
     if (count === 0) return;
 
-    gl.useProgram(this.program);
-
-    const view = this.lastView;
-    gl.uniform2f(this.uniforms.u_scale, view.scaleX, view.scaleY);
-    gl.uniform2f(this.uniforms.u_offset, view.offsetX, view.offsetY);
-    gl.uniform1f(this.uniforms.u_time_sec, view.timeSec);
-    gl.uniform1f(this.uniforms.u_wind_strength, view.windStrength);
-
-    gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, atlasTexture);
-    gl.uniform1i(this.uniforms.u_atlas, 0);
-
-    // Premultiplied-alpha blend, translated literally from the WebGPU pipeline's
-    // blend descriptor (see file header comment).
-    gl.enable(gl.BLEND);
-    gl.blendEquationSeparate(gl.FUNC_ADD, gl.FUNC_ADD);
-    gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-
-    gl.bindVertexArray(this.vao);
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.instanceBuffer);
     this._setupInstanceAttribs(first * STRIDE_BYTES);
-    gl.bindBuffer(gl.ARRAY_BUFFER, null);
 
     gl.drawArraysInstanced(gl.TRIANGLES, 0, 6, count);
+  }
 
+  /** Unwind the pass-invariant bindings set by `beginPass()`. Call exactly once
+   *  per frame, immediately after the last `drawRange()` of this pass, so the
+   *  next pass in `endFrame` (particles, weather, …) does not inherit this
+   *  batch's VAO/buffer bind. */
+  endPass(gl: WebGL2RenderingContext): void {
+    gl.bindBuffer(gl.ARRAY_BUFFER, null);
     gl.bindVertexArray(null);
   }
 

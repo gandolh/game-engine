@@ -38,6 +38,7 @@ interface ShadowRecord {
 /** One coalesced run of same-atlas instances in the sprite batch. */
 interface DrawGroup {
   texture: WebGLTexture | null;
+  atlasId: string;
   first: number;
   count: number;
 }
@@ -135,6 +136,18 @@ export class WebGl2Renderer implements RendererLike {
   // the host flips it when profiling so production frames pay nothing.
   profileUi = false;
   lastUiFlush = { ms: 0, quads: 0 };
+
+  // Dev-only draw-group profiling seam (sweep-05), guarded by the SAME
+  // `profileUi` flag as above rather than a second flag — one dev switch for
+  // every render-loop profiling seam. `groups` is the MAIN sprite pass's
+  // draw-group count ONLY; `ghostGroups` is the separate `_ghostCovered`
+  // occluder-redraw pass's own coalescing (drawn afterwards, over
+  // already-drawn geometry), kept apart so it can't inflate the ratio this
+  // counter exists to observe. `sprites` is the culled sprite-queue length
+  // submitted this frame (`_queueLen`), and `atlases` is the number of
+  // distinct atlases actually bound across the main-pass groups — the
+  // theoretical floor `groups` is measured against.
+  lastDrawStats = { groups: 0, ghostGroups: 0, sprites: 0, atlases: 0 };
 
   private _occludableIdx: number[] = [];
 
@@ -479,13 +492,27 @@ export class WebGl2Renderer implements RendererLike {
   private _recordGroup(atlasId: string, first: number, count: number): void {
     let rec = this._groups[this._groupLen];
     if (rec === undefined) {
-      rec = { texture: null, first: 0, count: 0 };
+      rec = { texture: null, atlasId: "", first: 0, count: 0 };
       this._groups[this._groupLen] = rec;
     }
     rec.texture = this._store.texture(atlasId);
+    rec.atlasId = atlasId;
     rec.first = first;
     rec.count = count;
     this._groupLen += 1;
+  }
+
+  /** Dev-only (sweep-05): number of distinct atlases bound across
+   *  `this._groups[0, groupLen)`. Only called from inside the `profileUi`
+   *  guard in `endFrame`, so it costs nothing in production frames. */
+  private _countDistinctAtlases(groupLen: number): number {
+    const seen = new Set<string>();
+    for (let idx = 0; idx < groupLen; idx += 1) {
+      const grp = this._groups[idx];
+      if (grp === undefined) continue;
+      seen.add(grp.atlasId);
+    }
+    return seen.size;
   }
 
   private _packSprite(
@@ -606,6 +633,10 @@ export class WebGl2Renderer implements RendererLike {
       i = j;
     }
 
+    // Boundary between the main pass's groups and the ghost pass's own groups
+    // below — see lastDrawStats.groups / lastDrawStats.ghostGroups.
+    const mainGroupLen = this._groupLen;
+
     // Ghost redraws are packed in occludableIdx (ascending queue-index) order, so
     // consecutive covered ghosts sharing an atlas land contiguously in the batch
     // and can share one draw group — mirrors the main-pass coalescing loop above.
@@ -661,10 +692,19 @@ export class WebGl2Renderer implements RendererLike {
 
     this._shadowBatch.draw(gl);
 
-    for (let gIdx = 0; gIdx < this._groupLen; gIdx += 1) {
-      const grp = this._groups[gIdx];
-      if (grp === undefined || grp.texture === null) continue;
-      this._batch.drawRange(gl, grp.texture, grp.first, grp.count);
+    // beginPass/endPass (sweep-05) bracket ONLY this loop — the first safe scope.
+    // Everything before it (water/static/shadows) sets its own GL state before we
+    // get here, and everything after (particles/weather/overlay-light/cloud/tint)
+    // sets its own state again; nothing between beginPass and endPass touches
+    // BLEND, the current program, or the bound VAO except this loop itself.
+    if (this._groupLen > 0) {
+      this._batch.beginPass(gl);
+      for (let gIdx = 0; gIdx < this._groupLen; gIdx += 1) {
+        const grp = this._groups[gIdx];
+        if (grp === undefined || grp.texture === null) continue;
+        this._batch.drawRange(gl, grp.texture, grp.first, grp.count);
+      }
+      this._batch.endPass(gl);
     }
 
     if (this.useGpuEffects) {
@@ -727,6 +767,11 @@ export class WebGl2Renderer implements RendererLike {
     if (this.profileUi) {
       this.lastUiFlush.ms = performance.now() - uiFlushT0;
       this.lastUiFlush.quads = this._uiLen;
+
+      this.lastDrawStats.sprites = this._queueLen;
+      this.lastDrawStats.groups = mainGroupLen;
+      this.lastDrawStats.ghostGroups = this._groupLen - mainGroupLen;
+      this.lastDrawStats.atlases = this._countDistinctAtlases(mainGroupLen);
     }
   }
 }
