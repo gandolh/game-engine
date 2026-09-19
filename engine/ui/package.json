@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "description": "In-canvas UI toolkit for @engine/core — a retained widget tree, flex layout, bitmap-font text, shade-mask icons, screen-space input dispatch, and a DOM a11y mirror. Renders through the same WebGL2 renderer as the game scene, fully themeable, game-agnostic.",
   "license": "MIT",
+  "engines": {
+    "node": ">=24"
+  },
   "type": "module",
   "sideEffects": false,
   "main": "./src/index.ts",
@@ -18,7 +21,8 @@
     "./input": "./src/input/index.ts",
     "./scroll": "./src/scroll/index.ts",
     "./anim": "./src/anim/index.ts",
-    "./a11y": "./src/a11y/index.ts"
+    "./a11y": "./src/a11y/index.ts",
+    "./state": "./src/state/index.ts"
   },
   "files": [
     "dist",
@@ -72,6 +76,10 @@
       "./a11y": {
         "types": "./dist/a11y/index.d.ts",
         "default": "./dist/a11y/index.js"
+      },
+      "./state": {
+        "types": "./dist/state/index.d.ts",
+        "default": "./dist/state/index.js"
       }
     }
   },

@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "description": "Generic, deterministic TypeScript ECS game engine — in-house ECS, seeded RNG, fixed-tick scheduler, snapshot/interp render boundary, FIPA-style message bus, WebGL2 render, and asset/animation/input toolkits. Game-agnostic.",
   "license": "MIT",
+  "engines": {
+    "node": ">=24"
+  },
   "type": "module",
   "sideEffects": false,
   "main": "./src/index.ts",

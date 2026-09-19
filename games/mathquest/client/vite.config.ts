@@ -12,7 +12,8 @@ export default defineConfig({
     port: 5176,
   },
   build: {
-    target: "esnext",
+    // Tracks tsconfig.base.json's "target": "ES2022" — see corpus/wiki/decisions.md.
+    target: "es2022",
     sourcemap: true,
   },
 });
