@@ -86,8 +86,8 @@ which is how a "WebGPU-only render path" line outlived the page that already sai
   I–VIII claim to I–IV** — a content-design call),
   [audit-58](todos/closed/2026-09-18-audit-58-status-md-retrieval-budget.md) (split `wiki/status.md`'s 119 KB;
   land 53 first) and
-  [audit-59](todos/2026-09-18-audit-59-deploy-not-in-version-control.md) (**which deploy story is real** —
-  the wiki describes pm2 + Caddy + a `deploy.ts` that is nowhere on disk).
+  [audit-59](todos/closed/2026-09-18-audit-59-deploy-not-in-version-control.md) (**settled**: this repo
+  builds the sim server image; the deployment configuration lives outside it).
 
 - **Hollow** — 01–12, 14, 15 shipped; **hollow-13** (LLM rationalizer seam) is the one queued brief.
   [todos/2026-07-17-hollow-BUILD-STATE.md](todos/2026-07-17-hollow-BUILD-STATE.md)

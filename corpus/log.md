@@ -4,6 +4,48 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-09-19] decision | audit-59: the repo builds an image; the deploy lives outside it
+
+`find` over this repo, excluding `node_modules`/`.git`, returned **no** `deploy*`, `Caddyfile*`,
+`*pm2*` or `ecosystem*` file — only corpus markdown. Yet [decisions.md](wiki/decisions.md) carried a
+detailed *Prod hosting* bullet describing a `deploy.ts` with an rsync + `npm ci` + process-manager
+`server` phase, a process-manager entry, and a reverse-proxy snippet, ending *"the deploy automation
+is **dry-run-verified only**"* — a claim that could not even be re-checked, because the script it
+referred to was not here. `architecture.md` and `status.md` repeated it. Meanwhile `infrastructure/`
+held a Dockerfile + compose file describing a **different** deploy. Two stories, neither shipped.
+
+**Settled (user's call): there is one deployment configuration and it is maintained outside this
+repository.** This repo's job stops at the image.
+
+So the pm2/`deploy.ts` narrative was **deleted, not rewritten** — in `decisions.md`, `architecture.md`,
+`status.md` and `index.md` — and [`infrastructure/README.md`](../infrastructure/README.md) was
+written as the boundary document: what this directory builds, what it deliberately does not hold, and
+the **image/runtime contract** that nothing downstream can re-derive (`PORT` in three places that must
+move together; the transport is a **WebSocket**, so a proxy must *upgrade* rather than forward;
+loopback-only publication; Node `>=24`; the self-enforcing wasm check).
+
+**Why "outside the repo" is a decision and not a shrug.** One copy of deploy config exists and it is
+the one that runs. A second copy here would drift from it and then read as authoritative — which is
+exactly what the deleted bullet did for three months, to the point that it was still being cited as
+current. The README says so in as many words, so the next person does not helpfully "restore" it.
+
+**The gate that cannot exist, stated where it bites.** `audit-40`'s `.dockerignore` bug — `**/dist`
+stripping the wasm the sim server reads — survived because *the only committed deploy path was one
+nobody built*. That is now written into the README under **What is not verified from here**, together
+with the honest admission that nothing in `infrastructure/` has been built or run in this dev sandbox
+at all (no Docker daemon), and what would actually verify it: build, run, and open the live game
+through the real proxy, which exercises the port, the upgrade and the wasm load in one client
+connection.
+
+Also committed: `infrastructure/.env.example`. `docker-compose.yml` has `env_file: - .env`
+unconditionally, so `docker compose up` failed without a file that was never committed and whose
+variable names were written down nowhere. Names and effects only, no values.
+
+**Left alone, and worth knowing:** `docs/astro.config.mjs` and `docs/scripts/build-diagrams.mjs`
+contain three pre-existing comments naming the external deploy tooling while explaining *why the docs
+base path is baked in here rather than injected at deploy time*. That reasoning is sound and is about
+this repo's build, so the comments were not touched as part of this brief.
+
 ## [2026-09-19] decision | audit-54: MateQuest is a grades I–IV game, and says so
 
 `CLAUDE.md` told every future agent MateQuest was *"a Romanian-curriculum (grades I–VIII) math
