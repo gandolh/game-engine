@@ -42,7 +42,7 @@ environmental reasons is worse than one that doesn't exist, because it spends so
 then gets believed.
 
 The inverse was checked too, since a false green is the more dangerous half: the widened palette guard
-([audit-44](todos/closed/2026-09-18-audit-44-palette-guard-scans-no-markup.md)) asserts non-empty file
+([audit-44](todos/closed/2026-09-18-audit-44-palette-guard-skips-html-css.md)) asserts non-empty file
 counts — *"no .html files scanned — the widened scan is not reaching them"* — so it cannot silently
 pass on zero files, and it does not use `cwd`. No guard run this session passed vacuously.
 
