@@ -4,6 +4,83 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [todos/closed/](todos/closed/), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-09-19] audit | A third sweep — one real bug, three specs, and a lot of clean lenses
+
+Run inline after the `audit-38..63` queue closed, so the easy findings were already gone. **What came
+back clean is most of the result**, and worth recording so the next sweep does not re-run it:
+
+- **Determinism in sim code** — every `Math.random` / `Date.now` / `performance.now` / `new Date(` hit
+  across all four `sim-core` packages and `engine/core/src/{sim,ecs,runtime}` is a **comment asserting
+  the rule**, not a violation. Zero real hits.
+- **Debt markers** — zero `TODO`/`FIXME`/`HACK`/`XXX` in any source file.
+- **Swallowed errors** — zero empty `catch` blocks.
+- **Type escapes** — no `@ts-ignore`; every `eslint-disable` carries a justifying `--` comment.
+- **Locked conventions** — no `.js` import suffixes anywhere, no `^`/`~` version ranges in any
+  `package.json`. Both rules are currently *obeyed*.
+- **Test coverage** — every workspace declares `test` except `@tool/world-preview`, which CLAUDE.md
+  already records as a deliberate choice.
+
+### The one real bug: MateQuest's buttons stayed stuck pressed
+
+[audit-48](todos/closed/2026-09-18-audit-48-ui-press-wedge.md) fixed the
+released-off-canvas gesture in Farm and Citadel. **MateQuest never got it** — and the reason it kept
+recurring is that `@engine/ui` had no primitive for it: `pointerUp` was the *only* thing that cleared
+the dispatcher's `active` node, so a press released outside the canvas left the widget rendering as
+pressed for the rest of the session.
+
+Fixed by adding `dispatcher.cancelPointer()` and wiring MateQuest to it. **Demonstrated red at two
+levels before writing the fix**, and the browser half is the part worth copying: a three-frame pixel
+A/B on the live game, cropped to the button row, after first proving the scene is static at rest so
+byte-comparison means something.
+
+| | button row |
+|---|---|
+| press | **1254 px** differ from rest |
+| **without** the fix, after an outside release | pixel-identical to the **pressed** frame — stuck |
+| **with** the fix, after an outside release | pixel-identical to the **rest** frame |
+
+The "without" row was produced by disabling *only* the two new listeners and letting HMR reload. That
+makes it a **counterfactual rather than a correlation** — it proves the wiring is what changed the
+behaviour, which a green-only screenshot never does.
+
+**The finding underneath the finding: four games, four different answers to one problem.** Hollow was
+never vulnerable because [`camera-input.ts`](../games/hollow/client/src/render3d/camera-input.ts) uses
+`setPointerCapture` — the browser routes the release back to the canvas wherever it lands. That is the
+correct and cheapest fix, and the other three each reinvented something worse. Written up in
+[wiki/engine-ui.md](wiki/engine-ui.md) with the guidance to prefer pointer capture for new paths.
+
+### Three specs filed rather than fixed
+
+- **[sweep-01](todos/2026-09-19-sweep-01-determinism-has-no-guard.md)** — *"Determinism is
+  load-bearing"* is the repo's most important invariant, and the **only** tests that enforce it read
+  two files in Citadel's *client render* layer. No guard covers any `sim-core`. The rule is currently
+  held up by comments and reviewer memory. Zero violations today — which is exactly why the guard has
+  to go in now, while it passes. Two smaller siblings ride along: the `.js`-suffix and version-pinning
+  rules also have no enforcement, and `npm install` writes a caret by default.
+- **[sweep-02](todos/2026-09-19-sweep-02-apollo-palette-five-copies.md)** — Apollo-46 is
+  hand-maintained in **five** copies, and `nearestApollo` is **character-for-character identical**
+  between Citadel and Hollow. Each pair is self-pinned, so nothing would catch the two games drifting
+  apart. Filed honestly as **debt, not a live bug**.
+- **[sweep-03](todos/2026-09-19-sweep-03-converge-pointer-gesture-handling.md)** — converge Farm and
+  Citadel onto `cancelPointer()`. **Deliberately not done during the sweep that found it**: both
+  work today, and live gesture code whose bugs are subtle and intermittent is the exact profile of
+  change that should not ride along at the end of an unrelated pass.
+
+### Two things I got wrong, and how the method caught them
+
+**A hypothesis died on contact with data.** I predicted the palette duplication would show up as
+`candidateOptionKey`-style over-strict identity — that `steal`'s `{targetId, good, amount}` payload
+would make options go stale on quantity drift. Instrumenting every rejection showed the *target* was
+gone in 43 of 43 cases; the amount never mattered. The proposed fix would have fixed **zero** cases.
+*(That instrumentation belongs to hollow-16 above, but the lesson is the same one this sweep kept
+re-learning: measure the mechanism, do not reason about it.)*
+
+**A "duplication" that isn't.** `screenToWorld` appears in Farm and Citadel and *is* the same
+inverse-camera formula — but the signatures genuinely differ (canvas element + CSS px vs explicit
+dimensions + device px), Citadel's continues into iso-specific `isoToTile`, and it is eight lines of
+arithmetic that rarely changes. Recorded inside sweep-02 as **explicitly not worth promoting**, with
+the reasoning, so the next sweep does not re-derive it and reach a different conclusion.
+
 ## [2026-09-19] change | Two spec archives became one — `briefs/` folded into `todos/closed/`
 
 **Why there were two:** `briefs/{engine,game}/{done,superseded}/` was the original scheme (numbered

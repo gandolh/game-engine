@@ -68,7 +68,18 @@ which is how a "WebGPU-only render path" line outlived the page that already sai
 
 ## Build programs
 
-**The queue holds exactly two things.** Both are in [todos/](todos/); everything else is closed.
+**The queue holds five things.** All in [todos/](todos/); everything else is closed.
+
+- **[sweep-01](todos/2026-09-19-sweep-01-determinism-has-no-guard.md)** — *"Determinism is
+  load-bearing"* is enforced by **two tests, both in Citadel's client render layer**. No guard covers
+  any of the four `sim-core` packages. Zero violations today, which is why the guard must be added
+  now. Same class as audit-44/45/51.
+- **[sweep-02](todos/2026-09-19-sweep-02-apollo-palette-five-copies.md)** — Apollo-46 is
+  hand-maintained in **five** copies and `nearestApollo` is duplicated character-for-character
+  between Citadel and Hollow. Debt, not a live bug.
+- **[sweep-03](todos/2026-09-19-sweep-03-converge-pointer-gesture-handling.md)** — four games, four
+  different answers to "the pointer was released off-canvas". Deliberately not done during the sweep
+  that found it: Farm and Citadel work, and this is live gesture code.
 
 - **[hollow-17](todos/2026-09-19-hollow-17-rationalizer-attachment-point.md)** — move Hollow's LLM
   rationalizer seam to a decision whose **subject outlives the 40-tick answer-lag**. Measured
