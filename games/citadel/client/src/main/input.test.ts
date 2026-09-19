@@ -19,7 +19,8 @@ import { describe, it, expect, afterEach, beforeAll, beforeEach, vi } from "vite
 import { createInputDispatcher } from "@engine/ui";
 import type { InputDispatcher, A11yMirror, ConsumeResult } from "@engine/ui";
 import { createStatusPanel } from "./status-panel";
-import type { PanelId, PanelPrefs } from "./panel-prefs";
+import type { PanelPrefs } from "@engine/ui";
+import type { PanelId } from "./hud-panels";
 
 // ---------------------------------------------------------------------------
 // Fakes shared by every OTHER canvas UI root (uiDispatcher/inspect/buildBar/settings/
@@ -48,7 +49,7 @@ function stubMirror(): A11yMirror {
 }
 
 /** Same shape as status-panel.test.ts's fake — an in-memory PanelPrefs with toggle calls recorded. */
-function makeFakePrefs(defaults: Partial<Record<PanelId, boolean>> = { status: true }): PanelPrefs & {
+function makeFakePrefs(defaults: Partial<Record<PanelId, boolean>> = { status: true }): PanelPrefs<PanelId> & {
   readonly toggleCalls: PanelId[];
 } {
   const state = new Map<PanelId, boolean>(Object.entries(defaults) as Array<[PanelId, boolean]>);
@@ -205,7 +206,7 @@ function dispatchKeydown(key: string, shiftKey = false): KeyboardEvent {
 }
 
 describe("input.ts keydown chain — siege/status dispatcher forwarding", () => {
-  let prefs: PanelPrefs & { toggleCalls: PanelId[] };
+  let prefs: PanelPrefs<PanelId> & { toggleCalls: PanelId[] };
   let panel: ReturnType<typeof createStatusPanel>;
   let siegeMirrorSetFocus: ReturnType<typeof vi.fn<(id: number | null) => void>>;
 

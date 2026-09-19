@@ -34,7 +34,8 @@ import { EDG } from "@engine/core";
 import { box, button, label, panel } from "@engine/ui";
 import type { ContainerNode, LabelNode } from "@engine/ui";
 import { personalityColor } from "../colors";
-import type { PanelPrefs } from "./panel-prefs";
+import type { PanelPrefs } from "@engine/ui";
+import type { PanelId } from "../../main/panels";
 
 export interface RelationshipMatrixData {
   farmers: Array<{ id: number; name: string; personality: string }>;
@@ -88,7 +89,7 @@ export interface RelationshipMatrix {
  * Build the retained relationship-matrix widget tree. The grid body is rebuilt wholesale on
  * change (small N x N farmer count keeps this cheap), matching the DOM version's `replaceChildren`.
  */
-export function createRelationshipMatrix(prefs: PanelPrefs): RelationshipMatrix {
+export function createRelationshipMatrix(prefs: PanelPrefs<PanelId>): RelationshipMatrix {
   const toggleBtn = button("Relations", { onActivate: () => doToggle() });
   const title = label("Relationships", { color: EDG.white });
   const caption = label(

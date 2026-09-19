@@ -1,10 +1,9 @@
-import { UISurface, createInputDispatcher, createA11yMirror } from "@engine/ui";
+import { UISurface, createInputDispatcher, createA11yMirror, createPanelPrefs, safeLocalStorage } from "@engine/ui";
 import type { InputDispatcher, A11yMirror } from "@engine/ui";
 import { createResourceHud } from "../ui/resource-hud";
 import type { ResourceHud } from "../ui/resource-hud";
 import type { SiegeHud } from "../ui/siege-hud";
 import { createStatusPanel } from "./status-panel";
-import { createPanelPrefs } from "./panel-prefs";
 import { renderer } from "./renderer-state";
 import { a11yMount, siegeA11yMount } from "./dom";
 import { togglePause, setSpeedAndResume } from "./sim-client";
@@ -53,22 +52,26 @@ export let siegeHud: SiegeHud | undefined;
 export let siegeDispatcher: InputDispatcher | undefined;
 export let siegeMirror: A11yMirror | undefined;
 
-/** `window.localStorage` can itself throw in strict-privacy browser modes (not just on get/set
- *  item) — guard the access, not just the calls, and fall back to in-memory prefs. Mirrors
- *  Farm Valley's `main/panels.ts::safeLocalStorage`. */
-function safeLocalStorage(): Storage | null {
-  try {
-    return window.localStorage;
-  } catch {
-    return null;
-  }
-}
+/** Every collapsible in-canvas HUD panel Citadel has (sweep-09 promoted the store itself to
+ *  `@engine/ui/state`, but this union — and the storage key it's persisted under — stays
+ *  Citadel's own). Currently just the "status" section; a future collapsible panel extends this
+ *  union rather than inventing a second store. */
+export type PanelId = "status";
+const PANEL_IDS: readonly PanelId[] = ["status"];
+/** Per-panel default open/closed state, used when nothing is stored yet for that id. */
+const PANEL_DEFAULTS: Record<PanelId, boolean> = { status: true };
+const PANEL_STORAGE_KEY = "citadel.ui.panels.v1";
 
 // Todo 2026-07-15-citadel-status-collapsible-panel: shared collapsible-panel open/closed store,
 // built once. Currently backs only status-panel.ts's "status" section, but lives at module scope
 // (like Farm's `panelPrefs` in `main/panels.ts`) so a future collapsible panel can share the same
 // store instead of inventing a second one.
-const panelPrefs = createPanelPrefs(safeLocalStorage());
+const panelPrefs = createPanelPrefs<PanelId>({
+  storageKey: PANEL_STORAGE_KEY,
+  ids: PANEL_IDS,
+  defaults: PANEL_DEFAULTS,
+  storage: safeLocalStorage(),
+});
 
 /**
  * Chunk 1A (brief 106) + todo 2026-07-15-citadel-status-collapsible-panel: the siege/hazard HUD

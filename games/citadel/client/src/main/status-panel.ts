@@ -18,7 +18,7 @@
  * theme defaults).
  *
  * ## Default state
- * Default OPEN (see `panel-prefs.ts`'s `PANEL_DEFAULTS`) — unlike Farm's five panels (farmer
+ * Default OPEN (see `hud-panels.ts`'s `PANEL_DEFAULTS`) — unlike Farm's five panels (farmer
  * list / shop / event feed / matrices: deep, opt-in data the player dives into occasionally),
  * this strip is a single-line AMBIENT-AWARENESS readout (threat level / defense / keep status /
  * active fires / disease) the player watches passively during play, especially mid-siege when
@@ -34,12 +34,13 @@
 import { box, button } from "@engine/ui";
 import { createSiegeHud } from "../ui/siege-hud";
 import type { SiegeHud, SiegeHudState } from "../ui/siege-hud";
-import type { PanelId, PanelPrefs } from "./panel-prefs";
+import type { PanelPrefs } from "@engine/ui";
+import type { PanelId } from "./hud-panels";
 
 const STATUS_PANEL_ID: PanelId = "status";
 
 /** Build the collapsible "Status" section wrapping a fresh `createSiegeHud()` instance. */
-export function createStatusPanel(prefs: PanelPrefs): SiegeHud {
+export function createStatusPanel(prefs: PanelPrefs<PanelId>): SiegeHud {
   const inner = createSiegeHud();
   const toggleBtn = button("Status", {
     onActivate: () => {

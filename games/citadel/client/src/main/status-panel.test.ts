@@ -2,7 +2,8 @@ import { describe, it, expect } from "vitest";
 import type { ButtonNode } from "@engine/ui";
 import { createStatusPanel } from "./status-panel";
 import type { SiegeHudState } from "../ui/siege-hud";
-import type { PanelId, PanelPrefs } from "./panel-prefs";
+import type { PanelPrefs } from "@engine/ui";
+import type { PanelId } from "./hud-panels";
 
 function baseState(overrides: Partial<SiegeHudState> = {}): SiegeHudState {
   return {
@@ -21,8 +22,8 @@ function baseState(overrides: Partial<SiegeHudState> = {}): SiegeHudState {
 
 /** A fake `PanelPrefs` — in-memory, with every `toggle` call recorded so tests can assert the
  *  button-press path reaches prefs. Defaults to whatever `defaults` says (spec default for
- *  "status": open — see panel-prefs.ts's PANEL_DEFAULTS). */
-function makeFakePrefs(defaults: Partial<Record<PanelId, boolean>> = { status: true }): PanelPrefs & {
+ *  "status": open — see hud-panels.ts's PANEL_DEFAULTS). */
+function makeFakePrefs(defaults: Partial<Record<PanelId, boolean>> = { status: true }): PanelPrefs<PanelId> & {
   readonly toggleCalls: PanelId[];
 } {
   const state = new Map<PanelId, boolean>(Object.entries(defaults) as Array<[PanelId, boolean]>);

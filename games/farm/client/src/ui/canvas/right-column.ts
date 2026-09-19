@@ -62,7 +62,8 @@ import { createEventFeed } from "./event-feed";
 import type { EventFeed, EventFeedRow } from "./event-feed";
 import type { RelationshipMatrix, RelationshipMatrixData } from "./relationship-matrix";
 import type { WealthGraph, WealthToggle } from "./wealth-graph";
-import type { PanelId, PanelPrefs } from "./panel-prefs";
+import type { PanelPrefs } from "@engine/ui";
+import type { PanelId } from "../../main/panels";
 
 /** The three right-column sub-panels this module can independently collapse. */
 export type RightColumnSectionId = "observer" | "slate" | "events";
@@ -151,7 +152,7 @@ interface Section {
  */
 export function createRightColumn(
   actions: ObserverPanelActions,
-  prefs: PanelPrefs,
+  prefs: PanelPrefs<PanelId>,
   extras: RightColumnExtras,
 ): RightColumn {
   const observerPanel = createObserverPanel(actions);

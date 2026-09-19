@@ -15,7 +15,8 @@ import { computeLayout, renderTree } from "@engine/ui";
 import type { ButtonNode, UINode } from "@engine/ui";
 import type { SnapshotWealthSeries } from "@farm/sim-core/snapshot";
 import { createWealthGraph, createWealthToggle } from "./wealth-graph";
-import type { PanelId, PanelPrefs } from "./panel-prefs";
+import type { PanelPrefs } from "@engine/ui";
+import type { PanelId } from "../../main/panels";
 
 /** Bind `series`, lay the node out at (`x`,`y`), and render it into `surface` — the new draw path. */
 function drawGraph(
@@ -108,7 +109,7 @@ describe("createWealthGraph", () => {
 });
 
 /** Minimal fake PanelPrefs — in-memory, records every toggle/setOpen call, defaults closed. */
-function makeFakePrefs(): PanelPrefs & { calls: Array<{ op: string; id: PanelId; value?: boolean }> } {
+function makeFakePrefs(): PanelPrefs<PanelId> & { calls: Array<{ op: string; id: PanelId; value?: boolean }> } {
   const open = new Set<PanelId>();
   const calls: Array<{ op: string; id: PanelId; value?: boolean }> = [];
   return {

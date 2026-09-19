@@ -40,7 +40,8 @@ import type { SnapshotWealthSeries } from "@farm/sim-core/snapshot";
 import { personalityColor } from "../colors";
 import { computePoints, detectCrossings } from "../wealth-graph/compute";
 import type { ChartBounds } from "../wealth-graph/compute";
-import type { PanelPrefs } from "./panel-prefs";
+import type { PanelPrefs } from "@engine/ui";
+import type { PanelId } from "../../main/panels";
 
 /**
  * Padding (px) inside the chart's `w`×`h` box reserved for axis labels. `PAD_LEFT` bounds the
@@ -221,7 +222,7 @@ export interface WealthToggle {
  * for `"wealth"` (closed unless previously persisted open). The button's press handler and
  * `toggleOpen()` share one code path.
  */
-export function createWealthToggle(prefs: PanelPrefs): WealthToggle {
+export function createWealthToggle(prefs: PanelPrefs<PanelId>): WealthToggle {
   let dirty = false;
 
   function doToggle(): void {

@@ -5,7 +5,8 @@ import { createRelationshipMatrix } from "./relationship-matrix";
 import { createWealthGraph, createWealthToggle } from "./wealth-graph";
 import type { ObserverSnapshot } from "@farm/sim-core/snapshot";
 import type { ButtonNode, UINode } from "@engine/ui";
-import type { PanelId, PanelPrefs } from "./panel-prefs";
+import type { PanelPrefs } from "@engine/ui";
+import type { PanelId } from "../../main/panels";
 
 function makeSnapshot(): ObserverSnapshot {
   return {
@@ -30,7 +31,7 @@ function makeState(overrides: Partial<RightColumnState> = {}): RightColumnState 
 
 /** The docked Relations + Wealth panels the host builds and hands to the column. They share the
  *  same `prefs` as the column (their own `relations`/`wealth` ids). */
-function makeExtras(prefs: PanelPrefs): RightColumnExtras {
+function makeExtras(prefs: PanelPrefs<PanelId>): RightColumnExtras {
   return {
     relationshipMatrix: createRelationshipMatrix(prefs),
     wealthToggle: createWealthToggle(prefs),
@@ -41,7 +42,7 @@ function makeExtras(prefs: PanelPrefs): RightColumnExtras {
 /** A fake `PanelPrefs` — in-memory, with every `toggle` call recorded so tests can assert the
  *  button-press path reaches prefs. Panels default to whatever `defaults` says (spec default:
  *  closed, i.e. absent from `defaults`). */
-function makeFakePrefs(defaults: Partial<Record<PanelId, boolean>> = {}): PanelPrefs & {
+function makeFakePrefs(defaults: Partial<Record<PanelId, boolean>> = {}): PanelPrefs<PanelId> & {
   readonly toggleCalls: PanelId[];
 } {
   const state = new Map<PanelId, boolean>(Object.entries(defaults) as Array<[PanelId, boolean]>);

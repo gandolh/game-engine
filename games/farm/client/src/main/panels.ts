@@ -9,6 +9,8 @@
  * handlers drove.
  */
 import { DebugOverlay } from "@engine/core";
+import { createPanelPrefs, safeLocalStorage } from "@engine/ui";
+import type { PanelPrefs } from "@engine/ui";
 import { createWorldClock } from "../ui/canvas/world-clock";
 import type { WorldClock } from "../ui/canvas/world-clock";
 import { createHotbar } from "../ui/canvas/hotbar";
@@ -25,8 +27,6 @@ import { createRelationshipMatrix } from "../ui/canvas/relationship-matrix";
 import type { RelationshipMatrix } from "../ui/canvas/relationship-matrix";
 import { createWealthGraph, createWealthToggle } from "../ui/canvas/wealth-graph";
 import type { WealthGraph, WealthToggle } from "../ui/canvas/wealth-graph";
-import { createPanelPrefs } from "../ui/canvas/panel-prefs";
-import type { PanelPrefs } from "../ui/canvas/panel-prefs";
 import { createGameOverPanel } from "../ui/canvas/game-over";
 import type { GameOverPanel } from "../ui/canvas/game-over";
 import { createInventory } from "../ui/canvas/inventory";
@@ -36,6 +36,14 @@ import type { InspectPanel } from "../ui/canvas/inspect-panel";
 import { createNoticeBoard, createStandingsPost } from "../ui/canvas/diegetic-hud";
 import type { NoticeBoard, StandingsPost } from "../ui/canvas/diegetic-hud";
 import type { UIHost, UIRootHandle } from "../ui/canvas/ui-host";
+
+/** Every collapsible in-canvas HUD panel Farm has (brief 117; sweep-09 promoted the store itself
+ *  to `@engine/ui/state`, but this union — and the storage key it's persisted under — stays
+ *  Farm's own). All five (observer/slate/events/relations/wealth) default CLOSED; `column` is
+ *  right-column.ts's own master collapse. */
+export type PanelId = "observer" | "slate" | "events" | "relations" | "wealth" | "column";
+const PANEL_IDS: readonly PanelId[] = ["observer", "slate", "events", "relations", "wealth", "column"];
+const PANEL_STORAGE_KEY = "farm.ui.panels.v1";
 
 /** The commands the panels invoke back into the host. */
 export interface PanelActions {
@@ -74,7 +82,7 @@ export interface Panels {
   wealthGraph: WealthGraph;
   wealthToggle: WealthToggle;
   /** Shared collapsible-panel open/closed store (observer/slate/events/relations/wealth). */
-  panelPrefs: PanelPrefs;
+  panelPrefs: PanelPrefs<PanelId>;
   gameOverPanel: GameOverPanel;
   gameOverRoot: UIRootHandle;
   inventory: Inventory;
@@ -92,16 +100,6 @@ function mount(id: string): HTMLElement | null {
   return document.getElementById(id);
 }
 
-/** `window.localStorage` can itself throw in strict-privacy browser modes (not just on get/set
- *  item) — guard the access, not just the calls, and fall back to in-memory prefs. */
-function safeLocalStorage(): Storage | null {
-  try {
-    return window.localStorage;
-  } catch {
-    return null;
-  }
-}
-
 /**
  * Build + register every in-canvas panel with the host. Returns the panel handles the render loop
  * drives. `app` still hosts the (dev-only) DebugOverlay; every other surface is now in-canvas.
@@ -114,9 +112,15 @@ export function buildPanels(
 ): Panels {
   const overlay = new DebugOverlay(app);
 
-  // Shared collapsible-panel open/closed store (brief 117) — built once, passed into every
-  // collapsible panel factory below.
-  const panelPrefs = createPanelPrefs(safeLocalStorage());
+  // Shared collapsible-panel open/closed store (brief 117; sweep-09 promoted the implementation
+  // to @engine/ui/state, keyed here under Farm's own id union + storage key) — built once, passed
+  // into every collapsible panel factory below. No `defaults` passed — all six ids fall back to
+  // the store's built-in closed default, unchanged from before the promotion.
+  const panelPrefs = createPanelPrefs<PanelId>({
+    storageKey: PANEL_STORAGE_KEY,
+    ids: PANEL_IDS,
+    storage: safeLocalStorage(),
+  });
 
   const worldClock = createWorldClock();
   const clockRoot = host.registerRoot({

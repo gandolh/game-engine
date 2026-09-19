@@ -2,7 +2,8 @@ import { describe, it, expect } from "vitest";
 import { EDG } from "@engine/core";
 import type { LabelNode, ButtonNode, UINode } from "@engine/ui";
 import { createRelationshipMatrix, type RelationshipMatrixData } from "./relationship-matrix";
-import type { PanelId, PanelPrefs } from "./panel-prefs";
+import type { PanelPrefs } from "@engine/ui";
+import type { PanelId } from "../../main/panels";
 
 function walk(node: UINode, out: UINode[] = []): UINode[] {
   out.push(node);
@@ -28,7 +29,7 @@ function data(overrides: Partial<RelationshipMatrixData> = {}): RelationshipMatr
 }
 
 /** Minimal fake PanelPrefs — in-memory, defaults every id to closed. */
-function makeFakePrefs(): PanelPrefs {
+function makeFakePrefs(): PanelPrefs<PanelId> {
   const open = new Set<PanelId>();
   return {
     isOpen(id) {
