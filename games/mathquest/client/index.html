@@ -16,6 +16,12 @@
          createA11yMirror) — a visually-hidden, screen-reader-visible DOM subtree that
          structurally mirrors the widget tree, same pattern as Citadel's #ui-a11y-mirror. -->
     <div id="ui-a11y-mirror"></div>
+    <!-- audit-52: a SECOND mirror mount, owned by the spatial map screen (src/ui/map-mirror.ts).
+         The map is custom-drawn, so @engine/ui's widget mirror cannot reach it — and node choice
+         is the roguelike's only strategic decision. Separate mount so the two mirrors never fight
+         over one subtree. Hidden via inline sr-only styles, NOT display:none (which would remove
+         it from the accessibility tree and the tab order). -->
+    <div id="ui-a11y-map"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

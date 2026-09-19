@@ -9,14 +9,14 @@ without it.
 ## The gap
 
 When M3.1 replaced the flexbox map with the spatial map, the screen became custom-drawn — and its DOM
-accessibility mirror was dropped. [`main.ts:14-17`](../../games/mathquest/client/src/main.ts#L14-L17)
+accessibility mirror was dropped. [`main.ts:14-17`](../../../games/mathquest/client/src/main.ts#L14-L17)
 records it:
 
 > *"The widget dispatcher's root-provider (`currentWidgetRoot`) returns `null` in this mode so a stray
 > widget hit-test can't fire, and the a11y mirror is cleared (**a full DOM mirror for the spatial map
 > is a known follow-up**)"*
 
-Confirmed at [`main.ts:298`](../../games/mathquest/client/src/main.ts#L298) — `case "map": return null;`.
+Confirmed at [`main.ts:298`](../../../games/mathquest/client/src/main.ts#L298) — `case "map": return null;`.
 Every other MateQuest screen (combat, level-up, loot, run-won, run-lost) still mirrors.
 
 ## Why it matters more here than elsewhere
@@ -43,8 +43,8 @@ Keep `currentWidgetRoot` returning `null` — the reason it does (stray widget h
 separate from the mirror.
 
 ## Files you OWN
-- [`games/mathquest/client/src/main.ts`](../../games/mathquest/client/src/main.ts) — the mode switch and mirror wiring
-- [`games/mathquest/client/src/ui/map-screen.ts`](../../games/mathquest/client/src/ui/map-screen.ts) — the model the mirror reads
+- [`games/mathquest/client/src/main.ts`](../../../games/mathquest/client/src/main.ts) — the mode switch and mirror wiring
+- [`games/mathquest/client/src/ui/map-screen.ts`](../../../games/mathquest/client/src/ui/map-screen.ts) — the model the mirror reads
 - MateQuest client tests
 
 ## Files you must NOT touch

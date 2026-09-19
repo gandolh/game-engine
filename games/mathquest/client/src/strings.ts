@@ -95,6 +95,30 @@ export interface Strings {
   readonly legendTitle: string;
   readonly legendLabel: Record<NodeType, string>;
 
+  // --- audit-52: the spatial map's DOM accessibility mirror ------------------------------------
+  // The map is custom-drawn, so `@engine/ui`'s widget mirror cannot reach it and node choice —
+  // the roguelike's ONE strategic decision — was reachable only by sighted pointer or by
+  // memorising the 1..9/Enter bindings. In a children's educational game whose UI is entirely
+  // in-canvas, the DOM mirror IS the screen reader; there is no fallback markup behind it.
+
+  /** Accessible name of the map mirror's landmark region. */
+  readonly mapMirrorLabel: string;
+  /** Spoken before the choice list — says HOW to act, since the visual affordance is unavailable. */
+  mapMirrorInstructions(count: number): string;
+  /** The hero's current status line: level, HP, and how far along the journey. */
+  mapMirrorStatus(level: number, hp: number, maxHp: number, cleared: number): string;
+  /**
+   * One reachable node's accessible name.
+   *
+   * Deliberately built from `legendLabel` + `gradeLabel` rather than `nodeLabel`: the latter is
+   * prefixed with glyphs (†, ★, ♥, ♠) that a screen reader announces as symbol names ("dagger",
+   * "black star") or skips entirely. A mirror that lists nine buttons reading "dagger clasa a
+   * II-a" passes an automated check and helps nobody.
+   */
+  mapMirrorNode(index: number, total: number, zone: string, type: NodeType, grade: Grade): string;
+  /** Announced in place of the list when the map has no reachable node (should not happen). */
+  readonly mapMirrorNone: string;
+
   // --- run-over screen ------------------------------------------------------------------------
 
   readonly runWon: string;
@@ -257,6 +281,24 @@ export const STRINGS_RO: Strings = {
     rest: "Odihnă (vindecă)",
     boss: "Boss",
   } satisfies Record<NodeType, string>,
+
+  mapMirrorLabel: "Harta călătoriei",
+  mapMirrorInstructions(count: number): string {
+    return count === 1
+      ? "Un singur drum înainte. Apasă butonul de mai jos, sau tasta 1, ca să pornești."
+      : `${String(count)} drumuri înainte. Alege unul cu butoanele de mai jos, sau cu tastele 1-${String(count)}.`;
+  },
+  mapMirrorStatus(level: number, hp: number, maxHp: number, cleared: number): string {
+    return `Nivelul ${String(level)}. Viață ${String(hp)} din ${String(maxHp)}. Locuri trecute: ${String(cleared)}.`;
+  },
+  mapMirrorNode(index: number, total: number, zone: string, type: NodeType, grade: Grade): string {
+    const what =
+      type === "rest"
+        ? STRINGS_RO.legendLabel.rest
+        : `${STRINGS_RO.legendLabel[type]}, ${STRINGS_RO.gradeLabel[grade]}`;
+    return `Drumul ${String(index)} din ${String(total)}: ${what}. Zona: ${zone}.`;
+  },
+  mapMirrorNone: "Niciun drum disponibil.",
 
   runWon: "Ai învins!",
   runLost: "Ai pierdut",
@@ -422,6 +464,24 @@ export const STRINGS_EN: Strings = {
     rest: "Rest (heals)",
     boss: "Boss",
   } satisfies Record<NodeType, string>,
+
+  mapMirrorLabel: "Journey map",
+  mapMirrorInstructions(count: number): string {
+    return count === 1
+      ? "One path ahead. Press the button below, or the 1 key, to set off."
+      : `${String(count)} paths ahead. Choose one with the buttons below, or keys 1 to ${String(count)}.`;
+  },
+  mapMirrorStatus(level: number, hp: number, maxHp: number, cleared: number): string {
+    return `Level ${String(level)}. Health ${String(hp)} of ${String(maxHp)}. Places cleared: ${String(cleared)}.`;
+  },
+  mapMirrorNode(index: number, total: number, zone: string, type: NodeType, grade: Grade): string {
+    const what =
+      type === "rest"
+        ? STRINGS_EN.legendLabel.rest
+        : `${STRINGS_EN.legendLabel[type]}, ${STRINGS_EN.gradeLabel[grade]}`;
+    return `Path ${String(index)} of ${String(total)}: ${what}. Zone: ${zone}.`;
+  },
+  mapMirrorNone: "No path available.",
 
   runWon: "You won!",
   runLost: "You lost",

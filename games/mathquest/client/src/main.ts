@@ -68,6 +68,7 @@ import { createCombatScreen, type CombatScreen, type CombatScreenActions } from 
 import { createLevelUpScreen, type LevelUpScreen, type LevelUpScreenActions } from "./ui/levelup-screen";
 import { createLootScreen, type LootScreen, type LootScreenActions } from "./ui/loot-screen";
 import { createMapScreen } from "./ui/map-screen";
+import { createMapMirror, type MapMirror } from "./ui/map-mirror";
 import { createRunOverScreen, type RunOverScreen, type RunOverScreenActions } from "./ui/run-over-screen";
 import type { WorkerInbound, WorkerOutbound } from "./worker/sim-worker";
 
@@ -86,6 +87,8 @@ if (!(canvasRaw instanceof HTMLCanvasElement)) {
 }
 const canvas: HTMLCanvasElement = canvasRaw;
 const a11yMount = document.getElementById("ui-a11y-mirror");
+/** audit-52: a SECOND mount, owned by the spatial map's mirror (see ui/map-mirror.ts). */
+const mapA11yMount = document.getElementById("ui-a11y-map");
 
 /** M4c: the ONLY place this file reads `localStorage` — `parseMasteryStore` itself already
  * tolerates null/corrupt/wrong-version JSON, but the `localStorage.getItem` call itself can throw
@@ -324,6 +327,18 @@ async function main(): Promise<void> {
   }
   const syncFocus = (): void => mirror?.setFocus(dispatcher.focused()?.id ?? null);
 
+  // audit-52: the spatial map's own DOM mirror. Its own mount, so it and the widget mirror never
+  // fight over one subtree; `onChoose` posts the SAME `choose-node` command a canvas click does —
+  // a parallel access path, never a second implementation.
+  const mapMirror: MapMirror | undefined =
+    mapA11yMount === null
+      ? undefined
+      : createMapMirror(mapA11yMount, (id) => {
+          if (latest !== null && latest.mode === "map" && latest.run.reachableIds.includes(id)) {
+            post({ type: "choose-node", id });
+          }
+        });
+
   /**
    * M5 slice 2 — the locale toggle. Flips RO⇄EN, persists it, REBUILDS the widget screens with
    * the new `Strings`, clears any in-flight local UI state (typed answer buffer, focus, a11y
@@ -519,10 +534,14 @@ async function main(): Promise<void> {
         surface.begin();
         mapScreen.render(surface, snapshot.run, hoverId, canvas.clientWidth, canvas.clientHeight, locale, strings);
         surface.end();
-        // No DOM mirror for the spatial map yet (known follow-up — see ui/map-screen.ts's module
-        // doc); clear it so a stale combat/run-over mirror never lingers into map mode.
+        // The WIDGET mirror has nothing to show here (the map is not a widget tree) — clear it so
+        // a stale combat/run-over mirror never lingers into map mode. The map has its OWN mirror,
+        // built from the map model, under its own mount (audit-52).
         mirror?.update(null);
+        // Same order the `1`..`9` bindings use, so the spoken index and the shortcut agree.
+        mapMirror?.update(snapshot.run, strings, mapScreen.reachableOrder(snapshot.run));
       } else {
+        mapMirror?.clear();
         const root = currentWidgetRoot();
         if (root !== null) {
           let changed: boolean;

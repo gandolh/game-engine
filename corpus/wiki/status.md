@@ -17,7 +17,7 @@ Current-state **snapshot** (2026-08-18, banner below 2026-09-14). Banners below 
 > is set and never restored, so later uploads double-premultiply
 > ([audit-39](../todos/closed/2026-09-18-audit-39-premultiply-alpha-never-restored.md)); `.dockerignore`'s
 > `**/dist` strips the wasm the sim server reads while the Dockerfile's header claims it ships
-> ([audit-40](../todos/2026-09-18-audit-40-dockerignore-strips-wasm.md)). **Three guards proved weaker
+> ([audit-40](../todos/closed/2026-09-18-audit-40-dockerignore-strips-wasm.md)). **Three guards proved weaker
 > than their names**: the palette scan never reads HTML/CSS (and Farm ships two off-palette hexes
 > today), the layering guard iterates a hand-written scope list, and the seeded `Rng` has no golden
 > vector — so every determinism gate compares the implementation to itself. Nothing is built yet;
