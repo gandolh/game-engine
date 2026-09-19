@@ -26,7 +26,7 @@ everything since is a dated spec in `todos/`. Don't add to `briefs/`.
 
 ## Three layers
 
-1. **todos/ + briefs/** — raw, immutable specs. Each file is a task spec that was used to direct work (typically by a subagent). Once a spec is in `todos/closed/`, `done/`, or `superseded/`, do **not** edit it — the two sanctioned exceptions are a supersession note (below) and correcting a link a directory move broke. **A closed spec's own `status:` line is frozen at authoring time and routinely still reads `todo`** — the directory it sits in and [wiki/status.md](wiki/status.md) are what tell you its real state. New work gets a new dated spec in `todos/`.
+1. **todos/ + briefs/** — raw, immutable specs. Each file is a task spec that was used to direct work (typically by a subagent). Once a spec is in `todos/closed/`, `done/`, or `superseded/`, do **not** edit it — the two sanctioned exceptions are a supersession note (below) and correcting a link a directory move broke. **A closed spec's own `status:` line is frozen at authoring time and routinely still reads `todo`** — the directory it sits in is what tells you its real state. New work gets a new dated spec in `todos/`.
 2. **wiki/** — the LLM owns this. Synthesis, entity pages, concept pages, current status. Edited freely as understanding evolves.
 3. **index.md + log.md** — navigation aids. Updated on every meaningful change.
 
@@ -51,8 +51,11 @@ The corpus exists to make an agent *cheaper*, not just better-informed. So:
 1. Read `index.md`. Read **at most 2–3 wiki pages**.
 2. If a question needs more than three pages, that is a signal — a page is straddling topics and
    should be split, or `index.md`'s summaries aren't sharp enough. Fix the cause, don't just read more.
-3. Never read `briefs/` or `todos/` wholesale. `status.md` carries every brief's current state in one
-   line; open a brief only when you need the spec that directed a specific piece of work.
+3. Never read `briefs/` or `todos/` wholesale. **List the directory** — `done/` vs `superseded/`,
+   `todos/` vs `todos/closed/` — which is what actually carries a spec's state; open a brief only when
+   you need the spec that directed a specific piece of work. (`status.md` used to hold a parallel
+   per-brief table. It was removed on 2026-09-19: it had grown to 119 KB, more than the whole
+   three-page retrieval budget, and it was a third copy that drifted.)
 4. Prefer the `summary:` line over opening the page. That is what it is for.
 
 ## Lint

@@ -51,7 +51,7 @@ The Hollow todos are **open** work items, not archives, so they are editable (un
 `todos/closed/`). Fix the blocker text and the renderer name in place.
 
 While there: `bash corpus/lint.sh` reports **8 oversized pages** against its own ~200-line cap. That is
-a separate brief ([audit-58](../2026-09-18-audit-58-status-md-retrieval-budget.md)); do not start
+a separate brief ([audit-58](2026-09-18-audit-58-status-md-retrieval-budget.md)); do not start
 splitting pages here.
 
 ## Files you OWN

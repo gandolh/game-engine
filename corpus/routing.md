@@ -25,7 +25,8 @@ executor chunks on Sonnet 5 successfully.)
 > | `corpus/briefs/` (writes new work) | **closed archive, do not add files** — historical specs only, in `briefs/{engine,game}/{done,superseded}` | all |
 > | `corpus/wiki/index.md` (the catalog) | **`corpus/index.md`** | `improve` step 1 |
 >
-> `corpus/wiki/status.md` is the single source for spec state. Read `corpus/CLAUDE.md` for the
+> A spec's state is **the directory it sits in** (`corpus/todos/` vs `corpus/todos/closed/`), not a
+> table — `corpus/wiki/status.md` stopped duplicating one on 2026-09-19. Read `corpus/CLAUDE.md` for the
 > spec/wiki/log workflow, the domain-modeling rules, and the source-of-truth ordering.
 
 ## Intent routing

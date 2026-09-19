@@ -30,13 +30,13 @@ Line counts understate it. By bytes:
 | `wiki/player-and-interaction.md` | 30 552 | ~7 600 |
 | `wiki/decisions.md` | 28 788 | ~7 200 |
 
-`status.md` is three times the next largest page. And [`corpus/CLAUDE.md`](../CLAUDE.md) states the
+`status.md` is three times the next largest page. And [`corpus/CLAUDE.md`](../../CLAUDE.md) states the
 budget it breaks:
 
 > *"Read `index.md`. Read **at most 2–3 wiki pages**. … The corpus exists to make an agent *cheaper*,
 > not just better-informed."*
 
-[`corpus/index.md`](../index.md) names `status.md` as *"the single source for brief state"* and
+[`corpus/index.md`](../../index.md) names `status.md` as *"the single source for brief state"* and
 `routing.md` sends the verify gate through it. So the one page an agent is most often told to read
 costs ~30k tokens on its own — more than the whole rest of the budget.
 
@@ -73,17 +73,17 @@ is a corpus that is cheaper to read — a page count that went up while total to
 failure.
 
 ## Files you OWN
-- [`wiki/status.md`](../wiki/status.md) and any new pages it splits into
-- [`corpus/index.md`](../index.md) — the catalog must reflect the split, and its hand-authored lines
+- [`wiki/status.md`](../../wiki/status.md) and any new pages it splits into
+- [`corpus/index.md`](../../index.md) — the catalog must reflect the split, and its hand-authored lines
   must not contradict any page's `summary:`
-- [`corpus/log.md`](../log.md) — the entry for this change, plus anything aged out of the banners
-- [`corpus/routing.md`](../routing.md) if a route points at a moved section
+- [`corpus/log.md`](../../log.md) — the entry for this change, plus anything aged out of the banners
+- [`corpus/routing.md`](../../routing.md) if a route points at a moved section
 
 ## Files you must NOT touch
 - `todos/closed/` and `briefs/` — frozen
 - the **content** of decisions: this is a reorganisation. Nothing may change meaning, and no locked
   decision may be dropped in the move.
-- [audit-53](closed/2026-09-18-audit-53-corpus-drift-sweep.md)'s three stale pages — that brief fixes what
+- [audit-53](../closed/2026-09-18-audit-53-corpus-drift-sweep.md)'s three stale pages — that brief fixes what
   they *say*; this one changes where things *live*. Land 53 first if both are picked, or the drift
   gets copied into the new pages.
 

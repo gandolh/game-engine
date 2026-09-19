@@ -4,6 +4,60 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-09-19] change | audit-58: status.md was 119 KB against a three-page retrieval budget
+
+`corpus/CLAUDE.md` says *"Read `index.md`. Read at most 2–3 wiki pages. The corpus exists to make an
+agent cheaper, not just better-informed."* `status.md` was **119 652 bytes (~30k tokens)** — three
+times the next largest page, and on its own more than the whole budget. `index.md` named it *"the
+single source for brief state"* and `routing.md` sent the verify gate through it, so it was also the
+page an agent was most often told to open. `lint.sh` had been printing `OVERSIZED (443 body lines)`
+the entire time. This was the corpus failing its own stated rule, not an outside opinion.
+
+**Split by lifetime, as the spec asked — and the measurement decided how.** The page held four things:
+current state, a newest-first banner changelog, hand-maintained per-brief tables, and finished-programme
+records. Only the first is what its own `summary:` claimed it was.
+
+The banners were the bulk: **58 of them, 93 425 bytes — 77% of the page.** Before moving them anywhere,
+the obvious question: are they already in `log.md`? Measured by distinctive-token overlap (tokens ≥6
+chars from each banner, checked against the whole of `log.md`), the **median banner is 90% contained in
+`log.md` already**, and the *lowest* of all 58 is 60%. 55 of the 58 fall on a day that already has a
+`log.md` entry; of the three that do not, two (2026-06-26, 2026-06-28) are inside `log.md`'s own
+2026-06-19→06-30 era summary.
+
+So the banners were **deleted, not moved.** Moving 93 KB into `log.md` would have satisfied the line
+count and left total corpus bytes flat, which the spec correctly calls a failure. The one genuinely
+unique banner — 2026-09-14, CI — was not history at all: *CI exists* is current state. It became the
+new **"Gates that run"** section, alongside the pack-smoke and path-scoped-guard facts, which is where
+someone asking "what will stop me shipping this" should have been looking all along.
+
+The per-brief tables went for a different reason. `CLAUDE.md` already says a closed spec's own `status:`
+line is frozen and lies, and that **the directory it sits in is what tells you its state** — so a
+hand-maintained table on a wiki page was a third copy, and it is exactly the copy that drifted. Four
+places asserted "status.md is the single source for brief state" (`index.md`, `routing.md`, and
+`CLAUDE.md` twice); all four now point at the directories. The WebGL2 section went the same way: its
+decision is in `decisions.md`, its build record in two closed todos, and its six found bugs plus the
+reusable A/B probe technique are in `log.md`'s 2026-08-18 entries — each checked by grep before
+deleting, not assumed.
+
+**Result.** `status.md` **121 129 → 10 916 bytes (−91%)**, 443 → 121 body lines, off the oversized list.
+**Total corpus 3 175 077 → 3 069 838 bytes (−105 239, −3.3%)** — down, not sideways, and that figure
+is measured *after* adding this log entry, which is the only place bytes were added. `lint.sh`: 0 broken
+live links, `--index` clean. Retrieval spot-check from the spec — *"what is the current state of
+Hollow?"* — now answers from `index.md` + `status.md`'s four-bullet **Where each game stands** +
+`hollow-overview.md`, with no 119 KB file in the path.
+
+**The seven other oversized pages were left alone, deliberately.** The cap is a signal, not a quota,
+and the deliverable is a corpus that is cheaper to read — mechanically splitting to satisfy a linter
+raises the page count while total tokens stay flat. `decisions.md` (281) is one concept and splitting
+locked decisions has its own cost; `performance.md` (259) already has its measurements in a sibling
+page; `hollow-overview.md` (298) is one game's design of record. None of them is 3× its neighbours the
+way `status.md` was. If one becomes the page nobody can afford to open, that is when it gets split.
+
+**The rule that replaces the banners, written into the page itself:** do not add a banner to
+`status.md`. Add a `log.md` entry, and only edit `status.md` if what is *currently true* changed.
+A changelog and a snapshot have different lifetimes, and the 119 KB is what happens when one page
+tries to be both for three months.
+
 ## [2026-09-19] build | audit-53: three pages described code that no longer exists, and one of them was blocking Hollow
 
 Semantic drift, not broken links — `corpus/lint.sh` passed the whole time, because a page that

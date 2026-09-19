@@ -28,7 +28,7 @@ which is how a "WebGPU-only render path" line outlived the page that already sai
 - [wiki/code-graph.md](wiki/code-graph.md) — The CodeGraph symbol index as the code-understanding layer: the two-layer why/what model, and its **measured failure modes** (it conflates same-named symbols across games).
 - [wiki/decisions.md](wiki/decisions.md) — Locked tech choices that future briefs must not relitigate — stack, sim, ECS, renderer, assets, palette, concurrency, tick-pump/speed semantics, build & verify gates, WASM, and the gameplay source-of-truth.
 - [wiki/glossary.md](wiki/glossary.md) — The project's vocabulary: one canonical name per concept across the engine and the four games, each listing the synonyms it displaces (tick vs frame, spec vs brief, the two senses of "villager").
-- [wiki/status.md](wiki/status.md) — The current-state snapshot: one terse line per brief, architecture milestones, current sim/determinism behaviour, and open gaps. The single source for brief state.
+- [wiki/status.md](wiki/status.md) — The current-state snapshot: where each game stands, current sim/determinism behaviour, which gates run, architecture milestones, and open gaps. **Brief-by-brief history is not here** — it is in [log.md](log.md) and the `todos/` · `briefs/` directories.
 - [wiki/open-questions.md](wiki/open-questions.md) — Live list of what is genuinely unresolved, plus settled premises that must not be re-litigated. Resolved items are deleted, not archived.
 - [wiki/performance.md](wiki/performance.md) — Ranked optimization backlog for the engine, filtered against what the code actually does — tiers 0–3, what is already done, and what is explicitly not worth doing at Farm Valley's scale.
 - [wiki/performance-measurements.md](wiki/performance-measurements.md) — The profiling record: how to measure (`Profiler` + `?profile` + DebugOverlay), plus the 2026-06-05 and 2026-06-10 measured baselines every optimization claim is scored against.
@@ -84,7 +84,7 @@ which is how a "WebGPU-only render path" line outlived the page that already sai
   [audit-53](todos/closed/2026-09-18-audit-53-corpus-drift-sweep.md) (corpus drift sweep),
   [audit-54](todos/2026-09-18-audit-54-mathquest-grades-v-viii.md) (**build grades V–VIII, or narrow the
   I–VIII claim to I–IV** — a content-design call),
-  [audit-58](todos/2026-09-18-audit-58-status-md-retrieval-budget.md) (split `wiki/status.md`'s 119 KB;
+  [audit-58](todos/closed/2026-09-18-audit-58-status-md-retrieval-budget.md) (split `wiki/status.md`'s 119 KB;
   land 53 first) and
   [audit-59](todos/2026-09-18-audit-59-deploy-not-in-version-control.md) (**which deploy story is real** —
   the wiki describes pm2 + Caddy + a `deploy.ts` that is nowhere on disk).
@@ -110,8 +110,11 @@ which is how a "WebGPU-only render path" line outlived the page that already sai
 ## Briefs — historical task specs (immutable archives)
 
 Each brief is the spec that directed a slice of work; once in `done/`/`superseded/` it is immutable.
-**[status.md](wiki/status.md) is the single source for brief state** — this page deliberately does not
-duplicate the catalog. Number prefixes are stable across directory moves.
+**The directory a brief sits in is its state** — `done/` vs `superseded/`, and `todos/` vs
+`todos/closed/`. (Until 2026-09-19 `status.md` also carried a hand-maintained table per brief; it was
+a third copy that stopped being kept in step, and it is gone. A brief's own `status:` line is frozen at
+authoring time and routinely still reads `todo`, so trust the directory over the file.) Number prefixes
+are stable across directory moves.
 
 - Engine: [briefs/engine/](briefs/engine/) — 16 in `done/` (02–12, 17–21); `superseded/` holds 01-tilemap
   plus the WebGPU wave's [TOMBSTONE](briefs/engine/superseded/webgpu/TOMBSTONE.md)
