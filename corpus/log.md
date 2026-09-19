@@ -2,7 +2,58 @@
 
 Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind> | <title>` so `grep '^## \[' log.md` produces a readable timeline.
 
-**Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
+**Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [todos/closed/](todos/closed/), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
+
+## [2026-09-19] change | Two spec archives became one — `briefs/` folded into `todos/closed/`
+
+**Why there were two:** `briefs/{engine,game}/{done,superseded}/` was the original scheme (numbered
+`NN-slug.md`); `todos/` + `todos/closed/` replaced it in 2026-07 (dated `YYYY-MM-DD-slug.md`).
+`briefs/` was frozen rather than migrated, and `corpus/CLAUDE.md` documented the split honestly as
+*"two archives, one reason"*. But the reason was **era, not kind** — both directories held exactly
+the same thing: an immutable spec that directed past work. The glossary had already collapsed the
+vocabulary (new work is a *spec*, not a *brief*); only the directories hadn't.
+
+**96 files moved; `briefs/` is gone.** `todos/closed/` now holds 345 specs — engine 02–12 and 17–21,
+game 01–118, `citadel-apr.md`, and every dated spec since 2026-06. Names were **not** changed, per the
+standing rule that names are stable for the life of the file, so `117-collapsible-hud-panels.md` sits
+beside `2026-09-18-audit-52-….md`. One deliberate exception: `briefs/engine/superseded/webgpu/TOMBSTONE.md`
+→ `2026-06-13-webgpu-wave-plan-TOMBSTONE.md`, because its old name only meant anything *because of the
+directory it was in*, and flattened it would have been context-free.
+
+**The thing that had to be checked first: `superseded/` was a directory carrying state.** The current
+scheme has no such folder — supersession is a note at the top of the file. So folding the tree in would
+have destroyed information if those files did not already say why they were superseded. **Eleven of the
+twelve already did**, each with an explicit banner (*"⛔ SUPERSEDED 2026-07-10 … decision #21 deprecated
+multiplayer"*). The twelfth, `01-tilemap.md`, did not — and the reason had been recorded only in a
+`status.md` table that [audit-58](todos/closed/2026-09-18-audit-58-status-md-retrieval-budget.md)
+removed four commits earlier. Recovered it from git (`git show ec16f62^`) rather than writing a
+plausible-sounding one, and wrote it into the file. All twelve now self-declare.
+
+**Links: 136 occurrences, rewritten mechanically, verified by lint.** Two passes, because two different
+things break. Inbound links from `wiki/`, `log.md` and `index.md` needed the path swapped. Links
+*inside* the moved files needed their **depth** changed, and in three different directions at once —
+`briefs/game/done/` was three levels under `corpus/` and `todos/closed/` is two (one fewer `../`),
+`briefs/engine/superseded/webgpu/` was four (two fewer), and `briefs/citadel-apr.md` was one (one
+*more*). Rather than pattern-match, the fixer resolved every link against the file's **original**
+directory, followed it through the move map if it pointed at another moved file, and re-derived it with
+`os.path.relpath` from the new location. 0 broken live links, 0 broken archive links.
+
+**Nine directory links** — ones pointing at `briefs/` or `briefs/game/` themselves rather than at a file — could not be swapped mechanically — they
+were prose making a claim about structure, so each was rewritten: `index.md`'s archive section,
+`CLAUDE.md`'s tree and three-layers model, `routing.md`'s skill-contract deviation table,
+`glossary.md`'s *Brief* entry (now "an era, not a location"), `status.md`, `system-ordering.md`,
+`citadel-overview.md` and `citadel-decisions.md`.
+
+**What this buys.** One directory to list, one convention to remember, and `CLAUDE.md`'s instruction
+stops being *"never read `briefs/` or `todos/` wholesale — list the directory"* (which required knowing
+there were two) and becomes one directory whose name says what it is. It also removes a standing trap:
+the skills' contract points at `corpus/briefs/todo/`, and `routing.md` now says plainly that the path
+does not exist rather than that it is a closed archive.
+
+**What it costs, stated honestly.** `done/` vs `superseded/` used to be visible in a directory listing;
+now it takes opening the file, or grepping the first lines. That is the trade the current scheme had
+already made for dated specs, and the mitigation is the same one it relies on — the note is in the file.
+Twelve files were checked one by one rather than assumed.
 
 ## [2026-09-19] change | The queue is down to two entries, and three of the four closures were "not built, on purpose"
 
@@ -1752,7 +1803,7 @@ persistence round-trips a reload; Tab/E/J unchanged. Gates: typecheck 14/14, ful
 (client 230, incl. 36 new/updated widget tests). Side benefit visible live: collapsed-default
 now boots at ~109 fps (118's cache + fewer quads). Synthesis (incl. the three traps for future
 panels): [player-and-interaction.md](wiki/player-and-interaction.md); brief:
-[briefs/game/done/117](briefs/game/done/117-collapsible-hud-panels.md).
+[briefs/game/done/117](todos/closed/117-collapsible-hud-panels.md).
 
 ## [2026-07-15] brief | 118 DONE — 5 fps regression: the UI glyph tint composite, cached (`4fd48dc`)
 
@@ -1779,7 +1830,7 @@ CPU contention with the live dev stack + browser (all pass standalone and on cle
 `bridge-graph.test.ts`'s multi-seed property runs 3.3 s standalone — borderline under turbo).
 Wiki: [performance.md](wiki/performance.md) new Tier-0 banner,
 [performance-measurements.md](wiki/performance-measurements.md) 2026-07-15 table;
-brief: [briefs/game/done/118](briefs/game/done/118-fps-regression-ui-glyph-tint-path.md).
+brief: [briefs/game/done/118](todos/closed/118-fps-regression-ui-glyph-tint-path.md).
 **117 is now unblocked.**
 
 ## [2026-07-15] fix | Atlas EOL pinned — a test run no longer dirties the tree (`d4d0222`)
@@ -1798,11 +1849,11 @@ position (this file reads newest-first from here down to the era-summary tail).
 
 Two Farm briefs filed from a user session (screenshot showed 5 fps / ~216 ms frame, 583 entities):
 
-- **[117 — Collapsible HUD panels](briefs/game/done/117-collapsible-hud-panels.md).** Relationships
+- **[117 — Collapsible HUD panels](todos/closed/117-collapsible-hud-panels.md).** Relationships
   matrix, the right column's three sub-panels (observer/slate/activity, independently), and the
   wealth graph go behind labeled toggle buttons, **collapsed by default**, with keyboard shortcuts
   + localStorage persistence. Playback controls, help, clock, hotbar, and existing toggles unchanged.
-- **[118 — FPS regression: profile gate + per-glyph tint cache](briefs/game/done/118-fps-regression-ui-glyph-tint-path.md).**
+- **[118 — FPS regression: profile gate + per-glyph tint cache](todos/closed/118-fps-regression-ui-glyph-tint-path.md).**
   Exploration attributes the regression (99 fps 2026-06-12 → 5 fps 2026-07-15) to the 2026-07-01
   in-canvas UI migration: one tinted quad per glyph, each paying a 5-op Canvas2D composite in
   `drawUIQuad` on the Overlay2D flush inside `endFrame`. Plan: profile gate first (new `ui.flush`
@@ -1847,7 +1898,7 @@ net/ path, workspace map), animation.md (Animator correction). Next: engine 21 (
 ## [2026-07-15] todo | Engine brief 21 filed — Turborepo task runner
 
 Research outcome of "should we add turbo?": yes — filed as
-[engine 21](briefs/engine/done/21-turborepo-task-runner.md), not built. Measured baseline:
+[engine 21](todos/closed/21-turborepo-task-runner.md), not built. Measured baseline:
 `npm run typecheck` 44s serial across 14 workspaces, and `--workspaces` stops at the first red
 workspace (the 2026-07-09 gate-rot mechanism). Turbo layers on npm workspaces (the locked
 decision stands); all internal packages are Turbo "JIT packages" (no build step), so the win is
@@ -1861,12 +1912,12 @@ stale-green cache hit unless declared. Determinism runs stay outside the cache b
 Second pass of the 2026-07-15 structure survey (checked against external best practice: the
 macro layout — engine/game separation, feature-first sim-cores, per-subsystem engine exports —
 already matches consensus; the wins are one level down). Filed, not built:
-[game 115](briefs/game/done/115-farm-client-net-rename-and-tool-hygiene.md) (Farm client
+[game 115](todos/closed/115-farm-client-net-rename-and-tool-hygiene.md) (Farm client
 `src/worker/` → `src/net/` — the sim left the Worker in brief 58 — plus the `Worker*` protocol
 type renames and grouping run-sim's 12 fossil `probe-*.ts` diagnostics),
-[game 116](briefs/game/done/116-citadel-sim-runner-split.md) (split citadel-sim's 1,196-line
+[game 116](todos/closed/116-citadel-sim-runner-split.md) (split citadel-sim's 1,196-line
 `index.ts` to mirror run-sim's module layout; byte-identical-stdout gate), and
-[engine 20](briefs/engine/done/20-engine-ghost-subsystems.md) (delete the consumer-less
+[engine 20](todos/closed/20-engine-ghost-subsystems.md) (delete the consumer-less
 `Animator`/`Clip` ghost — keep the easing curves `@engine/ui` re-exports — and adjudicate
 `@engine/core/assets`, whose only consumer is world-preview). Checked-and-fine, recorded so it
 isn't relitigated: `commands`/`placement` are genuinely generic engine primitives; the two
@@ -1878,7 +1929,7 @@ not merge; `@engine/ui/anim` re-exporting core easing is deliberate, not duplica
 A 2026-07-15 project-structure survey found `games/citadel/client/src/main.ts` at **1,949 lines**
 (largest source file in the repo), violating the module-directory convention the Farm client
 already follows (`src/main/` split). Filed as
-[brief 114](briefs/game/done/114-citadel-client-main-decomposition.md): behavior-preserving split
+[brief 114](todos/closed/114-citadel-client-main-decomposition.md): behavior-preserving split
 into `src/main/` along the file's own banner seams, with the known hazards named (boot-gap guard,
 the single `newEventsSince` pass feeding toasts+audio, shared mutable state, the Vite entry).
 Also carries the doc-drift fix: `@engine/ui` is missing from both workspace maps (root CLAUDE.md +
@@ -2226,7 +2277,7 @@ Gates: typecheck 0; full repo tests 0 (citadel sim-core **301**, +15: `immigrati
 
 ## [2026-07-11] wave | 3 DONE — disease counterplay + the departing raid, and the playtest found the real wall
 
-Briefs [102](briefs/game/done/102-citadel-disease-counterplay.md) + [113](briefs/game/done/113-citadel-raid-gets-a-body.md) shipped as `c22145e` (three parallel junior/Sonnet chunks, disjoint lanes, controller design gate first). The gate's biggest catch was **113's premise being stale**: the raid body — positioned raiders, BFS march, *spatial* garrison interception, snapshot, client interp render — had existed since `af31818` (2026-06-26); the grilled brief specced a system that was already built. The actual gap was one behavior: a cozy raider vanished at the keep the tick it pilfered. It now walks home (`RaiderState.leaving`, the walked path reversed), with arrival effects and the event stream byte-unchanged and the sharp path proven byte-identical. 102 landed the settled smallest set — well coverage multiplies onset (×(1−0.5·fraction), no-op at zero wells, draw-count pinned by an rng-stride test), healer named in outbreak copy, both mechanics stated in the inspect panel.
+Briefs [102](todos/closed/102-citadel-disease-counterplay.md) + [113](todos/closed/113-citadel-raid-gets-a-body.md) shipped as `c22145e` (three parallel junior/Sonnet chunks, disjoint lanes, controller design gate first). The gate's biggest catch was **113's premise being stale**: the raid body — positioned raiders, BFS march, *spatial* garrison interception, snapshot, client interp render — had existed since `af31818` (2026-06-26); the grilled brief specced a system that was already built. The actual gap was one behavior: a cozy raider vanished at the keep the tick it pilfered. It now walks home (`RaiderState.leaving`, the walked path reversed), with arrival effects and the event stream byte-unchanged and the sharp path proven byte-identical. 102 landed the settled smallest set — well coverage multiplies onset (×(1−0.5·fraction), no-op at zero wells, draw-count pinned by an rng-stride test), healer named in outbreak copy, both mechanics stated in the inspect panel.
 
 **The verification story matters more than the diff.** Unit tests and byte-identity were green in minutes; the browser acceptance ("a raid must be *seen*") took five probe iterations and ended somewhere unexpected: three live solo runs (290, 300, and 536 in-game days, three escalating strategies) all equilibrated at **pop 7–9, wood pinned at ~1, Town tier never reached** — services steal bread-chain workers, the chain never banks the surplus immigration needs, and wood income is the first casualty. The headless `sack` scenario "reaches Town honestly" only because it **injects 5 wood + 2 stone per day**. So the raid was verified through `?mp` (the town-hall anchors the raid clock at Hamlet and placement is free — same client render path, same sim systems): raid seen marching in ~17 days, pilfering at distance 2, the distance series retracing 2→113 over 16 days, edge despawn — screenshots + a 2599-sample trajectory. The wall itself is filed as **P1** [solo-town-tier-unreachable](todos/closed/2026-07-11-citadel-solo-town-tier-unreachable.md): keep/garrison/raids are currently unreachable content in solo, and it — not anything in brief 103 — is what gates 103's "challenge run playable in a real browser" acceptance. The [2026-06-22 playtest-findings todo](todos/closed/2026-06-22-citadel-playtest-findings.md) closed fully (P3 was its last open item).
 
@@ -2332,7 +2383,7 @@ Part 1 (`8e930f3`) had made the iso projection a runtime object and fixed the wi
 
 Also: engine `assertTextureWithinLimits()` guards `maxTextureDimension2D` — nothing in `render/` checked it, and an oversized bake raised a validation error on the device's error scope and painted **black** with nothing naming the world size. `init` now carries `worldWidth`/`worldHeight`, so solo's client (which generates the terrain it renders) tells the worker what size to build rather than both trusting a shared constant.
 
-Gates: typecheck 0 · **2081 tests** green · Citadel determinism **MATCH ×3** · Farm determinism MATCH, untouched. The **headless Citadel baseline did not move** (`pop 9/12, bread 10, gameOver=false`) — the scripted `grow` scenario places near the core box, so a 4× map does not shift it, which also means the headless runner does not exercise the resource-distance concern (`terrain.test.ts` does). MP's terrain-shipping half is parked with MP; the late-joiner seed bug is **real and still present** there. Next: brief 100. See [briefs/game/done/110-citadel-client-world-size.md](briefs/game/done/110-citadel-client-world-size.md).
+Gates: typecheck 0 · **2081 tests** green · Citadel determinism **MATCH ×3** · Farm determinism MATCH, untouched. The **headless Citadel baseline did not move** (`pop 9/12, bread 10, gameOver=false`) — the scripted `grow` scenario places near the core box, so a 4× map does not shift it, which also means the headless runner does not exercise the resource-distance concern (`terrain.test.ts` does). MP's terrain-shipping half is parked with MP; the late-joiner seed bug is **real and still present** there. Next: brief 100. See [briefs/game/done/110-citadel-client-world-size.md](todos/closed/110-citadel-client-world-size.md).
 
 ## [2026-07-10] decision | Second grilling session — multiplayer is deprecated; the solo world grows to 192×192
 
@@ -2342,19 +2393,19 @@ The earlier session asked *how do we make MP correct* and produced four briefs o
 
 The deprecation cascaded further than the MP briefs. **#22:** the server ran 256×256 because it was typed into `index.ts:16`, not because anyone argued for it — and with MP gone, *nothing in the repo consumed a 256×256 world at all*, which would have made brief 110 a renderer for a world with no inhabitant. So the **solo** world grows 96→**192×192**: the smallest size crossing the `4096²` iso-pixel windowing threshold, so brief 110's already-landed part 1 (`8e930f3`) and briefs 21/22's windowed bake stop being dead code. 256 was rejected for sitting exactly on WebGPU's default `maxTextureDimension2D` (8192 px) with zero margin.
 
-**#23 reverses #15.** #15 removed armies from cozy MP on the grounds that lethal PvP would *relocate* to Challenge mode, "which must at minimum support MP". With MP deprecated there is no destination. Grounding it in code settled the shape: `ArmyState` is PvP **down to its fields** (`attackerId` is a player, `targetPlayerId` a building's owner, `findTargetBuilding` filters on `ownerId`), so there is no AI attacker to repoint it at — and `applyRaidDamage` already does the PvE job. What armies have that raids don't is **a body**: `ArmyState` carries `x, y, tileX`, a unit that marches, where the cozy raid is an abstract `raidStrength` applied at the keep. So `ArmySystem` freezes (`enableArmy` default → `false`, with the `launchAttack` handler gated **in the same change** or it *creates* the unbounded-`state.armies` bug #15 warned of), and its machinery is reborn as the raid's embodiment — raiders you watch approach, pilfer, and leave. Filed as [brief 113](briefs/game/done/113-citadel-raid-gets-a-body.md), not built.
+**#23 reverses #15.** #15 removed armies from cozy MP on the grounds that lethal PvP would *relocate* to Challenge mode, "which must at minimum support MP". With MP deprecated there is no destination. Grounding it in code settled the shape: `ArmyState` is PvP **down to its fields** (`attackerId` is a player, `targetPlayerId` a building's owner, `findTargetBuilding` filters on `ownerId`), so there is no AI attacker to repoint it at — and `applyRaidDamage` already does the PvE job. What armies have that raids don't is **a body**: `ArmyState` carries `x, y, tileX`, a unit that marches, where the cozy raid is an abstract `raidStrength` applied at the keep. So `ArmySystem` freezes (`enableArmy` default → `false`, with the `launchAttack` handler gated **in the same change** or it *creates* the unbounded-`state.armies` bug #15 warned of), and its machinery is reborn as the raid's embodiment — raiders you watch approach, pilfer, and leave. Filed as [brief 113](todos/closed/113-citadel-raid-gets-a-body.md), not built.
 
 **#25** is the consequence nobody had costed: `repairSolvability` guarantees resources are *reachable* by flood-fill, not *near*. On 96×96 the map bounds the distance; on 192×192 it does not, so a guaranteed stone can sit 100 tiles from the core box across terrain the player must road toward with wood they don't have — **the Phase C cold open would open on a living town that cannot grow**, and no existing test would see it. The guarantee gains a distance bound, with N calibrated from a measured 100-seed distribution rather than assumed.
 
 **#24** makes Challenge mode solo-only (it sheds PvP and the MP bundle; #19's call-site-preset shape lets it do that for free) and unblocks it. **#26** sets the order: **110 → 100 → {102, 99, 106, 104, 105, 98}** — the world before the economy, since brief 100's balance numbers are meaningless on a map about to quadruple.
 
-Also settled: Farm Valley is in **maintenance** (98 + its slice of 99; 101 and 107 parked — 101's own brief forbids autonomous execution, 107 needs the user's real GPU). Engine 18 and 19 parked. Brief 100's numbers fixed at a single `0.6 → 1.0 → 1.25` curve and a **pop 12–15** target. Superseded, never built: [109](briefs/game/superseded/109-citadel-vps-deploy.md), [111](briefs/game/superseded/111-citadel-mp-room-keys-and-session-semantics.md), [112](briefs/game/superseded/112-citadel-cozy-mp-drop-armies.md).
+Also settled: Farm Valley is in **maintenance** (98 + its slice of 99; 101 and 107 parked — 101's own brief forbids autonomous execution, 107 needs the user's real GPU). Engine 18 and 19 parked. Brief 100's numbers fixed at a single `0.6 → 1.0 → 1.25` curve and a **pop 12–15** target. Superseded, never built: [109](todos/closed/109-citadel-vps-deploy.md), [111](todos/closed/111-citadel-mp-room-keys-and-session-semantics.md), [112](todos/closed/112-citadel-cozy-mp-drop-armies.md).
 
 ## [2026-07-10] decision | Grilling session — MP is a real feature; the cozy contract extends to it; Challenge mode gets built
 
 A grilling pass over the open queue, prompted by brief 108's findings. Six answers, recorded as decisions **#11–#14** in [citadel-overview.md](wiki/citadel-overview.md). **Two of them reverse earlier commitments** and win over anything older.
 
-The session surfaced a contradiction nobody had noticed: the design of record said *"MP/PvP is a future mode, not the core"*, yet the server ran a 256×256 world built for MP and three open briefs (105, 109, 110) existed only to serve it. Resolved — **#11: MP is a real feature**, the committed 256×256 world stays, and [brief 110](briefs/game/done/110-citadel-client-world-size.md) is the work standing between that claim and reality.
+The session surfaced a contradiction nobody had noticed: the design of record said *"MP/PvP is a future mode, not the core"*, yet the server ran a 256×256 world built for MP and three open briefs (105, 109, 110) existed only to serve it. Resolved — **#11: MP is a real feature**, the committed 256×256 world stays, and [brief 110](todos/closed/110-citadel-client-world-size.md) is the work standing between that claim and reality.
 
 It also surfaced a live incoherence that fell out of two defaults rather than any decision: the MP server passes neither `cozyThreats` nor `enableArmy`, so both default true. MP therefore runs **cozy PvE beside lethal PvP** — NPC raiders pilfer and leave, while a rival's army sacks your town-hall and ends your run (`army.ts:127-128` sets `keepSacked` + `gameOver`). The cozy contract held against the AI and was broken by other players. **#12** resolves it the cozy way: *nothing you built is taken from you* is a whole-game promise, so a sacked hall must **dent, not end** a run. Lethal elimination is not deleted — **#13** moves it to Challenge mode, which is now approved and becomes the frozen sharp path's first real consumer, so its two-branch test burden stops being dead weight.
 
@@ -2368,13 +2419,13 @@ Also decided: **brief 98 → Option A, wire the market wall** (complete the FIPA
 
 Pushing on #12 exposed that it had removed MP's only ending. There is **no win condition anywhere** in `@citadel/sim-core` (no `victory`, no `winner`); decision #7 forbids score; and `maxDays` is a **required** `CitadelSimOptions` field that **no system reads** — every caller passes it, nothing consumes it, which is why a live MP room sailed past day 200. The three writers of `gameOver` are `army.ts:128` (rival sack — removed by #12), `siege-resolution.ts:408` (raider sack — unreachable under cozy defaults) and `immigration.ts:255` (town dies out — which #9 exists to prevent). So "soften PvP into a dent" would have shipped a lever with nothing on the other end.
 
-**#15** takes the honest route: cozy MP is a **co-op sandbox and armies come out of it entirely**, rather than being softened. Lethal PvP is not deleted — it relocates wholesale to Challenge mode (#13), where a run *can* end and the mechanic means something. This closes the open question "what does a cozy army attack do?": there isn't one. Filed as [brief 112](briefs/game/superseded/112-citadel-cozy-mp-drop-armies.md).
+**#15** takes the honest route: cozy MP is a **co-op sandbox and armies come out of it entirely**, rather than being softened. Lethal PvP is not deleted — it relocates wholesale to Challenge mode (#13), where a run *can* end and the mechanic means something. This closes the open question "what does a cozy army attack do?": there isn't one. Filed as [brief 112](todos/closed/112-citadel-cozy-mp-drop-armies.md).
 
 Grounding that brief turned up a live trap. The `launchAttack` handler ([sim-bootstrap.ts:779-822](../games/citadel/sim-core/src/sim-bootstrap.ts)) is **not gated on `enableArmy`**: it debits `stockpiles.tools` and pushes an `ArmyState`, while `enableArmy:false` merely unregisters `ArmySystem` — so the army never resolves, the tools are gone, and `state.armies` grows unbounded. It is latent today only because the handler returns early without a rival building (so a one-player solo sim can't reach it) and MP runs `enableArmy:true`. **Setting `enableArmy:false` in MP without gating the handler would create the bug** — the same shape as brief 98's Farm market wall: intents queued, cost paid, nothing resolves. Brief 112 must do both in one change.
 
-**#16/#17** cover the other two things nobody chose. The server is **one room per process** — its own header calls a multi-room lobby "a follow-up" — so every peer who connects joins the *same game*, and brief 109 would put that on a public VPS. Rooms become keyed and invite-only (`?mp=<roomId>`, porting the Farm `RunRegistry` that citadel-38 item 7 already names as the model). And an MP run is **ephemeral by design**: `request-save` hands a peer a blob that `load-save` refuses to load in a shared room ("would desync live peers"), and the room reaps 10 s after the last peer leaves — so the save API promises a recoverability MP does not have. Both filed as [brief 111](briefs/game/superseded/111-citadel-mp-room-keys-and-session-semantics.md), which now also gates 109.
+**#16/#17** cover the other two things nobody chose. The server is **one room per process** — its own header calls a multi-room lobby "a follow-up" — so every peer who connects joins the *same game*, and brief 109 would put that on a public VPS. Rooms become keyed and invite-only (`?mp=<roomId>`, porting the Farm `RunRegistry` that citadel-38 item 7 already names as the model). And an MP run is **ephemeral by design**: `request-save` hands a peer a blob that `load-save` refuses to load in a shared room ("would desync live peers"), and the room reaps 10 s after the last peer leaves — so the save API promises a recoverability MP does not have. Both filed as [brief 111](todos/closed/111-citadel-mp-room-keys-and-session-semantics.md), which now also gates 109.
 
-**#18** deletes `maxDays` rather than wiring it (MP is endless by #15); folded into [brief 99](briefs/game/done/99-p2-debt-cleanup-batch.md).
+**#18** deletes `maxDays` rather than wiring it (MP is endless by #15); folded into [brief 99](todos/closed/99-p2-debt-cleanup-batch.md).
 
 ### Third round — what a "mode" is, and a save that could not replay (#19–#20)
 
@@ -2390,7 +2441,7 @@ No Citadel design questions remain blocking; both questions opened earlier today
 
 ## [2026-07-10] done | Brief 108 — Citadel live-MP verification: the client renders a 96×96 corner of a 256×256 world
 
-[Brief 108](briefs/game/done/108-citadel-live-mp-verification.md) is the first time Citadel multiplayer was driven **live**: `npm run citadel`, two real browser tabs on `?mp` against the WebSocket server, driven through the `window.__citadel` dev hook, plus a raw-WS harness where the browser was too coarse an instrument. It found one root-cause defect and one independent gameplay bug. Code fix in `16b0191`.
+[Brief 108](todos/closed/108-citadel-live-mp-verification.md) is the first time Citadel multiplayer was driven **live**: `npm run citadel`, two real browser tabs on `?mp` against the WebSocket server, driven through the `window.__citadel` dev hook, plus a raw-WS harness where the browser was too coarse an instrument. It found one root-cause defect and one independent gameplay bug. Code fix in `16b0191`.
 
 **Room lifecycle passes (item 1).** Join, late-join replay (the joiner receives the founder's buildings with the correct `ownerId`), owner handoff on host departure in **211ms**, and the reap grace: reconnect at **3.1s** rejoins the live run (tick 58, hall intact), reconnect at **12s** gets a fresh one (tick 1, playerId reset to 0). `reapGraceMs`/`reset()` behave as documented; citadel-38 P1#7 is verified live. *Method note:* the first attempt measured this through Playwright tab close/open and read a false "fresh run" — tab churn exceeds the 10s window. Timing a grace period needs a client you can open on demand.
 
@@ -2398,7 +2449,7 @@ No Citadel design questions remain blocking; both questions opened earlier today
 
 The lesson generalises: **`players.length` tracks who is connected, not which mode this is.** Mode is now a bootstrap-time fact — `CitadelSimOptions.multiplayer`, default false; the MP server passes `true`, the solo worker states `false` explicitly. Solo, the headless runner, and the determinism baseline are unchanged *by construction*: at one player both the old and new predicates evaluate false, with no RNG draw between them. The regression test was confirmed to go red under the old predicate while its four siblings stayed green, and the fix re-verified against the live server (`keepPresent true` **and** `nextRaidDay 5`).
 
-**The root cause (items 2/4/5 blocked → [brief 110](briefs/game/done/110-citadel-client-world-size.md)).** The server runs a **256×256** world ([server/src/index.ts](../games/citadel/server/src/index.ts)); the **client is hardcoded to 96×96**. `main.ts:1120` calls `generateTerrain(SEED)` with no size args, and `iso.ts`'s `ISO_ORIGIN_X`/`ISO_WORLD_W`/`ISO_WORLD_H` are module-level consts derived from the compile-time `WORLD_WIDTH/HEIGHT` — they cannot track a runtime world. Confirmed in-browser: an MP tab reports `terrain() → 96×96`. Consequences, all reproduced:
+**The root cause (items 2/4/5 blocked → [brief 110](todos/closed/110-citadel-client-world-size.md)).** The server runs a **256×256** world ([server/src/index.ts](../games/citadel/server/src/index.ts)); the **client is hardcoded to 96×96**. `main.ts:1120` calls `generateTerrain(SEED)` with no size args, and `iso.ts`'s `ISO_ORIGIN_X`/`ISO_WORLD_W`/`ISO_WORLD_H` are module-level consts derived from the compile-time `WORLD_WIDTH/HEIGHT` — they cannot track a runtime world. Confirmed in-browser: an MP tab reports `terrain() → 96×96`. Consequences, all reproduced:
 
 - Players are **silently confined to the top-left 96×96 corner** — `placement-state.ts`'s bounds check rejects any tile ≥96, and the camera only frames the 96×96 iso world. 86% of the map is unreachable through the UI.
 - A hall at the world's own centre (128,128), where `coreBoxCenter` puts settlements, projects to screen **y≈712 on a 640px-tall canvas**. Off-canvas, over untextured background.
@@ -2413,7 +2464,7 @@ This is the half of [citadel 29](todos/closed/2026-06-19-citadel-29-world-256-to
 
 ## [2026-07-10] done | Brief 97 wave 2 — brief 97 CLOSED (inbox leak, MP pause/speed authority, toast dedup + trade race)
 
-The last three chunks of [brief 97](briefs/game/done/97-review-fix-wave.md) landed in `c8ee284`; the brief moves to `done/`. Dispatched via `plan-split-dispatch` (opus controller; 2 senior/opus chunks in parallel on disjoint game lanes, then 1 junior/Sonnet chunk serialized behind them on the shared snapshot file; 3 scoped review finders + 1 fix agent). **Unlike wave 1, wave 2 moved neither game's baseline** — Farm and Citadel are both byte-identical to `main` on three seeds, verified against a *properly-installed* `main` worktree (a bare worktree resolves the workspace symlinks back to the branch and silently compares the branch against itself).
+The last three chunks of [brief 97](todos/closed/97-review-fix-wave.md) landed in `c8ee284`; the brief moves to `done/`. Dispatched via `plan-split-dispatch` (opus controller; 2 senior/opus chunks in parallel on disjoint game lanes, then 1 junior/Sonnet chunk serialized behind them on the shared snapshot file; 3 scoped review finders + 1 fix agent). **Unlike wave 1, wave 2 moved neither game's baseline** — Farm and Citadel are both byte-identical to `main` on three seeds, verified against a *properly-installed* `main` worktree (a bare worktree resolves the workspace symlinks back to the branch and silently compares the branch against itself).
 
 **Farm station inbox leak (item 11).** `InboxDispatchSystem` fans every broadcast into *every* entity with an `inbox`, but `PerceiveSystem` clears only farmers — its query is `("inbox","beliefs","fsm")`. The stations accumulated forever while ~10 systems re-scanned them each tick. New `StationInboxClearSystem` in a new final **`CLEANUP` band** (band 10 — see [system-ordering.md](wiki/system-ordering.md)), after the last consumer. `WeatherSystem` drains its own inbox *pre-dispatch* (it is registered one line before `InboxDispatchSystem`, so `flush()` refills it in the same stage); the shopkeeper keeps a winner's un-credited `AUCTION_RESULT` because that is a live cross-tick settlement retry, and drops the inert ones. Peak station inbox over 40 days: **11**, flat in day count. Proven behavior-preserving by multi-seed `EXPORT=json` diff — the determinism check alone could not have shown this, since it only asserts a seed reproduces itself.
 
@@ -2448,13 +2499,13 @@ Residual: the seeded double-run `EXPORT=json` hash diff still **subsumes** `chec
 
 ## [2026-07-09] done | Brief 97 wave 1 — six P0/P1 review-fix chunks landed (brief stays open: ch.3/5/8 remain)
 
-Wave 1 of [brief 97](briefs/game/done/97-review-fix-wave.md) shipped on `brief-97-review-fix-wave` via `plan-split-dispatch`: opus controller, **1 senior/opus + 5 junior/Sonnet** executor chunks run in parallel on **disjoint file lanes in one shared working tree** (no worktree, no `git stash` — the lanes were the isolation), then **3 scoped review finders + 1 fix agent**. Chunks 1, 2, 4, 6, 7, 9 landed; **3 (inbox clearing), 5 (Citadel MP pause/speed authority), 8 (toast dedup + trade race) are still open** — the brief is NOT complete and stays in `todo/`. Chunk 10 (corpus sweep) was done inline here and is now largely obsolete: `d071281` had already fixed the ~190 stale wiki links.
+Wave 1 of [brief 97](todos/closed/97-review-fix-wave.md) shipped on `brief-97-review-fix-wave` via `plan-split-dispatch`: opus controller, **1 senior/opus + 5 junior/Sonnet** executor chunks run in parallel on **disjoint file lanes in one shared working tree** (no worktree, no `git stash` — the lanes were the isolation), then **3 scoped review finders + 1 fix agent**. Chunks 1, 2, 4, 6, 7, 9 landed; **3 (inbox clearing), 5 (Citadel MP pause/speed authority), 8 (toast dedup + trade race) are still open** — the brief is NOT complete and stays in `todo/`. Chunk 10 (corpus sweep) was done inline here and is now largely obsolete: `d071281` had already fixed the ~190 stale wiki links.
 
 Headline fixes: Citadel's **ghost-worker leak** (fire wrote `rs.workerCount = 0` every burning tick without releasing the villager, so the worker looped forever while ImmigrationSystem backfilled the phantom vacancy — now an ephemeral `BuildingRuntimeState.suppressed` consumed by ProductionSystem, plus a shared `releaseWorkersAt` at all four real removal sites); Farm's **juice death** (diffed events by `events.length` against a capped 30-entry tail window, so every shake/hitstop/popup died permanently after ~30 events — now an event-tick high-water mark); the **self-cancelling crop-quality formula** (`currentDay - (readyAtDay - ⌊daysGrowing⌋)` collapsed to `⌊daysGrowing⌋`, pinning `growthScore ≈ 1.0`, so `OUT_OF_SEASON_GROWTH_RATE` and the farming-skill multiplier reached neither timing nor quality); and **one-message server DoS** (`{"type":"speed","multiplier":1e9}` ran 1e9 synchronous ticks per interval, stalling every run and socket).
 
 **The review is the story.** Three *scoped* finders (integration / sim-agent logic / render-server) beat one generalist, and disagreed with each other productively: finder B checked chunk 2's new village gate against its sibling *handlers* and cleared it; finder A traced the gate's *producers* and found `opportunist.ts`'s liquidity branch queues `sell-shopkeeper` with **no travel intent** — so post-gate the sell silently no-ops while `ApSystem` has already deducted 3 AP/crop. Controller adjudicated in favour of A (verified in source). Four more: the boat hull, told by the brief itself to take `id: entity.id`, **collided with the farmer's id** — three first-match id-keyed consumers broke at once (held tool rendered on the hull facing "down"; camera-follow and particles read the hull's `+0.15*TILE` offset; `prevById` overwrote the hull so it lerped from the farmer's prior position). Fixed with a disjoint negative-id namespace (`-entity.id`; ECS ids start at 1), which needed **zero client changes**. And a fire-**suppressed** Trading Post kept trading, because `trader.ts` gated on `workerCount` — the one reader chunk 4 missed when it stopped zeroing it. Durable lesson: **a lane-scoped executor cannot see the bug its own correct change causes in a lane it doesn't own**; the brief's own prescribed fix was wrong, and only a cross-package lens caught it.
 
-**Gates:** engine 177/177 · farm-server 31/31 · farm-client 196/196 · farm-sim-core 811/812 · citadel-sim-core 231/231 · citadel-client 423/423. Farm determinism **MATCH ×3** (0xc0ffee/1/42) and Citadel **MATCH ×3**, both by double-run byte-identical export diff. **Farm baseline moved by design** — 100 days, seed 0xc0ffee, against a true `main` worktree: diverges at **day 2**, all four AI personalities; total gold 81,962 → 55,412 (−32%), unsold crops 36,134 → 28,008 (−22%). Crops now actually sell (the gate forces the travel agents were skipping) and gold falls because quality finally responds to season/skill. Chunk 6's connection-lost banner **verified live in a real browser** (killed the sim server mid-run; crimson `EDG` banner appears where the client used to freeze silently). Juice-past-30-events and the new boat drop-shadow were **not** eyeballed live — unit-tested only; they belong to [brief 107](briefs/game/superseded/107-farm-visual-verification-session.md).
+**Gates:** engine 177/177 · farm-server 31/31 · farm-client 196/196 · farm-sim-core 811/812 · citadel-sim-core 231/231 · citadel-client 423/423. Farm determinism **MATCH ×3** (0xc0ffee/1/42) and Citadel **MATCH ×3**, both by double-run byte-identical export diff. **Farm baseline moved by design** — 100 days, seed 0xc0ffee, against a true `main` worktree: diverges at **day 2**, all four AI personalities; total gold 81,962 → 55,412 (−32%), unsold crops 36,134 → 28,008 (−22%). Crops now actually sell (the gate forces the travel agents were skipping) and gold falls because quality finally responds to season/skill. Chunk 6's connection-lost banner **verified live in a real browser** (killed the sim server mid-run; crimson `EDG` banner appears where the client used to freeze silently). Juice-past-30-events and the new boat drop-shadow were **not** eyeballed live — unit-tested only; they belong to [brief 107](todos/closed/107-farm-visual-verification-session.md).
 
 **Method note (baseline diffing):** a git worktree at `main` has no `node_modules`, so Node resolution walks *up* and `@farm/sim-core` resolves to the **branch's** workspace symlink — the first "main vs branch" comparison was branch-vs-branch and came back spuriously byte-identical. `npm install` inside the worktree before trusting any cross-revision sim diff.
 
@@ -2479,7 +2530,7 @@ Prior art (a tool benchmark on another TypeScript monorepo) supplied two correct
 Routed a new "add engine audio" request through `orchestrate`. Captured
 [todos/2026-07-08-engine-audio-subsystem.md](todos/closed/2026-07-08-engine-audio-subsystem.md) (problem
 + design constraints + acceptance) and promoted it to a dispatch-ready
-[engine brief 19](briefs/engine/done/19-audio-subsystem.md). **Design (approved):** audio is a new
+[engine brief 19](todos/closed/19-audio-subsystem.md). **Design (approved):** audio is a new
 generic engine subsystem `@engine/core/audio` (Web Audio `AudioEngine`: register/`play` one-shots →
 per-voice gain → master gain, `volume`/`muted`, voice cap, `unlock()` gesture-resume, injected
 `AudioContextLike` factory for headless tests), consumed only by the **client** packages — **strictly
@@ -2510,7 +2561,7 @@ Second half of the review pass: an opportunity scan (open todos re-read, status.
 
 ## [2026-07-02] todo | Brief 97 — review fix wave (plan approved, execution deferred)
 
-Promoted the review findings into an execution brief: [briefs/game/done/97-review-fix-wave.md](briefs/game/done/97-review-fix-wave.md). Carries the in-session-approved `plan-split-dispatch` plan — 10 chunks (3 senior: farm inbox clearing / citadel ghost workers / citadel MP pause-speed authority; 7 junior) in 3 dependency waves with file lanes, per-chunk acceptance + red-before-fix tests, and gates (typecheck/tests per wave; Farm CHECK_DETERMINISM ×3 + Citadel determinism ×3; chunk 3 additionally proven behavior-preserving via multi-seed EXPORT=json diff; chunks 2/9 move the Farm baseline by design; UI chunks need a real-browser pass). Scope = findings items 1–6, 8–27, 36–40; item 7 (market-wall loop) still needs its own wire-or-remove design brief; items 28–35 (P2 debt) remain in the findings doc unscheduled. index.md brief catalog updated (01–97). No code changed.
+Promoted the review findings into an execution brief: [briefs/game/done/97-review-fix-wave.md](todos/closed/97-review-fix-wave.md). Carries the in-session-approved `plan-split-dispatch` plan — 10 chunks (3 senior: farm inbox clearing / citadel ghost workers / citadel MP pause-speed authority; 7 junior) in 3 dependency waves with file lanes, per-chunk acceptance + red-before-fix tests, and gates (typecheck/tests per wave; Farm CHECK_DETERMINISM ×3 + Citadel determinism ×3; chunk 3 additionally proven behavior-preserving via multi-seed EXPORT=json diff; chunks 2/9 move the Farm baseline by design; UI chunks need a real-browser pass). Scope = findings items 1–6, 8–27, 36–40; item 7 (market-wall loop) still needs its own wire-or-remove design brief; items 28–35 (P2 debt) remain in the findings doc unscheduled. index.md brief catalog updated (01–97). No code changed.
 
 ## [2026-07-02] review | Full-repo code + corpus review — 40 findings filed (no code changed)
 
@@ -2522,7 +2573,7 @@ Health-check pass after the art-08..12 closeout. **Verified** every code claim i
 
 ## [2026-07-02] maintenance | Corpus compaction — log.md collapsed 2556→649 lines + Farm foundation briefs 01–10 merged
 
-The corpus had grown long; compacted per the established era-summary convention. **log.md 2556 → 649 lines:** collapsed every full-prose entry from **2026-06-19 → 2026-06-30** (≈75 entries — the cozy-pivot design rounds 1–7, Phases A–I, the all-GUI-in-canvas `@engine/ui` build, the 06-27 playtest fixes, the 06-26 gameplay-depth/iso-grounding waves, and the 06-19..22 true-iso render foundation) into **one dated `## [2026-06-30] era` summary** with a "Load-bearing facts (do not re-derive)" subsection (sprite CENTRE-anchor rule, flat-terrain-bake, real-GPU-only + Playwright-Chromium-can't-WebGPU, determinism discipline, playtest-driver caveats). Only 2026-07-01 onward stays full prose; git holds the trimmed text. Updated the header compaction note. **Briefs: merged Farm foundation 01–10** (`01-personalities`…`10-trust-and-endgame`, 10 tiny 14–20-line files, era-collapsed + linked by nothing but one inter-brief ref) into a single verbatim rollup [briefs/game/done/01-10-farm-foundation.md](briefs/game/done/01-10-farm-foundation.md) (H1→H2 per brief; brief-08→06 ref rewired to an in-file anchor) — game/done file count 59→50. Left the wiki-linked briefs (49/50-54/59/66-72/75/84/90-93/95) + all engine briefs standalone (each is linked from index.md/status.md — merging would churn those links for no context win). Also fixed 11 stale `todos/…`→`todos/closed/…` links (fallout from the prior audit's todo moves) in log.md + status.md and corrected a stale status.md claim ("only open Citadel todo: true-isometric" → it's done). Every link in the touched files resolves; the ~191 remaining archive-wide broken links (BUILD-ORDER index docs pointing at pre-`closed/` sibling paths) are a pre-existing condition, out of scope here. Corpus-only; no code touched.
+The corpus had grown long; compacted per the established era-summary convention. **log.md 2556 → 649 lines:** collapsed every full-prose entry from **2026-06-19 → 2026-06-30** (≈75 entries — the cozy-pivot design rounds 1–7, Phases A–I, the all-GUI-in-canvas `@engine/ui` build, the 06-27 playtest fixes, the 06-26 gameplay-depth/iso-grounding waves, and the 06-19..22 true-iso render foundation) into **one dated `## [2026-06-30] era` summary** with a "Load-bearing facts (do not re-derive)" subsection (sprite CENTRE-anchor rule, flat-terrain-bake, real-GPU-only + Playwright-Chromium-can't-WebGPU, determinism discipline, playtest-driver caveats). Only 2026-07-01 onward stays full prose; git holds the trimmed text. Updated the header compaction note. **Briefs: merged Farm foundation 01–10** (`01-personalities`…`10-trust-and-endgame`, 10 tiny 14–20-line files, era-collapsed + linked by nothing but one inter-brief ref) into a single verbatim rollup [briefs/game/done/01-10-farm-foundation.md](todos/closed/01-10-farm-foundation.md) (H1→H2 per brief; brief-08→06 ref rewired to an in-file anchor) — game/done file count 59→50. Left the wiki-linked briefs (49/50-54/59/66-72/75/84/90-93/95) + all engine briefs standalone (each is linked from index.md/status.md — merging would churn those links for no context win). Also fixed 11 stale `todos/…`→`todos/closed/…` links (fallout from the prior audit's todo moves) in log.md + status.md and corrected a stale status.md claim ("only open Citadel todo: true-isometric" → it's done). Every link in the touched files resolves; the ~191 remaining archive-wide broken links (BUILD-ORDER index docs pointing at pre-`closed/` sibling paths) are a pre-existing condition, out of scope here. Corpus-only; no code touched.
 
 ## [2026-07-02] lint | Corpus structure audit — misfiled todos + a stragglling obsolete brief reconciled
 
@@ -2591,7 +2642,7 @@ Findings: Citadel is **already** true-iso (2:1, 32×16, correct projection + `x+
 [brief 21](todos/closed/2026-06-21-citadel-true-isometric.md)) with procedural EDG32 recipes + baked contact
 shadows — so this is a **fidelity + art-direction** task, not an iso conversion. Grilled the user to lock
 4 decisions: **(1) go 2× outright** (`ISO_ART_SCALE=2`, re-open the 4×-reverted call from
-[brief 95](briefs/game/done/95-citadel-building-restyle-reference-look.md) at the middle ground; 4× stays a
+[brief 95](todos/closed/95-citadel-building-restyle-reference-look.md) at the middle ground; 4× stays a
 future knob), **(2) cozy medieval storybook** art direction (warm bias, golden hour, soft shadows, lived-in),
 **(3) both** shader tracks (refine wash/light/weather overlays + light up a reusable fBm overlay), **(4)**
 focused-quality tone but full-overhaul coverage (buildings, units, roads, terrain, atmosphere, animation).
@@ -3080,7 +3131,7 @@ Corpus-only entry (no code changed in this playtest).
 
 ## [2026-06-30] era | Citadel cozy pivot (design rounds 1–7 + Phases A–I) + all-GUI-in-canvas (@engine/ui) + 06-27 playtest fixes + 06-26 gameplay-depth/art + 06-19..22 iso-render foundation
 
-Collapsed the 2026-06-19 → 2026-06-30 Citadel wave (≈75 full-prose entries). Per-brief detail lives in [briefs/](briefs/) + closed todos in [todos/closed/](todos/closed/) + [wiki/status.md](wiki/status.md); **git holds the trimmed prose** (`git log -p -- corpus/log.md`). Design of record for the cozy identity is [todos/closed/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md](todos/closed/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md); synthesis in [wiki/citadel-overview.md](wiki/citadel-overview.md).
+Collapsed the 2026-06-19 → 2026-06-30 Citadel wave (≈75 full-prose entries). Per-brief detail lives in [todos/closed/](todos/closed/) (the `briefs/` tree was folded in on 2026-09-19) + [wiki/status.md](wiki/status.md); **git holds the trimmed prose** (`git log -p -- corpus/log.md`). Design of record for the cozy identity is [todos/closed/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md](todos/closed/2026-06-28-citadel-cozy-pivot-BUILD-ORDER.md); synthesis in [wiki/citadel-overview.md](wiki/citadel-overview.md).
 
 ### The cozy pivot — design (2026-06-28, 7 grilling rounds, no code)
 Resolved **what Citadel is for**: *a cozy placement puzzle you read by watching the town live* — not a pressure/survival sim, not a competitive RTS. Ten locked decisions (see the build order for the full list):
@@ -3096,7 +3147,7 @@ Resolved **what Citadel is for**: *a cozy placement puzzle you read by watching 
 - **Phase A (keystone, 06-30)** — per-house diegetic mood/coverage signal. The sim already computed per-house `hasFaith/hasSafety/hasGoods` in `_computeNeedsFor` and **threw it away**; Phase A stops discarding it, writing `{lacksFaith,lacksSafety,lacksGoods,mood}` onto each house's `BuildingRuntimeState` + snapshot. Render expresses it diegetically: `EDG.gold` glow pool scaled by mood, mood-driven sprite-dim, mood-gated hearth-smoke wisp (`needs-happiness.ts`, `citadel-renderer.ts`, `citadel-fx.ts`). Determinism preserved (per-house write is a pure side effect; aggregate outputs byte-identical). Phases B/C/D/F/H shipped 2026-07-01 (full prose retained above for those).
 
 ### All-GUI-in-canvas — @engine/ui (2026-06-28 design round 7 → 06-30 build)
-Grilled "all GUI in-game" into a first-class **cross-game engine subsystem** (not a Citadel task): build the UI layer first; the six Citadel UI panels are *consumers*; a **hidden DOM a11y mirror** is a required deliverable; new game-agnostic + render-backend-agnostic (**WebGPU + Canvas2D fallback**) **`@engine/ui`** package ([brief 17](briefs/engine/done/17-engine-ui-framework.md)).
+Grilled "all GUI in-game" into a first-class **cross-game engine subsystem** (not a Citadel task): build the UI layer first; the six Citadel UI panels are *consumers*; a **hidden DOM a11y mirror** is a required deliverable; new game-agnostic + render-backend-agnostic (**WebGPU + Canvas2D fallback**) **`@engine/ui`** package ([brief 17](todos/closed/17-engine-ui-framework.md)).
 - **Framework** (`engine/ui/`): render seam (`RendererLike.beginUI/pushUI/endUI`), deterministic **5×7 bitmap font** (measure/layout/wrap/draw, EDG-tinted), retained-mode widgets (panel/box/label/button, later **slider/checkbox/toggle**), two-pass flex `computeLayout`, EDG32 theme, input dispatcher (hit-test/hover/focus/drag + a `consumed` intercept signal), scroll + injected-time tweens, `opacity` subtree channel, hidden-DOM a11y mirror.
 - **Six Citadel consumers** all shipped: resource HUD (all-goods strip), building inspect+upgrade panel, villager-job panel (villagers tint by job; **placement ⊥ follow-cam**), resource-HUD goods, town-hall build button (+ **solo keep-anchor decouple**: `actsAsKeepAnchor()` — a town-hall is civic-only in solo so raids never start), **build-cost economy** (`BUILD_COST` per type + debit, opt-in `chargeBuildCost`/`startingStock` bootstrap flag so headless/tests stay free & determinism-baseline-identical; solo grants 40 wood).
 - **DOM-overlay removal COMPLETE** (all 5 surfaces): event toasts, build bar (emoji→text labels — see the still-open [authored-typography todo](todos/closed/2026-06-30-engine-ui-authored-typography-and-icons.md)), occupancy badges (world-anchored via `tileToCanvasCss`), minimap (raw-quad draw), settings modal (fully modal). No DOM UI overlays remain over the Citadel world.
@@ -3116,7 +3167,7 @@ Grilled "all GUI in-game" into a first-class **cross-game engine subsystem** (no
 
 ### 2026-06-19 → 2026-06-22 — the true-isometric render foundation
 - **True-iso epic** (`render/iso.ts` = single source of truth): 2:1 dimetric `tileToIso` + the placement-critical inverse `isoToTile` (round-trip tested for all 9216 tiles) + `isoFootprintBox`/`isoSpriteDims`/`isoDepth`. Terrain bakes as **diamonds**; roads/walls/ghost draw via an `fx/diamond` frame; sprites re-authored true-iso (diamond base + two shaded wall faces + hip roof) at 32-based res. Sim/determinism/EDG32 untouched.
-- **Per-building FORMS**: replaced the one-box-differing-by-colour set with distinct silhouettes — `cottage`/`postMill`/`openField`/`marketStalls`/`church`/`warehouse`/`fort`/`boxBuilding`, one iconic feature per type; **animated 8-frame mill** (`bld/mill@0..7` + `millFrameAt(clockMs)`, render-only). Authored at 4× briefly, then **reverted to 32-based** (`ISO_ART_SCALE=1`, 32 judged dense enough — this retired brief 94's upscale premise). Reference restyle (terracotta tile roofs + half-timber + ashlar coursing, EDG32 evocation of the user's packs → [brief 96](briefs/game/superseded/96-citadel-building-art-style-reference.md)); mill + well rebuilt (were the two weak forms); night light-pool fixed (soft `fx/diamond` ground pool below buildings, not an orange box over them).
+- **Per-building FORMS**: replaced the one-box-differing-by-colour set with distinct silhouettes — `cottage`/`postMill`/`openField`/`marketStalls`/`church`/`warehouse`/`fort`/`boxBuilding`, one iconic feature per type; **animated 8-frame mill** (`bld/mill@0..7` + `millFrameAt(clockMs)`, render-only). Authored at 4× briefly, then **reverted to 32-based** (`ISO_ART_SCALE=1`, 32 judged dense enough — this retired brief 94's upscale premise). Reference restyle (terracotta tile roofs + half-timber + ashlar coursing, EDG32 evocation of the user's packs → [brief 96](todos/closed/96-citadel-building-art-style-reference.md)); mill + well rebuilt (were the two weak forms); night light-pool fixed (soft `fx/diamond` ground pool below buildings, not an orange box over them).
 - **Bridges**: a road dragged onto Water auto-converts to a non-overlapping `bridge` building (joins `roadGrid`, keeps the tile walkable).
 - **playtest-citadel skill** added (`.claude/skills/`, Playwright + system Chrome WebGPU). Growth-deadlock root cause (P0): production is **per-building gated on `workerCount>0`** (2nd worker = wasted mouth) AND pure services were staffed **before the bread chain** → fixed with goods-before-services assignment + per-unstaffed-building founding + buffer-based immigration; `grow` now holds pop 10–11/12 through a full year. Coverage overlay + placement ring shipped (OpenTTD brief 1/3); minimap redrawn in iso world-px (viewport reads as a rectangle).
 
@@ -3129,7 +3180,7 @@ Grilled "all GUI in-game" into a first-class **cross-game engine subsystem** (no
 
 ## [2026-06-12] era | World-expansion + décor + animation + improvement-backlog wave
 
-Shipped across 2026-06-12; per-brief detail in [briefs/](briefs/) + [wiki/status.md](wiki/status.md). Individual entries trimmed — git holds the prose.
+Shipped across 2026-06-12; per-brief detail in [todos/closed/](todos/closed/) + [wiki/status.md](wiki/status.md). Individual entries trimmed — git holds the prose.
 
 - **Land foundations + consumers (world/render todo group COMPLETE):** grew the world **160→240** (uniform position-only `SCALE=1.5`: island `bounds` via `scaleB` keep size, gaps open ×1.5; on-island content locked to its island via `scaleAroundNearestIsland` so nothing drifts to ocean; coral derives from live isle bounds; one hand-tune: shrine +2x to keep the village↔shrine bridge; `DEFAULT_ZOOM` 2→3). The todo's "only one stray literal" estimate was wrong — the real blast radius was dozens of hardcoded 160-coords. Then: `RegionDef.theme` enum + `interior-decor.ts` `computeInteriorDecor` (per-theme blue-noise scatter inside themed regions, baked layer 2, forbidden-set from world queries dodges functional tiles + bridge mouths, deterministic per `WORLD_GEN_SEED`, **never read by sim**); bigger neutral islands (heritage/mushroom/ice/volcano/casino 8×8→12×12); 21 per-farm `ranch-N` islands hosting relocated livestock pens (tend now gated on being at the ranch → real daily AI traffic); casino open-air (building removed, dressed with 5 new gaming sprites as island-locked baked props) — which surfaced + fixed a grow regression (baked `BIG_STRUCTURES` forge/carpenter/weather/volcano had stale 160-coords baking in ocean post-grow; now island-locked, geometry.test guards it); 4-way `seasonalTreeFrame` (blossom/green/autumn/bare over tree/bush/fruit-tree/big-tree, instant swap) + new `big-tree` landmark island, and a latent fix (mature orchards rendered as saplings — nothing swapped the frame on maturity).
 - **Improvement backlog (filed + shipped same day, one worktree branch per brief, Sonnet executors, merged individually, tests green each merge):** engine 10–16 + game 86–88. Detail in [wiki/status.md](wiki/status.md). Load-bearing facts kept below.
@@ -3165,7 +3216,7 @@ Shipped 2026-06-11 (Opus-plan / Sonnet-execute, committed per-brief); per-brief 
 
 ## Archive — 2026-05-26 → 2026-06-10 (older entries trimmed 2026-06-11)
 
-Trimmed to keep this log minimal. **Full entry text is in git history** (`git log -p -- corpus/log.md`); every brief's detail lives in [briefs/](briefs/) (done/superseded) and durable synthesis in [wiki/](wiki/). Era summary:
+Trimmed to keep this log minimal. **Full entry text is in git history** (`git log -p -- corpus/log.md`); every brief's detail lives in [todos/closed/](todos/closed/) and durable synthesis in [wiki/](wiki/). Era summary:
 
 - **05-26 → 05-29 — Foundations.** Wiki adoption; engine briefs 02–08 (input, tests, spatial+anim, pathfinder-into-movement, determinism harness, baked tile layer, WASM expansion); game briefs through ~23 (personalities, weather/crops, market/shop/auctions, observer + spectator UI, regions+travel, seasons, mid-game shock).
 - **06-03 → 06-04 — Long-day redesign + archipelago birth.** Briefs 24–35: complete auctions, day/night + seasonal grading, long days (ticksPerDay 1200) + AP rework + irrigation, rendering overhaul + world expansion, player activity. World rebuilt as an 88×80 island-per-zone archipelago; EDG32 enforced project-wide; Pip + interaction systems; fishing isles + bubbles.

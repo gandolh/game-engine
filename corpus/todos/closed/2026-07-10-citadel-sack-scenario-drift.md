@@ -1,8 +1,8 @@
 # Citadel `sack` scenario no longer sacks (pre-existing drift)
 
 status: **CLOSED 2026-07-11.** Commits `7c76522` + `36382d2`. Unblocks
-[brief 103](../../briefs/game/done/103-citadel-challenge-mode.md); de-risks
-[brief 113](../../briefs/game/done/113-citadel-raid-gets-a-body.md).
+[brief 103](103-citadel-challenge-mode.md); de-risks
+[brief 113](113-citadel-raid-gets-a-body.md).
 
 > **Resolution 2026-07-11 — it was not "drift". It was four defects, and the fixture was
 > structurally inert, not subtly off.**
@@ -81,11 +81,11 @@ chased it. No brief owns it.
 end to end. That path has been frozen since the 2026-06-28 cozy pivot, guarded only by a
 byte-identity regression test — which proves the path *hasn't changed*, not that it *works*.
 
-- **[Brief 103](../../briefs/game/done/103-citadel-challenge-mode.md) (Challenge mode) is
+- **[Brief 103](103-citadel-challenge-mode.md) (Challenge mode) is
   blocked.** Its acceptance is "challenge run playable start→**sack**-or-survive" and "raid
   can sack". Challenge mode *is* the sharp path's first real consumer. It cannot be signed
   off while the fixture that demonstrates a sack doesn't.
-- **[Brief 113](../../briefs/game/done/113-citadel-raid-gets-a-body.md) inherits the risk.** It
+- **[Brief 113](113-citadel-raid-gets-a-body.md) inherits the risk.** It
   rehomes the army's marching machinery onto the raid, and requires the sharp resolution stay
   "reachable, byte-identical". If the sharp resolution is *already* not reachable, that
   acceptance criterion is vacuously true and 113 will build a body on a broken skeleton.

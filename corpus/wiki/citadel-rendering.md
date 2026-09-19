@@ -164,7 +164,7 @@ their own proportions**, authored at **4×** resolution, with an **animated mill
   scale-independent. (This retired the "upscale units/terrain to 4×" follow-up,
   brief 94.)
 - **Reference restyle (done, brief
-  [95](../briefs/game/done/95-citadel-building-restyle-reference-look.md)).** Per
+  [95](../todos/closed/95-citadel-building-restyle-reference-look.md)).** Per
   user reference art (Reiner "Isometric Buildings" + zatoart/xilurus itch packs),
   the forms were restyled toward warm **terracotta tile roofs** (`drawGableRoof`:
   ridge cap + eave-overhang shadow + tile courses), **half-timber** framing

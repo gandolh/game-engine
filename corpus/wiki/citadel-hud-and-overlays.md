@@ -14,7 +14,7 @@ Design intent for the diegetic-feedback direction lives in the **cozy pivot** ba
 > a **goods strip** with one colour-coded chip per good — grain/flour/bread/wood/planks/
 > stone/tools, bread carrying its `(±surplus)` annotation — + speed/pause buttons) now
 > renders **in-canvas** via the new `@engine/ui`
-> framework ([brief 17](../briefs/engine/done/17-engine-ui-framework.md)), replacing the
+> framework ([brief 17](../todos/closed/17-engine-ui-framework.md)), replacing the
 > DOM `#hud` readout and `#btn-pause/-1x/-2x/-4x`.
 >
 > **✅ DOM-overlay removal COMPLETE (2026-06-30) — ALL Citadel GUI now renders in-canvas; no DOM

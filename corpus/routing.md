@@ -13,7 +13,7 @@ executor chunks on Sonnet 5 successfully.)
 **Never route a chunk to a fable-model subagent** on this repo (pixel-art chunks included) — use opus.
 **Review skill:** /code-review (repo skill) over the diff; `npm run typecheck` + `npm run test` are the gates
 **PR skill:** propose git commands (gh CLI available). **Commit completed specs at closeout** (one commit for code + one for the corpus change); never push / open a PR / tag without the user's say-so.
-**Issue tracker:** none — the work queue is `corpus/todos/` (ready/in-progress specs); finished specs move to `corpus/todos/closed/`, and the older archives live in `corpus/briefs/{engine,game}/{done,superseded}`
+**Issue tracker:** none — the work queue is `corpus/todos/` (ready/in-progress specs) and **every finished spec, of any era, is in `corpus/todos/closed/`** (the separate `corpus/briefs/` tree was folded in on 2026-09-19)
 **Code host:** GitHub (gh) — github.com/gandolh/game-engine
 
 > **Skill-contract deviations — read before invoking any personal skill.** This corpus predates the
@@ -22,7 +22,7 @@ executor chunks on Sonnet 5 successfully.)
 > | The skill says | Here it is | Applies to |
 > |---|---|---|
 > | `corpus/briefs/todo/` (the queue) | **`corpus/todos/`** — dated specs, finished ones move to `corpus/todos/closed/` | `orchestrate`, `improve`, `plan-split-dispatch` (backlog mode) |
-> | `corpus/briefs/` (writes new work) | **closed archive, do not add files** — historical specs only, in `briefs/{engine,game}/{done,superseded}` | all |
+> | `corpus/briefs/` (writes new work) | **does not exist** — it was folded into `corpus/todos/closed/` on 2026-09-19. New work is a dated spec in `corpus/todos/`; finished ones move to `corpus/todos/closed/`. | all |
 > | `corpus/wiki/index.md` (the catalog) | **`corpus/index.md`** | `improve` step 1 |
 >
 > A spec's state is **the directory it sits in** (`corpus/todos/` vs `corpus/todos/closed/`), not a

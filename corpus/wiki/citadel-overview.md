@@ -78,13 +78,13 @@ punishes tight clusters** by design — space buildings ~5–8 tiles and connect
 are still open (solo is unaffected).
 
 > **⚠️ MP renders only a 96×96 corner of its 256×256 world** (found live 2026-07-10,
-> [brief 108](../briefs/game/done/108-citadel-live-mp-verification.md)). The server runs 256×256
+> [brief 108](../todos/closed/108-citadel-live-mp-verification.md)). The server runs 256×256
 > but the *client* is hardcoded to 96×96 — `main.ts` calls `generateTerrain(SEED)` with no size
 > args, and `iso.ts`'s `ISO_ORIGIN_X`/`ISO_WORLD_W`/`ISO_WORLD_H` are compile-time consts. Players
 > are silently confined to the top-left corner by the placement bounds check; anything the sim puts
 > outside it (raiders spawn at the true map edges) lands off-canvas. Consequently `shouldWindow` is
 > always false, so briefs 21/22's windowed bake **never executes** in production. **Solo is 96×96
-> and entirely correct — every symptom is MP-only.** Fix is [brief 110](../briefs/game/done/110-citadel-client-world-size.md);
+> and entirely correct — every symptom is MP-only.** Fix is [brief 110](../todos/closed/110-citadel-client-world-size.md);
 > don't trust MP render behaviour until it lands.
 >
 > Mode-dependent sim rules must read the bootstrap-time `multiplayer` option, **not**
@@ -107,7 +107,7 @@ Split out on 2026-07-09 to keep this page navigable:
 
 ## Briefs & todos
 
-There is no Farm-Valley-style "done brief" archive for Citadel yet; work is tracked as todos. See [briefs/citadel-apr.md](../briefs/citadel-apr.md) and the `corpus/todos/*citadel-*` files (e.g. the `citadel-00-BUILD-ORDER` epic and the 21–33 series: windowed-grid render, incremental build queue, PlayerState refactor, territory/influence, PvP armies, per-player PvE). Fold durable Citadel findings into this page as the design settles.
+Citadel has no numbered-brief series of its own; its work is tracked as dated specs in `todos/closed/` (the single archive since 2026-09-19). See [briefs/citadel-apr.md](../todos/closed/citadel-apr.md) and the `corpus/todos/*citadel-*` files (e.g. the `citadel-00-BUILD-ORDER` epic and the 21–33 series: windowed-grid render, incremental build queue, PlayerState refactor, territory/influence, PvP armies, per-player PvE). Fold durable Citadel findings into this page as the design settles.
 
 > **⛔ SUPERSEDED by the 2026-06-28 cozy pivot.** The two notes below describe the
 > **pressure-game** design and its tuning. The pivot reframes both — kept here for

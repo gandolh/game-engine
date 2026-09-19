@@ -7,7 +7,7 @@ source: "OpenTTD research, 2026-06-22"
 ---
 
 > **✅ DONE 2026-07-10.** The deferred upside halves (scopes #1 + #3) shipped as
-> [brief 100 — economy-growth pass](../../briefs/game/done/100-citadel-economy-growth-pass.md).
+> [brief 100 — economy-growth pass](100-citadel-economy-growth-pass.md).
 > Both directions of the loop now exist: one curve (`bufferServiceFactor`) throttles a backed-up
 > producer toward the 0.6 floor and lifts a sustainedly-served one to 1.25×, and service coverage
 > re-weights the immigration roll. Headless `grow` 60d moved `pop 9-10` → `pop 12`. This todo is

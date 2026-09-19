@@ -13,7 +13,7 @@ tags: [citadel, ui, economy, building, upgrades]
 > `upgradeBuilding` command. Disabled at max level, when unaffordable, or when tier-locked
 > ("Needs Village/Town"); precedence max > tier > affordability.
 
-> **UNBLOCKED 2026-06-30** — `@engine/ui` shipped ([brief 17](../../briefs/engine/done/17-engine-ui-framework.md)); build this panel native to it (`@engine/ui` widget tree + the Citadel HUD pattern in `games/citadel/client/src/ui/resource-hud.ts`), not DOM. Depends on
+> **UNBLOCKED 2026-06-30** — `@engine/ui` shipped ([brief 17](17-engine-ui-framework.md)); build this panel native to it (`@engine/ui` widget tree + the Citadel HUD pattern in `games/citadel/client/src/ui/resource-hud.ts`), not DOM. Depends on
 > [render-all-gui-in-game / @engine/ui](2026-06-28-citadel-ui-all-rendered-in-game.md).
 > (The sim mechanic it surfaces — `upgradeBuilding` / `upgradeCost` — already exists.)
 

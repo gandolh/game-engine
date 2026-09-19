@@ -40,7 +40,7 @@ disciplined isometric volumes reads cleanly at every zoom**, and detail is layer
 
 Citadel already commits to **true 2:1 dimetric iso, warm terracotta roofs, a
 multi-step EDG32 palette, silhouette-first forms** (see the standing art reference
-[briefs/game/todo/96-citadel-building-art-style-reference.md](../../briefs/game/superseded/96-citadel-building-art-style-reference.md)).
+[briefs/game/todo/96-citadel-building-art-style-reference.md](96-citadel-building-art-style-reference.md)).
 OpenTTD validates that direction. Concrete borrowables:
 
 - **Read-at-any-zoom discipline.** OpenGFX keeps types distinguishable by silhouette

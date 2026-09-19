@@ -44,7 +44,7 @@ A `Profiler` ([profiler.ts](../../engine/core/src/debug/profiler.ts), exported f
 - `interp` — `getInterpolatedSprites` (main; the T1.2 baseline)
 - `frame` — whole render-frame body (main)
 
-Off by default (zero overhead). Diagnostic only — measures host timing, never sim state. Use these numbers as the before/after baseline for every task below. Tracked in [briefs/engine/done/09-perf-optimization.md](../briefs/engine/done/09-perf-optimization.md) (closed 2026-06-10). Post-split the "worker" side lives in [sim-host.ts](../../games/farm/server/src/sim-host.ts) (server) and the toggle rides the WS protocol.
+Off by default (zero overhead). Diagnostic only — measures host timing, never sim state. Use these numbers as the before/after baseline for every task below. Tracked in [briefs/engine/done/09-perf-optimization.md](../todos/closed/09-perf-optimization.md) (closed 2026-06-10). Post-split the "worker" side lives in [sim-host.ts](../../games/farm/server/src/sim-host.ts) (server) and the toggle rides the WS protocol.
 
 ### Measured results (2026-06-05, seed 0xc0ffee, post-P1/P2, ~250–300 entities)
 
@@ -73,7 +73,7 @@ Sim-0 profiler across the run: `tick` mean 0.88 → 3.05 ms (grows with sim prog
 
 One-snapshot composition (101.8 KB total): `sprites` 80.2 KB (302 sprites × ~266 B — each carrying hover `label`/`description` strings + serialized defaults `rotation:0`/`alpha:1`/`tintRgba`/`action:null`/`id:null`/`interpolate:false` every tick), `observer` 10.7 KB, `relationships` 5.0 KB, `wealthSeries` 2.4 KB (early-run; grows unbounded), `leaderboard` 2.2 KB. Confirms the T1.1 ranked-fix analysis.
 
-**Verdicts.** (a) **~10 viewers fits a small 2-vCPU VPS, barely** — ~0.8 dev-core ≈ 1–1.6 small-VPS cores + ~530 MB RSS; all sims share one Node thread, so the hard ceiling is ~12–15 viewers before tick starvation. (b) **Brief-09 #7 (packed snapshot) stays dead in its successor form too**: bytes crossed the old re-trigger threshold (100–126 KB ≫ "tens of KB") but no budget is pressured — the scaling cost is whole sims per connection, which no codec fixes. (c) The real lever is **one shared run broadcast to N viewers** (~10× across the board) → [briefs/game/done/72](../briefs/game/done/72-shared-run-lobby-server.md); T1.1 items 3–4 fold into its protocol rework. (d) Wire bandwidth is a non-issue (10 viewers ≈ 1.5 MB/s ≈ 12 Mbps total).
+**Verdicts.** (a) **~10 viewers fits a small 2-vCPU VPS, barely** — ~0.8 dev-core ≈ 1–1.6 small-VPS cores + ~530 MB RSS; all sims share one Node thread, so the hard ceiling is ~12–15 viewers before tick starvation. (b) **Brief-09 #7 (packed snapshot) stays dead in its successor form too**: bytes crossed the old re-trigger threshold (100–126 KB ≫ "tens of KB") but no budget is pressured — the scaling cost is whole sims per connection, which no codec fixes. (c) The real lever is **one shared run broadcast to N viewers** (~10× across the board) → [briefs/game/done/72](../todos/closed/72-shared-run-lobby-server.md); T1.1 items 3–4 fold into its protocol rework. (d) Wire bandwidth is a non-issue (10 viewers ≈ 1.5 MB/s ≈ 12 Mbps total).
 
 ⚠️ Probe side-finding: the 10-sim run loudly reproduced the open-questions "travel intents dropped en masse" issue — repeated `[travel] pathfinder fault from (x,y) to 'undefined'` with a WASM `RuntimeError: unreachable` escaping `Pathfinder.findPath` → caught per-intent in TravelSystem. Live servers hit this too; see [open-questions.md](open-questions.md).
 

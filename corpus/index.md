@@ -117,20 +117,23 @@ which is how a "WebGPU-only render path" line outlived the page that already sai
 - **MateQuest M0–M5** (2026-07-23, complete) —
   [todos/closed/2026-07-21-mathquest-BUILD-STATE.md](todos/closed/2026-07-21-mathquest-BUILD-STATE.md)
 
-## Briefs — historical task specs (immutable archives)
+## Past specs — one archive (immutable)
 
-Each brief is the spec that directed a slice of work; once in `done/`/`superseded/` it is immutable.
-**The directory a brief sits in is its state** — `done/` vs `superseded/`, and `todos/` vs
-`todos/closed/`. (Until 2026-09-19 `status.md` also carried a hand-maintained table per brief; it was
-a third copy that stopped being kept in step, and it is gone. A brief's own `status:` line is frozen at
-authoring time and routinely still reads `todo`, so trust the directory over the file.) Number prefixes
-are stable across directory moves.
+**Everything that ever directed work lives in [todos/closed/](todos/closed/).** Until 2026-09-19
+there were two archives — `briefs/` (the original scheme, numbered `NN-slug.md`) and `todos/closed/`
+(dated `YYYY-MM-DD-slug.md`) — split by nothing but the era they were written in. The 96 files under
+`briefs/` were folded in; **`briefs/` no longer exists**. Old numbered names were kept, so
+`117-collapsible-hud-panels.md` and `2026-09-18-audit-52-….md` now sit side by side, which is the
+convention: *names are stable for the life of the file.*
 
-- Engine: [briefs/engine/](briefs/engine/) — 16 in `done/` (02–12, 17–21); `superseded/` holds 01-tilemap
-  plus the WebGPU wave's [TOMBSTONE](briefs/engine/superseded/webgpu/TOMBSTONE.md)
-- Game: [briefs/game/](briefs/game/) — 77 briefs numbered 01–118: 67 in `done/`, 10 in `superseded/`
-- Citadel: [briefs/citadel-apr.md](briefs/citadel-apr.md) plus the `todos/closed/*citadel-*` specs
-
-There is no `todo/` directory under `briefs/` — new work is a spec in [todos/](todos/) instead.
+- **Ready or in progress** → [todos/](todos/). **Everything finished** → [todos/closed/](todos/closed/).
+- **A spec's state is the directory it is in**, not its `status:` line — that is frozen at authoring
+  time and routinely still reads `todo`.
+- **Supersession is a note in the file**, not a directory. The old scheme had a `superseded/`
+  folder; the current one puts a one-line banner at the top saying what replaced it and what
+  survived. All twelve previously-superseded briefs already carried such a note, which is why the
+  folder could be dropped without losing anything.
+- Roughly: engine briefs 02–12 and 17–21, game briefs 01–118, `citadel-apr.md` (Citadel's original
+  design-of-record, superseded by the cozy pivot), and every dated spec since 2026-06.
 
 For era-level context read [log.md](log.md).

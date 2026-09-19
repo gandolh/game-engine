@@ -7,7 +7,7 @@ tags: [citadel, sim, render, villagers, population, consistency]
 ---
 
 > **✅ CLOSED 2026-07-11.** The sim-side mismatch was fixed 2026-06-27 (`removeOneVillager`,
-> below); [brief 105](../../briefs/game/done/105-citadel-crowd-honesty-mp-owner-filter.md)
+> below); [brief 105](105-citadel-crowd-honesty-mp-owner-filter.md)
 > scope 1 (ambient-crowd honesty: `PED_SIZE 0.6` + `alpha 0.55`) landed 2026-07-10 (`26deb45`),
 > browser-verified. The remaining half — the **MP snapshot owner-filter** — is PARKED with
 > multiplayer (decision #21) and is tracked as a revival precondition on
@@ -15,7 +15,7 @@ tags: [citadel, sim, render, villagers, population, consistency]
 > todo open.
 
 > **➡️ Promoted 2026-07-03:** the two deferred halves (ambient-crowd decision + MP
-> owner-filter) are now [brief 105](../../briefs/game/done/105-citadel-crowd-honesty-mp-owner-filter.md).
+> owner-filter) are now [brief 105](105-citadel-crowd-honesty-mp-owner-filter.md).
 
 > **Partial — 2026-06-27.** Found and fixed the real on-map mismatch: **raid
 > casualties decremented `p.population` WITHOUT despawning villager entities**

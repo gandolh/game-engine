@@ -15,7 +15,7 @@ tags: [planning, citadel]
 
 # Build order — Citadel
 
-New game on the existing engine. Full design of record: [briefs/citadel-apr.md](../../briefs/citadel-apr.md).
+New game on the existing engine. Full design of record: [briefs/citadel-apr.md](citadel-apr.md).
 Grilled to zero open questions on 2026-06-18 (all decisions in the APR + each todo's
 "Decisions (grilled 2026-06-18)" section).
 
@@ -158,11 +158,11 @@ baseline across grow/siege/sack/fire/disease (seeds 1,7) at `TICKS_PER_DAY=20`.
   (`games/citadel/client/src/render/render-window.ts`, `build-budget.ts`;
   `windowController.update(camera)` now runs each frame at `main.ts:1221`), but the runtime
   is **unreachable in production**, so the GPU-runtime verification cannot be performed as
-  written. Resolved 2026-07-10 by the [brief 108](../../briefs/game/done/108-citadel-live-mp-verification.md)
+  written. Resolved 2026-07-10 by the [brief 108](108-citadel-live-mp-verification.md)
   live-MP pass: the *client* is hardcoded to a 96×96 world, so `shouldWindow` is always false
   and the windowed path never executes — panning re-bakes nothing, because nothing is
   windowed. Both todos are in `closed/`; their remaining GPU verification is now owned by
-  [brief 110](../../briefs/game/done/110-citadel-client-world-size.md), which fixes the client
+  [brief 110](110-citadel-client-world-size.md), which fixes the client
   world size and makes the windowed bake iso-correct (review findings item 35).
 
 **Verification ceiling** (updated 2026-07-10). The sim + netcode + bot logic is unit-tested +

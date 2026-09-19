@@ -5,7 +5,7 @@ updated: 2026-08-18
 
 # Animation
 
-How farmers, **Pip**, NPCs, and animated scenery are made to move. This page is the synthesis; the animation-engine work shipped its phases under [brief 85](../briefs/game/superseded/85-animation-engine.md) (closed superseded — only an optional in-browser feel-check + a 24px action pass were left).
+How farmers, **Pip**, NPCs, and animated scenery are made to move. This page is the synthesis; the animation-engine work shipped its phases under [brief 85](../todos/closed/85-animation-engine.md) (closed superseded — only an optional in-browser feel-check + a 24px action pass were left).
 
 ## The sprite art is richer than the code that drives it
 
@@ -38,7 +38,7 @@ Pip is **not** a recolored farmer — it has its own `farmer/pip/*` set (gold ha
 
 ## The brief-04 ghost (important lesson)
 
-Engine brief [04-spatial-anim](../briefs/engine/done/04-spatial-anim.md) fully specced an `AnimationClip` + `Animator` engine. It **was built** (commit `0919cbc`, `engine/core/src/animation/{clip,animator}.ts` + tests) and then **deleted as unused** in the `cleanup` commit `1d5f80c` (2026-06-04), alongside other dead modules. `status.md` still claimed it shipped — that drift is now corrected.
+Engine brief [04-spatial-anim](../todos/closed/04-spatial-anim.md) fully specced an `AnimationClip` + `Animator` engine. It **was built** (commit `0919cbc`, `engine/core/src/animation/{clip,animator}.ts` + tests) and then **deleted as unused** in the `cleanup` commit `1d5f80c` (2026-06-04), alongside other dead modules. `status.md` still claimed it shipped — that drift is now corrected.
 
 **Lesson:** the primitive rotted *because nothing consumed it*. Any reintroduction must wire it into real consumers in the same change, or it dies again.
 
@@ -46,7 +46,7 @@ Engine brief [04-spatial-anim](../briefs/engine/done/04-spatial-anim.md) fully s
 
 Reintroduce the `AnimationClip` (immutable frames+durations, `sampleAt(elapsedMs)`) + `Animator` (per-entity registry/`play`/`update`) under `@engine/core/animation` — **render-side, wall-clock driven**. Frame phase is cosmetic, so this carries **zero determinism risk** and the sim stops needing to bake art strings into the snapshot. (The same `Animator.update(stepMs)` could be tick-driven if determinism were ever wanted — brief 04 anticipated both modes.)
 
-**Phasing** (full detail + acceptance in [brief 85](../briefs/game/superseded/85-animation-engine.md)):
+**Phasing** (full detail + acceptance in [brief 85](../todos/closed/85-animation-engine.md)):
 
 1. **Engine primitive + immediate consumers (no new art).** ✅ **Done (2026-06-12).** Recovered `clip`/`animator` + tests, exported `@engine/core/animation`. The ~7 inline wall-clock cyclers now run through declarative `AnimationClip`s (`render-systems/{cycle,clips}.ts`) — the abstraction has real consumers so it won't rot like the brief-04 ghost. The dead `SpriteAnim` stub is removed. **Correction (2026-07-15, engine brief 20):** only *half* the recovery earned its keep — `AnimationClip` is live and stays, but the per-entity `Animator` registry never gained a consumer (item 7 below deliberately deferred the transition-FSM that would have used it) and was **deleted again**. `@engine/core/animation` now exports `AnimationClip` + types + the easing curves, nothing stateful.
 2. **Action `-a/-b` art** ✅ **Done (2026-06-12).** `ACTION_TEMPLATES_B` adds a `-b` strike frame per action (tool/arm moves, head identical); `farmer/<p>/<action>-b` generated for all 5 personalities incl. Pip (35 frames). `resolveFrameAndBob` alternates `pose ↔ pose-b` on the wall clock — working farmers/Pip now swing their tool like the NPCs, replacing the phase-1 bob-offset interim.

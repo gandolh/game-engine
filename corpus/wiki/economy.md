@@ -5,7 +5,7 @@ updated: 2026-07-17
 
 # Economy model (prices ↔ AP ↔ initial gold)
 
-The single model the economy constants are derived from. Written for [brief 75](../briefs/game/done/75-economy-rebalance-formula.md) (2026-06-11), which re-tuned the crop axis to this model. **Before this, the constants had accreted brief-by-brief with no shared model** — individually plausible, never scored against each other.
+The single model the economy constants are derived from. Written for [brief 75](../todos/closed/75-economy-rebalance-formula.md) (2026-06-11), which re-tuned the crop axis to this model. **Before this, the constants had accreted brief-by-brief with no shared model** — individually plausible, never scored against each other.
 
 > ⚠️ **Changing any number here moves the deterministic sim baseline** (reproducibility is untouched; the *outcome* for a given seed shifts). Recorded run-descriptor URLs replay differently after a re-tune. Re-verify with the fast 3-day/3-seed `EXPORT=json` self-diff (not a full `CHECK_DETERMINISM`) and a ≤20-day arc probe.
 
@@ -60,7 +60,7 @@ Not flat: longer-grow, later-season, higher-tier crops keep a **modest** g/AP ed
 ## Axes intentionally NOT re-tuned (scored, within model)
 
 - **AP costs / `AP_BASE_MAX=100` / `AP_GROWTH_PER_DAY=2`** ([ap.ts](../../games/farm/sim-core/src/systems/economy/ap.ts)) — the AP table *defines* the unit; keeping it fixed is what lets prices be expressed in it. Growing daily budget + sleep gate + free travel are the intended pacing, not balance outliers.
-- **`startGold` / `minGoldReserve`** — the personality spread (Hannah richest 150/80, Atticus low-reserve gambler 110/10, Cora cautious 80/30, Otto 100/50, Pip 90/0) is *intentional character shape* ([brief 70](../briefs/game/done/70-raise-starting-gold-peer-trade-liquidity.md)). New seed costs are ≈ old (radish 5, wheat 8, etc.), so day-1 affordability (≈ funds several plots + reserve) is unchanged. Left as-is.
+- **`startGold` / `minGoldReserve`** — the personality spread (Hannah richest 150/80, Atticus low-reserve gambler 110/10, Cora cautious 80/30, Otto 100/50, Pip 90/0) is *intentional character shape* ([brief 70](../todos/closed/70-raise-starting-gold-peer-trade-liquidity.md)). New seed costs are ≈ old (radish 5, wheat 8, etc.), so day-1 affordability (≈ funds several plots + reserve) is unchanged. Left as-is.
 - **Livestock products** (egg 8 / milk 12 / wool 14) and **fruit** (apple 18 / cherry 20) — a *different capital loop*: heavy upfront capital (pen 45–75 + animal 15–35; tree 20–25, 20-day maturation) + ongoing care/decay, then a daily/seasonal trickle. Their higher per-tend g/AP is the intended **premium for sinking capital**, not a crop-loop outlier. Re-tuning them is out of scope for brief 75 (would be a new brief); flagged here so the next balance pass scores them explicitly.
 
 ## The market wall — the peer-to-peer goods channel (brief 98, 2026-07-11)

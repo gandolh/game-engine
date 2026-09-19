@@ -7,7 +7,7 @@ tags: [citadel, sim, gameplay, balance, ux, playtest]
 ---
 
 > **✅ CLOSED 2026-07-11.** The last open finding, **P3 disease counterplay**, shipped as
-> [brief 102](../../briefs/game/done/102-citadel-disease-counterplay.md) (Wave 3,
+> [brief 102](102-citadel-disease-counterplay.md) (Wave 3,
 > `c22145e`): well coverage now reduces outbreak onset, healer effects are legible in
 > event copy and the inspect panel, all browser-verified. Every finding from this pass is
 > now resolved. The 2026-07-11 playtest that closed it surfaced a NEW P1 — solo cozy play
@@ -33,7 +33,7 @@ tags: [citadel, sim, gameplay, balance, ux, playtest]
 > ([stockpile pressure](2026-06-22-citadel-two-way-service-economy.md)). **Still
 > open: P3 disease counterplay** (the only untouched finding — a healer exists but
 > there's no proactive lever; left for a dedicated balance pass).
-> **➡️ P3 promoted 2026-07-03** to [brief 102](../../briefs/game/done/102-citadel-disease-counterplay.md).
+> **➡️ P3 promoted 2026-07-03** to [brief 102](102-citadel-disease-counterplay.md).
 
 # Citadel — playtest findings
 

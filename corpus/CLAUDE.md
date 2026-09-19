@@ -12,21 +12,21 @@ corpus/
   lint.sh           health check: frontmatter, link resolution, page size, stale paths
   log.md            chronological record of corpus changes
   todos/            THE WORK QUEUE — specs that are ready or in progress
-    closed/         finished specs (immutable once here)
-  briefs/           older historical task specs (immutable) — predates todos/
-    engine/{done,superseded}/
-    game/{done,superseded}/
+    closed/         THE ONE ARCHIVE — every finished spec ever, immutable once here
   verify/           evidence attached to a specific verdict (screenshots, data, a rebuildable page)
   wiki/             LLM-curated synthesis pages (the actual knowledge base)
     overview.md, architecture.md, decisions.md, glossary.md, status.md, open-questions.md, …
 ```
 
-**Two archives, one reason:** `briefs/` is the original scheme and is closed to new files;
-everything since is a dated spec in `todos/`. Don't add to `briefs/`.
+**One archive.** Until 2026-09-19 there were two — a numbered `briefs/{engine,game}/{done,superseded}/`
+tree and a dated `todos/closed/` — split by nothing but the era a spec was written in. `briefs/` was
+folded into `todos/closed/` and deleted. Old numbered names were kept (`117-collapsible-hud-panels.md`
+sits beside `2026-09-18-audit-52-….md`), because **names are stable for the life of the file**.
+Supersession is now a **note at the top of the file**, never a directory.
 
 ## Three layers
 
-1. **todos/ + briefs/** — raw, immutable specs. Each file is a task spec that was used to direct work (typically by a subagent). Once a spec is in `todos/closed/`, `done/`, or `superseded/`, do **not** edit it — the two sanctioned exceptions are a supersession note (below) and correcting a link a directory move broke. **A closed spec's own `status:` line is frozen at authoring time and routinely still reads `todo`** — the directory it sits in is what tells you its real state. New work gets a new dated spec in `todos/`.
+1. **todos/** — raw, immutable specs. Each file is a task spec that was used to direct work (typically by a subagent). Once a spec is in `todos/closed/`, do **not** edit it — the two sanctioned exceptions are a supersession note (below) and correcting a link a directory move broke. **A closed spec's own `status:` line is frozen at authoring time and routinely still reads `todo`** — the directory it sits in is what tells you its real state. New work gets a new dated spec in `todos/`.
 2. **wiki/** — the LLM owns this. Synthesis, entity pages, concept pages, current status. Edited freely as understanding evolves.
 3. **index.md + log.md** — navigation aids. Updated on every meaningful change.
 
@@ -39,7 +39,7 @@ everything since is a dated spec in `todos/`. Don't add to `briefs/`.
   shorter and add grouping, but must not contradict it. `lint.sh --index` prints the derived version
   to diff against.
 - **Markdown links, not Obsidian `[[wikilinks]]`.** Repo is consumed in VSCode + GitHub, where standard markdown links render and are clickable.
-- **Relative paths from the page's own location.** Code references use `../../engine/...` or `../../games/...` from `wiki/`, one `../` deeper from `todos/closed/` and `briefs/<area>/<state>/`. **Moving a file shifts its depth** — re-resolve its links, or `lint.sh` will flag them.
+- **Relative paths from the page's own location.** Code references use `../../engine/...` or `../../games/...` from `wiki/`, and the same `../../` from `todos/closed/` (both sit one level under `corpus/`). **Moving a file shifts its depth** — re-resolve its links, or `lint.sh` will flag them.
 - **One concept per file.** When a wiki page grows past ~200 body lines or starts straddling two topics, split it. `bash corpus/lint.sh` flags both.
 - **Dates are absolute** (`2026-05-26`), never relative (`yesterday`).
 - **Commits**: prefer one commit per meaningful corpus change so log.md and git history agree.
@@ -51,8 +51,8 @@ The corpus exists to make an agent *cheaper*, not just better-informed. So:
 1. Read `index.md`. Read **at most 2–3 wiki pages**.
 2. If a question needs more than three pages, that is a signal — a page is straddling topics and
    should be split, or `index.md`'s summaries aren't sharp enough. Fix the cause, don't just read more.
-3. Never read `briefs/` or `todos/` wholesale. **List the directory** — `done/` vs `superseded/`,
-   `todos/` vs `todos/closed/` — which is what actually carries a spec's state; open a brief only when
+3. Never read `todos/` wholesale. **List the directory** — `todos/` vs `todos/closed/` — which is
+   what actually carries a spec's state; open a brief only when
    you need the spec that directed a specific piece of work. (`status.md` used to hold a parallel
    per-brief table. It was removed on 2026-09-19: it had grown to 119 KB, more than the whole
    three-page retrieval budget, and it was a third copy that drifted.)
@@ -68,7 +68,7 @@ Run it before committing a corpus change.
 
 **Link policy it enforces** (widened 2026-08-18, after an audit found 452 links broken by directory
 moves that the wiki-only check never saw): **live pages** — `wiki/`, `index.md`, `routing.md`, this
-file, the open `todos/` queue — must resolve **100%**. **Archives** (`briefs/`, `todos/closed/`) are
+file, the open `todos/` queue — must resolve **100%**. **The archive** (`todos/closed/`) is
 frozen specs, so their *code* references decay by design and are only counted; their references to
 other *corpus documents* still have to resolve, because those stay ours to fix.
 
@@ -76,7 +76,7 @@ other *corpus documents* still have to resolve, because those stay ours to fix.
 
 ### Ingest (new source / new finding)
 A "source" here usually means a new design decision, an exploration result, or a brief outcome. Steps:
-1. Drop the raw artifact in `todos/` (if it's a spec) or summarize the finding inline. Never in `briefs/` — that archive is closed.
+1. Drop the raw artifact in `todos/` (if it's a spec) or summarize the finding inline.
 2. Update affected wiki pages (`status.md`, the relevant entity page, `open-questions.md`).
 3. Append an entry to `log.md` with prefix `## [YYYY-MM-DD] <kind> | <short title>`.
 4. Cross-link from `index.md` if a new page was added.
@@ -160,8 +160,9 @@ Current scheme (`todos/`):
 `todos/<YYYY-MM-DD>-<slug>.md` → work happens → `todos/closed/<same-name>.md`
 plan dropped, or later work replaces it → still `todos/closed/`, **plus a one-line top note saying why**
 
-Legacy scheme (`briefs/`, closed to new files): `done/<NN-slug>.md` → `superseded/<NN-slug>.md`
-when later work undid or replaced it.
+Legacy scheme (numbered `NN-slug.md`, closed to new names): once `done/` → `superseded/`. Those
+files now live in `todos/closed/` alongside everything else, each carrying its supersession note at
+the top — the note, not the directory, is the record.
 
 Names and number prefixes are stable for the life of the file — don't rename or renumber when moving
 between directories. **Do fix the links inside a moved file**, whose relative depth just changed.

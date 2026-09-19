@@ -22,15 +22,15 @@ Multiplayer accumulated a design that removed every reason to play it. Decision 
 score; **#9** removed the ending; **#15** removed the armies; **#17** made the run ephemeral — it dies
 with its last peer, and `request-save` hands you a blob nothing in MP can load. What remained was a
 scoreless, endless, unsaveable co-op sandbox, and the remaining work to make it *safe to expose* was
-four briefs of infrastructure ([109](../briefs/game/superseded/109-citadel-vps-deploy.md),
-[110](../briefs/game/done/110-citadel-client-world-size.md),
-[111](../briefs/game/superseded/111-citadel-mp-room-keys-and-session-semantics.md),
-[112](../briefs/game/superseded/112-citadel-cozy-mp-drop-armies.md)) serving no identified player.
+four briefs of infrastructure ([109](../todos/closed/109-citadel-vps-deploy.md),
+[110](../todos/closed/110-citadel-client-world-size.md),
+[111](../todos/closed/111-citadel-mp-room-keys-and-session-semantics.md),
+[112](../todos/closed/112-citadel-cozy-mp-drop-armies.md)) serving no identified player.
 
 Asked directly *who is this for*, the answer was: nobody yet. So it waits.
 
 This was the right shape of question to ask, and it was not asked when
-[brief 108](../briefs/game/done/108-citadel-live-mp-verification.md) first drove MP live hours
+[brief 108](../todos/closed/108-citadel-live-mp-verification.md) first drove MP live hours
 earlier — that pass, and the decisions it produced (#11–#20), all answered *how do we make MP correct*
 rather than *should we*.
 
@@ -53,7 +53,7 @@ rejoin at 3.1 s keeps the run, at 12 s gets a fresh one) — lift it, don't rewr
 currently nulls process-global `hostPeer`, `nextPlayerId` and `bots`; those must become per-room.
 The room id is a **capability, not a secret** — invite-by-link, not authentication.
 
-Spec: [brief 111](../briefs/game/superseded/111-citadel-mp-room-keys-and-session-semantics.md).
+Spec: [brief 111](../todos/closed/111-citadel-mp-room-keys-and-session-semantics.md).
 
 ### 2. Late joiners can render a different world
 `init` carries the **client's** hardcoded `SEED`, and only the **first** peer's seed starts the sim.
@@ -124,14 +124,14 @@ Four divergences from the Farm server, all closed 2026-09-18:
 
 ## Also parked with MP
 
-- **The MP villager owner-filter** ([brief 105](../briefs/game/done/105-citadel-crowd-honesty-mp-owner-filter.md)
+- **The MP villager owner-filter** ([brief 105](../todos/closed/105-citadel-crowd-honesty-mp-owner-filter.md)
   scope 2). `getVillagers()` emits **all** villagers while `population` is per-player — equivalent in
   solo, wrong in MP, where each client renders rivals' villagers as its own crowd. Check raiders and
   armies for the same assumption.
 - **The `?mp` render path was never verified.** Brief 108's live pass found no MP-specific render
   entities at all (citadel-38 P1#9): rival buildings, villagers and raiders have never been *seen* on
   a second client.
-- **VPS deploy** ([brief 109](../briefs/game/superseded/109-citadel-vps-deploy.md)). Note the **solo
+- **VPS deploy** ([brief 109](../todos/closed/109-citadel-vps-deploy.md)). Note the **solo
   client is a pure static bundle** running its sim in a Web Worker — it needs no server and could be
   deployed on its own today.
 
@@ -139,7 +139,7 @@ Four divergences from the Farm server, all closed 2026-09-18:
 
 - **Armies.** Decision **#23** froze `ArmySystem` and flipped `enableArmy` to default `false`. Its
   marching machinery is being reused as the body of the cozy PvE raid
-  ([brief 113](../briefs/game/done/113-citadel-raid-gets-a-body.md)). Reviving MP does **not** revive
+  ([brief 113](../todos/closed/113-citadel-raid-gets-a-body.md)). Reviving MP does **not** revive
   PvP; that is a separate design question, and #15's argument for it (*"cozy MP has no winner, no
   score, no ending — an army has nothing to be for"*) still stands.
 - **The 256×256 world.** The server ran it because it was typed into
@@ -159,5 +159,5 @@ Four divergences from the Farm server, all closed 2026-09-18:
 ## See also
 
 - [citadel-decisions.md](citadel-decisions.md) — decisions of record; #21–#26 supersede much of #11–#20.
-- [brief 108](../briefs/game/done/108-citadel-live-mp-verification.md) — the only pass that ever drove
+- [brief 108](../todos/closed/108-citadel-live-mp-verification.md) — the only pass that ever drove
   MP live. Its findings are why any of this is known.

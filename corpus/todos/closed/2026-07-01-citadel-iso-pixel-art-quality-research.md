@@ -37,7 +37,7 @@ grounded map of what Citadel renders today, and the locked decisions. It is the 
 
 1. **Resolution → 2× outright.** `ISO_ART_SCALE = 2`; re-author to that density. Not an
    A/B, not "keep both." Re-opens the 4×-reverted call from
-   [restyle brief 95](../../briefs/game/done/95-citadel-building-restyle-reference-look.md) at
+   [restyle brief 95](95-citadel-building-restyle-reference-look.md) at
    the middle ground the code was always parameterised for. 4× stays a **future** knob if 2×
    underwhelms after polish.
 2. **Art direction → cozy medieval storybook** (warm bias, golden hour, soft shadows,

@@ -20,9 +20,10 @@ A work order in [todos/](../todos/) — the current scheme, one dated file per p
 _Avoid_: brief (means the closed archive here), ticket, issue, story.
 
 **Brief**:
-A spec from the pre-2026-07 archive in [briefs/](../briefs/), closed to new files. Numbers are stable
-for the life of the file. Historic prose (and `log.md`) uses "brief" for both schemes — new writing
-should not.
+A spec written under the pre-2026-07 numbering scheme (`NN-slug.md`). It used to live in a separate
+`briefs/` tree; that was folded into [todos/closed/](../todos/closed/) on 2026-09-19, so there is now
+**one archive** and "brief" names an era, not a location. Numbers are stable for the life of the file.
+Historic prose (and `log.md`) uses "brief" for both schemes — new writing should not.
 _Avoid_: using "brief" for anything filed after 2026-07.
 
 **Closeout**:

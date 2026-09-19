@@ -19,7 +19,7 @@ tags: [citadel, ui, art, villagers, cozy-pivot]
 > clicks. Tests green; in-browser the live villager view needs a working economy to drive
 > (pre-cozy start is home-bound — noted for a later playtest once the cozy cold-open lands).
 
-> **UNBLOCKED 2026-06-30** — `@engine/ui` shipped ([brief 17](../../briefs/engine/done/17-engine-ui-framework.md)); build this panel native to it (`@engine/ui` widget tree + the Citadel HUD pattern in `games/citadel/client/src/ui/resource-hud.ts`), not DOM. Depends on
+> **UNBLOCKED 2026-06-30** — `@engine/ui` shipped ([brief 17](17-engine-ui-framework.md)); build this panel native to it (`@engine/ui` widget tree + the Citadel HUD pattern in `games/citadel/client/src/ui/resource-hud.ts`), not DOM. Depends on
 > [render-all-gui-in-game / @engine/ui](2026-06-28-citadel-ui-all-rendered-in-game.md).
 > The **sim half** (a `job` snapshot field) and the **per-job sprite art** have no UI
 > dependency and can proceed now.

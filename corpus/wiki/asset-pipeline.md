@@ -5,7 +5,7 @@ updated: 2026-08-18
 
 # Asset Pipeline — Baking, Caching, and Atlas Strategy
 
-Research synthesis (2026-06-10) on asset "cooking" and texture-atlas best practice, filtered against what this repo actually does. Fed [brief 71](../briefs/game/done/71-per-asset-recipe-files-and-cached-atlas-builds.md) (shipped 2026-06-10 — recommendations 1–4 landed; 5 was verified already true: [loader.ts](../../engine/core/src/assets/loader.ts) decodes each sheet via `createImageBitmap`).
+Research synthesis (2026-06-10) on asset "cooking" and texture-atlas best practice, filtered against what this repo actually does. Fed [brief 71](../todos/closed/71-per-asset-recipe-files-and-cached-atlas-builds.md) (shipped 2026-06-10 — recommendations 1–4 landed; 5 was verified already true: [loader.ts](../../engine/core/src/assets/loader.ts) decodes each sheet via `createImageBitmap`).
 
 ## The bake principle (what we already do)
 

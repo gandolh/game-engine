@@ -7,7 +7,7 @@ tags: [citadel, ui, hud, economy]
 
 # Resource HUD — show how much of each resource the player has
 
-> **UNBLOCKED 2026-06-30** — `@engine/ui` shipped ([brief 17](../../briefs/engine/done/17-engine-ui-framework.md)); build this panel native to it (`@engine/ui` widget tree + the Citadel HUD pattern in `games/citadel/client/src/ui/resource-hud.ts`), not DOM. Depends on
+> **UNBLOCKED 2026-06-30** — `@engine/ui` shipped ([brief 17](17-engine-ui-framework.md)); build this panel native to it (`@engine/ui` widget tree + the Citadel HUD pattern in `games/citadel/client/src/ui/resource-hud.ts`), not DOM. Depends on
 > [render-all-gui-in-game / @engine/ui](2026-06-28-citadel-ui-all-rendered-in-game.md).
 > (Data is ready: `snapshot.stockpiles` already carries every good.) A HUD panel scaffold already exists from the pilot — extend it to show ALL goods: grain/flour/bread/wood/stone/planks/tools.
 

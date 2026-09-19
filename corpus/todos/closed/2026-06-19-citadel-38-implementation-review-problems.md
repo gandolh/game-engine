@@ -80,7 +80,7 @@ P3 #14 (siege RNG fork — needs a deliberate baseline move), #15/#16/#17/#18/#1
 ---
 
 **Method.** Read-only review (2026-06-19) of `@citadel/sim-core`, `@citadel/client`,
-`@citadel/server` against the [APR](../../briefs/citadel-apr.md) and the
+`@citadel/server` against the [APR](citadel-apr.md) and the
 [BUILD-ORDER](2026-06-18-citadel-00-BUILD-ORDER.md). Three subagent passes
 (sim / client+render / server+MP), then the load-bearing findings re-read and
 verified by hand. NO tests / sims / determinism checks were run (constrained

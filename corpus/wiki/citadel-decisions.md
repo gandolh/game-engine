@@ -7,7 +7,7 @@ updated: 2026-08-18
 
 Game-design decisions, numbered. **These win over any older text**, including
 [citadel-overview.md](citadel-overview.md)'s 2026-06-28 cozy-pivot block and any
-`todos/`/`briefs/` written before them. Tech choices (stack, ECS, renderer, palette) live in
+`todos/` specs written before them. Tech choices (stack, ECS, renderer, palette) live in
 [decisions.md](decisions.md) instead — this page is about *what the game is*.
 
 **#1–#10** are the 2026-06-28 cozy pivot; they remain in force and are summarised in
@@ -23,7 +23,7 @@ throttle-to-floor, never a loss, **#10** terrain is the puzzle).
 
 ## 2026-07-10 grilling session (#11–#20) — LARGELY SUPERSEDED
 
-Prompted by [brief 108](../briefs/game/done/108-citadel-live-mp-verification.md), the first pass that
+Prompted by [brief 108](../todos/closed/108-citadel-live-mp-verification.md), the first pass that
 ever drove Citadel MP live. **Superseded the same day by #21–#26** — each affected decision carries its
 own note below.
 
@@ -43,7 +43,7 @@ set `keepSacked` + `gameOver`) — **two defaults colliding, not a design.**
 outright and `enableArmy` defaults `false`, so the collision is gone at its root.
 
 ### #13 — Challenge mode is the home of every sharp system
-[Brief 103](../briefs/game/done/103-citadel-challenge-mode.md) is approved and gets built: it owns
+[Brief 103](../todos/closed/103-citadel-challenge-mode.md) is approved and gets built: it owns
 `cozyThreats:false` (destructive fire, lethal disease, sacking raids), giving the frozen sharp path a
 real consumer so its two-branch test burden stops being dead weight.
 
@@ -68,7 +68,7 @@ and softening `launchAttack` into a dent would ship a lever with nothing on the 
 
 `ArmySystem` + `launchAttack` come **out** of the cozy path (`enableArmy:false` in the MP server).
 Lethal PvP lives only in Challenge (#13). This closes the question "what does a cozy army attack do?":
-there isn't one. Work: [brief 112](../briefs/game/superseded/112-citadel-cozy-mp-drop-armies.md).
+there isn't one. Work: [brief 112](../todos/closed/112-citadel-cozy-mp-drop-armies.md).
 
 ⚠️ `launchAttack`'s handler is **not gated on `enableArmy`** — it debits tools and pushes an army that
 `enableArmy:false` then never resolves. Brief 112 must gate the handler in the same change that flips
@@ -93,7 +93,7 @@ See [citadel-mp-deprecated.md](citadel-mp-deprecated.md) §3.
 ### #18 — `maxDays` is deleted
 A *required* `CitadelSimOptions` field that **no system reads** — every caller passes it, nothing
 consumes it, so it reads as a run-length bound and bounds nothing. Removed, not wired. Folded into
-[brief 99](../briefs/game/done/99-p2-debt-cleanup-batch.md). ⚠️ `loadFromSave` computes its own value
+[brief 99](../todos/closed/99-p2-debt-cleanup-batch.md). ⚠️ `loadFromSave` computes its own value
 to pass through; check that path before deleting.
 
 ### #19 — A "mode" is a preset at the call site, not a concept in the sim
@@ -129,8 +129,8 @@ correct*; this one asked the question underneath it — **who plays it** — and
 *Reverses #11 ("MP is a real feature"), and with it #14, #16, #17 and #20.*
 
 Cozy MP has no score (#7), no ending (#9), no armies (#15), and no save (#17). Asked who the session
-is *for*, the answer was: nobody yet. Shipping [111](../briefs/game/superseded/111-citadel-mp-room-keys-and-session-semantics.md)
-(room keys) and [109](../briefs/game/superseded/109-citadel-vps-deploy.md) (VPS) would have been four
+is *for*, the answer was: nobody yet. Shipping [111](../todos/closed/111-citadel-mp-room-keys-and-session-semantics.md)
+(room keys) and [109](../todos/closed/109-citadel-vps-deploy.md) (VPS) would have been four
 briefs of infrastructure serving no player.
 
 **Deprecated, not deleted.** `@citadel/server`, the client's `?mp` path, and `CitadelSimHost` all stay
@@ -146,7 +146,7 @@ size that crosses the `4096²` iso-pixel windowing threshold** (`6144×3088`, 76
 110's part 1, and briefs 21/22's windowed bake behind it, stop being dead code. 160×160 would have
 grown the map without triggering windowing; 256×256 sits exactly on WebGPU's default (historical)
 `maxTextureDimension2D` of 8192 px with zero margin. The full size table is in
-[brief 110](../briefs/game/done/110-citadel-client-world-size.md).
+[brief 110](../todos/closed/110-citadel-client-world-size.md).
 
 **Updated 2026-08-18 (WebGL2 migration):** the guard is now `assertTextureWithinLimits`, which reads `gl.getParameter(gl.MAX_TEXTURE_SIZE)` and names the actual limit it found. The WebGL2 limit is driver-dependent rather than a fixed spec default, so the number must never be hardcoded — see `engine/core/src/render/webgl2/static-layer-pass.ts`.
 
@@ -169,7 +169,7 @@ rules already say. Diegetic feedback (#8, #10), not a new mechanic.
 
 `ArmySystem` + `launchAttack` freeze behind `enableArmy`, **default flipped to `false`**, unreached by
 any caller. ⚠️ Gate the handler in the same change as the flip, or you create the unbounded
-`state.armies` bug #15 warned of. Work: [brief 113](../briefs/game/done/113-citadel-raid-gets-a-body.md).
+`state.armies` bug #15 warned of. Work: [brief 113](../todos/closed/113-citadel-raid-gets-a-body.md).
 
 ### #24 — Challenge mode is solo-only
 See the note on #13. It sheds lethal PvP (#23) and the MP bundle (#21), keeping `cozyThreats:false`,
@@ -245,17 +245,17 @@ tests already pass). Filed from the [palette-evaluation todo](../todos/closed/20
 
 | Brief | Status after the second session |
 |---|---|
-| [110](../briefs/game/done/110-citadel-client-world-size.md) world size | **DONE** (`0fd66c0`, after part 1 `8e930f3`). Reshaped: *solo grows to 192*, not *client adopts server*. |
-| [100](../briefs/game/done/100-citadel-economy-growth-pass.md) economy growth | **DONE** 2026-07-10. Curve `0.6 → 1.0 → 1.25` shipped; `grow` 60d pop **12**/18, in the 12–15 target. |
-| [113](../briefs/game/done/113-citadel-raid-gets-a-body.md) raid gets a body | **New** (#23) when this table was written — since **BUILT**. `raid-spawn.ts` + `raider-movement.ts` exist under [`games/citadel/sim-core/src/systems/`](../../games/citadel/sim-core/src/systems/), covered by `sharp-raid-path.test.ts` and `raider-departure.test.ts`. Row corrected 2026-09-19. |
-| [103](../briefs/game/done/103-citadel-challenge-mode.md) Challenge mode | **DONE** 2026-07-13 (`c2caecc`). Solo-only (#24); decrees re-pointed (#27). |
-| [105](../briefs/game/done/105-citadel-crowd-honesty-mp-owner-filter.md) crowd honesty | Reshaped: ambient-crowd half only. The MP owner-filter half is deprecated with MP. |
-| [111](../briefs/game/superseded/111-citadel-mp-room-keys-and-session-semantics.md) room keys | **Superseded** (#21). Its hazard is real; it is a revival precondition. |
-| [112](../briefs/game/superseded/112-citadel-cozy-mp-drop-armies.md) drop armies from cozy MP | **Superseded** (#23). Moot — there is no cozy MP. The `enableArmy` default flip survives into 110. |
-| [109](../briefs/game/superseded/109-citadel-vps-deploy.md) VPS deploy | **Superseded** (#21). Nothing to deploy. |
-| [99](../briefs/game/done/99-p2-debt-cleanup-batch.md) P2 debt | Keeps the `maxDays` deletion (#18 survives). |
-| [98](../briefs/game/done/98-farm-market-wall-wire-or-remove.md) Farm market wall | **Option A, wire it.** Farm is in maintenance; this and 99's Farm slice are its whole scope. |
-| [101](../briefs/game/superseded/101-farm-perishability-distance-pricing.md) · [107](../briefs/game/superseded/107-farm-visual-verification-session.md) | **Closed unbuilt 2026-07-15.** Farm is in maintenance; neither was pursued. Specs retained (101's in `todos/`, 107's eyeball debt on its source briefs). |
-| engine [18](../briefs/engine/done/18-ui-authored-typography-and-icons.md) · [19](../briefs/engine/done/19-audio-subsystem.md) | **Both DONE** (18: 2026-07-14; 19: 2026-07-15). Net-new subsystems, independent of everything above. |
+| [110](../todos/closed/110-citadel-client-world-size.md) world size | **DONE** (`0fd66c0`, after part 1 `8e930f3`). Reshaped: *solo grows to 192*, not *client adopts server*. |
+| [100](../todos/closed/100-citadel-economy-growth-pass.md) economy growth | **DONE** 2026-07-10. Curve `0.6 → 1.0 → 1.25` shipped; `grow` 60d pop **12**/18, in the 12–15 target. |
+| [113](../todos/closed/113-citadel-raid-gets-a-body.md) raid gets a body | **New** (#23) when this table was written — since **BUILT**. `raid-spawn.ts` + `raider-movement.ts` exist under [`games/citadel/sim-core/src/systems/`](../../games/citadel/sim-core/src/systems/), covered by `sharp-raid-path.test.ts` and `raider-departure.test.ts`. Row corrected 2026-09-19. |
+| [103](../todos/closed/103-citadel-challenge-mode.md) Challenge mode | **DONE** 2026-07-13 (`c2caecc`). Solo-only (#24); decrees re-pointed (#27). |
+| [105](../todos/closed/105-citadel-crowd-honesty-mp-owner-filter.md) crowd honesty | Reshaped: ambient-crowd half only. The MP owner-filter half is deprecated with MP. |
+| [111](../todos/closed/111-citadel-mp-room-keys-and-session-semantics.md) room keys | **Superseded** (#21). Its hazard is real; it is a revival precondition. |
+| [112](../todos/closed/112-citadel-cozy-mp-drop-armies.md) drop armies from cozy MP | **Superseded** (#23). Moot — there is no cozy MP. The `enableArmy` default flip survives into 110. |
+| [109](../todos/closed/109-citadel-vps-deploy.md) VPS deploy | **Superseded** (#21). Nothing to deploy. |
+| [99](../todos/closed/99-p2-debt-cleanup-batch.md) P2 debt | Keeps the `maxDays` deletion (#18 survives). |
+| [98](../todos/closed/98-farm-market-wall-wire-or-remove.md) Farm market wall | **Option A, wire it.** Farm is in maintenance; this and 99's Farm slice are its whole scope. |
+| [101](../todos/closed/101-farm-perishability-distance-pricing.md) · [107](../todos/closed/107-farm-visual-verification-session.md) | **Closed unbuilt 2026-07-15.** Farm is in maintenance; neither was pursued. Specs retained (101's in `todos/`, 107's eyeball debt on its source briefs). |
+| engine [18](../todos/closed/18-ui-authored-typography-and-icons.md) · [19](../todos/closed/19-audio-subsystem.md) | **Both DONE** (18: 2026-07-14; 19: 2026-07-15). Net-new subsystems, independent of everything above. |
 
 **Order (#26):** 110 → 100 → {102, 99, 106, 104, 105, 98}.

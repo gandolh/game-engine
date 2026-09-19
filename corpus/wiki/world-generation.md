@@ -183,12 +183,12 @@ Phase 2 (future) — Model B organic shapes via CA + center-floodfill.
 > decision to make islands **rectangles (lightly carved)** placed by BSP per seed
 > (see the pipeline section at the top — that is now authoritative). The
 > brief-90/91 plumbing was reused; the brief-91 **organic CA mask was retired**.
-> - [brief 90](../briefs/game/done/90-modelb-generate-world-and-mask-plumbing.md): `generateWorld(seed): GeneratedWorld` pure factory + `RegionDef.mask` plumbing (`regionMaskAt`/`forEachLandTile`/mask-aware `regionAt`). **Kept** (the mask now carries the light corner-carve).
-> - [brief 91](../briefs/game/done/91-modelb-ca-shapes-and-mask-derived-anchors.md): organic CA masks. **Retired by brief 93** — `organic-mask.ts` no longer feeds generation (rect + `carveCorners` instead). `forcedCoreTiles` (anchors.ts) survives as the shared must-be-land set.
-> - [brief 92](../briefs/game/done/92-modelb-runtime-varying-seed.md) + [brief 93](../briefs/game/done/93-rect-islands-bsp-overlap-bridges.md): **DONE** — BSP rect placement, overlap bridge graph with loops, runtime-varying `WORLD_SEED`, open-ocean boats, multi-seed property tests. Model B is **implemented**.
+> - [brief 90](../todos/closed/90-modelb-generate-world-and-mask-plumbing.md): `generateWorld(seed): GeneratedWorld` pure factory + `RegionDef.mask` plumbing (`regionMaskAt`/`forEachLandTile`/mask-aware `regionAt`). **Kept** (the mask now carries the light corner-carve).
+> - [brief 91](../todos/closed/91-modelb-ca-shapes-and-mask-derived-anchors.md): organic CA masks. **Retired by brief 93** — `organic-mask.ts` no longer feeds generation (rect + `carveCorners` instead). `forcedCoreTiles` (anchors.ts) survives as the shared must-be-land set.
+> - [brief 92](../todos/closed/92-modelb-runtime-varying-seed.md) + [brief 93](../todos/closed/93-rect-islands-bsp-overlap-bridges.md): **DONE** — BSP rect placement, overlap bridge graph with loops, runtime-varying `WORLD_SEED`, open-ocean boats, multi-seed property tests. Model B is **implemented**.
 
 The actionable cut of this menu is filed as
-[brief 49 — organic procgen](../briefs/game/done/49-organic-procgen-noise-and-authored-detail.md):
+[brief 49 — organic procgen](../todos/closed/49-organic-procgen-noise-and-authored-detail.md):
 it adds the coherent-noise upgrade this menu's Model-B shapes were blocked on
 (**fBm + Inigo Quilez domain warping** — _both shipped, tracks 1–2 (render-only)_ — replacing the blocky hash kernel),
 **Simplex/octave-rotation** — _track 3 evaluated and **deferred** as a low-value
@@ -202,7 +202,7 @@ and **authored set-pieces** — _track 6
 **partially shipped**: decorative open-water props
 ([render-systems/set-pieces.ts](../../games/farm/sim-core/src/render-systems/set-pieces.ts),
 blue-noise seabed accents, render-only) are done; the **interactive shrine
-landmark** half was split into [brief 50](../briefs/game/done/50-54-more-islands.md)
+landmark** half was split into [brief 50](../todos/closed/50-54-more-islands.md)
 as a gameplay feature_ — (the handmade-procedural hybrid). Backed by an adversarially-verified research pass
 (PCG book / Red Blob Games / Quilez / GDC) — see [log.md](../log.md) 2026-06-08.
 

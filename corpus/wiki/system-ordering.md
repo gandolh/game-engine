@@ -5,7 +5,7 @@ updated: 2026-07-11
 
 # Scheduler System Ordering
 
-**Source of truth for why the systems in [sim-bootstrap.ts](../../games/farm/sim-core/src/sim-bootstrap.ts) are registered in the order they are.** The ordering encodes real data dependencies; reordering without reading this page breaks message visibility, same-tick reads, or determinism. (Brief [69](../briefs/game/done/69-named-system-stages-assertion.md) proposes asserting these stages in code; until then this page is the contract.)
+**Source of truth for why the systems in [sim-bootstrap.ts](../../games/farm/sim-core/src/sim-bootstrap.ts) are registered in the order they are.** The ordering encodes real data dependencies; reordering without reading this page breaks message visibility, same-tick reads, or determinism. (Brief [69](../todos/closed/69-named-system-stages-assertion.md) proposes asserting these stages in code; until then this page is the contract.)
 
 ## The bands
 
@@ -96,4 +96,4 @@ The shopkeeper's `AUCTION_RESULT` is **not** dropped unconditionally: a result w
 
 ## Provenance map (system → origin brief)
 
-Shock 23 · EncounterTrade registration fix 24 · PlotSense 29 · Rivalry-before-EventFeed 37 · crop quality 41 · Livestock/Orchard 42 · Tavern + Carpenter 44 · Festival 45 · Harbor 46 · boat grid 48 · starting-gold +30 across all archetypes 70 · StationInboxClear / CLEANUP band 97 · WallTradeSystem (market-wall trade loop wired) 98. Per-brief details live in [briefs/game/done/](../briefs/game/done/) and one-liners in [status.md](status.md).
+Shock 23 · EncounterTrade registration fix 24 · PlotSense 29 · Rivalry-before-EventFeed 37 · crop quality 41 · Livestock/Orchard 42 · Tavern + Carpenter 44 · Festival 45 · Harbor 46 · boat grid 48 · starting-gold +30 across all archetypes 70 · StationInboxClear / CLEANUP band 97 · WallTradeSystem (market-wall trade loop wired) 98. Per-brief details live in [todos/closed/](../todos/closed/) and one-liners in [status.md](status.md).

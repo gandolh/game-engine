@@ -14,7 +14,7 @@ places that own it:
 | what | where it lives now |
 |---|---|
 | the dated banners (a changelog) | [log.md](../log.md) — the chronological record, which already held a same-day entry for 55 of the 58 banners |
-| per-brief one-liner tables | the directories themselves: [briefs/](../briefs/) (`done/`, `superseded/`) and [todos/](../todos/) → [todos/closed/](../todos/closed/) |
+| per-brief one-liner tables | the directory itself: [todos/](../todos/) → [todos/closed/](../todos/closed/), which since 2026-09-19 is the **single** archive (the old `briefs/` tree was folded in) |
 | the WebGL2 migration record | [decisions.md](decisions.md) → Renderer for the decision, [todos/closed/2026-08-18-webgl2-00-BUILD-ORDER.md](../todos/closed/2026-08-18-webgl2-00-BUILD-ORDER.md) + [-BUILD-STATE.md](../todos/closed/2026-08-18-webgl2-BUILD-STATE.md) for the build, [log.md](../log.md) for the bugs it found and the A/B probe technique |
 
 **So: do not add a banner here.** Add a `log.md` entry and, if it changed what is *currently true*,
@@ -103,7 +103,7 @@ frozen at authoring time, so it lies; a hand-maintained index here would be a th
 step, and it was not kept in step.
 
 - **Ready or in progress** — [todos/](../todos/). **Finished** — [todos/closed/](../todos/closed/).
-- **Older briefs** — [briefs/](../briefs/), split `done/` · `superseded/` · `todo/`.
+- **Older briefs** — also [todos/closed/](../todos/closed/). The separate `briefs/` archive was folded in on 2026-09-19; numbered names (`117-…`) sit beside dated ones.
 - **Why a thing was done that way** — [log.md](../log.md), newest first.
 - **What must not be relitigated** — [decisions.md](decisions.md) and
   [citadel-decisions.md](citadel-decisions.md).

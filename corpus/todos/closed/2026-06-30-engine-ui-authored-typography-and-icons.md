@@ -5,7 +5,7 @@ status: done (2026-07-14)
 tags: [engine, ui, render, typography, assets, citadel, farm]
 ---
 
-> **➡️ Promoted 2026-07-03:** was [engine brief 18](../../briefs/engine/done/18-ui-authored-typography-and-icons.md)
+> **➡️ Promoted 2026-07-03:** was [engine brief 18](18-ui-authored-typography-and-icons.md)
 > (this todo stayed the spec; the brief added sequencing notes).
 >
 > **✅ DONE 2026-07-14.** All four scope items shipped, plus the acceptance bar:
