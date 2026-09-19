@@ -1,10 +1,10 @@
 /**
- * CPU-side data packing for the WebGPU 3D scene renderer — the entire
- * testable core of 08b. WebGPU cannot run headless in CI/dev sandboxes, so
- * every byte of layout logic that CAN be pure lives here as plain functions
- * over typed arrays, with no GPUDevice/GPUBuffer involved. `device3d.ts` /
- * `pipeline-cache.ts` / `renderer3d.ts` are thin GPU orchestration that calls
- * into this file — they stay typecheck-only, this file is unit-tested.
+ * CPU-side data packing for the 3D scene renderer, and backend-agnostic by
+ * design: a GPU cannot run headless in CI/dev sandboxes, so every byte of layout
+ * logic that CAN be pure lives here as plain functions over typed arrays, with no
+ * device or buffer handle involved. `webgl2/device3d.ts` / `webgl2/pipeline-cache.ts`
+ * / `webgl2/renderer3d.ts` are thin GPU orchestration that calls into this file —
+ * they stay typecheck-only, this file is unit-tested.
  *
  * Ordering contract (material-key -> index): a game builds an ORDERED list of
  * material-key strings, uploads the matching `Material[]` (same order) via

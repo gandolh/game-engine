@@ -1,9 +1,10 @@
 /**
  * WebGL2 GPU-buffer creation helpers for the 3D render layer — the
  * `ARRAY_BUFFER`/`ELEMENT_ARRAY_BUFFER`/`UNIFORM_BUFFER` analogues of the
- * `GPUBufferUsage.VERTEX`/`INDEX`/`UNIFORM` allocations the WebGPU
- * `SceneRenderer3D` (`../webgpu/renderer3d.ts`) makes directly via
- * `device.createBuffer`. WebGL2 has no buffer-usage bitmask — "usage" is
+ * `GPUBufferUsage.VERTEX`/`INDEX`/`UNIFORM` allocations a WebGPU
+ * `SceneRenderer3D` would make directly via `device.createBuffer`. (That backend
+ * was deleted on 2026-08-18 — WebGL2 is the only one; the comparison is kept
+ * because it is what these wrapper shapes were derived from.) WebGL2 has no buffer-usage bitmask — "usage" is
  * which target you bind a buffer to plus a store hint (`STATIC_DRAW` /
  * `DYNAMIC_DRAW`) — so these three thin wrappers exist only to give brief
  * 11's WebGL2 `SceneRenderer3D` the same three call-shapes its WebGPU

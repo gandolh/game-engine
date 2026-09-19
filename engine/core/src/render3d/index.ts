@@ -53,8 +53,8 @@ export {
 } from "./pick";
 
 // --- 3D buffer packing (pure, backend-agnostic) -------------------------
-// CPU-side packing shared by both the WebGPU and WebGL2 3D backends — no
-// GPU calls, fully unit-tested (buffers.test.ts). See its module doc for the
+// CPU-side packing, deliberately backend-agnostic — no GPU calls, fully
+// unit-tested (buffers.test.ts). See its module doc for the
 // material-key -> index ordering contract.
 export type { Material, InstanceInput } from "./buffers";
 export {
