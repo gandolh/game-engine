@@ -225,18 +225,18 @@ describe("SceneRenderer3D#render", () => {
   });
 });
 
-describe("SceneRenderer3D#resize", () => {
+describe("SceneRenderer3D#resizeDevicePixels", () => {
   it("updates the GL viewport to the given size", () => {
     const { gl, calls } = makeFakeGl();
     const renderer = new SceneRenderer3D(makeDevice3d(gl));
-    renderer.resize(800, 600);
+    renderer.resizeDevicePixels(800, 600);
     expect(calls.viewport).toContainEqual([0, 0, 800, 600]);
   });
 
   it("is a no-op when the device is lost", () => {
     const { gl, calls } = makeFakeGl();
     const renderer = new SceneRenderer3D(makeDevice3d(gl, 65536, true));
-    renderer.resize(800, 600);
+    renderer.resizeDevicePixels(800, 600);
     expect(calls.viewport.length).toBe(0);
   });
 });

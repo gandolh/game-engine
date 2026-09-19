@@ -7,6 +7,7 @@ import type {
 import { drawUIQuad } from "../ui-draw";
 import type { StaticRegion } from "../static-region";
 import { EDG } from "../palette";
+import { effectiveDpr } from "../dpr";
 import type { ViewUniform } from "../view-uniform";
 import { GlContext } from "./gl-context";
 import { GlAtlasStore } from "./gl-atlas-store";
@@ -396,8 +397,8 @@ export class WebGl2Renderer implements RendererLike {
   }
 
   beginFrame(): void {
-    // GlContext.resize takes CSS pixels and applies min(devicePixelRatio, 2)
-    // INTERNALLY (unlike the old WebGPU context, whose caller pre-scaled). Passing
+    // GlContext.resize takes CSS pixels and applies effectiveDpr() INTERNALLY
+    // (unlike the old WebGPU context, whose caller pre-scaled). Passing
     // device pixels here would double-scale every coordinate in every game.
     this._glCtx.resize(this._canvas.clientWidth, this._canvas.clientHeight);
 
@@ -717,10 +718,7 @@ export class WebGl2Renderer implements RendererLike {
       // store leaves smoothing at its default `true` → blurry scaled UI.
       overlayCtx.imageSmoothingEnabled = false;
       overlayCtx.globalCompositeOperation = "source-over";
-      const dpr = Math.min(
-        (typeof window !== "undefined" ? window.devicePixelRatio : 1) || 1,
-        2,
-      );
+      const dpr = effectiveDpr();
       for (let ui = 0; ui < this._uiLen; ui += 1) {
         drawUIQuad(overlayCtx, this._atlases, this._uiQueue[ui]!, dpr);
       }

@@ -1,3 +1,4 @@
+import { effectiveDpr } from "@engine/core/render";
 import { fitCameraToCanvas } from "../render/citadel-renderer";
 import { camera, iso } from "./renderer-state";
 import { canvas } from "./dom";
@@ -16,7 +17,7 @@ export function tileToScreenCss(tileX: number, tileY: number): { x: number; y: n
   const sy = canvas.height / camera.worldUnitsY;
   const left = camera.centerX - camera.worldUnitsX / 2;
   const top = camera.centerY - camera.worldUnitsY / 2;
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const dpr = effectiveDpr();
   const rect = canvas.getBoundingClientRect();
   return { x: rect.left + ((c.x - left) * sx) / dpr, y: rect.top + ((c.y - top) * sy) / dpr };
 }
@@ -35,6 +36,6 @@ export function tileToCanvasCss(tileX: number, tileY: number): { x: number; y: n
   const sy = canvas.height / camera.worldUnitsY;
   const left = camera.centerX - camera.worldUnitsX / 2;
   const top = camera.centerY - camera.worldUnitsY / 2;
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const dpr = effectiveDpr();
   return { x: ((c.x - left) * sx) / dpr, y: ((c.y - top) * sy) / dpr };
 }

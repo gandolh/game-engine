@@ -37,6 +37,7 @@ import {
   type DrawCall3d,
 } from "@engine/core/render3d";
 import { Profiler, type ProfileReport } from "@engine/core";
+import { effectiveDpr } from "@engine/core/render";
 import type { WorkerOutbound } from "../worker/sim-worker";
 import { HOLLOW_PAL } from "../render/hollow-palette";
 import { GRID_SIZE } from "@hollow/sim-core/world";
@@ -147,6 +148,12 @@ export interface HollowApp {
    *  when the renderer never started (no WebGL2). Refreshed periodically,
    *  not every frame, to keep the stats-scan cost off the hot path. */
   getRenderReport(): ProfileReport | null;
+  /** The `effectiveDpr()` value this app's canvas was last sized with
+   *  (sweep-06). `main.ts`'s glyph/tag overlay MUST read this instead of
+   *  computing its own `devicePixelRatio` — two independent reads of a value
+   *  that has to match is exactly how a misaligned name-tag overlay
+   *  happens. Meaningful even before the first `resize()` (seeded eagerly). */
+  getDpr(): number;
 }
 
 interface Instance {
@@ -174,6 +181,14 @@ export function startHollowApp(canvas: HTMLCanvasElement, worker: Worker, opts: 
   let resizeListener: (() => void) | null = null;
   let lastAgentRenderState: Map<number, AgentRenderState> | null = null;
   let lastViewProj: Mat4 | null = null;
+  // Computed once per `resize()` call and read by `getDpr()` (sweep-06) so
+  // `main.ts`'s glyph/tag overlay uses the EXACT same ratio the 3D canvas's
+  // backing store was sized with, instead of re-reading
+  // `window.devicePixelRatio` a second time — two independent reads of a
+  // value that must match is how a misaligned overlay happens. Seeded eagerly
+  // (not left `null`) so `getDpr()` is meaningful even if called before the
+  // first `resize()`.
+  let currentDpr = effectiveDpr();
   const facingTracker = new AgentFacingTracker();
 
   // Perf HUD (mirrors Farm's render-loop Profiler): times the per-frame
@@ -362,13 +377,19 @@ export function startHollowApp(canvas: HTMLCanvasElement, worker: Worker, opts: 
 
     // --- resize -----------------------------------------------------------
     function resize(): void {
-      const dpr = window.devicePixelRatio || 1;
-      const width = Math.max(1, Math.round(canvas.clientWidth * dpr));
-      const height = Math.max(1, Math.round(canvas.clientHeight * dpr));
+      // sweep-06: was the raw, uncapped `window.devicePixelRatio` — Hollow's
+      // 3D scene is the one render path in the repo with a per-fragment cost
+      // (depth test, cull, shading), which makes an uncapped DPR the worst
+      // place in the engine to skip the clamp every other render path
+      // already applies. `effectiveDpr()` caps at `MAX_DEVICE_PIXEL_RATIO`
+      // (2), same as the 2D path.
+      currentDpr = effectiveDpr();
+      const width = Math.max(1, Math.round(canvas.clientWidth * currentDpr));
+      const height = Math.max(1, Math.round(canvas.clientHeight * currentDpr));
       if (canvas.width !== width || canvas.height !== height) {
         canvas.width = width;
         canvas.height = height;
-        renderer.resize(width, height);
+        renderer.resizeDevicePixels(width, height);
       }
     }
     if (typeof ResizeObserver !== "undefined") {
@@ -676,6 +697,9 @@ export function startHollowApp(canvas: HTMLCanvasElement, worker: Worker, opts: 
     },
     getRenderReport(): ProfileReport | null {
       return renderReport;
+    },
+    getDpr(): number {
+      return currentDpr;
     },
   };
 }

@@ -13,6 +13,8 @@
 // a pass owns) is explicitly OUT OF SCOPE for this brief — see the
 // "Context-loss seam" note at the bottom of this file.
 
+import { effectiveDpr } from "../dpr";
+
 /** Handler invoked when the context is lost. Receives no arguments. */
 export type ContextLostHandler = () => void;
 /** Handler invoked when the context is restored. Receives no arguments. */
@@ -49,13 +51,6 @@ export interface GlContextOptions {
   /** Allocate a depth buffer (3D needs this; 2D must not). Defaults to `false`. */
   depth?: boolean;
 }
-
-/**
- * The device-pixel-ratio clamp used throughout the renderer stack (see
- * ../webgpu/renderer.ts's `beginFrame`/`overlay-2d.ts`): never scale past
- * 2x even on very-high-DPI displays, to keep fill-rate bounded.
- */
-const MAX_DPR = 2;
 
 export class GlContext {
   readonly gl: WebGL2RenderingContext;
@@ -112,20 +107,17 @@ export class GlContext {
    * Resize the backing canvas. `cssWidth`/`cssHeight` are **CSS pixels**
    * (the non-negotiable invariant shared with `RendererLike`: callers
    * always author in CSS pixels, the backend scales by DPR internally).
-   * This method does that scaling: it multiplies by
-   * `min(window.devicePixelRatio || 1, 2)`, floors to an integer device-pixel
-   * size, and only touches `canvas.width`/`height` (and re-issues
-   * `gl.viewport`) when the size actually changed — matching
-   * `gpu-context.ts#resize`'s no-op-when-unchanged guard. `gl.viewport` has
-   * no WebGPU equivalent (WebGPU re-derives the attachment size from
-   * `getCurrentTexture()` every frame); WebGL2 requires it be kept in sync
-   * explicitly or drawing silently clips to the old size.
+   * This method does that scaling: it multiplies by `effectiveDpr()` (see
+   * `../dpr.ts`), floors to an integer device-pixel size, and only touches
+   * `canvas.width`/`height` (and re-issues `gl.viewport`) when the size
+   * actually changed — matching `gpu-context.ts#resize`'s
+   * no-op-when-unchanged guard. `gl.viewport` has no WebGPU equivalent
+   * (WebGPU re-derives the attachment size from `getCurrentTexture()` every
+   * frame); WebGL2 requires it be kept in sync explicitly or drawing
+   * silently clips to the old size.
    */
   resize(cssWidth: number, cssHeight: number): void {
-    const dpr = Math.min(
-      typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1,
-      MAX_DPR,
-    );
+    const dpr = effectiveDpr();
     const width = Math.max(1, Math.floor(cssWidth * dpr));
     const height = Math.max(1, Math.floor(cssHeight * dpr));
 

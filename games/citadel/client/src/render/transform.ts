@@ -15,6 +15,7 @@
  * silently mis-framed the 256×256 MP world. Use `iso.worldPxW` / `iso.worldPxH`.
  */
 import { Camera2D, MIN_ZOOM, MAX_ZOOM } from "@engine/core";
+import { effectiveDpr } from "@engine/core/render";
 import type { IsoProjection } from "./iso";
 
 // ---------------------------------------------------------------------------
@@ -83,11 +84,11 @@ export function screenToTile(iso: IsoProjection, t: CameraTransform, screenX: nu
 /**
  * Resolve a mouse event to device-px coordinates relative to the canvas
  * top-left, using the same dpr clamp the GPU renderer uses for its backing
- * store (min(devicePixelRatio, 2)). Lives here so placement-state and the
- * renderer agree on the transform.
+ * store (`effectiveDpr()`, see `@engine/core/render`'s `dpr.ts`). Lives here
+ * so placement-state and the renderer agree on the transform.
  */
 export function eventToDevicePx(e: { clientX: number; clientY: number }, canvas: HTMLCanvasElement): { sx: number; sy: number } {
-  const dpr = Math.min((typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1), 2);
+  const dpr = effectiveDpr();
   const rect = canvas.getBoundingClientRect();
   return {
     sx: (e.clientX - rect.left) * dpr,

@@ -467,7 +467,12 @@ function startRun(input: { seed: number; persona?: PersonaSeed; replayLog?: Inte
     }
 
     if (overlayCtx) {
-      const dpr = window.devicePixelRatio || 1;
+      // sweep-06: read the SAME dpr the 3D canvas's backing store was last
+      // sized with (`app.getDpr()`), rather than a second, independent
+      // `window.devicePixelRatio` read — two reads of a value that must
+      // match is how a misaligned name-tag overlay happens, and this one
+      // also needs the same MAX_DEVICE_PIXEL_RATIO clamp `app.ts` now applies.
+      const dpr = app.getDpr();
       const rect = canvas.getBoundingClientRect();
       resizeOverlayCanvas(overlayCanvas, rect.width, rect.height, dpr);
       overlayCtx.setTransform(dpr, 0, 0, dpr, 0, 0);

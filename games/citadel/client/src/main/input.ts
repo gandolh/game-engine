@@ -1,3 +1,4 @@
+import { effectiveDpr } from "@engine/core/render";
 import {
   fitCameraToCanvas,
   clampZoom,
@@ -366,7 +367,7 @@ canvas.addEventListener("mousemove", (e) => {
   if (isPanning) {
     // Convert CSS-px mouse delta to world-px using the live GPU scale.
     // sx = canvas.width (device px) / camera.worldUnitsX. dpr maps CSS→device.
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const dpr = effectiveDpr();
     fitCameraToCanvas(camera, canvas.width, canvas.height, iso);
     const sx = canvas.width / camera.worldUnitsX;
     const sy = canvas.height / camera.worldUnitsY;

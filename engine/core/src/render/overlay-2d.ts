@@ -17,6 +17,7 @@
  */
 import type { Ctx2D } from "./sprite-types";
 import type { ViewUniform } from "./view-uniform";
+import { effectiveDpr } from "./dpr";
 
 export class Overlay2D {
   /** overlay must NOT clear to a solid color */
@@ -76,10 +77,10 @@ export class Overlay2D {
    * Must be called once per frame, before any drawing.
    *
    * Matches the overlay canvas's device-pixel size to the base (GPU) canvas using the
-   * same DPR rule used throughout the renderer stack (see `GlContext.resize` /
-   * `WebGl2Renderer.beginFrame`):
+   * same DPR rule used throughout the renderer stack (see `effectiveDpr` in `./dpr`,
+   * also used by `GlContext.resize` / `WebGl2Renderer.beginFrame`):
    *
-   *   dpr = min(window.devicePixelRatio || 1, 2)
+   *   dpr = effectiveDpr()
    *   canvas.width  = floor(baseCanvas.clientWidth  * dpr)
    *   canvas.height = floor(baseCanvas.clientHeight * dpr)
    *
@@ -90,10 +91,7 @@ export class Overlay2D {
    * background).  The caller must not rely on the previous frame's content surviving.
    */
   beginFrame(): void {
-    const dpr = Math.min(
-      (typeof window !== "undefined" ? window.devicePixelRatio : 1) || 1,
-      2,
-    );
+    const dpr = effectiveDpr();
 
     const clientW = this.baseCanvas.clientWidth;
     const clientH = this.baseCanvas.clientHeight;

@@ -282,13 +282,25 @@ export class SceneRenderer3D {
     return new MeshHandle(vao, vertexBuffer, indexBuffer, packed.indexCount);
   }
 
-  /** Update the GL viewport to match the current canvas size. Call whenever
-   *  the canvas resizes. Unlike the WebGPU sibling, no depth-texture
-   *  recreation is needed here: WebGL2's default framebuffer's depth buffer
-   *  is resized by the browser automatically whenever `canvas.width`/
-   *  `height` change (it was allocated with `{ depth: true }` — see
-   *  `device3d.ts`). */
-  resize(width: number, height: number): void {
+  /**
+   * Update the GL viewport to match the current canvas size. Call whenever
+   * the canvas resizes. Unlike the WebGPU sibling, no depth-texture
+   * recreation is needed here: WebGL2's default framebuffer's depth buffer
+   * is resized by the browser automatically whenever `canvas.width`/
+   * `height` change (it was allocated with `{ depth: true }` — see
+   * `device3d.ts`).
+   *
+   * Takes **DEVICE pixels** — named `resizeDevicePixels` (sweep-06, was
+   * `resize`) specifically because `../../render/webgl2/gl-context.ts`'s
+   * `GlContext.resize(cssWidth, cssHeight)` takes **CSS pixels** and applies
+   * the DPR clamp internally. Same method name, opposite unit contracts, on
+   * two classes any caller could confuse — see
+   * corpus/todos/2026-09-19-sweep-06-dpr-cap-duplicated-and-hollow-uncapped.md.
+   * The caller (`app.ts`/`render3d-demo.ts`) is responsible for computing
+   * device pixels via `effectiveDpr()` (`../../render/dpr.ts`) BEFORE calling
+   * this — this method does not, and must not, apply the DPR clamp itself.
+   */
+  resizeDevicePixels(width: number, height: number): void {
     if (this.device3d.lost) return;
     this.gl.viewport(0, 0, Math.max(1, width), Math.max(1, height));
   }

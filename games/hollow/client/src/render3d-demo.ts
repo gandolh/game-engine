@@ -14,7 +14,7 @@
  * work together, without ever needing Math.random or a sim tick (all motion
  * here is render/wall-clock only, via performance.now()).
  */
-import { rgbOf } from "@engine/core/render";
+import { rgbOf, effectiveDpr } from "@engine/core/render";
 import {
   box,
   cylinder,
@@ -326,13 +326,15 @@ async function main(): Promise<void> {
   // Resize
   // -------------------------------------------------------------------
   function resize(): void {
-    const dpr = window.devicePixelRatio || 1;
+    // sweep-06: clamp via effectiveDpr() (was the raw, uncapped
+    // window.devicePixelRatio) — same cap the rest of the render stack uses.
+    const dpr = effectiveDpr();
     const width = Math.max(1, Math.round(canvas.clientWidth * dpr));
     const height = Math.max(1, Math.round(canvas.clientHeight * dpr));
     if (canvas.width !== width || canvas.height !== height) {
       canvas.width = width;
       canvas.height = height;
-      renderer.resize(width, height);
+      renderer.resizeDevicePixels(width, height);
     }
   }
   window.addEventListener("resize", resize);
