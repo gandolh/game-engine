@@ -37,6 +37,7 @@ import { createRenderLoop } from "./main/render-loop";
 import { JuiceLayer } from "./main/juice";
 import { FarmAudio } from "./main/audio";
 import { showFatal } from "./main/fatal";
+import { hostClientId } from "./main/host-client-id";
 
 interface Runtime {
   renderer: RendererLike;
@@ -336,8 +337,10 @@ async function startGame(
       maxDays,
       // Unique per tab so each visitor gets a private server run and always
       // owns their own Pip. UI-side only — never reaches sim logic, so
-      // determinism is unaffected.
-      clientId: crypto.randomUUID(),
+      // determinism is unaffected. hostClientId() degrades gracefully when
+      // crypto.randomUUID is unavailable (secure-context-only — see its module
+      // comment), so boot doesn't throw over plain HTTP to a LAN IP.
+      clientId: hostClientId(),
     });
 
     const renderFrame = createRenderLoop({
