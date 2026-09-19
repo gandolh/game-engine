@@ -14,7 +14,7 @@ legible in-canvas.
 This file is the live progress tracker + the milestone plan.
 
 MateQuest = the **fourth game** on the shared engine: a Romanian-curriculum (programa școlară,
-grades I–VIII) math roguelike where **solving a problem IS the combat action**. Pokémon-style
+grades I–IV as built; the design was drawn against the curriculum's I–VIII ladder) math roguelike where **solving a problem IS the combat action**. Pokémon-style
 Attack/Heal/Shield menu + Slay-the-Spire turn stakes; branching runs; two-layer progression
 (in-run XP + persistent per-topic mastery); soft-roguelike death; loot grants math lifelines;
 Romanian-folklore theme; Resurrect-64 palette; Web-Worker solo build like Citadel.
@@ -53,7 +53,7 @@ Romanian-folklore theme; Resurrect-64 palette; Web-Worker solo build like Citade
 | **M5 — theme, art, i18n** | Make it a game, not a prototype | Romanian-folklore skin (Zmeu/Balaur/Muma Pădurii bosses, hero trio); pixel art via atlas-recipe pipeline (placeholders until here); RO/EN i18n complete incl. word problems & teach cards | RO/EN toggle; art review; end-to-end playtest |
 
 Sequencing note: M1 uses a hardcoded problem so the *loop* is proven before the *content* seam (M2).
-Grades V–VIII generators come after M5 (or as an M2.5) once I–IV content is validated.
+~~Grades V–VIII generators come after M5 (or as an M2.5) once I–IV content is validated.~~ **SETTLED 2026-09-19 (audit-54): they do not come.** MateQuest's scope is grades I–IV; reviving V–VIII is a new spec that starts at the design end, not a queued increment. See `wiki/mathquest-overview.md` → Scope decision.
 
 ## Progress
 
@@ -510,8 +510,8 @@ mastery with a hard-branch gate & blueprints (M4a/b/c), and a folklore skin (zon
 Făt-Frumos) with combat pixel-art sprites and a full RO/EN i18n toggle (M5). All on branch `mathquest`.
 
 **Still outstanding (post-plan, OPTIONAL future work — NOT part of M0–M5):**
-- Grades V–VIII problem generators (an "M2.5"; the ladder + `TOPICS_FOR_GRADE` are ready to extend).
-- "Unlock NEW problem types" via mastery (deferred from M4c — needs V–VIII content to exist first).
+- ~~Grades V–VIII problem generators (an "M2.5"; the ladder + `TOPICS_FOR_GRADE` are ready to extend).~~ **CLOSED 2026-09-19 (audit-54) — not built, and no longer pending.** "The ladder is ready to extend" was true of the *types* and misleading about the *work*: the combat UI has no answer-input affordance for fractions or negatives, which is plausibly the larger half. Scope narrowed to I–IV.
+- ~~"Unlock NEW problem types" via mastery (deferred from M4c — needs V–VIII content to exist first).~~ **Moot** — its precondition (V–VIII content) was closed 2026-09-19.
 - Companion Archer/Mage party members (design has them as auto-battlers; only the Warrior solves in v1).
 - Higher-fidelity art via a real atlas pipeline (would need a `UISurface` image/blit seam; the current
   rect-based sprites are the shipped look). Idle/hit sprite animation.
@@ -557,5 +557,5 @@ Făt-Frumos) with combat pixel-art sprites and a full RO/EN i18n toggle (M5). Al
 ## Open decisions (resolved / carried)
 - **Name / package / branch** — ✅ codename *MateQuest*, package `@mathquest/*`, branch `mathquest`
   (RO title *Cetatea Cifrelor*, provisional, in the boot title).
-- **Grade order** — I–IV first (recommended), V–VIII after the loop is proven. (Confirm at M2.)
+- **Grade order** — ~~I–IV first (recommended), V–VIII after the loop is proven.~~ **SETTLED 2026-09-19 (audit-54): I–IV is the scope, not phase one of it.**
 - **Art** — placeholder shapes through M4, real pixel art at M5 (recommended).

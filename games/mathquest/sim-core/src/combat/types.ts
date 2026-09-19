@@ -24,7 +24,13 @@ export type CombatAction = "attack" | "heal" | "shield";
  */
 export type CombatPhase = "await_action" | "await_answer" | "teach" | "won" | "lost";
 
-/** Grade I–IV of the Romanian primary-school curriculum. V–VIII are a later milestone. */
+/** Grade I–IV of the Romanian primary-school curriculum — **the game's full scope**, not a first phase.
+ *
+ * Settled 2026-09-19 (audit-54): the repo used to advertise grades I–VIII, which was the curriculum
+ * the design was drawn from rather than the build. V–VIII is NOT a queued increment — the combat UI
+ * has no answer-input affordance for fractions or negatives, which is plausibly more work than the
+ * generators. Reviving it is a new spec that starts at the design end. See
+ * corpus/wiki/mathquest-overview.md → Scope decision. */
 export type Grade = 1 | 2 | 3 | 4;
 
 /** The four M2 topics. Word-problems/fractions/geometry are explicitly DEFERRED (see the brief). */

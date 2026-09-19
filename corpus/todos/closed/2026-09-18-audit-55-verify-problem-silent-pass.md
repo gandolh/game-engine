@@ -3,7 +3,7 @@
 status: todo
 created: 2026-09-18
 context: found by the coverage lens of the 2026-09-18 sweep. Small, and it is the guard that
-[audit-54](../2026-09-18-audit-54-mathquest-grades-v-viii.md) depends on — do this one first.
+[audit-54](2026-09-18-audit-54-mathquest-grades-v-viii.md) depends on — do this one first.
 
 ## The gap
 
@@ -56,7 +56,7 @@ Two lines of intent:
   bug in the four existing generators. If it does, stop and file it: a wrong answer shipping today is
   a bigger deal than the guard.
 - `TOPICS_FOR_GRADE` and the `Grade` type — widening the ladder is
-  [audit-54](../2026-09-18-audit-54-mathquest-grades-v-viii.md)
+  [audit-54](2026-09-18-audit-54-mathquest-grades-v-viii.md)
 
 ## Acceptance
 - **Demonstrate first**: add a fake topic to `GENERATORS` + `TOPICS_FOR_GRADE`, show the suite green

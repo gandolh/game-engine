@@ -4,6 +4,47 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [briefs/](briefs/) (done/superseded), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-09-19] decision | audit-54: MateQuest is a grades I–IV game, and says so
+
+`CLAUDE.md` told every future agent MateQuest was *"a Romanian-curriculum (grades I–VIII) math
+roguelike"*. `combat/types.ts` says `export type Grade = 1 | 2 | 3 | 4`, there are four topics, and
+`BOSS_GRADE` is `4`. The gap was recorded honestly inside MateQuest's BUILD-STATE — *"Deferred (not
+built): word-problems, fractions, geometry, grades V–VIII"* — but the milestone plan was marked
+COMPLETE, so it lived in a bullet nobody routes to while three other documents advertised the full
+ladder.
+
+**Decision: narrow the claim, not stretch the code.** Recorded in
+[mathquest-overview.md](wiki/mathquest-overview.md) → *Scope decision*, with the per-rung topic table
+the spec's acceptance asked for, and propagated to `CLAUDE.md`, `index.md`, `status.md`, the
+BUILD-STATE, and the two code comments that called V–VIII "a later milestone".
+
+**Why not build it.** V–VIII is *gimnaziu*, and it is not "the same with bigger numbers" — fractions,
+negatives, ratios, powers, equations, geometry. The game's pillar is *solving a problem IS the combat
+action*, which constrains what is usable: an answer must be producible in a few seconds, under turn
+pressure, on a canvas keypad. Today the input is typed naturals and multiple choice. **Fractions and
+negatives need answer-input affordances that do not exist, and that is plausibly the larger half of
+the work** — larger than the generators. A multi-step equation may not fit the loop at all, which
+would be a finding about the design rather than a failure to execute. The BUILD-STATE's "the ladder +
+`TOPICS_FOR_GRADE` are ready to extend" was true of the *types* and misleading about the *work*; that
+one sentence is most of why this sat in a backlog for two months looking cheap.
+
+**The thing worth copying: do not round a rung up to full coverage.** Saying "grades I–IV" is honest
+about the ladder position and would be dishonest as a coverage claim, so the overview says both. The
+four topics are arithmetic and comparison; **division, intro fractions, units of measure and
+intuitive geometry are all in the I–IV *programa* and none is implemented.** The same note now sits on
+`TOPICS_FOR_GRADE` itself, where someone extending the table will read it.
+
+**And the bar that makes narrowing the safer move, not the lazier one:** in this game a wrong answer
+is a wrong thing taught to a child. Every new topic would need an *independent* answer check —
+[audit-55](todos/closed/2026-09-18-audit-55-verify-problem-silent-pass.md) landed first precisely so
+that this could not ship green tests that assert nothing. Shipping a half-built gimnaziu tier under an
+I–VIII banner is worse than shipping a complete primary one.
+
+If V–VIII is revived it is a new spec starting at the design end — topic table per rung against the
+*programa*, which topics are viable as a combat action at all, what the input affordances become, and
+how the run ladder stretches from 4 rungs to 8 (`BOSS_NODE_GRADE`/`BOSS_GRADE` and the run pacing were
+tuned for four). Not "add four grades".
+
 ## [2026-09-19] change | audit-58: status.md was 119 KB against a three-page retrieval budget
 
 `corpus/CLAUDE.md` says *"Read `index.md`. Read at most 2–3 wiki pages. The corpus exists to make an

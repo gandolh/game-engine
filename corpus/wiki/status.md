@@ -35,9 +35,11 @@ edit the matching line below.
   adoption latency, not a bug. [hollow-overview.md](hollow-overview.md) ·
   [BUILD-STATE](../todos/2026-07-17-hollow-BUILD-STATE.md)
 - **MateQuest** — built and playable, M0–M5 complete. Romanian-curriculum math roguelike; UI defaults
-  to Romanian. **Open question:** the I–VIII grade claim is only backed to IV —
-  [audit-54](../todos/2026-09-18-audit-54-mathquest-grades-v-viii.md) exists to either build V–VIII or
-  narrow the claim. [mathquest-overview.md](mathquest-overview.md)
+  to Romanian. **Grades I–IV** — settled 2026-09-19
+  ([audit-54](../todos/closed/2026-09-18-audit-54-mathquest-grades-v-viii.md)): the repo used to
+  advertise I–VIII, which was the curriculum the design was drawn from, not the build. Within I–IV it
+  covers arithmetic and comparison; division, fractions, units and geometry are not implemented.
+  [mathquest-overview.md](mathquest-overview.md)
 
 ## Current sim behaviour & determinism
 

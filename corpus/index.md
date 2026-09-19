@@ -64,7 +64,7 @@ which is how a "WebGPU-only render path" line outlived the page that already sai
 
 ### MateQuest
 
-- [wiki/mathquest-overview.md](wiki/mathquest-overview.md) — What MateQuest is (the **fourth** game — a Romanian-curriculum, grades I–VIII, math roguelike where **solving a problem IS the combat action**): **built and playable** (design settled 2026-07-21, M0–M5 complete 2026-07-23). Pokémon-style Attack/Heal/Shield + Slay-the-Spire turn stakes; branching runs; two-layer progression (in-run XP + persistent per-topic mastery); soft-roguelike death; loot grants math lifelines; bilingual RO/EN; Romanian-folklore theme; Resurrect-64 palette; Web-Worker solo build like Citadel. Build plan + milestones: [todos/2026-07-21-mathquest-BUILD-STATE.md](todos/2026-07-21-mathquest-BUILD-STATE.md).
+- [wiki/mathquest-overview.md](wiki/mathquest-overview.md) — What MateQuest is (the **fourth** game — a Romanian-curriculum, **grades I–IV**, math roguelike where **solving a problem IS the combat action**): **built and playable** (design settled 2026-07-21, M0–M5 complete 2026-07-23). Pokémon-style Attack/Heal/Shield + Slay-the-Spire turn stakes; branching runs; two-layer progression (in-run XP + persistent per-topic mastery); soft-roguelike death; loot grants math lifelines; bilingual RO/EN; Romanian-folklore theme; Resurrect-64 palette; Web-Worker solo build like Citadel. Build plan + milestones: [todos/2026-07-21-mathquest-BUILD-STATE.md](todos/2026-07-21-mathquest-BUILD-STATE.md).
 
 ## Build programs
 
@@ -82,7 +82,7 @@ which is how a "WebGPU-only render path" line outlived the page that already sai
   that can. **Four remain open**, and two of them are open *because they need a decision, not because
   they need work*:
   [audit-53](todos/closed/2026-09-18-audit-53-corpus-drift-sweep.md) (corpus drift sweep),
-  [audit-54](todos/2026-09-18-audit-54-mathquest-grades-v-viii.md) (**build grades V–VIII, or narrow the
+  [audit-54](todos/closed/2026-09-18-audit-54-mathquest-grades-v-viii.md) (**build grades V–VIII, or narrow the
   I–VIII claim to I–IV** — a content-design call),
   [audit-58](todos/closed/2026-09-18-audit-58-status-md-retrieval-budget.md) (split `wiki/status.md`'s 119 KB;
   land 53 first) and

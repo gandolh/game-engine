@@ -205,7 +205,12 @@ export const GENERATORS: Record<MathTopic, ProblemGenerator> = {
   comparison: generateComparison,
 };
 
-/** Grade-valid topics — grade 1 excludes multiplication (see `generateMultiplication`'s doc). */
+/** Grade-valid topics — grade 1 excludes multiplication (see `generateMultiplication`'s doc).
+ *
+ * This table IS the per-rung curriculum mapping of record (audit-54). It covers arithmetic and
+ * comparison only: division, intro fractions, units of measure and intuitive geometry are in the
+ * I–IV *programa* and are deliberately not implemented. "Grades I–IV" names the rung, not full
+ * coverage within it. */
 export const TOPICS_FOR_GRADE: Record<Grade, readonly MathTopic[]> = {
   1: ["addition", "subtraction", "comparison"],
   2: ["addition", "subtraction", "multiplication", "comparison"],

@@ -9,7 +9,7 @@ A **four-game monorepo on one shared TypeScript ECS engine**:
 - **Farm Valley** — 21 farmers (20 BDI AI personalities + the playable **Pip**) compete over 100 in-game days. Mostly a watch-it-play sim.
 - **Citadel** — a settlement/RTS sim (economy, raids, sieges, fire/disease) on the same engine.
 - **Hollow** — a generational social-emergence sim / research instrument: needs, relationships, lineage, governance, mortality; the only game with a **3D** layer (`@engine/core/render3d`).
-- **MateQuest** — a Romanian-curriculum (grades I–VIII) math roguelike where solving a problem *is* the combat action. UI defaults to Romanian.
+- **MateQuest** — a Romanian-curriculum (**grades I–IV**) math roguelike where solving a problem *is* the combat action. UI defaults to Romanian. *(The design was drawn against the curriculum's full I–VIII ladder; the game implements the primary band. Narrowed to match the code 2026-09-19 — see [mathquest-overview.md](corpus/wiki/mathquest-overview.md) → Scope decision.)*
 
 See [README.md](README.md) for the player-facing pitch and [corpus/](corpus/) for the project's living design wiki.
 

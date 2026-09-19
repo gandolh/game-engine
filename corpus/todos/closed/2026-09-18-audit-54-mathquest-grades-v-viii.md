@@ -7,19 +7,19 @@ BUILD-STATE and never queued anywhere, while the milestone plan is marked COMPLE
 
 ## The gap
 
-[`combat/types.ts:28`](../../games/mathquest/sim-core/src/combat/types.ts#L28):
+[`combat/types.ts:28`](../../../games/mathquest/sim-core/src/combat/types.ts#L28):
 
 ```ts
 export type Grade = 1 | 2 | 3 | 4;
 ```
 
-[`generators.ts:209-214`](../../games/mathquest/sim-core/src/combat/generators.ts#L209-L214) has
+[`generators.ts:209-214`](../../../games/mathquest/sim-core/src/combat/generators.ts#L209-L214) has
 exactly four keys and four topics (addition, subtraction, multiplication, comparison);
 `BOSS_NODE_GRADE` and `BOSS_GRADE` are both `4`.
 
-Meanwhile [`CLAUDE.md:12`](../../CLAUDE.md) tells every future agent MateQuest is *"a
+Meanwhile [`CLAUDE.md:12`](../../../CLAUDE.md) tells every future agent MateQuest is *"a
 Romanian-curriculum (grades I–VIII) math roguelike"*, and
-[`wiki/mathquest-overview.md`](../wiki/mathquest-overview.md) sells the design as *"an 8-rung ladder
+[`wiki/mathquest-overview.md`](../../wiki/mathquest-overview.md) sells the design as *"an 8-rung ladder
 the curriculum already provides"*.
 
 The BUILD-STATE records the deferral honestly — M2: *"**Deferred (not built):** word-problems,
@@ -54,17 +54,17 @@ Settle before writing code:
 Do not open this as "add four grades". Pick the scope first.
 
 ## Files likely involved
-- [`games/mathquest/sim-core/src/combat/types.ts`](../../games/mathquest/sim-core/src/combat/types.ts), [`generators.ts`](../../games/mathquest/sim-core/src/combat/generators.ts)
+- [`games/mathquest/sim-core/src/combat/types.ts`](../../../games/mathquest/sim-core/src/combat/types.ts), [`generators.ts`](../../../games/mathquest/sim-core/src/combat/generators.ts)
 - the map/run ladder and mastery tracking in `@mathquest/sim-core`
-- [`games/mathquest/client/src/ui/combat-screen.ts`](../../games/mathquest/client/src/ui/combat-screen.ts) — answer input
-- [`CLAUDE.md`](../../CLAUDE.md), [`wiki/mathquest-overview.md`](../wiki/mathquest-overview.md) — whichever way the decision goes
+- [`games/mathquest/client/src/ui/combat-screen.ts`](../../../games/mathquest/client/src/ui/combat-screen.ts) — answer input
+- [`CLAUDE.md`](../../../CLAUDE.md), [`wiki/mathquest-overview.md`](../../wiki/mathquest-overview.md) — whichever way the decision goes
 
 ## Acceptance
-- A decision recorded in [`wiki/mathquest-overview.md`](../wiki/mathquest-overview.md) with the topic
+- A decision recorded in [`wiki/mathquest-overview.md`](../../wiki/mathquest-overview.md) with the topic
   table per rung (or the narrowed scope), **before** any generator is written.
 - `CLAUDE.md` and the overview agree with the code, whichever direction that is settled in.
 - If building: every new topic gets an **independent** answer check in the test helper — see
-  [audit-55](closed/2026-09-18-audit-55-verify-problem-silent-pass.md), which must land first or this brief
+  [audit-55](../closed/2026-09-18-audit-55-verify-problem-silent-pass.md), which must land first or this brief
   will ship green tests that assert nothing. In this game a wrong answer is a wrong thing taught to a
   child; that is the bar.
 - Romanian first, English second, for every new string.
