@@ -31,13 +31,14 @@ export const LAST_CODEPOINT = 0x7e;
  * Non-ASCII code points also covered, in two groups (all present in the vendored UNSCII):
  *  - Romanian diacritics — the correct comma-below ș/ț (U+0218..U+021B), not cedilla: Ă ă Â â Î î Ș ș Ț ț.
  *  - Common UI symbols: × (mult), † (dagger), ★ (star), ♥ (heart), ♠ (spade), ✓ (check),
- *    ◆ (diamond), ← (left arrow), → (right arrow).
+ *    ◆ (diamond), ← → (arrows), · (middot), — (em dash), … (ellipsis).
  * Kept in sync with `EXTRA_CODEPOINTS` in `engine/ui/tools/hex-to-glyphs.ts` (the generator that
  * bakes these into the glyph tables). Extending this list requires re-running that generator.
  */
 export const EXTRA_CODEPOINTS: readonly number[] = [
   0x102, 0x103, 0x0c2, 0x0e2, 0x0ce, 0x0ee, 0x218, 0x219, 0x21a, 0x21b,
   0x0d7, 0x2020, 0x2605, 0x2665, 0x2660, 0x2713, 0x25c6, 0x2190, 0x2192,
+  0x0b7, 0x2014, 0x2026,
 ];
 
 /** Character substituted for any code point outside a font's coverage. */
@@ -103,9 +104,53 @@ export function fontAtlasId(font: UiFont): string {
   return `ui-font-${font.id}`;
 }
 
-/** Rows for `char` in `font`, falling back to `FALLBACK_CHAR` for anything outside coverage. */
+/**
+ * Uncovered code points already warned about, so the warning below is at most one line per glyph
+ * for the life of the process rather than one per frame.
+ */
+const warnedMissing = new Set<string>();
+
+/**
+ * Silence (or capture) the missing-glyph warning — pass `null` to drop it, or a function to route it
+ * somewhere else. Tests that deliberately exercise the fallback use this so a passing run stays
+ * quiet. Default is `console.warn`.
+ */
+export function setMissingGlyphReporter(report: ((message: string) => void) | null): void {
+  missingGlyphReporter = report;
+}
+let missingGlyphReporter: ((message: string) => void) | null = (message) => {
+  console.warn(message);
+};
+
+/**
+ * Rows for `char` in `font`, falling back to `FALLBACK_CHAR` for anything outside coverage.
+ *
+ * The fallback is also **reported, once per glyph** (playtest-08, 2026-09-20), because a silent
+ * substitution is how three of these shipped. MateQuest drew its map-pan hints with `‹`/`›`, which
+ * the vendored UNSCII does not carry at all, so the affordance existed and rendered *nothing* for
+ * the whole life of the feature — a playtest read it as "the map gives no sign it pans". Citadel's
+ * road-drag readout drew `—` and `·`, which UNSCII does have and the font simply had not baked.
+ *
+ * A source scan cannot catch this class reliably (the same literals appear in comments, DOM text and
+ * test names, where any code point is fine), but this choke point can: it fires exactly when a glyph
+ * is really drawn, so it has no false positives and needs no allowlist. Farm's `right-column.ts`
+ * carries a comment warning the next person that non-ASCII "would render as `?`" — that knowledge is
+ * now enforced instead of remembered.
+ */
 export function glyphRows(font: UiFont, char: string): GlyphRows {
-  return font.glyphs[char] ?? font.glyphs[FALLBACK_CHAR]!;
+  const rows = font.glyphs[char];
+  if (rows !== undefined) return rows;
+  const key = `${font.id}:${char}`;
+  if (missingGlyphReporter !== null && !warnedMissing.has(key)) {
+    warnedMissing.add(key);
+    const cp = char.codePointAt(0) ?? 0;
+    missingGlyphReporter(
+      `@engine/ui: font "${font.id}" has no glyph for ${JSON.stringify(char)} ` +
+        `(U+${cp.toString(16).toUpperCase().padStart(4, "0")}) — drawing "${FALLBACK_CHAR}" instead. ` +
+        `Add the code point to EXTRA_CODEPOINTS and re-run tools/hex-to-glyphs.ts, or use a covered character.`,
+    );
+  }
+  return font.glyphs[FALLBACK_CHAR]!;
 }
 
 /** Every covered character in code-point order — drives the deterministic atlas layout.

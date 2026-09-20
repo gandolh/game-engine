@@ -4,6 +4,7 @@ export {
   FALLBACK_CHAR,
   allChars,
   glyphRows,
+  setMissingGlyphReporter,
   fontAtlasId,
   BODY_FONT,
   DISPLAY_FONT,

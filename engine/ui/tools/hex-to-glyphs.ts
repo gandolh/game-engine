@@ -41,13 +41,14 @@ const LAST_CODEPOINT = 0x7e;
  *  - Romanian diacritics — UNSCII carries the CORRECT comma-below ș/ț (U+0218..U+021B), not the
  *    Turkish cedilla forms: Ă ă  Â â  Î î  Ș ș  Ț ț.
  *  - Common symbols used by game UI (all present in UNSCII): × (mult), † (dagger), ★ (star),
- *    ♥ (heart), ♠ (spade), ✓ (check), ◆ (diamond), ← (left arrow), → (right arrow).
+ *    ♥ (heart), ♠ (spade), ✓ (check), ◆ (diamond), ← → (arrows), · (middot), — (em dash), … (ellipsis).
  */
 const EXTRA_CODEPOINTS = [
   // Romanian diacritics
   0x102, 0x103, 0x0c2, 0x0e2, 0x0ce, 0x0ee, 0x218, 0x219, 0x21a, 0x21b,
   // Symbols
   0x0d7, 0x2020, 0x2605, 0x2665, 0x2660, 0x2713, 0x25c6, 0x2190, 0x2192,
+  0x0b7, 0x2014, 0x2026,
 ];
 
 /** All code points this generator emits, ascending — printable ASCII plus `EXTRA_CODEPOINTS`. */

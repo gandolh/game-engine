@@ -11,7 +11,7 @@ import { createRng } from "@engine/core";
 import type { UIQuad } from "@engine/core/render";
 import { UISurface } from "@engine/ui";
 import { EMPTY_MASTERY_STORE, generateMap, STARTING_LIFELINES, type RunMap, type RunView } from "@mathquest/sim-core";
-import { createMapScreen } from "./map-screen";
+import { createMapScreen, localeSwitchCostsTheRun } from "./map-screen";
 import { STRINGS_EN, STRINGS_RO } from "../strings";
 
 /** A real, deterministically-generated map (M3's `generateMap`) — exercising the screen against
@@ -228,5 +228,45 @@ describe("createMapScreen — localeToggleRect", () => {
     const small = screen.localeToggleRect(400, 300);
     const large = screen.localeToggleRect(1200, 800);
     expect(small).not.toEqual(large);
+  });
+});
+
+/**
+ * playtest-07 (2026-09-20) — the language toggle must announce that it restarts the run.
+ *
+ * The reset itself is the locked M5 decision (locale is a sim input like `seed`); what was missing
+ * was telling the player. These pin the RULE for when the warning appears; `render()`'s smoke test
+ * above covers the drawing.
+ */
+describe("localeSwitchCostsTheRun (playtest-07)", () => {
+  const map = testMap(7);
+
+  it("is false on an untouched run — nothing to lose, so no warning", () => {
+    expect(localeSwitchCostsTheRun(baseRun(map))).toBe(false);
+  });
+
+  it("is true once any node has been cleared", () => {
+    expect(localeSwitchCostsTheRun(baseRun(map, { visitedIds: [map.startIds[0]!] }))).toBe(true);
+  });
+
+  it("stays true deeper into a run", () => {
+    const run = baseRun(map, {
+      visitedIds: [map.startIds[0]!, map.startIds[0]! + 1],
+      level: 2,
+      xp: 3,
+      warriorHp: 12,
+    });
+    expect(localeSwitchCostsTheRun(run)).toBe(true);
+  });
+
+  it("renders without throwing in both states, in both locales", () => {
+    const screen = createMapScreen();
+    const surface = fakeSurface();
+    for (const visitedIds of [[], [map.startIds[0]!]]) {
+      for (const [loc, str] of [["ro", STRINGS_RO], ["en", STRINGS_EN]] as const) {
+        const run = baseRun(map, { visitedIds });
+        expect(() => screen.render(surface, run, null, VIEW_W, VIEW_H, loc, str)).not.toThrow();
+      }
+    }
   });
 });

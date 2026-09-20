@@ -753,15 +753,31 @@ export function createMapScreen(): MapScreen {
     for (const band of L.zones) drawZoneBanner(P, band, strings);
 
     // HUD (fixed screen space) — title, HP, legend, scroll hints, locale toggle.
+    //
+    // The locale toggle warns when a run is in progress (playtest-07): switching language RE-INITS
+    // the sim by design (see sim-core/i18n.ts — locale is an input like `seed`), which discards the
+    // run. That is locked; what was missing is telling the player BEFORE they press it. The warning
+    // is drawn left of the toggle, and the legend is given the same right limit so its own pan hint
+    // moves out of the way instead of overlapping.
+    const runInProgress = localeSwitchCostsTheRun(run);
     drawChrome(surface, run, viewW, strings);
-    drawLegendAt(surface, viewW, viewH, strings);
-    drawLocaleToggle(surface, viewW, viewH, locale, strings);
+    // MEASURE the toggle's left edge, then draw the legend, THEN the toggle. The order matters:
+    // `drawLegendAt` paints an opaque strip across the whole bottom, so anything drawn into that
+    // strip before it is painted over — which is exactly what happened the first time this was
+    // wired (the toggle vanished). Measuring is free; drawing has to come after the background.
+    const localeLeftEdge = localeToggleLeftEdge(viewW, viewH, strings, runInProgress);
+    drawLegendAt(surface, viewW, viewH, strings, localeLeftEdge);
+    drawLocaleToggle(surface, viewW, viewH, locale, strings, runInProgress);
     drawScrollHints(surface);
   }
 
   function drawScrollHints(surface: UISurface): void {
-    if (camX > 2) drawText(surface, "‹", 8, viewH / 2 - 8, { color: MATE_PAL.gold, scale: 2 });
-    if (camX < worldW - viewW - 2) drawText(surface, "›", viewW - 22, viewH / 2 - 8, { color: MATE_PAL.gold, scale: 2 });
+    // `←`/`→`, NOT `‹`/`›` (playtest-08, 2026-09-20). These hints have always been here and have
+    // never been visible: the single-guillemets are U+2039/U+203A, which the vendored UNSCII does
+    // not carry at all, so both edge arrows drew nothing. The playtest read that as "the map gives
+    // no sign it pans" — the sign was there, it just had no glyph. The arrows ARE covered.
+    if (camX > 2) drawText(surface, "←", 8, viewH / 2 - 8, { color: MATE_PAL.gold, scale: 2 });
+    if (camX < worldW - viewW - 2) drawText(surface, "→", viewW - 22, viewH / 2 - 8, { color: MATE_PAL.gold, scale: 2 });
   }
 
   function nodeAtScreen(sx: number, sy: number): number | null {
@@ -792,6 +808,24 @@ export function createMapScreen(): MapScreen {
   return { render, nodeAtScreen, panBy, reachableOrder, localeToggleRect: computeLocaleToggleRect };
 }
 
+/**
+ * Would switching language right now throw away progress? (playtest-07, 2026-09-20)
+ *
+ * Switching locale RE-INITS the sim — a locked decision, because generators format `prompt`/`teach`
+ * and enemy names at generation time, so `locale` is an input like `seed`
+ * (see `@mathquest/sim-core`'s `i18n.ts`). The run is therefore discarded, and the player deserves
+ * to know that before pressing a one-keystroke toggle.
+ *
+ * `visitedIds` is the whole signal: XP, level, loot and HP loss all follow from clearing nodes, so
+ * an untouched run has nothing to lose and gets no warning — a scary label with nothing at stake is
+ * noise that teaches players to ignore the label that matters.
+ *
+ * Exported so the rule is unit-testable; the drawing around it is smoke-tested.
+ */
+export function localeSwitchCostsTheRun(run: RunView): boolean {
+  return run.visitedIds.length > 0;
+}
+
 /** The "RO | EN" HUD indicator's fixed screen-space rect (bottom-right corner of the legend
  * strip) — a PURE function of the viewport, since "RO | EN" is always the SAME two language
  * codes regardless of which is active (only the styling — bold/dim — changes per `drawLocaleToggle`
@@ -809,7 +843,24 @@ function computeLocaleToggleRect(viewW: number, viewH: number): { readonly x: nu
 /** Paints the "RO | EN" indicator, bolding whichever `locale` is CURRENTLY active — clicking
  * anywhere in `computeLocaleToggleRect`'s bounds (wired in `main.ts`) toggles it. Both codes are
  * always shown so the OTHER language is always visible as the thing you'd switch TO. */
-function drawLocaleToggle(surface: UISurface, viewW: number, viewH: number, locale: Locale, strings: Strings): void {
+/**
+ * Leftmost x the locale indicator (plus its run-in-progress warning) occupies — a PURE measurement,
+ * so the legend can reserve the space before the strip background is painted. Kept next to
+ * `drawLocaleToggle` so the two cannot drift.
+ */
+function localeToggleLeftEdge(viewW: number, viewH: number, strings: Strings, runInProgress: boolean): number {
+  const rect = computeLocaleToggleRect(viewW, viewH);
+  return runInProgress ? rect.x - measureText(strings.localeSwitchWarning) - 8 : rect.x;
+}
+
+function drawLocaleToggle(
+  surface: UISurface,
+  viewW: number,
+  viewH: number,
+  locale: Locale,
+  strings: Strings,
+  runInProgress: boolean,
+): void {
   const rect = computeLocaleToggleRect(viewW, viewH);
   const roText = strings.languageCode.ro;
   const enText = strings.languageCode.en;
@@ -822,6 +873,13 @@ function drawLocaleToggle(surface: UISurface, viewW: number, viewH: number, loca
   drawText(surface, "|", x, y, { color: MATE_PAL.steel });
   x += measureText("|") + 6;
   drawText(surface, enText, x, y, { color: enColor });
+
+  // Only warn when there is something to lose: at a run's start (nothing cleared) switching costs
+  // nothing, and a scary label there would be noise that teaches players to ignore it.
+  if (!runInProgress) return;
+  drawText(surface, strings.localeSwitchWarning, localeToggleLeftEdge(viewW, viewH, strings, true), y, {
+    color: MATE_PAL.orange,
+  });
 }
 
 function drawChrome(surface: UISurface, run: RunView, viewW: number, strings: Strings): void {
@@ -853,7 +911,7 @@ function drawChrome(surface: UISurface, run: RunView, viewW: number, strings: St
   if (statsText.length > 0) drawText(surface, statsText, x, HP_BAR_Y + 6, { color: MATE_PAL.cyan });
 }
 
-function drawLegendAt(surface: UISurface, viewW: number, viewH: number, strings: Strings): void {
+function drawLegendAt(surface: UISurface, viewW: number, viewH: number, strings: Strings, rightLimit: number): void {
   const stripY = viewH - LEGEND_H;
   surface.rect(0, stripY, viewW, LEGEND_H, MATE_PAL.ink, 1); // solid bottom HUD strip
   surface.rect(0, stripY, viewW, 2, MATE_PAL.gold, 1);
@@ -871,7 +929,6 @@ function drawLegendAt(surface: UISurface, viewW: number, viewH: number, strings:
   // announces its keys ("tastele 1-2"); this is the same courtesy for players who can see the map.
   // Drawn last, right-aligned before the locale toggle, so it never collides with the legend items.
   const hint = strings.panHint;
-  const toggle = computeLocaleToggleRect(viewW, viewH);
-  const hintX = toggle.x - measureText(hint) - 16;
+  const hintX = rightLimit - measureText(hint) - 16;
   if (hintX > x) drawText(surface, hint, hintX, y, { color: MATE_PAL.slate });
 }

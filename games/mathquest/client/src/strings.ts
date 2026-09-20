@@ -200,6 +200,12 @@ export interface Strings {
    * through `Strings` anyway (never a raw literal in `ui/map-screen.ts`) per the "no inline
    * user-facing string literal outside the i18n bundles" rule. */
   readonly languageCode: Record<Locale, string>;
+  /**
+   * Shown beside the language toggle while a run is in progress: switching locale RE-INITS the sim
+   * by design (sim-core/i18n.ts), which discards the run. The reset is locked; saying so is not
+   * (playtest-07).
+   */
+  readonly localeSwitchWarning: string;
 
   /** A short note that toggling the language restarts the CURRENT run's position (progress/
    * mastery is preserved — see `@mathquest/sim-core/i18n.ts`'s module doc) — shown near the HUD
@@ -389,6 +395,7 @@ export const STRINGS_RO: Strings = {
   },
 
   languageCode: { ro: "RO", en: "EN" } satisfies Record<Locale, string>,
+  localeSwitchWarning: "(repornește rulajul)",
 
   localeSwitchNote: "Schimbarea limbii repornește drumul curent (progresul e păstrat)",
 };
@@ -576,6 +583,7 @@ export const STRINGS_EN: Strings = {
   },
 
   languageCode: { ro: "RO", en: "EN" } satisfies Record<Locale, string>,
+  localeSwitchWarning: "(restarts the run)",
 
   localeSwitchNote: "Switching language restarts the current run (progress is kept)",
 };

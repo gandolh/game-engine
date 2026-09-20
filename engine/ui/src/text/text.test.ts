@@ -1,9 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { EDG } from "@engine/core/render";
 import type { UIQuad } from "@engine/core/render";
 import { UISurface } from "../render/ui-surface";
 import { bakeFontAtlas, frameNameFor } from "./font";
-import { allChars, BODY_FONT, DISPLAY_FONT, fontAtlasId, glyphRows } from "./fonts";
+import { allChars, BODY_FONT, DISPLAY_FONT, fontAtlasId, glyphRows, setMissingGlyphReporter } from "./fonts";
 import { measureText, layoutText } from "./layout";
 import { drawText, layoutTextQuads } from "./draw";
 
@@ -211,8 +211,60 @@ describe.each([
 });
 
 describe("glyphRows fallback", () => {
+  // The fallback now REPORTS (playtest-08); silence it so these deliberate misses stay quiet.
+  beforeEach(() => setMissingGlyphReporter(null));
+  afterEach(() => setMissingGlyphReporter((m) => console.warn(m)));
+
   it("falls back to '?' for a character outside printable ASCII", () => {
     expect(glyphRows(BODY_FONT, "é")).toBe(glyphRows(BODY_FONT, "?"));
     expect(glyphRows(DISPLAY_FONT, "é")).toBe(glyphRows(DISPLAY_FONT, "?"));
+  });
+});
+
+/**
+ * playtest-08 (2026-09-20) — a missing glyph must SAY so.
+ *
+ * Three drawn strings in two games used code points the font never baked, and the substitution was
+ * silent, so MateQuest's map-pan hints rendered nothing for the whole life of the feature. This is
+ * the choke point every drawn character passes through, so reporting here catches the class exactly
+ * when it happens and needs no source scan or allowlist.
+ */
+describe("missing-glyph reporting", () => {
+  afterEach(() => setMissingGlyphReporter((m) => console.warn(m)));
+
+  it("reports an uncovered code point once, naming it and how to fix it", () => {
+    const seen: string[] = [];
+    setMissingGlyphReporter((m) => seen.push(m));
+
+    // U+2039 is the guillemet MateQuest used for its scroll hints; UNSCII has no such glyph.
+    glyphRows(BODY_FONT, "\u2039");
+    glyphRows(BODY_FONT, "\u2039"); // again: must NOT warn twice
+    glyphRows(BODY_FONT, "\u2039");
+
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toContain("U+2039");
+    expect(seen[0]).toContain("EXTRA_CODEPOINTS");
+  });
+
+  it("says nothing for a covered code point", () => {
+    const seen: string[] = [];
+    setMissingGlyphReporter((m) => seen.push(m));
+    // The glyphs the games actually draw, including the three baked for playtest-08.
+    for (const ch of ["A", "×", "†", "★", "♥", "✓", "◆", "←", "→", "·", "—", "…", "ș", "ț", "Ă"]) {
+      glyphRows(BODY_FONT, ch);
+    }
+    expect(seen).toEqual([]);
+  });
+
+  it("every character the repo's covered set claims is genuinely baked in BOTH fonts", () => {
+    const seen: string[] = [];
+    setMissingGlyphReporter((m) => seen.push(m));
+    for (const ch of allChars()) {
+      glyphRows(BODY_FONT, ch);
+      glyphRows(DISPLAY_FONT, ch);
+    }
+    // A code point listed in EXTRA_CODEPOINTS but absent from the vendored .hex would surface here
+    // rather than as a "?" on someone's screen.
+    expect(seen).toEqual([]);
   });
 });
