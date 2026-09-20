@@ -21,6 +21,7 @@
 import { EDG } from "@engine/core";
 import { box, button, label, panel } from "@engine/ui";
 import type { ContainerNode } from "@engine/ui";
+import { DEFAULT_FARMER_SPECS } from "@farm/sim-core/sim-bootstrap";
 
 export const DEFAULT_SEED = 0xc0ffee;
 
@@ -40,6 +41,8 @@ export function formatSeed(seed: number): string {
 export interface HomeScreenOptions {
   title?: string;
   subtitle?: string;
+  /** Overrides the controls line under the subtitle (playtest-04 split it off the pitch). */
+  controlsHint?: string;
   startLabel?: string;
   defaultSeed?: number;
 }
@@ -114,11 +117,30 @@ export function createHomeScreen(actions: HomeScreenActions, opts: HomeScreenOpt
   const defaultSeed = opts.defaultSeed ?? DEFAULT_SEED;
 
   const titleLbl = label(opts.title ?? "Farm Valley", { color: EDG.cream, scale: 3 });
+  /**
+   * The pitch and the controls are TWO labels, and the rival count is DERIVED (playtest-04,
+   * 2026-09-20).
+   *
+   * This was one string claiming "four BDI rivals" — four is the number of personality archetypes,
+   * not of rivals; the field has been 21 farmers (20 AI + Pip) since the radial reorg. The docs
+   * carried the same stale count until 2026-09-19 and were fixed then, but that pass looked at
+   * `README.md` and `docs/` and never at strings compiled into the client, so the first sentence a
+   * player reads was the last copy still wrong. Reading it off `DEFAULT_FARMER_SPECS` means the next
+   * roster change cannot silently make the home screen lie again.
+   *
+   * It was also a SINGLE label, and `@engine/ui` labels do not wrap: at 1280px the line was clipped
+   * mid-word ("… Space to rec"), losing part of the controls hint — the one thing a new player most
+   * needs. Two shorter lines fit the {@link MIN_VIEWPORT} floor, which `home-screen.test.ts`
+   * asserts with `includeContent` so a clipped label fails rather than just looking wrong.
+   */
+  const rivalCount = DEFAULT_FARMER_SPECS.filter((f) => f.player !== true).length;
   const subtitleLbl = label(
-    opts.subtitle ??
-      "Play as Pip and farm alongside four BDI rivals - plant, trade, and outwit them across 100 days. WASD/arrows to move, E to act, Space to recenter on yourself.",
+    opts.subtitle ?? `Play as Pip and farm alongside ${rivalCount} BDI rivals - plant, trade, and outwit them across 100 days.`,
     { color: EDG.steel },
   );
+  const controlsLbl = label(opts.controlsHint ?? "WASD/arrows to move, E to act, Space to recenter on yourself.", {
+    color: EDG.steel,
+  });
 
   const seedLabelLbl = label("Seed", { color: EDG.steel });
 
@@ -172,6 +194,7 @@ export function createHomeScreen(actions: HomeScreenActions, opts: HomeScreenOpt
   const column = box({ direction: "column", gap: 16, align: "center" }, [
     titleLbl,
     subtitleLbl,
+    controlsLbl,
     seedRow,
     startBtn,
     hintLbl,

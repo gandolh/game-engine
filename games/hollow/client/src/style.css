@@ -255,7 +255,10 @@ canvas#scene {
   position: fixed;
   inset: 0;
   overflow-y: auto;
-  padding: 24px;
+  /* Extra bottom padding so the Start button is never the element the panel clips (playtest-05):
+     at a 577px-tall window Start sat at y=555..591 and lost its bottom 14px, which is a poor first
+     impression for a primary action even though the panel scrolls. */
+  padding: 24px 24px 48px;
   font-size: 13px;
   z-index: 10;
 }
@@ -282,7 +285,10 @@ canvas#scene {
   margin-bottom: 4px;
 }
 .hollow-setup-label {
-  min-width: 140px;
+  /* FIXED width, not a minimum (playtest-05): with `min-width` a longer label such as
+     "material regen/tick" pushed its own input further right than its neighbours', so the input
+     column stepped raggedly down the form. A fixed basis lines every field up. */
+  flex: 0 0 152px;
 }
 .hollow-setup-archetype-row {
   padding: 8px 0;
@@ -310,6 +316,15 @@ canvas#scene {
   margin-top: 12px;
   font-size: 14px;
   padding: 10px 20px;
+  /* STICKY, so the primary action is always visible (playtest-05). The form is taller than a short
+     window and the panel scrolls, but on first paint Start sat half-clipped at the bottom edge with
+     no scrollbar cue — and expanding a "Tune genes" panel pushed it 200px below the fold. Extra
+     bottom padding on the panel alone only makes it *reachable* by scrolling; sticking it to the
+     scroll container's bottom edge makes it visible from the start. It is the last child of
+     `.hollow-setup-panel`, which is the scroller, so this needs no wrapper. Opaque gold on ink, so
+     content passing behind it does not bleed through. */
+  position: sticky;
+  bottom: 8px;
 }
 .hollow-setup-gene-panel {
   padding: 8px 0 8px 16px;
