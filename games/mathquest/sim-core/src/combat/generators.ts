@@ -78,11 +78,31 @@ function multiplicationTeach(a: number, b: number, product: number, locale: Loca
   return `${a} × ${b}: ${a} × ${tens} = ${p1}, ${a} × ${ones} = ${p2}, ${p1} + ${p2} = ${product}`;
 }
 
-/** Place-value reasoning, e.g. RO "12 > 9: 12 are mai multe cifre decât 9" / EN "12 > 9: 12 has
- * more digits than 9". */
+/**
+ * Comparison reasoning, picked to match the rung the numbers come from:
+ *  - equal            -> RO "7 = 7: sunt egale"
+ *  - single digits    -> RO "9 > 6: 9 este cu 3 mai mare decât 6"          (quantity / the gap)
+ *  - different widths -> RO "12 > 9: 12 are mai multe cifre decât 9"       (place value)
+ *  - same width, 2+   -> RO "47 < 52: compară cifrele de la stânga la dreapta"
+ *
+ * The single-digit branch exists because the place-value fallback was being handed cases it says
+ * nothing about (playtest-03, 2026-09-20). "Compare the digits from left to right" is *true* of
+ * 9 vs 6 and completely useless: there is one digit on each side, and the sentence never says which
+ * is bigger or why. It was also the COMMON case exactly where it hurts most — grade 1 draws both
+ * operands from 1..10, so ~72% of its comparison problems are single-digit pairs, and the rung with
+ * the youngest children was getting the least useful worked step in the game. Naming the gap
+ * ("9 is 3 more than 6") is the reasoning the *programa* actually introduces first: counting and
+ * ordering, not place value.
+ */
 function comparisonTeach(a: number, b: number, relation: "<" | ">" | "=", locale: Locale): string {
   if (relation === "=") return locale === "en" ? `${a} = ${b}: they are equal` : `${a} = ${b}: sunt egale`;
   const [big, small] = relation === ">" ? [a, b] : [b, a];
+  if (big < 10 && small < 10) {
+    const gap = big - small;
+    return locale === "en"
+      ? `${a} ${relation} ${b}: ${big} is ${gap} more than ${small}`
+      : `${a} ${relation} ${b}: ${big} este cu ${gap} mai mare decât ${small}`;
+  }
   if (String(big).length !== String(small).length) {
     return locale === "en"
       ? `${a} ${relation} ${b}: ${big} has more digits than ${small}`

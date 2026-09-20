@@ -866,4 +866,12 @@ function drawLegendAt(surface: UISurface, viewW: number, viewH: number, strings:
     drawText(surface, text, x, y, { color: NODE_TYPE_COLOR[type] });
     x += measureText(text) + 16;
   }
+  // Pan hint (playtest-05): the map is wider than the viewport and scrolls with the arrow keys, and
+  // nothing said so — the boss den sits off the right edge on a first look. The a11y mirror already
+  // announces its keys ("tastele 1-2"); this is the same courtesy for players who can see the map.
+  // Drawn last, right-aligned before the locale toggle, so it never collides with the legend items.
+  const hint = strings.panHint;
+  const toggle = computeLocaleToggleRect(viewW, viewH);
+  const hintX = toggle.x - measureText(hint) - 16;
+  if (hintX > x) drawText(surface, hint, hintX, y, { color: MATE_PAL.slate });
 }

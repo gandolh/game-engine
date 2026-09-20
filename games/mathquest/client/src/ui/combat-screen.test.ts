@@ -6,10 +6,13 @@
  * @citadel/client's build-bar.test.ts.
  */
 import { describe, it, expect } from "vitest";
+import { MIN_VIEWPORT, assertFitsViewport, computeLayout } from "@engine/ui";
 import type { ButtonNode, LabelNode, UINode } from "@engine/ui";
 import { NO_LIFELINES, STARTING_LIFELINES, type CombatSnapshot, type LifelineCharges, type ProblemView } from "@mathquest/sim-core";
-import { createCombatScreen, type CombatScreenActions } from "./combat-screen";
+import { TILE_COLORS, createCombatScreen, type CombatScreenActions } from "./combat-screen";
 import { STRINGS_EN, STRINGS_RO as STRINGS, type Strings } from "../strings";
+import { MATE_THEME } from "../render/mate-theme";
+import { MATE_PAL } from "../render/mate-palette";
 
 /** Every `screen.refresh` call below defaults to the full starting kit unless a test overrides it
  * — mirrors a fresh run's `RunView.lifelines` (M4b). */
@@ -446,5 +449,102 @@ describe("createCombatScreen — M5 slice 2 locale (constructed with STRINGS_EN)
     const { screen } = makeScreen(STRINGS);
     screen.refresh(baseSnapshot({ phase: "await_action" }), "", DEFAULT_LIFELINES);
     expect(buttons(screen.root).map((b) => b.label)).not.toContain(STRINGS_EN.actionLabel.attack);
+  });
+});
+
+/**
+ * playtest-01 (2026-09-20) — the screen must FIT the screen.
+ *
+ * Every other test in this file asserts the retained tree: which buttons exist, what they say, what
+ * state they are in. None of them asked **where the tree lands**, which is how the `typed` variant
+ * shipped with `Trimite`, `0`, `←` and all three lifelines laid out below the canvas bottom — present
+ * in the tree, present in the a11y mirror, and unreachable by a mouse.
+ *
+ * So: lay the real tree out at the repo's `MIN_VIEWPORT` floor and require every interactive node to
+ * be inside it. `assertFitsViewport` names every offender when it fails.
+ */
+describe("createCombatScreen — fits MIN_VIEWPORT (playtest-01)", () => {
+  const TYPED: ProblemView = { kind: "typed", topic: "subtraction", grade: 1, prompt: "5 − 2 = ?" };
+  const CHOICE: ProblemView = {
+    kind: "choice",
+    topic: "comparison",
+    grade: 1,
+    prompt: "Compară: 10 și 7",
+    choices: ["<", "=", ">"],
+    disabledChoices: [],
+  };
+
+  /** Lay the screen out exactly as `main.ts` does for combat: full-viewport, origin 0,0. */
+  function layout(screen: ReturnType<typeof createCombatScreen>, viewport = MIN_VIEWPORT): void {
+    computeLayout(screen.root, 0, 0, MATE_THEME, { width: viewport.width, height: viewport.height });
+  }
+
+  it("a typed problem keeps the keypad, Trimite and every lifeline on screen", () => {
+    const { screen } = makeScreen();
+    screen.refresh(baseSnapshot({ phase: "await_answer", problem: TYPED }), "3", DEFAULT_LIFELINES);
+    layout(screen);
+    assertFitsViewport(screen.root, MIN_VIEWPORT, { what: "MateQuest combat (typed problem)" });
+  });
+
+  it("a choice problem keeps its tiles and lifelines on screen", () => {
+    const { screen } = makeScreen();
+    screen.refresh(baseSnapshot({ phase: "await_answer", problem: CHOICE }), "", DEFAULT_LIFELINES);
+    layout(screen);
+    assertFitsViewport(screen.root, MIN_VIEWPORT, { what: "MateQuest combat (choice problem)" });
+  });
+
+  it("stays on screen with a hint line shown — the tallest await_answer state", () => {
+    const { screen } = makeScreen();
+    screen.refresh(
+      baseSnapshot({ phase: "await_answer", problem: TYPED, hint: "Scade întâi până la 10." }),
+      "12",
+      DEFAULT_LIFELINES,
+    );
+    layout(screen);
+    assertFitsViewport(screen.root, MIN_VIEWPORT, { what: "MateQuest combat (typed + hint)" });
+  });
+
+  it("every other phase fits too — action menu, teach card, win banner", () => {
+    const { screen } = makeScreen();
+    for (const snap of [
+      baseSnapshot({ phase: "await_action" }),
+      baseSnapshot({ phase: "teach", teach: "9 > 6: 9 este cu 3 mai mult decât 6", lastPlayer: { kind: "fizzle", action: "attack" } }),
+      baseSnapshot({ phase: "won" }),
+      baseSnapshot({ phase: "lost" }),
+    ]) {
+      screen.refresh(snap, "", DEFAULT_LIFELINES);
+      layout(screen);
+      assertFitsViewport(screen.root, MIN_VIEWPORT, { what: `MateQuest combat (${snap.phase})` });
+    }
+  });
+
+  it("also fits the shorter viewport the playtest actually ran at (1280×577)", () => {
+    // Not the contract — MIN_VIEWPORT is — but this is the window the bug was found in, so it stays
+    // as a regression pin.
+    const { screen } = makeScreen();
+    screen.refresh(baseSnapshot({ phase: "await_answer", problem: TYPED }), "7", DEFAULT_LIFELINES);
+    layout(screen, { width: 1280, height: 577 });
+    assertFitsViewport(screen.root, { width: 1280, height: 577 }, { what: "MateQuest combat @1280×577" });
+  });
+});
+
+/**
+ * playtest-05 (2026-09-20) — the A/B/C tile rings must actually read as rings.
+ *
+ * Slot 0's ring was `skyBlue` on a `blue` button, which is invisible, and `skyBlue` is ALSO the
+ * hover fill, so hovering slot 0 erased its own frame. A colour is only an identity cue if it
+ * differs from every fill the thing can have.
+ */
+describe("choice tile rings are distinguishable (playtest-05)", () => {
+  it("no ring colour collides with any button-state fill", () => {
+    const fills = Object.values(MATE_THEME.buttonBg);
+    for (const ring of TILE_COLORS) {
+      expect(fills, `ring ${ring} is also a button fill`).not.toContain(ring);
+    }
+  });
+
+  it("the three rings are distinct from each other, and none is the 50-50 eliminated colour", () => {
+    expect(new Set(TILE_COLORS).size).toBe(TILE_COLORS.length);
+    expect(TILE_COLORS).not.toContain(MATE_PAL.crimson);
   });
 });

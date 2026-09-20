@@ -296,3 +296,70 @@ describe("comparison — choices + answerIndex", () => {
     expect(a).toEqual(b);
   });
 });
+
+/**
+ * playtest-03 (2026-09-20) — the comparison teach card must REASON about the pair it was given.
+ *
+ * The place-value fallback ("compară cifrele de la stânga la dreapta") used to catch every
+ * same-digit-count pair, including single digits, where it is true and says nothing. Grade 1 draws
+ * from 1..10, so that was ~72% of its comparison problems.
+ *
+ * These assertions pin the BRANCH by operand shape rather than the exact sentence, so the wording
+ * can be improved without rewriting the test — but a pair can never again fall into a branch whose
+ * reasoning does not apply to it.
+ */
+describe("comparisonTeach — the worked step fits the numbers (playtest-03)", () => {
+  /** Drive the generator until it yields the operand shape we want to inspect. */
+  function comparisonWith(pred: (a: number, b: number) => boolean, locale?: "ro" | "en"): Problem {
+    for (let seed = 1; seed < 8000; seed++) {
+      for (const grade of GRADES) {
+        const p = locale === undefined
+          ? GENERATORS.comparison(createRng(seed), grade)
+          : GENERATORS.comparison(createRng(seed), grade, locale);
+        const [a, b] = numbersIn(p.prompt);
+        if (a !== undefined && b !== undefined && pred(a, b)) return p;
+      }
+    }
+    throw new Error("no comparison problem matched the requested operand shape");
+  }
+
+  const bothSingleDigit = (a: number, b: number): boolean => a !== b && a < 10 && b < 10;
+  const sameWidthMultiDigit = (a: number, b: number): boolean =>
+    a !== b && a >= 10 && b >= 10 && String(a).length === String(b).length;
+  const differentWidth = (a: number, b: number): boolean => String(a).length !== String(b).length;
+
+  it("single-digit pairs get the GAP, not a digit scan", () => {
+    const p = comparisonWith(bothSingleDigit);
+    const [a, b] = numbersIn(p.prompt) as [number, number];
+    const gap = Math.abs(a - b);
+    expect(p.teach).toContain(String(gap));
+    expect(p.teach).toContain("mai mare");
+    // The rule that does not apply must not be quoted at them.
+    expect(p.teach).not.toContain("compară cifrele");
+    expect(p.teach).not.toContain("cifre decât");
+  });
+
+  it("single-digit pairs read as a sentence about the two numbers (RO and EN)", () => {
+    const ro = comparisonWith(bothSingleDigit, "ro");
+    const en = comparisonWith(bothSingleDigit, "en");
+    expect(ro.teach).toMatch(/\d+ este cu \d+ mai mare decât \d+/);
+    expect(en.teach).toMatch(/\d+ is \d+ more than \d+/);
+    expect(en.teach).not.toContain("compare the digits");
+  });
+
+  it("different-width pairs still get place-value reasoning", () => {
+    const p = comparisonWith(differentWidth);
+    expect(p.teach).toContain("cifre decât");
+    expect(p.teach).not.toContain("compară cifrele");
+  });
+
+  it("same-width multi-digit pairs still get the left-to-right digit scan", () => {
+    const p = comparisonWith(sameWidthMultiDigit);
+    expect(p.teach).toContain("compară cifrele de la stânga la dreapta");
+  });
+
+  it("equal pairs still say they are equal", () => {
+    const p = comparisonWith((a, b) => a === b);
+    expect(p.teach).toContain("sunt egale");
+  });
+});

@@ -59,7 +59,7 @@ import {
   type InputDispatcher,
   type A11yMirror,
 } from "@engine/ui";
-import { EMPTY_MASTERY_STORE, LOCALE_STORAGE_KEY, MASTERY_STORAGE_KEY, parseLocale, parseMasteryStore } from "@mathquest/sim-core";
+import { EMPTY_MASTERY_STORE, LIFELINE_KINDS, LOCALE_STORAGE_KEY, MASTERY_STORAGE_KEY, parseLocale, parseMasteryStore } from "@mathquest/sim-core";
 import type { AnswerResponse, GameSnapshot, Locale, MasteryStore } from "@mathquest/sim-core";
 import { MATE_PAL } from "./render/mate-palette";
 import { MATE_THEME } from "./render/mate-theme";
@@ -543,6 +543,20 @@ async function main(): Promise<void> {
     } else if (e.key === "Enter") {
       combatActions.submit();
       e.preventDefault();
+    } else {
+      // playtest-01: lifelines get real keys. They had none, so the only keyboard route was Tab —
+      // which is no route at all for a child who cannot see the button. The key for each kind comes
+      // from the string bundle and is PRINTED on the button (`strings.lifelineLabel`), so what the
+      // player reads is what they press. Case-insensitive; no modifier, to keep it one keystroke.
+      const pressed = e.key.toUpperCase();
+      const kind = LIFELINE_KINDS.find((k) => strings.lifelineKey[k] === pressed);
+      if (kind !== undefined) {
+        // Deliberately NOT gated here on charges / already-used / fifty-on-typed: the sim is the
+        // authority and refuses a spend it would not allow (same reasoning as the buttons' disabled
+        // state, which is a render of that authority rather than the enforcement of it).
+        combatActions.useLifeline(kind);
+        e.preventDefault();
+      }
     }
   });
 
@@ -550,6 +564,9 @@ async function main(): Promise<void> {
   // only — the worker has no such access) and ferried in on `init`. M5 slice 2: `locale` is read
   // the same way (see `loadLocale`) and ferried in alongside it.
   post({ type: "init", seed: SEED, mastery: currentMastery, locale });
+
+  /** Fallback inset for a card screen on a viewport too small to centre the card in. */
+  const CARD_INSET = 24;
 
   // --- Render loop ----------------------------------------------------------------------------
   function frame(): void {
@@ -592,11 +609,25 @@ async function main(): Promise<void> {
           // (HP-bar fill widths, swapped subtrees), and drawScene/drawBars + hit-testing read the
           // resulting rects. Combat lays out FULL-VIEWPORT (a Pokémon-style battle scene — the
           // enemy HP window pins top-left, the hero's mid-right, the command box spans the bottom;
-          // see ui/combat-screen.ts); the other widget screens keep the plain top-left inset.
+          // see ui/combat-screen.ts).
+          //
+          // The other widget screens (loot / level-up / run-over) are CARDS, so they lay out at
+          // their intrinsic size and are then CENTRED in the viewport (playtest-05, 2026-09-20).
+          // They used to sit at a flat `(24, 24)` inset, which on a 1280×577 window left ~75% of
+          // the screen empty around a small top-left box and read as unfinished next to combat and
+          // the map, both of which fill the frame. Measure-then-place is the same two-pass idiom
+          // Citadel uses to bottom-anchor its build bar.
           if (snapshot.mode === "combat") {
             computeLayout(root, 0, 0, MATE_THEME, { width: canvas.clientWidth, height: canvas.clientHeight });
           } else {
-            computeLayout(root, 24, 24, MATE_THEME);
+            computeLayout(root, 0, 0, MATE_THEME); // pass 1: measure at intrinsic size
+            const cardW = root.rect.width;
+            const cardH = root.rect.height;
+            // Never place off-screen: on a viewport smaller than the card, fall back to the inset
+            // so the card's top-left stays reachable rather than being centred out of view.
+            const x = Math.max(CARD_INSET, Math.round((canvas.clientWidth - cardW) / 2));
+            const y = Math.max(CARD_INSET, Math.round((canvas.clientHeight - cardH) / 2));
+            computeLayout(root, x, y, MATE_THEME); // pass 2: place it centred
           }
           surface.begin();
           if (snapshot.mode === "combat") {

@@ -73,7 +73,18 @@ const TOPIC_ACCENT: Record<MathTopic, string> = {
   multiplication: MATE_PAL.gold,
   comparison: MATE_PAL.hotPink,
 };
-const TILE_COLORS: readonly string[] = [MATE_PAL.skyBlue, MATE_PAL.gold, MATE_PAL.green];
+/**
+ * Quiz-show A/B/C tile rings. Each must be distinguishable from the OTHERS and from every
+ * `buttonBg` state the tile itself can be painted in — `normal: blue`, `hover: skyBlue`,
+ * `active: navy`, `disabled: slate` (see `render/mate-theme.ts`).
+ *
+ * Slot 0 used to be `skyBlue`, which failed both halves of that (playtest-05, 2026-09-20): a
+ * `#4d9be6` ring on a `#4d65b4` button read as *no ring at all* next to the clearly-framed gold and
+ * green tiles, so the identity cue only worked on two of three tiles — and because `skyBlue` is also
+ * the hover fill, hovering slot 0 erased its own frame. `hotPink` is nowhere in the button ramp and
+ * is not `crimson` (reserved for the 50-50 "eliminated" overlay).
+ */
+export const TILE_COLORS: readonly string[] = [MATE_PAL.hotPink, MATE_PAL.gold, MATE_PAL.green];
 
 /** Actions the screen's buttons invoke — wired once at creation (mirrors `ResourceHudActions`). */
 export interface CombatScreenActions {
@@ -264,10 +275,10 @@ export function createCombatScreen(actions: CombatScreenActions, strings: String
   const hintArea = box({ direction: "column", gap: 0, align: "center" }, []);
 
   const inputArea = box({ direction: "column", gap: 4, align: "center" }, []);
-  const problemPanel = box({ direction: "column", gap: 10, align: "center" }, [topicChip, promptBanner, inputArea, hintArea]);
 
   // --- Lifeline bar (M4b): built ONCE (fixed 3 kinds), mutated per refresh — mirrors the keypad's
-  // build-once-mutate-label/state convention. ------------------------------------------------------
+  // build-once-mutate-label/state convention. Declared BEFORE the problem panel because it is a
+  // child of the question column (see below), not a sibling stacked under the whole panel. --------
   const lifelineBtns: Record<LifelineKind, ButtonNode> = {
     hint: button("", { onActivate: () => actions.useLifeline("hint") }),
     fifty: button("", { onActivate: () => actions.useLifeline("fifty") }),
@@ -278,16 +289,43 @@ export function createCombatScreen(actions: CombatScreenActions, strings: String
     LIFELINE_KINDS.map((kind) => lifelineBtns[kind]),
   );
 
+  /**
+   * The problem panel is a ROW: the question on the left, the input on the right (playtest-01,
+   * 2026-09-20).
+   *
+   * It used to be one tall column — category chip, banner, input area, hint, then the lifeline bar
+   * under all of it. Stacked, the `typed` variant measured **548px** of command box, so on a
+   * 1280×640 viewport `Trimite`, `0`, `←` and all three lifelines were laid out *below the canvas*
+   * and no pointer could reach them. Shortening the keypad could not close a 124px gap; the stack
+   * itself was the problem.
+   *
+   * Side by side, the panel is as tall as the TALLER COLUMN rather than the sum of everything, which
+   * takes the command box to ~314px and leaves real headroom under the
+   * {@link MIN_VIEWPORT} floor. It also reads better: question and answer face each other like a
+   * quiz console, which is the Triviador framing this screen was already reaching for.
+   *
+   * Both variants use it. The `choice` stack did fit before, but one arrangement means one code
+   * path, one visual language, and no second layout to keep honest.
+   */
+  const questionColumn = box({ direction: "column", gap: 10, align: "center" }, [
+    topicChip,
+    promptBanner,
+    hintArea,
+    lifelineBar,
+  ]);
+  const problemPanel = box({ direction: "row", gap: 28, align: "center" }, [questionColumn, inputArea]);
+
   // --- Teach card (phase "teach"): worked step + the fizzle cue + Continue -----------------------
   const teachTitleLbl = label(strings.teachTitle, { color: MATE_PAL.gold });
-  const teachFizzleLbl = label("", { color: MATE_PAL.yellow });
   const teachTextLbl = label("", { color: MATE_PAL.cream, maxWidth: 320 });
   const continueBtn = button(strings.continueLabel, { onActivate: () => actions.acknowledgeTeach() });
-  const teachCard = box({ direction: "column", gap: 8 }, [teachTitleLbl, teachFizzleLbl, teachTextLbl, continueBtn]);
+  // No fizzle cue here: the turn line above the phase content already shows it, and printing
+  // "Ratat!" twice on one screen is noise, not emphasis (playtest-03, 2026-09-20).
+  const teachCard = box({ direction: "column", gap: 8 }, [teachTitleLbl, teachTextLbl, continueBtn]);
 
-  // --- answerArea (M4b): the problem panel PLUS the lifeline bar underneath it — shown together
-  // in `"await_answer"`. -----------------------------------------------------------------------
-  const answerArea = box({ direction: "column", gap: 10, align: "center" }, [problemPanel, lifelineBar]);
+  // --- answerArea (M4b): the problem panel, which now CONTAINS the lifeline bar in its question
+  // column rather than carrying it as a sibling underneath (playtest-01). ----------------------
+  const answerArea = box({ direction: "column", gap: 10, align: "center" }, [problemPanel]);
 
   // --- dynamicArea: swaps between actionMenu / answerArea / teachCard / nothing (won/lost) --------
   const dynamicArea = box({ direction: "column", gap: 8 }, []);
@@ -417,7 +455,6 @@ export function createCombatScreen(actions: CombatScreenActions, strings: String
 
     if (snapshot.phase === "teach") {
       if (setText(teachTextLbl, snapshot.teach ?? "")) changed = true;
-      if (setText(teachFizzleLbl, strings.playerResultCue(snapshot.lastPlayer))) changed = true;
     }
 
     // Swap dynamicArea's content by PHASE (removing the inactive subtree from the tree entirely —

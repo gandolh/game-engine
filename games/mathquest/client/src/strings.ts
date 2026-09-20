@@ -93,6 +93,8 @@ export interface Strings {
   readonly visitedPrefix: string;
 
   readonly legendTitle: string;
+  /** Tells the player the map scrolls — it is wider than the viewport (playtest-05). */
+  readonly panHint: string;
   readonly legendLabel: Record<NodeType, string>;
 
   // --- audit-52: the spatial map's DOM accessibility mirror ------------------------------------
@@ -154,6 +156,20 @@ export interface Strings {
   // --- M4b: lifelines (hint / 50-50 / skip) -------------------------------------------------------
 
   readonly lifelineName: Record<LifelineKind, string>;
+
+  /**
+   * The keyboard key that fires each lifeline, shown ON the button (playtest-01, 2026-09-20).
+   *
+   * Lifelines had no keyboard route at all, so when the panel overflowed they were reachable only by
+   * tabbing to an off-screen button. They are the affordance for the child who is struggling, which
+   * is the child least likely to find an invisible Tab stop.
+   *
+   * The keys are **the same in both locales** — `H`/`F`/`S` are mnemonics for the sim's own
+   * `hint`/`fifty`/`skip` kinds, not Romanian words. That is fine precisely because the key is
+   * printed on the button: a player presses what they can see, so the mnemonic never has to
+   * translate. Digits are off limits (they type the answer) and `L` is taken (locale toggle).
+   */
+  readonly lifelineKey: Record<LifelineKind, string>;
 
   /** A lifeline button's label, e.g. "Indiciu (1)" — `ui/combat-screen.ts`'s lifeline bar. */
   lifelineLabel(kind: LifelineKind, n: number): string;
@@ -275,6 +291,7 @@ export const STRINGS_RO: Strings = {
   visitedPrefix: "✓",
 
   legendTitle: "Legendă:",
+  panHint: "← → mută harta",
   legendLabel: {
     combat: "Luptă",
     elite: "Elită (greu)",
@@ -342,8 +359,11 @@ export const STRINGS_RO: Strings = {
     skip: "Sări",
   } satisfies Record<LifelineKind, string>,
 
+  // Keys are printed on the button by `lifelineLabel`, so they need no translation.
+  lifelineKey: { hint: "H", fifty: "F", skip: "S" },
+
   lifelineLabel(kind: LifelineKind, n: number): string {
-    return `${STRINGS_RO.lifelineName[kind]} (${n})`;
+    return `[${STRINGS_RO.lifelineKey[kind]}] ${STRINGS_RO.lifelineName[kind]} (${n})`;
   },
 
   hintPrefix: "Indiciu:",
@@ -458,6 +478,7 @@ export const STRINGS_EN: Strings = {
   visitedPrefix: "✓",
 
   legendTitle: "Legend:",
+  panHint: "← → pan the map",
   legendLabel: {
     combat: "Fight",
     elite: "Elite (hard)",
@@ -525,8 +546,11 @@ export const STRINGS_EN: Strings = {
     skip: "Skip",
   } satisfies Record<LifelineKind, string>,
 
+  // Same keys as RO — they are printed on the button, so they need no translation.
+  lifelineKey: { hint: "H", fifty: "F", skip: "S" },
+
   lifelineLabel(kind: LifelineKind, n: number): string {
-    return `${STRINGS_EN.lifelineName[kind]} (${n})`;
+    return `[${STRINGS_EN.lifelineKey[kind]}] ${STRINGS_EN.lifelineName[kind]} (${n})`;
   },
 
   hintPrefix: "Hint:",
