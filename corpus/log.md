@@ -4,6 +4,71 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [todos/closed/](todos/closed/), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-09-20] playtest | A second pass, looking at the screen this time — and one of my own findings was wrong
+
+A visual pass over the six built fixes, at 1280×577. Three more specs came out of it
+([playtest-07](todos/closed/2026-09-20-playtest-07-locale-toggle-silently-discards-the-run.md),
+[playtest-08](todos/closed/2026-09-20-playtest-08-the-font-had-no-glyph-and-said-nothing.md)), and
+the most useful thing it produced was a correction to this log.
+
+### The font had no glyph, and said nothing about it
+
+playtest-05 claimed MateQuest's map gave no sign that it pans. **It did.** `drawScrollHints()` has
+always drawn a conditional edge arrow. It had just never been *visible*: the hints used `‹`/`›`
+(U+2039/U+203A), which the vendored UNSCII does not carry at all, so `glyphRows` substituted the
+fallback and they rendered as nothing. Cropping the original playtest screenshot at the exact draw
+coordinates settled it — bare terrain, no glyph, for the whole life of the feature.
+
+Scanning for other non-ASCII in drawn strings found two more, in Citadel's road-drag readout: `—`
+and `·`, both of which UNSCII *has* and the font had simply not baked, so the live Status line read
+`Mode: Road (drag) ? 10 tiles`. And **Farm already knew** — `right-column.ts` carries a comment
+warning that non-ASCII "would render as `?`", which is the constraint understood by one author,
+written down nowhere, and broken twice since.
+
+Fixed three ways, because the three are different problems: bake the glyphs UNSCII has (`·`, `—`,
+`…`); *replace* the ones it doesn't (scroll hints now use `←`/`→`); and make the failure audible —
+`glyphRows` now reports an uncovered code point once per glyph, naming it and the fix. That last one
+is the durable part, and it belongs at the choke point rather than in a source scan: the same
+literals appear in comments, DOM text and test names where any code point is fine, so a scanner
+would be all false positives, while the choke point fires exactly when a glyph is really drawn. A
+companion test walks `allChars()` through both fonts, catching the `‹` mistake from the other side —
+a code point the covered set claims but the tables lack.
+
+### The language toggle throws the run away, and that part is locked
+
+Pressing `L` mid-run resets everything: the a11y mirror went from a cleared node, 17/30 HP and 3 XP
+to *"Places cleared: 0"*. That reset is **deliberate** — `i18n.ts` records it as the M5 slice-2
+architecture, and the reasoning holds (generators draw operands then format, so `locale` is an input
+like `seed`; a live run already holds old-locale text). It was recorded only in a module doc and a
+closed brief, so it is now in [decisions.md](wiki/decisions.md) where the next reader will find the
+reason instead of filing a bug.
+
+What was genuinely missing is that **the player was never told**. A one-keystroke affordance
+destroyed progress silently, in a game for 6–10 year olds. The toggle now reads
+`RO | EN (repornește rulajul)` while a run is in progress, and stays plain when there is nothing to
+lose — a warning with no stakes is noise that teaches players to ignore the one that matters.
+
+### The regression the tests could not see
+
+Wiring that warning needed the legend to reserve space for it, and the first attempt did that by
+*drawing* the toggle before the legend. The legend paints an opaque strip across the bottom, so it
+covered the toggle and the indicator vanished outright. **The 14 map-screen tests passed before and
+after** — they assert the predicate and that `render()` does not throw, never what lands on screen.
+Only the screenshot showed it. Split into a pure `localeToggleLeftEdge()` measurement and a draw
+that happens after the background.
+
+Worth keeping as the lesson of this pass: the unit tests I added earlier in the day are good at
+*geometry* (`assertFitsViewport` has teeth, proved by reverting a layout) and blind to *paint order*
+and *glyph coverage*. Those two need eyes, or a reporter at the choke point.
+
+### Also checked, and fine
+
+MateQuest's **choice** problems in the new two-column layout — the variant I had changed but never
+actually looked at — read well, and the tile rings are now visibly distinct (pink / gold / green
+where slot 0 used to be invisible). EN locale renders throughout, including the new strings. Citadel's
+two-row HUD holds with `Pause`/`1x`/`2x`/`4x` visible and clear of the minimap; a road drag placed a
+14-tile route around the river.
+
 ## [2026-09-20] build | The six playtest specs built out — and the two that mattered were one bug wearing two hats
 
 All of [playtest-01..06](todos/closed/) built, verified in a browser, and closed. `npm run gates`

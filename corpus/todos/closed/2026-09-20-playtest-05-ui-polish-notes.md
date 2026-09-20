@@ -1,5 +1,15 @@
 # playtest-05 — UI/UX notes from the 2026-09-20 playtest (small, independent, none of them bugs)
 
+> **CORRECTION 2026-09-20 (item 3) — the map DID have a pan affordance; it was invisible.**
+> `drawScrollHints()` has always drawn a conditional edge arrow, so "nothing indicates the map pans"
+> was wrong about the cause. The hints used `‹`/`›` (U+2039/U+203A), which the vendored UNSCII does
+> not carry, so they rendered as nothing for the life of the feature. The conclusion (players got no
+> indication) stood; the reason did not. See
+> [playtest-08](2026-09-20-playtest-08-the-font-had-no-glyph-and-said-nothing.md), which also found
+> two more of these in Citadel and made `glyphRows` report an uncovered glyph instead of silently
+> substituting `?`. This note is appended rather than editing the body, per the archive's rules.
+
+
 > **CLOSED 2026-09-20 — all six items built, not just the cheap ones.** Tile ring slot 0 moved off
 > `skyBlue` (which was both invisible on a `blue` button and the hover fill) to `hotPink`, pinned by a
 > test that no ring may collide with any button-state fill. The loot / level-up / run-over cards are

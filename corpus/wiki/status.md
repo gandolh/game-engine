@@ -132,6 +132,19 @@ step, and it was not kept in step.
 
 Newest first, one line each. Detail is in the [log.md](../log.md) entry for the same date.
 
+- **2026-09-20** — a **visual** pass over the six fixes produced two more closed specs and one
+  correction. **The font silently substituted `?` for glyphs it had not baked:** MateQuest's map-pan
+  edge arrows used `‹`/`›`, which the vendored UNSCII does not contain, so an affordance that has
+  always existed had never once rendered — and playtest-05's claim that "nothing indicates the map
+  pans" was wrong about the cause. Citadel's road-drag readout had two more (`—`, `·`). `glyphRows`
+  now **reports** an uncovered code point once per glyph instead of substituting silently
+  ([playtest-08](../todos/closed/2026-09-20-playtest-08-the-font-had-no-glyph-and-said-nothing.md)).
+  Also: MateQuest's language toggle discards the run **by design** (now recorded in
+  [decisions.md](decisions.md)) but never said so — it does now
+  ([playtest-07](../todos/closed/2026-09-20-playtest-07-locale-toggle-silently-discards-the-run.md)).
+  **The lesson of the pass:** the geometry guard added that morning has teeth, and is blind to paint
+  order and glyph coverage — a draw-order regression that blanked the locale indicator passed all 14
+  map-screen tests and was caught only by a screenshot.
 - **2026-09-20** — first browser **playtest** of all four games, and all six specs it produced
   ([playtest-01..06](../todos/closed/)) **built, verified in a browser, and closed**. Two of them
   turned out to be one bug: an in-canvas root laid out with **no viewport bound** stranded MateQuest's

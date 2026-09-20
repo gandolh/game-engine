@@ -57,6 +57,28 @@ Tech choices that are settled. Listed here so future briefs and reviews don't re
   - **Citadel's palette** lives at [games/citadel/client/src/render/citadel-palette.ts](../../games/citadel/client/src/render/citadel-palette.ts): `APOLLO` (46 hex), `APOLLO_SET`, `nearestApollo()`, and `CITADEL_PAL` — the **same 32 role keys as `EDG`** remapped to Apollo hex (luminance ordering preserved per ramp). Citadel code imports it as `CITADEL_PAL as EDG`, so role-named call sites are unchanged. Shared `@engine/ui` chrome is re-skinned by injecting a Citadel Apollo `Theme` ([ui/citadel-theme.ts](../../games/citadel/client/src/ui/citadel-theme.ts)) — the engine defaults stay EDG32, so Farm is unaffected.
   - **Enforced by test (per-scope):** [engine/core/src/render/palette.test.ts](../../engine/core/src/render/palette.test.ts) scans every `engine/` + `games/` + `tools/` source file and fails on any off-palette `#rgb`/`#rrggbb` literal — validating files under `games/citadel/` against **Apollo** and everything else against **EDG32**. It asserts the atlas `SWATCH` tuples are all EDG32 (Farm), checks `EDG` ⊆ `EDG32` and `CITADEL_PAL` ⊆ `APOLLO`, and keeps a tiny documented allowlist (currently empty). Since the engine never imports a game, the Apollo swatches are inlined in the engine-side scan and pinned to the Citadel module by a colocated Citadel test so they cannot drift.
 
+## MateQuest — the locale toggle re-inits the sim
+
+- **Switching language discards the run in progress, on purpose.** Locked by the M5 slice-2 brief and
+  recorded until now only in
+  [i18n.ts](../../games/mathquest/sim-core/src/i18n.ts)'s module doc — written down here 2026-09-20
+  because a playtest found it and, quite reasonably, read it as a bug
+  ([playtest-07](../todos/closed/2026-09-20-playtest-07-locale-toggle-silently-discards-the-run.md)).
+  - **Why.** Generators draw their operands **first, then format** for the locale, so a live run
+    already holds an old-locale problem prompt and an old-locale enemy name/title. `locale` is
+    therefore an *input* like `seed` and `mastery`, not a render-time setting, which is also what
+    keeps the determinism claim clean: locale changes only which words a generator emits, never an
+    `Rng` draw. Persistent mastery survives the reset because it is stored separately and re-loaded
+    on the new `init`.
+  - **Rejected: preserve the run across a switch.** It would mean carrying locale-independent sim
+    data and formatting at the render boundary — a real architectural change, and the opposite of
+    what the brief settled. Reopening it needs a spec that starts there, not a bug fix.
+  - **What playtest-07 DID change: the player is now told.** While a run is in progress the toggle
+    reads `RO | EN (repornește rulajul)` / `(restarts the run)`. The rule lives in
+    `localeSwitchCostsTheRun(run)` (`visitedIds.length > 0`), unit-tested, and deliberately stays
+    silent on an untouched run — a warning with nothing at stake is noise that teaches players to
+    ignore the one that matters.
+
 ## Minimum supported viewport
 
 - **The minimum supported viewport is `1280×640` CSS px, repo-wide, for every in-canvas UI.** Decided
