@@ -1,6 +1,6 @@
 ---
 summary: Live list of what is genuinely unresolved, plus settled premises that must not be re-litigated. Resolved items are deleted, not archived.
-updated: 2026-07-17
+updated: 2026-09-20
 ---
 
 # Open Questions & Gaps
@@ -9,7 +9,22 @@ Live list of what's **genuinely unresolved**. Shipped/resolved items are deleted
 
 ## Open
 
-_None currently open. The 2026-07-17 stable point closed the queue._
+_No defects currently open._ The four found by the 2026-09-20 playtest were built and closed the same
+day ([playtest-01..06](../todos/closed/)); the one unsettled question they raised — the repo had no
+written **minimum supported viewport** — was decided as `1280×640` and recorded in
+[decisions.md](decisions.md) → *Minimum supported viewport*, enforced by `assertFitsViewport`.
+
+One spec remains queued and is a build, not an open question:
+[hollow-17](../todos/2026-09-19-hollow-17-rationalizer-attachment-point.md) — move the LLM
+rationalizer seam to a decision whose subject outlives its 40-tick answer lag.
+
+> **Resolved 2026-09-20 — "why do ~3 random tests fail on a full `npm run test`?"** They were not
+> failing, they were **timing out** against vitest's 5s default (no workspace sets `testTimeout`),
+> and *which* ones crossed the line varied with machine load. Fixed by making the one pathological
+> test cheap (`walkable-grid`'s adjacency scan, 5207ms → ~1100ms via an exact bounds pre-filter) and
+> giving the three genuinely-slow sim/fuzz tests **declared** 20s budgets rather than raising a global
+> default. Three consecutive uncached full runs now pass.
+> ([playtest-06](../todos/closed/2026-09-20-playtest-06-full-suite-flaky-on-the-default-timeout.md))
 
 > **Resolved 2026-07-17 — festival attendance is geography-bound: fixed by making the festival
 > multi-day.** The venue was already the market plaza (`festivalPodiumTile()` = `AUCTION_PODIUM_TILE`

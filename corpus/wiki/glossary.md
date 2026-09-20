@@ -1,6 +1,6 @@
 ---
 summary: The project's vocabulary — one canonical name per concept across the engine and the four games, each listing the synonyms it displaces (tick vs frame, spec vs brief, the two senses of "villager").
-updated: 2026-08-23
+updated: 2026-09-20
 ---
 
 # Glossary
@@ -111,6 +111,13 @@ _Avoid_: hex, swatch (that is the atlas's RGB tuple table), color constant.
 An interactive object occupying a tile (`TileFeature` — rock, tree, well) as opposed to the tile
 itself. Features collide; tiles carry terrain.
 _Avoid_: prop, object, entity (that is the ECS sense), decoration.
+
+**Minimum supported viewport**:
+The smallest canvas every in-canvas UI must stay fully operable in — `1280×640` CSS px, as
+`MIN_VIEWPORT` in `@engine/ui`. A floor, never a target: bigger windows get the room, but nothing may
+*require* more than the floor to be usable.
+_Avoid_: min resolution, min screen size, breakpoint, minimum window (a screen size is not a
+viewport — the bar is on `clientWidth`/`clientHeight`).
 
 ## Per-game vocabulary
 

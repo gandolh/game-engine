@@ -4,6 +4,158 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [todos/closed/](todos/closed/), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-09-20] build | The six playtest specs built out — and the two that mattered were one bug wearing two hats
+
+All of [playtest-01..06](todos/closed/) built, verified in a browser, and closed. `npm run gates`
+passes **8/8**. The interesting part is not the six landings; it is what the work said that the specs
+did not.
+
+### One cause, two games, and the assertion nobody had written
+
+playtest-01 (MateQuest's submit + lifelines below the canvas) and playtest-02 (Citadel's `Pause`/speed
+past the right edge) were filed as separate bugs in separate games on separate axes. They are the
+same mistake: **an in-canvas root laid out with no viewport bound**, overflowing, stranding whatever
+sits at the far end. `computeLayout`'s `opts` say what box to *arrange into*; they do not clamp a
+subtree that measures bigger, and the surplus is drawn off-canvas where no pointer can reach it.
+
+Every HUD test in the repo was green through both, because they all assert the retained **tree** —
+which buttons exist, their labels, their states — and **none asked where the tree landed**. So the
+fix is one shared assertion:
+[`assertFitsViewport`](../engine/ui/src/layout/fits-viewport.ts) in `@engine/ui`, called by each
+game's own tests at a **written-down floor**: `MIN_VIEWPORT = 1280×640`, decided here and recorded in
+[decisions.md](wiki/decisions.md) → *Minimum supported viewport*. That number did not exist before
+today, which is the reason there was nothing to test against.
+
+**The guard was checked for teeth, not just for green:** restoring MateQuest's old column layout made
+3 tests fail and named every off-screen button with its rect. Worth noting one thing the check taught
+us — `assertFitsViewport` defaults to *interactive* nodes, and with Citadel's single-row HUD it still
+passed, because the goods chips that spilled are labels and icons. Hence `includeContent`, which
+Citadel's and Farm's tests now use. A viewport guard that only watches buttons would have missed half
+of what the playtest saw.
+
+### What the work contradicted
+
+- **MateQuest needed no keypad redesign.** playtest-01 proposed shortening the keypad (a row saves
+  ~52px against a 124px gap, so it was never going to be enough on its own). Turning the problem
+  panel from a tall column into a **two-column row** — question left, input right — took the command
+  box 548px → 396px and left headroom, with the keypad untouched. The stack was the bug, not the
+  keypad.
+- **Citadel needed no new UI root.** playtest-02 proposed a separate bottom-right controls root, for
+  Farm parity. Two rows inside the existing panel (`[readout, controls]` over `[goods]`) gets the
+  same outcome with one root, one a11y mirror, and no new plumbing. The simpler shape won.
+- **playtest-03's fallback was worse than "unhelpful": it was unreachable-by-design.** The
+  single-digit branch now names the gap, but adding the bounds pre-filter for playtest-06 proved the
+  related thing about world-gen — see below.
+- **playtest-06 was three tests, then four.** Hollow's 2-seed family sim surfaced on the next full
+  run. All were **timeouts against vitest's 5s default**, not failures; no workspace sets
+  `testTimeout`. The adjacency test got an exact bounds pre-filter (**5207ms → ~1100ms**) and the
+  other three got *declared* 20s budgets with a comment naming what makes them slow — per that
+  spec's own rule against raising a global default, which would hide a test that is slow *because
+  something regressed*.
+
+### The measurement that overturned a test's premise
+
+Adding the bounds pre-filter to `walkable-grid.test.ts` immediately tripped a vacuity guard: **the
+filter skipped every pair.** No two regions in the default world are even bounds-adjacent — the
+generator places each island ≥`GAP`(2) from its BSP leaf walls — so the tile×tile scan it had been
+running, 2 628 pair scans costing ~5 seconds, **could never have failed**. And the bounds-level
+invariant it implies is already asserted across 30 seeds in
+`generate-world.property.test.ts`. The test now asserts the cheap exact invariant on every pair and
+keeps the tile scan as a live net for the day placement tightens; it was proved still able to fail by
+perturbing a region's bounds.
+
+### A gap in the shared toolkit, found by a one-line polish item
+
+The map pan hint ("← → mută harta") rendered **half-blank**: `@engine/ui`'s bitmap font baked `←`
+(U+2190) and not `→` (U+2192) — an asymmetry that reads as an oversight, since a right arrow is the
+next most obviously useful UI glyph. U+2192 was in the vendored UNSCII all along
+(`02192:00080CFEFE0C0800`); it is now in `EXTRA_CODEPOINTS` and baked. The generator is deterministic
+and sorted, so the regeneration is **one added line per glyph table**. Farm and Citadel get the glyph
+too.
+
+### Corrected: Farm IS drivable in this sandbox
+
+The 2026-09-19 sweep entry below says Farm's client "cannot complete startup here — its Vite→`:8787`
+WebSocket proxy resets". **That is wrong, and the proxy was never the problem.** What fails is
+synthetic `MouseEvent`s on *in-canvas widgets*; the canvas `Start` button is one, which made a
+working client look broken. Farm's seed field is a real DOM `<input>` with its own `keydown`
+handler, so focus + `Enter` starts a run — it ran to tick 1760 / 1082 entities. The full route table
+(and the fact that **the a11y mirror is the headless driver** for in-canvas UI, and that it carries
+prompts in `aria-label` so `textContent` alone makes a sound mirror look broken) is now in
+[architecture.md](wiki/architecture.md) → *Driving the clients headlessly*, where the next person
+will find it before re-deriving it.
+
+### Verified by playing, not only by testing
+
+Each fix was confirmed in a real browser at 1280×577 — the window the bugs were found in: MateQuest's
+full problem UI on screen with `H` spending a hint charge and the teach card printing "Ratat!" once;
+Citadel's `Space` flipping the label to `Resume` from the authoritative snapshot and `4` resuming at
+4x; Farm's home screen reading "20 BDI rivals" with an intact controls line; Hollow's `Start` staying
+visible when a gene panel expands. `npm run test` also passed **three consecutive uncached full
+runs**, which is the state playtest-06 existed to restore.
+
+## [2026-09-20] playtest | All four games played in a browser — four defects, and two premises the play corrected
+
+First end-to-end **browser playtest** of all four games (not a smoke, not a unit test: play the game
+and watch it). Viewport **1280×577**, Chrome, software rendering. Five specs filed:
+[playtest-01](todos/closed/2026-09-20-playtest-01-mathquest-keypad-below-the-fold.md) ..
+[playtest-05](todos/closed/2026-09-20-playtest-05-ui-polish-notes.md).
+
+### The defects
+
+- **MateQuest's typed-answer panel overflows the viewport.** `Trimite` bottoms at y=**622** and the
+  lifeline bar at y=**712**, and those positions **do not move until the viewport exceeds ~768px** —
+  the subtree is taller than the box and simply spills below the canvas. At 577px the player cannot
+  submit, type `0`, backspace, or use any lifeline with the mouse. Keyboard digits+`Enter` still work,
+  but **no lifeline has a keyboard binding at all**, so they are reachable only by tabbing to an
+  invisible button. `choice` problems fit fine — it is specifically the 4-row keypad.
+- **Citadel's resource HUD is 1500px wide.** `Pause`/`1x`/`2x`/`4x` sit at x=1335–1496, entirely
+  off a 1280px screen, with no pause/speed keybinding as a fallback. The goods strip also spills
+  outside its own panel background and overruns the top-right minimap — the one panel that breaks the
+  non-overlap rule `render-loop.ts` states in a comment.
+- **Same root cause, two games, two axes:** an in-canvas root laid out with **no viewport bounds**
+  (`computeLayout(root, 8, 8)` / `computeLayout(root, 24, 24, …)`), overflowing, stranding whatever
+  sits at the far end. **No test in the repo asserts that a laid-out in-canvas root fits the screen
+  it is drawn on** — the HUD tests assert the retained tree and never ask where it lands, which is
+  exactly why both survived. playtest-02 proposes one shared `assertFitsViewport` helper plus a
+  written-down minimum supported viewport, which does not exist as a number anywhere yet.
+- **MateQuest teaches a first-grader nothing about 9 vs 6.** `comparisonTeach` falls through to
+  *"compară cifrele de la stânga la dreapta"* whenever both operands have the same digit count. At
+  grade 1 (operands 1–10) that is **~72% of comparison problems**, all single-digit, where a
+  multi-digit place-value rule is vacuous. The rung with the youngest children gets the worst
+  explanation. The other three teach helpers (bridge-to-ten, borrow-to-ten, partial products) are
+  genuinely good — comparison is the outlier.
+- **Farm's home screen still says "four BDI rivals"** — the field is 21 (20 AI + Pip). The 2026-09-19
+  docs pass fixed exactly this drift in `README.md` and `docs/`, and never looked at strings compiled
+  into the client. **Player-facing copy is a documentation surface too, and nothing routes to it.**
+  The same label is also clipped mid-word at 1280px (`@engine/ui` labels do not wrap).
+
+### Two premises the play corrected
+
+**Farm's client DOES start in this sandbox.** The 2026-09-19 sweep entry says it "cannot complete
+startup — its Vite→`:8787` WebSocket proxy resets". It connected first try and ran to tick 1760 /
+1082 entities, with day/night wash, hotbar and playback controls live. The proxy was never the
+problem: **the canvas `Start` button was.** Synthetic pointer events do not drive in-canvas widgets
+here, but the seed field is a real DOM `<input>` with its own `keydown` handler, so
+`input.focus()` + `Enter` starts the run. That makes Farm drivable headlessly here — the technique
+that was missing when sweep-05 had to measure draw groups without a browser.
+
+**Four things that looked like bugs were not**, and are recorded in playtest-05 so they are not
+re-filed: a "stray artifact" by MateQuest's HP panel (a cloud correctly occluded by the panel); the
+combat a11y mirror "missing" the problem text (it is in `aria-label`s, which `textContent` does not
+show — the mirror is sound and its buttons drive the game); Citadel's grey Stone/Tools chips
+(deliberate per-material colours); and Hollow's chronicle repeating one line five times (a transient
+Y1 cluster — varied by Y5).
+
+### What played well, stated plainly
+
+MateQuest's loop is genuinely good: a wrong answer fizzled, cost 5 HP, produced a teach card, and
+**the same problem re-queued two turns later** — the spaced repetition works as designed. Hollow's
+famine shock was the standout: population 40→37, 5 starvation deaths, the dashboard charts showed the
+spike, and the chronicle turned to *"shares food with community #1"* — the cooperative response the
+instrument exists to observe. Citadel placement is solid (house → 4 wood → popCap 6→12 → an immigrant
+within a day). **Hollow produced no defects at all.**
+
 ## [2026-09-19] maintenance | The reader-facing docs were a year behind the corpus — README and the Starlight site refreshed
 
 The corpus has been kept current through the audit and sweep waves. **The two surfaces a human

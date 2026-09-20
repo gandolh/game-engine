@@ -57,6 +57,35 @@ Tech choices that are settled. Listed here so future briefs and reviews don't re
   - **Citadel's palette** lives at [games/citadel/client/src/render/citadel-palette.ts](../../games/citadel/client/src/render/citadel-palette.ts): `APOLLO` (46 hex), `APOLLO_SET`, `nearestApollo()`, and `CITADEL_PAL` — the **same 32 role keys as `EDG`** remapped to Apollo hex (luminance ordering preserved per ramp). Citadel code imports it as `CITADEL_PAL as EDG`, so role-named call sites are unchanged. Shared `@engine/ui` chrome is re-skinned by injecting a Citadel Apollo `Theme` ([ui/citadel-theme.ts](../../games/citadel/client/src/ui/citadel-theme.ts)) — the engine defaults stay EDG32, so Farm is unaffected.
   - **Enforced by test (per-scope):** [engine/core/src/render/palette.test.ts](../../engine/core/src/render/palette.test.ts) scans every `engine/` + `games/` + `tools/` source file and fails on any off-palette `#rgb`/`#rrggbb` literal — validating files under `games/citadel/` against **Apollo** and everything else against **EDG32**. It asserts the atlas `SWATCH` tuples are all EDG32 (Farm), checks `EDG` ⊆ `EDG32` and `CITADEL_PAL` ⊆ `APOLLO`, and keeps a tiny documented allowlist (currently empty). Since the engine never imports a game, the Apollo swatches are inlined in the engine-side scan and pinned to the Citadel module by a colocated Citadel test so they cannot drift.
 
+## Minimum supported viewport
+
+- **The minimum supported viewport is `1280×640` CSS px, repo-wide, for every in-canvas UI.** Decided
+  2026-09-20, forced by the [2026-09-20 playtest](../todos/closed/2026-09-20-playtest-05-ui-polish-notes.md):
+  two games shipped controls that were laid out off the screen because **no number existed to test
+  against**. MateQuest's answer keypad put `Trimite` and all three lifelines below the canvas bottom;
+  Citadel's resource HUD measured **1500 px** wide (1716 px at three-digit stockpiles) and pushed
+  `Pause`/speed past the right edge. Both were unreachable by pointer, with no keyboard fallback.
+  - **Why this number.** These are desktop browser games whose canvas is sized to the window. The two
+    smallest laptop panels in real use are **1366×768** and **1280×800**, so 1280 is the honest width
+    floor; both leave roughly **640–660 px** of viewport once browser chrome (tab strip + omnibox +
+    bookmarks, ~110–130 px) is subtracted, so 640 is the honest height floor. A game that fits
+    1280×640 fits every desktop a player is likely to bring.
+  - **Rejected: `1024×640`.** It only buys 1024-wide screens nobody runs these games on, and it would
+    force Citadel's goods strip to drop the good *names* (icon+count only) or grow to a third HUD row
+    — a real legibility cost for a hypothetical display.
+  - **Rejected: "1366×768", i.e. a screen size.** A screen size is not a viewport; stating one would
+    let a 768-px-tall *window* fail the bar while nominally passing it. The bar is on `clientWidth`/
+    `clientHeight`, which is what `computeLayout` is handed.
+  - **Enforced by test, not by reviewer memory:** `assertFitsViewport(root, viewport)`
+    ([engine/ui/src/layout/fits-viewport.ts](../../engine/ui/src/layout/fits-viewport.ts)) walks a
+    laid-out tree and fails naming every interactive node that lands outside the box. Each game calls
+    it at `MIN_VIEWPORT` in its own HUD/screen tests. The pre-existing HUD tests all asserted the
+    retained *tree* and never asked where it landed, which is exactly how both bugs shipped.
+  - **This is a floor, not a target.** Bigger viewports get the space; nothing may *require* more
+    than the floor to be operable. Panels that legitimately want more room (Hollow's research
+    sidebars) scroll instead — Hollow's DOM panels already do, which is why Hollow produced no
+    findings in the playtest.
+
 ## Concurrency
 
 - **Sim runs in a Web Worker** (moved 2026-05-29) — ***superseded for Farm by the client/server split

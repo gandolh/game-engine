@@ -1,6 +1,6 @@
 ---
-summary: The load-bearing map: all four game stacks and their workspaces, the four-layer dependency rule (and the test that enforces it), the sim loop, ECS, message bus, per-tick data flow, render, audio, WASM, and the library-packaging seam.
-updated: 2026-08-23
+summary: The load-bearing map: all four game stacks and their workspaces, the four-layer dependency rule (and the test that enforces it), the sim loop, ECS, message bus, per-tick data flow, render, audio, WASM, the library-packaging seam, and how to drive each client headlessly.
+updated: 2026-09-20
 ---
 
 # Architecture
@@ -172,6 +172,26 @@ Atlas: ~220 hand-crafted 16×16 pixel-art frames split across **6 sheets + an `i
 | `floodfill.wasm` | 836 B | BFS flood-fill, returns reachable tile coordinates |
 
 All kernels export via `@engine/core`. The pathfinder bytes are transferred to the sim host at init time (`SimInitMsg.pathfinderWasm` — `WorkerInitMsg` until brief 115) so the host can instantiate its own `Pathfinder` without sharing memory.
+
+## Driving the clients headlessly (what works in this sandbox)
+
+Recorded 2026-09-20 after the [playtest](../todos/closed/2026-09-20-playtest-04-farm-home-screen-says-four-rivals.md),
+because the previous note was wrong in a way that cost real effort.
+
+**All four clients boot and are drivable.** The 2026-09-19 sweep entry in [log.md](../log.md) says
+Farm "cannot complete startup here — its Vite→`:8787` WebSocket proxy resets"; the proxy was never
+the problem. Farm ran to tick 1760 / 1082 entities with the hotbar and playback controls live.
+
+**What fails is synthetic `MouseEvent`s on in-canvas widgets** — the canvas `Start` button is one,
+which made a working client look broken. What works: a real DOM element's own handler (Farm's seed
+field is an `<input>` with a `keydown` listener, so focus + `Enter` starts a run); **the a11y
+mirror's `<button>`s**, which are wired to the same `onActivate` and drive Citadel and MateQuest
+completely; `keydown` on `window` for hotkeys, panning and keypads; and CDP key events. World clicks
+on the canvas do work with synthetic events (Citadel placement), just not widgets.
+
+So **the a11y mirror is the headless driver** for anything drawn in the canvas — the accessibility
+work pays a second dividend as test infrastructure. Note it carries prompts in `aria-label`, so
+reading `textContent` alone makes a sound mirror look broken; read the attributes.
 
 ## Library packaging (the reusable seam)
 

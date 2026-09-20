@@ -73,6 +73,19 @@ edit the matching line below.
   `@engine/core` + `@engine/ui` + `@engine/wasm-modules`, installs the tarballs into
   `examples/library-consumer` *outside* the workspaces, and runs its Node smoke. It is the last
   step of `npm run gates`.
+- **Slow tests declare their budget.** No workspace sets a global `testTimeout`, so everything runs
+  on vitest's **5s default** — and four sim/fuzz/property tests sat just over it, so a full
+  `npm run test` failed 2–4 random tests per run depending on machine load (playtest-06, 2026-09-20).
+  The pathological one was made cheap (`walkable-grid`'s adjacency scan, 5207ms → ~1100ms, via an
+  exact bounds pre-filter); the three that are legitimately slow now pass an explicit `20_000` with a
+  comment naming what makes them slow. **Do not fix a new instance by raising a global default** —
+  that would also hide a test that got slow *because something regressed*.
+- **In-canvas UI must fit `MIN_VIEWPORT` (1280×640).** `assertFitsViewport`
+  ([fits-viewport.ts](../../engine/ui/src/layout/fits-viewport.ts)) walks a laid-out tree and fails
+  naming every interactive node outside the box; each game calls it in its own HUD/screen tests.
+  Pass `includeContent: true` where clipped *text* also matters (Citadel's goods chips, Farm's home
+  screen) — the default watches interactive nodes only, and that alone would have missed half of what
+  the playtest found.
 - **Path-scoped guard tests** that fail on drift rather than on opinion: **determinism across all four
   `sim-core` packages plus `engine/core/src/{sim,ecs,runtime}`, the `.js`-suffix ban and the
   version-pinning rule** ([conventions.test.ts](../../engine/core/src/conventions.test.ts), sweep-01 —
@@ -119,6 +132,24 @@ step, and it was not kept in step.
 
 Newest first, one line each. Detail is in the [log.md](../log.md) entry for the same date.
 
+- **2026-09-20** — first browser **playtest** of all four games, and all six specs it produced
+  ([playtest-01..06](../todos/closed/)) **built, verified in a browser, and closed**. Two of them
+  turned out to be one bug: an in-canvas root laid out with **no viewport bound** stranded MateQuest's
+  submit + lifelines below the canvas and Citadel's `Pause`/speed past the right edge. Both HUDs'
+  tests were green because they assert the retained *tree* and never asked **where it landed** — so
+  the fix is a shared [`assertFitsViewport`](../../engine/ui/src/layout/fits-viewport.ts) plus a
+  written floor, `MIN_VIEWPORT = 1280×640` ([decisions.md](decisions.md) → *Minimum supported
+  viewport*), which did not exist before. Also: MateQuest's comparison teach step now reasons about
+  single-digit pairs (~72% of grade 1) instead of quoting a place-value rule at them; Farm's home
+  screen reads its rival count off the roster; Citadel gained `Space`/`1`/`2`/`4`; the bitmap font
+  gained `→` (it had baked `←` only); and `npm run test` is no longer flaky — four tests were
+  **timing out** against vitest's 5s default, not failing. `npm run gates` passes 8/8 and the suite
+  passed three consecutive uncached full runs. **Hollow produced no defects.** Two premises
+  corrected: **Farm's client does start in this sandbox** (the blocker was synthetic pointer events
+  on in-canvas widgets, not the WebSocket proxy — route table in
+  [architecture.md](architecture.md) → *Driving the clients headlessly*), and the `walkable-grid`
+  adjacency test's tile×tile scan **could never have failed**, because every region pair is already
+  ≥2 apart at the bounds level.
 - **2026-09-19** — the reader-facing docs refreshed against this corpus. The root README was still a
   single-game Farm Valley README (Node 20, "fails CI", one palette, 4 farmers, `worker/sim-client/`);
   the Starlight site had never been told about MateQuest and still carried **WebGPU** claims,
