@@ -23,7 +23,7 @@ import { camera, iso, inputReady } from "./renderer-state";
 import { placementState } from "./placement-wiring";
 import { terrain } from "./terrain";
 import { toasts } from "./hud-wiring";
-import { currentBuildings, currentVillagers, client } from "./sim-client";
+import { currentBuildings, currentVillagers, client, togglePause, setSpeedAndResume } from "./sim-client";
 import { uiDispatcher, a11yMirror, siegeDispatcher, siegeMirror } from "./hud-panels";
 import { inspectDispatcher, inspectMirror, inspectOpen, closeInspect, openInspectAtTile } from "./inspect";
 import {
@@ -517,4 +517,37 @@ window.addEventListener("keydown", (e) => {
 // handlers above remain; this just adds modal dismissal at the window level too).
 window.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && settingsModal.isOpen()) closeSettings();
+});
+
+/**
+ * Sim controls on the keyboard: Space pauses, 1/2/4 pick a speed (playtest-02, 2026-09-20).
+ *
+ * These existed only as in-canvas buttons, and when the HUD overflowed its viewport the buttons
+ * were positioned off-screen — leaving pausing a settlement sim reachable only by tabbing onto
+ * something invisible. The layout bug is fixed, but a control this central should not have been
+ * input-gated on layout in the first place: these are the genre-standard bindings and they route
+ * through the SAME command path as the buttons (`sim-client`'s `togglePause`/`setSpeedAndResume`,
+ * which already drop non-host commands), so host gating and snapshot-derived state are unchanged.
+ *
+ * Space is deliberately handled here rather than left to the widget dispatcher: the dispatcher only
+ * consumes it when a widget holds focus, so this fires exactly when nothing is focused, which is the
+ * case every player is actually in.
+ */
+window.addEventListener("keydown", (e) => {
+  if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
+  const t = e.target as HTMLElement | null;
+  if (t !== null && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+  if (settingsModal.isOpen()) return; // the modal owns the keyboard while it is up
+  // Don't steal a key the focused widget is about to act on (Space activates a focused button).
+  if (uiDispatcher?.focused() != null || siegeDispatcher?.focused() != null) return;
+
+  if (e.key === " " || e.code === "Space") {
+    togglePause();
+    e.preventDefault();
+    return;
+  }
+  if (e.key === "1" || e.key === "2" || e.key === "4") {
+    setSpeedAndResume(Number(e.key));
+    e.preventDefault();
+  }
 });

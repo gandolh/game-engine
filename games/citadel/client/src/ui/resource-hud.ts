@@ -157,7 +157,27 @@ export function createResourceHud(actions: ResourceHudActions): ResourceHud {
     speed4Btn,
   ]);
 
-  const root = panel({ direction: "row", gap: 16, align: "center" }, [readout, resources, controls]);
+  /**
+   * TWO ROWS, not one (playtest-02, 2026-09-20).
+   *
+   * This was a single `row` of `[readout, resources, controls]`, laid out at intrinsic width with no
+   * viewport bound. That measured **1500px** empty and **1716px** at three-digit stockpiles, so on
+   * any display narrower than that the tail of the row was positioned off-screen — which meant
+   * `Pause`, `1x`, `2x` and `4x` were unreachable by pointer on a 1280px screen, the `Stone` and
+   * `Tools` chips spilled outside the panel's own background, and the bar ran under the top-right
+   * minimap that every other panel here is carefully placed to avoid.
+   *
+   * Splitting it puts the two widest groups on separate lines and moves the sim controls next to the
+   * settlement readout, where they are also more at home: row 1 is "what is going on and how fast",
+   * row 2 is "what is in the stores". Each row now measures well inside the width left by the
+   * minimap (`clientWidth - MINIMAP_FACE - 8`) at {@link MIN_VIEWPORT}, which
+   * `resource-hud.test.ts` asserts rather than trusting.
+   *
+   * The HUD growing a row is absorbed downstream: the siege/status panel and the inspect panel are
+   * anchored to this root's MEASURED bottom edge, not a pixel constant.
+   */
+  const statusRow = box({ direction: "row", gap: 16, align: "center" }, [readout, controls]);
+  const root = panel({ direction: "column", gap: 6, align: "start" }, [statusRow, resources]);
 
   // `changed` accumulates whether any LAYOUT-AFFECTING property (label text / button label)
   // changed this refresh. Colour changes don't move anything, so they don't set it.

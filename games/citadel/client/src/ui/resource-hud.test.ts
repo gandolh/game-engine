@@ -7,7 +7,9 @@
  */
 import { describe, it, expect, beforeEach } from "vitest";
 import { CITADEL_PAL as EDG } from "../render/citadel-palette";
+import { MIN_VIEWPORT, assertFitsViewport, computeLayout } from "@engine/ui";
 import type { ButtonNode, LabelNode, UINode } from "@engine/ui";
+import { MINIMAP_FACE } from "./minimap";
 import { createResourceHud, type ResourceHudState } from "./resource-hud";
 
 function baseState(overrides: Partial<ResourceHudState> = {}): ResourceHudState {
@@ -225,5 +227,78 @@ describe("createResourceHud — host-only room control (Citadel 97/13)", () => {
     expect(hud.refresh(baseState({ isHost: false }))).toBe(true);
     // Same non-host state again → nothing to reconcile.
     expect(hud.refresh(baseState({ isHost: false }))).toBe(false);
+  });
+});
+
+/**
+ * playtest-02 (2026-09-20) — the HUD must fit the screen, and must not run under the minimap.
+ *
+ * Every other test here asserts the retained tree and the derived button states. None asked where
+ * the tree LANDED, which is how a 1500px-wide HUD shipped: on a 1280px display `Pause`, `1x`, `2x`
+ * and `4x` were laid out off the right edge, unreachable by pointer, in a game where pausing is a
+ * core interaction.
+ */
+describe("createResourceHud — fits MIN_VIEWPORT (playtest-02)", () => {
+  /** The width actually available to the HUD: the minimap owns the top-right corner. */
+  const HUD_X = 8;
+  const availableWidth = (viewportWidth: number): number => viewportWidth - MINIMAP_FACE - 8 - HUD_X;
+
+  function laidOut(state: ResourceHudState): ReturnType<typeof createResourceHud> {
+    const hud = createResourceHud({ togglePause: () => {}, setSpeed: () => {} });
+    hud.refresh(state);
+    computeLayout(hud.root, HUD_X, 8); // exactly how render-loop.ts anchors it
+    return hud;
+  }
+
+  it("every control is inside the minimum viewport", () => {
+    const hud = laidOut(baseState());
+    // `includeContent` matters here: the goods chips are icons + labels, not buttons, and their
+    // spilling outside the panel was one of the reported symptoms. Interactive-only would miss it.
+    assertFitsViewport(hud.root, MIN_VIEWPORT, { what: "Citadel resource HUD", includeContent: true });
+  });
+
+  it("clears the top-right minimap, so the two panels never overlap", () => {
+    // render-loop.ts places the minimap at `clientWidth - MINIMAP_FACE - 8`; the comment there
+    // states the panels must never overlap, and this HUD was the one that broke it.
+    const hud = laidOut(baseState());
+    const right = hud.root.rect.x + hud.root.rect.width;
+    expect(right).toBeLessThanOrEqual(MIN_VIEWPORT.width - MINIMAP_FACE - 8);
+  });
+
+  it("still clears it with a big, busy settlement — the widest realistic readout", () => {
+    const hud = laidOut(
+      baseState({
+        tier: "Citadel",
+        day: 365,
+        season: "winter",
+        population: 999,
+        popCap: 999,
+        happiness: 100,
+        stockpiles: { grain: 999, flour: 999, bread: 999, wood: 999, planks: 999, stone: 999, tools: 999 },
+        foodSurplus: -99,
+        paused: true,
+        speed: 4,
+      }),
+    );
+    assertFitsViewport(hud.root, MIN_VIEWPORT, {
+      what: "Citadel resource HUD (busy settlement)",
+      includeContent: true,
+    });
+    const right = hud.root.rect.x + hud.root.rect.width;
+    expect(right).toBeLessThanOrEqual(MIN_VIEWPORT.width - MINIMAP_FACE - 8);
+  });
+
+  it("keeps each row inside the width the minimap leaves", () => {
+    // The point of the two-row split: NEITHER row may be the one that overflows.
+    const hud = laidOut(baseState({ stockpiles: { grain: 999, flour: 999, bread: 999, wood: 999, planks: 999, stone: 999, tools: 999 } }));
+    for (const row of hud.root.children) {
+      expect(row.rect.width).toBeLessThanOrEqual(availableWidth(MIN_VIEWPORT.width));
+    }
+  });
+
+  it("a non-host still has its (disabled) controls on screen", () => {
+    // Disabled is not absent: an online guest must still SEE that pause is host-only.
+    const hud = laidOut(baseState({ isHost: false }));
+    assertFitsViewport(hud.root, MIN_VIEWPORT, { what: "Citadel resource HUD (guest)", includeContent: true });
   });
 });
