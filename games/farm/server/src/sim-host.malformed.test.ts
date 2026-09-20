@@ -157,5 +157,7 @@ describe("SimHost.handleInbound — junk leaves the host inert", () => {
     // No run was ever started, so no snapshot/static-layer was emitted.
     expect(sent.filter((m) => m.type === "snapshot" || m.type === "static-layer")).toEqual([]);
     host.stop();
-  });
+  }, 20_000); // playtest-06: a fuzz sweep over every junk-frame shape — genuinely slow, so the
+  // budget is DECLARED rather than racing vitest's 5s default and failing at random under a full
+  // run. If this ever needs more than 20s, something regressed; don't just raise it.
 });

@@ -102,7 +102,9 @@ describe("pair-bonding, reproduction, genetics & death emerge from the real vill
       expect(nonFounder).toBeDefined();
       expect(nonFounder!.genome.appearance).toBeDefined();
     }
-  });
+  }, 20_000); // playtest-06: boots and runs the real sim for 2 seeds — genuinely slow, so the budget
+  // is DECLARED rather than racing vitest's 5s default and failing at random under a full run. If
+  // this ever needs more than 20s, something regressed; don't just raise it.
 
   it("reproduction is coupled to food scarcity: a food-rich town out-breeds an otherwise-identical food-scarce one", () => {
     // Same lifecycle/fertility; the ONLY difference is the food supply, which

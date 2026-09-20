@@ -16,6 +16,17 @@ function landTilesOf(region: RegionDef): Array<{ x: number; y: number }> {
   return out;
 }
 
+/**
+ * Min Chebyshev distance between A's and B's BOUNDS RECTS — a lower bound on the distance between
+ * their land tiles, since mask land is always inside its region's rect. Used to skip pairs that
+ * cannot possibly be adjacent before paying for the tile×tile scan (playtest-06).
+ */
+function boundsChebyshev(a: RegionDef, b: RegionDef): number {
+  const dx = Math.max(0, a.bounds.minX - b.bounds.maxX, b.bounds.minX - a.bounds.maxX);
+  const dy = Math.max(0, a.bounds.minY - b.bounds.maxY, b.bounds.minY - a.bounds.maxY);
+  return Math.max(dx, dy);
+}
+
 /** Min Chebyshev distance between any land tile of A and any land tile of B. */
 function minChebyshevBetween(a: RegionDef, b: RegionDef): number {
   const aLand = landTilesOf(a);
@@ -97,14 +108,34 @@ describe('buildWalkableGrid', () => {
     //
     // Skip pairs that share a road bridge endpoint? No — roads are not regions,
     // so region land never includes road tiles. No special-casing needed.
+    //
+    // BOUNDS PRE-FILTER (playtest-06): the tile×tile scan below is O(pairs × tilesA × tilesB), and
+    // with ~73 regions this test was the slowest in the repo — it sat just over vitest's 5s default
+    // and so failed at random under a full run while passing alone. The filter is EXACT, not an
+    // approximation: mask land never lies outside its region's bounds rect, so if the two rects are
+    // already Chebyshev ≥2 apart then every tile pair is too, and the scan cannot find a violation.
+    // Only bounds-adjacent pairs are scanned, which is the handful that could actually fail.
+    // Measured on the default world: EVERY pair is already ≥2 apart at the bounds level, so the old
+    // tile×tile scan ran 2 628 pair scans that could not fail. The bounds check below is therefore
+    // the assertion doing the work — cheap, exact, and never vacuous — and the tile scan stays as a
+    // live safety net for the day the generator's placement margin tightens.
     for (let i = 0; i < REGIONS.length; i++) {
       for (let j = i + 1; j < REGIONS.length; j++) {
         const a = REGIONS[i]!;
         const b = REGIONS[j]!;
+        const boundsGap = boundsChebyshev(a, b);
         expect(
-          minChebyshevBetween(a, b),
-          `${a.id} and ${b.id} land must be Chebyshev ≥2 apart`,
+          boundsGap,
+          `${a.id} and ${b.id} bounds must be Chebyshev ≥2 apart`,
         ).toBeGreaterThanOrEqual(2);
+        // Only a bounds-adjacent pair can hide a tile-level violation; today there are none, but if
+        // placement ever allows overlapping rects with non-touching masks, THIS is what catches it.
+        if (boundsGap < 2) {
+          expect(
+            minChebyshevBetween(a, b),
+            `${a.id} and ${b.id} land must be Chebyshev ≥2 apart`,
+          ).toBeGreaterThanOrEqual(2);
+        }
       }
     }
   });

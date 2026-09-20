@@ -76,7 +76,9 @@ describe("buildBridgeGraph — multi-seed properties", () => {
         }
       }
     }
-  });
+  }, 20_000); // playtest-06: a multi-seed sweep over every bridge × every island — genuinely slow,
+  // so the budget is DECLARED rather than racing vitest's 5s default and failing at random under a
+  // full run. If this ever needs more than 20s, something regressed; don't just raise it.
 
   it("loopDelta controls edge count (more loops with higher delta)", () => {
     for (const seed of SEEDS.slice(0, 10)) {
