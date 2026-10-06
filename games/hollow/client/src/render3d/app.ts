@@ -117,7 +117,8 @@ export interface AgentRenderState {
 }
 
 export interface HollowApp {
-  /** Tears down listeners/observers/the render loop. Idempotent. */
+  /** Tears down listeners/observers/the render loop and releases the WebGL2
+   *  context. Idempotent. */
   dispose(): void;
   /** SEAM for chunk hollow-09c: every alive agent's world head-position +
    *  model matrix + world AABB, as of the most recently drawn frame. `null`
@@ -179,6 +180,11 @@ export function startHollowApp(canvas: HTMLCanvasElement, worker: Worker, opts: 
   let rafHandle: number | null = null;
   let resizeObserver: ResizeObserver | null = null;
   let resizeListener: (() => void) | null = null;
+  // The GL context, kept so `dispose()` can release it. A desktop window that
+  // is closed and reopened mounts a fresh app each time, and browsers cap live
+  // WebGL contexts (Chrome at 16), so an app that only stops drawing leaks one
+  // per reopen until the oldest is force-lost.
+  let device: Awaited<ReturnType<typeof createDevice3d>> | null = null;
   let lastAgentRenderState: Map<number, AgentRenderState> | null = null;
   let lastViewProj: Mat4 | null = null;
   // Computed once per `resize()` call and read by `getDpr()` (sweep-06) so
@@ -241,7 +247,11 @@ export function startHollowApp(canvas: HTMLCanvasElement, worker: Worker, opts: 
       );
       return;
     }
-    if (disposed) return;
+    if (disposed) {
+      device3d.glContext.dispose();
+      return;
+    }
+    device = device3d;
 
     const renderer = new SceneRenderer3D(device3d, {
       clearColor: [...toFloatRgb(HOLLOW_PAL.navy), 1] as [number, number, number, number],
@@ -679,6 +689,8 @@ export function startHollowApp(canvas: HTMLCanvasElement, worker: Worker, opts: 
       if (rafHandle !== null) cancelAnimationFrame(rafHandle);
       resizeObserver?.disconnect();
       if (resizeListener) window.removeEventListener("resize", resizeListener);
+      device?.glContext.dispose();
+      device = null;
     },
     getAgentRenderState(): ReadonlyMap<number, AgentRenderState> | null {
       return lastAgentRenderState;

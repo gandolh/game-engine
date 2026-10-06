@@ -23,3 +23,10 @@ declare module "*.glsl?raw" {
 
 // CSS imported for its side effect (Vite injects it). `import "./style.css"`.
 declare module "*.css";
+
+// `style.css?inline`: the stylesheet as a string, injected by `mount.ts` inside
+// its root so the marketplace module carries its own styles.
+declare module "*.css?inline" {
+  const css: string;
+  export default css;
+}

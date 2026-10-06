@@ -6,11 +6,9 @@
     <title>Hollow</title>
   </head>
   <body>
-    <!-- Chunk hollow-09a: the cozy 3D town. main.ts boots the sim worker and
-         render3d/app.ts's render loop draws the scene into #scene. -->
-    <div id="app">
-      <canvas id="scene"></canvas>
-    </div>
+    <!-- main.ts mounts the app (mount.ts) into #app: the sim worker, the 3D
+         town's canvas and every panel are created inside it. -->
+    <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

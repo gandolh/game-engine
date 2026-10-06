@@ -13,14 +13,14 @@ function hexToRgb(hex: string): string {
 }
 
 /**
- * Proves the wiring `main.ts` uses for `startHollowApp`'s
+ * Proves the wiring `mount.ts` uses for `startHollowApp`'s
  * `onRendererUnavailable` callback: `showUnsupportedNotice(appEl, { text:
  * HOLLOW_PAL.cream, background: HOLLOW_PAL.ink, border: HOLLOW_PAL.rust },
  * message, "hollow-renderer-unavailable")`.
  *
- * `main.ts` itself boots a Worker + the full 3D app shell at module scope
- * (it has no exports), so it can't be imported in isolation here — this
- * exercises the exact call it makes, with Hollow's real palette values and
+ * Mounting the whole app needs a Worker and WebGL2 (`os-entry.test.ts` fakes
+ * the first and goes without the second), so this exercises the exact call
+ * `mount.ts` makes on its own, with Hollow's real palette values and
  * the real message `render3d/app.ts` passes when `createDevice3d` throws
  * (see `app.ts`'s `onRendererUnavailable` call site), against the real
  * shared helper. This is the regression test for audit-27: before the fix,

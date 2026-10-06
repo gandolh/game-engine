@@ -1,6 +1,6 @@
 ---
 summary: The current-state snapshot — where each game stands, current sim/determinism behaviour, which gates run, architecture milestones, and open gaps. Brief-by-brief history lives in log.md and the todos/briefs directories, not here.
-updated: 2026-09-19
+updated: 2026-10-06
 ---
 
 # Project Status
@@ -34,7 +34,10 @@ edit the matching line below.
   and genuinely live**: ~12% adoption under the contrarian diagnostic, and when an answer is adopted
   the world provably diverges (hollow-16, 2026-09-19 — every run now prints its own rate). One queued
   spec: [hollow-17](../todos/2026-09-19-hollow-17-rationalizer-attachment-point.md), moving the seam
-  to a decision whose subject outlives the 40-tick answer-lag. [hollow-overview.md](hollow-overview.md) ·
+  to a decision whose subject outlives the 40-tick answer-lag. Hollow also builds as an ImbatranimOS
+  marketplace module (`npm run build:os -w @hollow/client` → `dist/os/hollow.mjs`, 2026-10-06);
+  installing it waits on a push ([spec](../todos/2026-10-06-hollow-os-mount-build.md)).
+  [hollow-overview.md](hollow-overview.md) ·
   [BUILD-STATE](../todos/2026-07-17-hollow-BUILD-STATE.md)
 - **MateQuest** — built and playable, M0–M5 complete. Romanian-curriculum math roguelike; UI defaults
   to Romanian. **Grades I–IV** — settled 2026-09-19

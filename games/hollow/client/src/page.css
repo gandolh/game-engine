@@ -1,0 +1,14 @@
+/*
+ * The standalone page only (`index.html` → `main.ts`). Gives `#app` the whole
+ * viewport for `mount.ts` to fill. Not part of the marketplace build: inside
+ * the desktop, the window's content element is the container and the desktop
+ * owns the page.
+ */
+html,
+body,
+#app {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}

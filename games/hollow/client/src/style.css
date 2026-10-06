@@ -1,71 +1,73 @@
 /*
- * Hollow client styles — chunk hollow-09a: a full-bleed canvas for the 3D
- * town (no more centered text placeholder). Layout/sizing only — CSS can't
- * import the TS palette module, so palette purity (CLAUDE.md) is upheld by
- * setting `body`'s background/color from `HOLLOW_PAL` in `main.ts` instead
- * of a hex literal here (chunk hollow-09c; see `main.ts`'s header).
+ * Hollow client styles. Every rule is scoped under `.hollow-root`, the element
+ * `mount.ts` creates inside whatever container it is given: the standalone
+ * page's `#app`, or a desktop window's content element when Hollow runs as an
+ * ImbatranimOS marketplace app. Nothing here may style `html`, `body` or the
+ * page around the container, and nothing is `position: fixed` — the overlays
+ * are absolute within `.hollow-root`, so they stay inside a window. The
+ * standalone page's own sizing lives in `page.css`. `mount.ts` injects this
+ * file as a `<style>` inside the root (`?inline`), because the desktop loads
+ * only the built module, never a stylesheet beside it.
  *
- * Chunk hollow-10b adds the research-instrument left rail
- * (`#hollow-left-rail`, holding the chronicle/dashboard/export panels —
- * `main.ts`, `chronicle-panel.ts`, `dashboard-panel.ts`, `export-panel.ts`).
- * It's a fixed-position OVERLAY, not a flex sibling of `canvas#scene` —
- * `#scene` keeps its own `width:100%; height:100%` of `#app` untouched, so
- * `app.ts`'s `ResizeObserver` (which reads `canvas.clientWidth/Height`)
- * never sees a shrunk canvas. Every color below is set inline from
- * `HOLLOW_PAL` by each panel's own TS module (same convention as this
- * file's header note) — nothing here is a color rule.
+ * Layout/sizing only: CSS can't import the TS palette module, so palette
+ * purity (CLAUDE.md) is upheld by setting colours inline from `HOLLOW_PAL`
+ * (the root's background and text colour in `mount.ts`, each panel's in its
+ * own module).
+ *
+ * The research-instrument left rail (`#hollow-left-rail`, chunk hollow-10b) is
+ * an absolutely positioned OVERLAY, not a flex sibling of the scene canvas —
+ * the canvas keeps `width:100%; height:100%` of the root, so `app.ts`'s
+ * `ResizeObserver` (which reads `canvas.clientWidth/Height`) never sees a
+ * shrunk canvas.
  */
-* { box-sizing: border-box; margin: 0; padding: 0; }
-html, body {
+.hollow-root,
+.hollow-root * { box-sizing: border-box; margin: 0; padding: 0; }
+.hollow-root {
+  position: relative;
   width: 100%;
   height: 100%;
   overflow: hidden;
   font-family: monospace;
 }
-#app {
-  position: relative;
-  width: 100vw;
-  height: 100vh;
-}
-canvas#scene {
+.hollow-root canvas.hollow-scene {
   display: block;
   width: 100%;
   height: 100%;
 }
 
-#hollow-left-rail {
+.hollow-root #hollow-left-rail {
   position: absolute;
   top: 0;
   left: 0;
   bottom: 0;
   width: 380px;
-  max-width: 42vw;
+  max-width: 42%;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   font-size: 12px;
 }
 
-.hollow-chronicle-panel {
+.hollow-root .hollow-chronicle-panel {
   display: flex;
   flex-direction: column;
   flex: 1 1 45%;
   min-height: 0;
   padding: 8px;
 }
-.hollow-chronicle-title {
+.hollow-root .hollow-chronicle-title {
   flex: none;
   font-size: 14px;
   margin-bottom: 4px;
 }
-.hollow-chronicle-filters {
+.hollow-root .hollow-chronicle-filters {
   flex: none;
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
   margin-bottom: 6px;
 }
-.hollow-chronicle-chip {
+.hollow-root .hollow-chronicle-chip {
   flex: none;
   border: none;
   border-radius: 3px;
@@ -74,7 +76,7 @@ canvas#scene {
   font-family: inherit;
   cursor: pointer;
 }
-.hollow-chronicle-list {
+.hollow-root .hollow-chronicle-list {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
@@ -82,14 +84,14 @@ canvas#scene {
   flex-direction: column;
   gap: 2px;
 }
-.hollow-chronicle-row {
+.hollow-root .hollow-chronicle-row {
   flex: none;
   padding: 2px 6px;
   font-size: 11px;
   line-height: 1.4;
 }
 
-.hollow-dashboard-panel {
+.hollow-root .hollow-dashboard-panel {
   display: flex;
   flex-direction: column;
   flex: 1 1 55%;
@@ -98,32 +100,32 @@ canvas#scene {
   padding: 8px;
   gap: 4px;
 }
-.hollow-dashboard-title {
+.hollow-root .hollow-dashboard-title {
   flex: none;
   font-size: 14px;
   margin-bottom: 4px;
 }
-.hollow-dashboard-chart {
+.hollow-root .hollow-dashboard-chart {
   flex: none;
   margin-bottom: 8px;
 }
-.hollow-dashboard-chart-title {
+.hollow-root .hollow-dashboard-chart-title {
   font-size: 11px;
   margin-bottom: 2px;
 }
-.hollow-dashboard-canvas {
+.hollow-root .hollow-dashboard-canvas {
   display: block;
   width: 100%;
   height: 70px;
 }
-.hollow-dashboard-legend {
+.hollow-root .hollow-dashboard-legend {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   font-size: 10px;
   margin-top: 2px;
 }
-.hollow-dashboard-legend-swatch {
+.hollow-root .hollow-dashboard-legend-swatch {
   display: inline-block;
   width: 8px;
   height: 8px;
@@ -131,13 +133,13 @@ canvas#scene {
   margin-right: 2px;
 }
 
-.hollow-export-panel {
+.hollow-root .hollow-export-panel {
   flex: none;
   display: flex;
   gap: 6px;
   padding: 8px;
 }
-.hollow-export-button {
+.hollow-root .hollow-export-button {
   flex: 1 1 0;
   padding: 4px;
   font-size: 10px;
@@ -150,12 +152,12 @@ canvas#scene {
 /*
  * Chunk hollow-11b — director-role UI: a top-right overlay
  * (`#hollow-director-bar`, holding the time-control + shock panels + the
- * Share button) alongside a full-viewport pre-run authoring overlay
- * (`.hollow-setup-panel`). Same "fixed-position DOM overlay beside the
- * canvas" convention as `#hollow-left-rail` above; every color is set
+ * Share button) alongside a pre-run authoring overlay covering the whole
+ * root (`.hollow-setup-panel`). Same "absolutely positioned DOM overlay beside
+ * the canvas" convention as `#hollow-left-rail` above; every color is set
  * inline from `HOLLOW_PAL` by each panel's own TS module.
  */
-#hollow-director-bar {
+.hollow-root #hollow-director-bar {
   position: absolute;
   top: 0;
   right: 0;
@@ -163,21 +165,21 @@ canvas#scene {
   flex-direction: column;
   gap: 2px;
   font-size: 11px;
-  max-width: 46vw;
+  max-width: 46%;
 }
-.hollow-director-bar-row {
+.hollow-root .hollow-director-bar-row {
   display: flex;
   align-items: center;
   gap: 6px;
 }
 
-.hollow-time-control-panel {
+.hollow-root .hollow-time-control-panel {
   display: flex;
   align-items: center;
   gap: 6px;
   padding: 6px 8px;
 }
-.hollow-time-control-button {
+.hollow-root .hollow-time-control-button {
   border: none;
   border-radius: 3px;
   padding: 4px 8px;
@@ -185,15 +187,15 @@ canvas#scene {
   font-size: 11px;
   cursor: pointer;
 }
-.hollow-time-control-button:disabled {
+.hollow-root .hollow-time-control-button:disabled {
   cursor: default;
   opacity: 0.5;
 }
-.hollow-time-control-speed-group {
+.hollow-root .hollow-time-control-speed-group {
   display: flex;
   gap: 2px;
 }
-.hollow-time-control-speed-button {
+.hollow-root .hollow-time-control-speed-button {
   border: none;
   border-radius: 3px;
   padding: 4px 6px;
@@ -202,7 +204,7 @@ canvas#scene {
   cursor: pointer;
 }
 
-.hollow-share-button {
+.hollow-root .hollow-share-button {
   border: none;
   border-radius: 3px;
   padding: 4px 10px;
@@ -211,18 +213,18 @@ canvas#scene {
   cursor: pointer;
 }
 
-.hollow-shock-panel {
+.hollow-root .hollow-shock-panel {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
   padding: 6px 8px;
 }
-.hollow-shock-kind-group {
+.hollow-root .hollow-shock-kind-group {
   display: flex;
   gap: 2px;
 }
-.hollow-shock-kind-button {
+.hollow-root .hollow-shock-kind-button {
   border: none;
   border-radius: 3px;
   padding: 4px 8px;
@@ -230,19 +232,19 @@ canvas#scene {
   font-size: 10px;
   cursor: pointer;
 }
-.hollow-shock-row {
+.hollow-root .hollow-shock-row {
   display: flex;
   align-items: center;
   gap: 4px;
   font-size: 10px;
 }
-.hollow-shock-row input,
-.hollow-shock-row select {
+.hollow-root .hollow-shock-row input,
+.hollow-root .hollow-shock-row select {
   width: 64px;
   font-family: inherit;
   font-size: 10px;
 }
-.hollow-shock-fire-button {
+.hollow-root .hollow-shock-fire-button {
   border: none;
   border-radius: 3px;
   padding: 4px 10px;
@@ -251,8 +253,8 @@ canvas#scene {
   cursor: pointer;
 }
 
-.hollow-setup-panel {
-  position: fixed;
+.hollow-root .hollow-setup-panel {
+  position: absolute;
   inset: 0;
   overflow-y: auto;
   /* Extra bottom padding so the Start button is never the element the panel clips (playtest-05):
@@ -262,49 +264,49 @@ canvas#scene {
   font-size: 13px;
   z-index: 10;
 }
-.hollow-setup-title {
+.hollow-root .hollow-setup-title {
   font-size: 22px;
   margin-bottom: 4px;
 }
-.hollow-setup-subtitle {
+.hollow-root .hollow-setup-subtitle {
   font-size: 12px;
   margin-bottom: 16px;
   max-width: 640px;
 }
-.hollow-setup-section {
+.hollow-root .hollow-setup-section {
   margin-bottom: 16px;
 }
-.hollow-setup-section-title {
+.hollow-root .hollow-setup-section-title {
   font-size: 13px;
   margin-bottom: 6px;
 }
-.hollow-setup-row {
+.hollow-root .hollow-setup-row {
   display: flex;
   align-items: center;
   gap: 8px;
   margin-bottom: 4px;
 }
-.hollow-setup-label {
+.hollow-root .hollow-setup-label {
   /* FIXED width, not a minimum (playtest-05): with `min-width` a longer label such as
      "material regen/tick" pushed its own input further right than its neighbours', so the input
      column stepped raggedly down the form. A fixed basis lines every field up. */
   flex: 0 0 152px;
 }
-.hollow-setup-archetype-row {
+.hollow-root .hollow-setup-archetype-row {
   padding: 8px 0;
 }
-.hollow-setup-archetype-header {
+.hollow-root .hollow-setup-archetype-header {
   display: flex;
   align-items: center;
   gap: 8px;
 }
-.hollow-setup-archetype-label {
+.hollow-root .hollow-setup-archetype-label {
   min-width: 100px;
   font-weight: bold;
 }
-.hollow-setup-tune-btn,
-.hollow-setup-randomize-btn,
-.hollow-setup-start-btn {
+.hollow-root .hollow-setup-tune-btn,
+.hollow-root .hollow-setup-randomize-btn,
+.hollow-root .hollow-setup-start-btn {
   border: none;
   border-radius: 3px;
   padding: 6px 10px;
@@ -312,7 +314,7 @@ canvas#scene {
   font-size: 12px;
   cursor: pointer;
 }
-.hollow-setup-start-btn {
+.hollow-root .hollow-setup-start-btn {
   margin-top: 12px;
   font-size: 14px;
   padding: 10px 20px;
@@ -326,25 +328,25 @@ canvas#scene {
   position: sticky;
   bottom: 8px;
 }
-.hollow-setup-gene-panel {
+.hollow-root .hollow-setup-gene-panel {
   padding: 8px 0 8px 16px;
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
-.hollow-setup-gene-row {
+.hollow-root .hollow-setup-gene-row {
   display: flex;
   align-items: center;
   gap: 8px;
 }
-.hollow-setup-gene-label {
+.hollow-root .hollow-setup-gene-label {
   min-width: 130px;
 }
-.hollow-setup-gene-value {
+.hollow-root .hollow-setup-gene-value {
   min-width: 40px;
   display: inline-block;
 }
-.hollow-setup-lock-label {
+.hollow-root .hollow-setup-lock-label {
   font-size: 10px;
   display: flex;
   align-items: center;

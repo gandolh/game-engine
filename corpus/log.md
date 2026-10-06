@@ -4,6 +4,25 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [todos/closed/](todos/closed/), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-10-06] build | Hollow mounts into a container, and builds as a marketplace module
+
+[The spec](todos/2026-10-06-hollow-os-mount-build.md) is built on the game side, in the commit that adds this entry.
+`main.ts`'s body is now `mountHollow(container)` in `mount.ts`, with a teardown that stops the
+worker, both frame loops, the key listener and the research store; `os-entry.ts` exports
+`mount` / `unmount` and `npm run build:os` emits `dist/os/hollow.mjs` with the worker beside it.
+Two things the spec did not foresee:
+
+- **`HollowApp.dispose` never released the GL context.** Fine for a page load, a leak for a window
+  reopened in the same page. It does now, and a mutation check in Chrome shows the difference (20
+  cycles: every old context lost; without the line, none).
+- **`dist-os/` is scanned by five engine guard tests**, which skip `dist` by name; the palette guard
+  failed on the bundled EDG32 swatches. The output moved to `dist/os/`.
+
+Inside the desktop the hash is the desktop's, so the OS build reads no run from it and hides Share.
+A fresh clone with a private `HOME`/npm cache installs and builds in 33 s; the served directory is
+1.6 MB. What is left is the owner's: push, pin the commit in imbatranimOS's `marketplace/hollow.json`
+(the descriptor is in the spec) and walk the install. Typecheck and every workspace's tests pass.
+
 ## [2026-10-06] spec | Hollow as an ImbatranimOS marketplace app
 
 ImbatranimOS can now install a game from this repo into a desktop window (its brief 120): it clones

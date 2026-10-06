@@ -1,6 +1,49 @@
 # Hollow as an ImbatranimOS marketplace app: a build that exports `mount` / `unmount`
 
-status: todo — a build target and a refactor of the client's entry; no sim change
+> **BUILT 2026-10-06; waiting on the owner's push and the imbatranimOS side.** The game
+> side is done and verified; what is left needs the commit on GitHub, so it is the owner's:
+>
+> - `src/mount.ts`'s `mountHollow(container, { pageHash })` is the old `main.ts` body. Everything is
+>   built inside one `.hollow-root`; `style.css` is scoped to it and injected as a `<style>` there
+>   (`?inline`); nothing touches `document.body`; the setup overlay is `absolute`, not `fixed`. Keys
+>   are heard on the root, which takes focus on pointerdown, so typing in another window never
+>   toggles Hollow's tags.
+> - `src/os-entry.ts` exports `mount` / `unmount` (a `WeakMap` per container; a second mount
+>   replaces the first). With `pageHash: false` no run is read from the hash and **Share is not
+>   shown**: it writes `location.hash`, which inside the desktop is the desktop's URL.
+> - `HollowApp.dispose` now releases the WebGL2 context. Mutation-checked in Chrome: 20
+>   close/reopen cycles leave every old context lost; with the line removed, none are.
+> - **The output is `dist/os/hollow.mjs`, not `dist-os/`.** Five engine guard tests skip `dist` by
+>   name and scanned `dist-os/` (the palette guard failed on the bundled EDG32 swatches); under
+>   `dist/` it is skipped and gitignored like any build output.
+> - From a fresh clone with a private `HOME` and npm cache: `npm ci` then
+>   `npm run build:os -w @hollow/client`, 33 s together; the served directory is 1.6 MB.
+> - Walked in a 960×640 harness page: setup screen, Start, the 3D town at ~57 fps, every overlay
+>   inside the window. The standalone page still fills the viewport, and Share then reload replays.
+>
+> **Left (owner):** push, then add `marketplace/hollow.json` to imbatranimOS pinning the pushed
+> commit, and walk Settings → Marketplace → install → open → close → reopen. The descriptor, with
+> the repository root as the app directory because the install must run there:
+>
+> ```json
+> {
+>   "schemaVersion": 1, "id": "hollow", "name": "Hollow",
+>   "description": "A generational social-emergence sim in a small 3D town.",
+>   "meta": ["game"],
+>   "source": { "repo": "https://github.com/gandolh/game-engine", "ref": "<pushed commit, 40 chars>" },
+>   "type": "static", "runtime": "native",
+>   "build": {
+>     "install": ["npm", "ci"],
+>     "command": ["npm", "run", "build:os", "-w", "@hollow/client"],
+>     "entry": "games/hollow/client/dist/os/hollow.mjs"
+>   },
+>   "window": { "defaultSize": { "w": 960, "h": 640 }, "minSize": { "w": 640, "h": 400 } },
+>   "capabilities": [], "icon": "gamepad-2", "minSystemVersion": 2
+> }
+> ```
+
+status: built 2026-10-06 — awaiting push + the imbatranimOS install walk (see the note above; the
+original text below is unchanged)
 created: 2026-10-06
 context: ImbatranimOS can now install apps from other repositories (its brief 120, done
 2026-10-06). It clones a repo at a pinned commit, runs the repo's own build, and imports one ES
