@@ -43,7 +43,12 @@
  */
 import type { MessageBus } from "@engine/core";
 import { ONT_FAMILY, ONT_COMMUNITY, ONT_SOCIAL, ONT_STARVATION, ONT_GOVERNANCE, ONT_FEUD, ONT_JOBS, ONT_MORTALITY } from "../protocols";
-import { RATIONALE_MAX_CHARS, type RationalizerDecision, type RationalizerRejectionReason } from "../rationalize";
+import {
+  RATIONALE_MAX_CHARS,
+  type RationalizerDecision,
+  type RationalizerRejectionReason,
+  type RationalizerSite,
+} from "../rationalize";
 
 /** One flattened chronicle line: `{ tick, ontology, ...body }` — `tick` is
  *  read from the body (every Hollow event body carries its own `tick`
@@ -118,6 +123,8 @@ export type RationalizeOntology = (typeof ONT_RATIONALIZE)[keyof typeof ONT_RATI
  */
 export interface RationalizeDecisionBody {
   tick: number;
+  /** Which decision: `social` (a verb) or `governance-vote` (hollow-17). */
+  site: RationalizerSite;
   agentId: number;
   requestTick: number;
   provider: string;
@@ -270,6 +277,7 @@ export function createChronicle(bus: MessageBus, cap: number = CHRONICLE_CAP): C
       pushEvent({
         tick: d.tick,
         ontology: ONT_RATIONALIZE.DECISION,
+        site: d.site,
         agentId: d.agentId,
         requestTick: d.requestTick,
         provider: d.provider,

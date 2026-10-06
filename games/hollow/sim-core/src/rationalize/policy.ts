@@ -19,7 +19,9 @@
  * which sits at the deliberation boundary. Extending the seam to those
  * system-driven passes would need its own candidate-enumeration work and is
  * deliberately out of scope here — recorded so the next reader doesn't
- * assume it was an oversight.
+ * assume it was an oversight. hollow-17 did that work for one of them, the
+ * GOVERNANCE pass's norm vote: see `RationalizerSeam.considerVote` and
+ * `governance/governance-system.ts`. This gate is the social site's only.
  *
  * What IS reachable is the social-verb set, and there the analogues are
  * exact: "betray" is the four antagonistic verbs (a steal, a sabotage, an

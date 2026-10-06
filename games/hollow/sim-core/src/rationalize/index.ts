@@ -16,6 +16,7 @@ export type {
   RationalizerGenomeSummary,
   RationalizerRelationship,
   RationalizerStanding,
+  RationalizerSite,
 } from "./types";
 export { candidateAt } from "./types";
 
@@ -34,7 +35,13 @@ export {
 
 export { SIGNIFICANT_SOCIAL_VERBS, isSignificantDecision } from "./policy";
 
-export { buildRationalizerRequest, RELATIONSHIP_BUDGET } from "./request";
+export {
+  buildRationalizerRequest,
+  buildVoteRequest,
+  RELATIONSHIP_BUDGET,
+  type ConsultedAgent,
+  type VoterView,
+} from "./request";
 
 export { createStubRationalizer, stubRationale, type StubRationalizerOptions } from "./stub";
 
@@ -56,4 +63,5 @@ export {
   type RationalizerSeamOptions,
   type RationalizerDecision,
   type ConsiderInput,
+  type ConsiderVoteInput,
 } from "./seam";

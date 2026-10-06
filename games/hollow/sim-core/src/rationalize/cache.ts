@@ -129,6 +129,11 @@ export function deriveCacheKey(request: RationalizerRequest): string {
     needs: request.needs,
     relationships: request.relationships,
     standing: request.standing,
+    // A governance vote is keyed by its site and decision facts too (the
+    // norm's current value is an input the model reasons over). A social
+    // request adds neither, so every key recorded before hollow-17 still
+    // replays.
+    ...(request.site === "social" ? {} : { site: request.site, decision: request.decision ?? {} }),
   });
 }
 

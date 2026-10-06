@@ -1,11 +1,37 @@
 # hollow-17 — The rationalizer is attached to the one decision class its answers cannot survive
 
-status: todo — a build, and it starts at the design end
+> **CLOSED 2026-10-06 — built; the premise measured false.** The owner chose governance with the
+> leader deciding. The decision was recorded in [decisions.md](../../wiki/decisions.md) → *Hollow —
+> the LLM-rationalizer seam* before any enumeration was written. The site is the leader's own vote on
+> `shareRate` (`low` / `own` / `high`, identity `{communityId, leaderId, stance}`). Sanctions were
+> measured out first: all 545 in the four reference seeds were fines, and most violators are
+> sanctioned once. Acceptance, item by item:
+>
+> - Decision recorded first: yes.
+> - **Materially higher adoption: no.** 23 of 139 (16.5%) against the social site's 6 of 52
+>   (11.5%). Leaders survive only 40–60% of 50-tick passes, and every expiry was a community merged
+>   or dissolved in the same tick. The subject does not outlive the lag here either. Dropping the
+>   live gate gave 16.7%.
+> - Rate visible in the run summary: yes, one line per site.
+> - World diverges from `off`: seeds 11 and 42 in `lineage.json`, `metrics.csv` and `summary.json`;
+>   seed 23 in `metrics.csv` only; seed 7, with six adoptions, not at all (votes in the direction the
+>   norm already drifts at the step cap change nothing).
+> - Anchoring holds: every adopted vote is one of the three the pass enumerated, cast by the leader it
+>   was reasoned as (mutation-checked).
+> - The social site is unchanged: `off` and the agreeing stub are byte-identical to the pre-hollow-17
+>   output on all four seeds.
+>
+> Shipped anyway, by the owner's choice. The churn is filed as
+> [its own finding](../2026-10-06-hollow-leadership-churn.md).
+
+status: CLOSED 2026-10-06 (see the note above; the original text below is unchanged)
+
+original status: todo — a build, and it starts at the design end
 created: 2026-09-19
-context: the residue of [hollow-16](closed/2026-09-15-hollow-16-rationalizer-adoption-latency.md),
+context: the residue of [hollow-16](2026-09-15-hollow-16-rationalizer-adoption-latency.md),
 which settled the *characterisation* (occasional influence, stated honestly, self-reported) and
 deliberately did not attempt the fix. Read that decision in
-[decisions.md](../wiki/decisions.md) → *Hollow — the LLM-rationalizer seam* before starting; it
+[decisions.md](../../wiki/decisions.md) → *Hollow — the LLM-rationalizer seam* before starting; it
 contains the measurement that constrains every option here.
 
 ## The measured constraint
@@ -29,10 +55,10 @@ them.
 1. **Loosen identity to `kind` only.** Would adopt in ~33 of 43 cases — each against a person the
    model never reasoned about, while the chronicle carries its rationale about the original target.
    For an instrument built to compare stated against revealed reasoning, this falsifies the record.
-   Measured, not assumed. Refused in [decisions.md](../wiki/decisions.md).
+   Measured, not assumed. Refused in [decisions.md](../../wiki/decisions.md).
 2. **Preempt: apply the answer on arrival instead of at the next deliberation.** Would cut the lag to
    ~1 tick with a synchronous provider, but requires redirecting an agent **between** deliberations,
-   mid-intention. That breaks [`seam.ts`](../../games/hollow/sim-core/src/rationalize/seam.ts)'s
+   mid-intention. That breaks [`seam.ts`](../../../games/hollow/sim-core/src/rationalize/seam.ts)'s
    stated guarantee — *"the sim's behavior with the seam present is a superset of the sim's behavior
    without it, never a different shape"* — and changes the action model for every agent, seam or not.
    It is also a determinism problem, since a live provider's arrival tick is wall-clock-dependent.
@@ -41,7 +67,7 @@ them.
 
 ## What to do
 
-**Attach the seam where the subject persists.** [`policy.ts`](../../games/hollow/sim-core/src/rationalize/policy.ts)
+**Attach the seam where the subject persists.** [`policy.ts`](../../../games/hollow/sim-core/src/rationalize/policy.ts)
 already documents the candidates and why they were out of scope for hollow-13:
 
 > *"community join/leave is decided by the COMMUNITY-stage crystallize pass from trust topology,
@@ -72,7 +98,7 @@ Settle before writing code:
 
 ## Acceptance
 
-- A decision recorded in [decisions.md](../wiki/decisions.md) with the chosen pass and the candidate
+- A decision recorded in [decisions.md](../../wiki/decisions.md) with the chosen pass and the candidate
   identity, **before** any enumeration is written.
 - `RATIONALIZER=contrarian` shows a **materially higher adoption rate** on the new attachment point,
   and the rate is visible in the run summary block hollow-16 added (no new reporting needed).

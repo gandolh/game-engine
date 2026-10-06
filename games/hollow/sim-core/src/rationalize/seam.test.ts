@@ -241,9 +241,13 @@ describe("the seam is live — a disagreeing stub really changes the run", () =>
     expect(outcomes["adopted"] ?? 0).toBeGreaterThan(0);
 
     // Anchoring still holds for every adopted choice: the verb actually
-    // taken is one the enumerated set offered.
+    // taken is one the enumerated set offered. Since hollow-17 the same
+    // provider also answers leaders' votes, whose only kind is the vote.
     const enumerable = new Set(["steal", "sabotage", "attack", "rumor", "gift", "share", "help_labor", "teach", "trade"]);
-    for (const d of on.decisions) expect(enumerable.has(d.chosenKind)).toBe(true);
+    for (const d of on.decisions) {
+      if (d.site === "social") expect(enumerable.has(d.chosenKind)).toBe(true);
+      else expect(d.chosenKind).toBe("share-rate-vote");
+    }
 
     expect(on.trace).not.toBe(run().trace);
   });

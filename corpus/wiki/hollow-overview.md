@@ -321,10 +321,12 @@ never has to be taken on a wiki page's word. Full reasoning, and the two "fixes"
 because they would falsify the stated-vs-revealed record, are in
 [decisions.md](decisions.md) → *Hollow — the LLM-rationalizer seam*.
 
-## Next (hollow-17)
-[hollow-17](../todos/2026-09-19-hollow-17-rationalizer-attachment-point.md) moves the seam to a
-decision whose **subject outlives the answer-lag** (a community, a norm, a leader — not a peer who
-wanders off in 40 ticks). It is candidate-enumeration work on a system-driven pass, not a change to
-the seam's adoption logic, which the measurement says is correct. The economy-deepening idea is
+## The second site (hollow-17) and what it found
+[hollow-17](../todos/closed/2026-09-19-hollow-17-rationalizer-attachment-point.md) gave the seam a
+second site: the community leader's own vote on `shareRate` at a governance pass. Its subject was
+supposed to outlive the answer-lag, and measured, it does not: leaders survive only 40–60% of
+passes, so the site adopts 16.5% under `contrarian`, against the social site's 11.5%. The churn is
+[an open finding](../todos/2026-10-06-hollow-leadership-churn.md) about the governance model. The
+economy-deepening idea is
 largely **absorbed by hollow-14** (jobs → stockpile); what remains is optional food-economy
 balancing.

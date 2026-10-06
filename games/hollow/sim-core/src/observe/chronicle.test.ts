@@ -17,6 +17,7 @@ import { createChronicle, countByOntology, CHRONICLE_CAP, ONT_RATIONALIZE } from
 function makeDecision(overrides: Partial<RationalizerDecision> = {}): RationalizerDecision {
   return {
     tick: 10,
+    site: "social",
     agentId: 1,
     requestTick: 8,
     provider: "stub",
@@ -178,6 +179,7 @@ describe("createChronicle", () => {
       {
         tick: 10,
         ontology: ONT_RATIONALIZE.DECISION,
+        site: "social",
         agentId: 1,
         requestTick: 8,
         provider: "stub",

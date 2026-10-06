@@ -92,10 +92,23 @@ export interface RationalizerStanding {
 }
 
 /**
+ * Which decision a consultation is about.
+ *
+ *  - `social` — a deliberating agent choosing a social verb (hollow-13).
+ *  - `governance-vote` — a community leader casting their own vote on the
+ *    `shareRate` norm at a governance pass (hollow-17). Its subject, a
+ *    community and its leader, outlives the answer-lag, which a social
+ *    verb's peer does not. See corpus/wiki/decisions.md → Hollow — the
+ *    LLM-rationalizer seam.
+ */
+export type RationalizerSite = "social" | "governance-vote";
+
+/**
  * ONE consultation. Small, structured, plain data — no live entity refs, no
  * `Map`s (a provider may serialize this), nothing the model doesn't need.
  */
 export interface RationalizerRequest {
+  readonly site: RationalizerSite;
   readonly agentId: number;
   /** The tick the request was ISSUED on (not the tick it is answered on). */
   readonly tick: number;
@@ -122,6 +135,13 @@ export interface RationalizerRequest {
    * happens to sit at that index now.
    */
   readonly candidateFingerprint: string;
+  /**
+   * Facts about the decision that the candidates do not carry, for a site
+   * whose options need them to mean anything: for `governance-vote`, the
+   * norm, its current value, and the community's size. Absent for `social`,
+   * whose candidates name their own targets and goods.
+   */
+  readonly decision?: Readonly<Record<string, number | string>>;
 }
 
 /**

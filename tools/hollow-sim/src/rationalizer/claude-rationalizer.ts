@@ -120,7 +120,12 @@ const SYSTEM_PROMPT =
   "the default or pick a different candidate BY INDEX, and give a short, " +
   "plain-English reason. You may not describe or propose any action that is " +
   "not already in the candidate list; if none of the candidates seem right, " +
-  "answer with choiceIndex null to keep the default.";
+  "answer with choiceIndex null to keep the default. " +
+  "When `site` is `governance-vote`, the villager leads their community and " +
+  "the candidates are how they cast their OWN vote on the community's share " +
+  "rate (`low`, their own preference, or `high`); `decision` gives the norm's " +
+  "current value and range. The other members vote too, so this vote moves " +
+  "the outcome but does not set it.";
 
 /** Only the fields a decision needs, straight off `RationalizerRequest` —
  *  never anything the request doesn't already carry (spec: "never send
@@ -129,6 +134,9 @@ const SYSTEM_PROMPT =
  *  inputs, so they are left out of the prompt payload. */
 function buildUserContent(request: RationalizerRequest): string {
   const payload = {
+    // A social request reads exactly as it did before hollow-17; a vote says
+    // what it is and carries the facts its stances need.
+    ...(request.site === "social" ? {} : { site: request.site, decision: request.decision ?? {} }),
     genome: request.genome,
     beliefs: request.beliefs,
     needs: request.needs,

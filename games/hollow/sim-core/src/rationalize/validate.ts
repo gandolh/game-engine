@@ -71,7 +71,12 @@ export type RationalizerRejectionReason =
   | "non-integer-index"
   | "index-out-of-range"
   | "wrong-agent"
-  | "stale-candidates";
+  | "stale-candidates"
+  // Recorded by the seam, not this validator: a governance-vote answer that
+  // arrived but was never claimed (its community dissolved or went
+  // leaderless). Without it those would vanish from the run's statistics and
+  // flatter the adoption rate.
+  | "expired";
 
 export type AnchorOutcome =
   | {

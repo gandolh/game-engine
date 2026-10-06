@@ -40,6 +40,40 @@ export interface RationalizerRunSummary {
   readonly medianLagTicks: number;
   /** `adopted / consultations` as a percentage. 0 when there were none. */
   readonly adoptionPct: number;
+  /**
+   * The same counts per consultation site (hollow-17), in a fixed order
+   * (`social`, then `governance-vote`), listing only sites that were
+   * consulted. The sites differ by design, so a combined rate alone would
+   * hide what each one does.
+   */
+  readonly bySite: readonly SiteSummary[];
+}
+
+export interface SiteSummary {
+  readonly site: string;
+  readonly consultations: number;
+  readonly adopted: number;
+  readonly rejected: number;
+  readonly reasons: readonly (readonly [string, number])[];
+  readonly medianLagTicks: number;
+  readonly adoptionPct: number;
+}
+
+const SITE_ORDER = ["social", "governance-vote"] as const;
+
+function reasonCounts(rows: readonly RationalizeDecisionBody[]): readonly (readonly [string, number])[] {
+  const byReason = new Map<string, number>();
+  for (const r of rows) {
+    if (r.outcome === "rejected" && r.reason !== null) {
+      byReason.set(r.reason, (byReason.get(r.reason) ?? 0) + 1);
+    }
+  }
+  return [...byReason.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+}
+
+function medianLag(rows: readonly RationalizeDecisionBody[]): number {
+  const lags = rows.map((r) => r.tick - r.requestTick).sort((a, b) => a - b);
+  return lags[lags.length >> 1] ?? 0;
 }
 
 /**
@@ -60,14 +94,21 @@ export function summarizeRationalizerDecisions(
 
   const count = (outcome: string): number => rows.filter((r) => r.outcome === outcome).length;
 
-  const lags = rows.map((r) => r.tick - r.requestTick).sort((a, b) => a - b);
-  const medianLagTicks = lags[lags.length >> 1] ?? 0;
-
-  const byReason = new Map<string, number>();
-  for (const r of rows) {
-    if (r.outcome === "rejected" && r.reason !== null) {
-      byReason.set(r.reason, (byReason.get(r.reason) ?? 0) + 1);
-    }
+  const bySite: SiteSummary[] = [];
+  for (const site of SITE_ORDER) {
+    // A row written before hollow-17 has no `site`; it can only be social.
+    const siteRows = rows.filter((r) => (r.site ?? "social") === site);
+    if (siteRows.length === 0) continue;
+    const siteAdopted = siteRows.filter((r) => r.outcome === "adopted").length;
+    bySite.push({
+      site,
+      consultations: siteRows.length,
+      adopted: siteAdopted,
+      rejected: siteRows.filter((r) => r.outcome === "rejected").length,
+      reasons: reasonCounts(siteRows),
+      medianLagTicks: medianLag(siteRows),
+      adoptionPct: (siteAdopted / siteRows.length) * 100,
+    });
   }
 
   const adopted = count("adopted");
@@ -77,9 +118,10 @@ export function summarizeRationalizerDecisions(
     keptDefault: count("kept-default"),
     declined: count("declined"),
     rejected: count("rejected"),
-    reasons: [...byReason.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])),
-    medianLagTicks,
+    reasons: reasonCounts(rows),
+    medianLagTicks: medianLag(rows),
     adoptionPct: (adopted / rows.length) * 100,
+    bySite,
   };
 }
 
@@ -93,6 +135,19 @@ export function formatRationalizerSummary(s: RationalizerRunSummary): readonly s
       (reasonText === "" ? "" : ` (${reasonText})`),
     `    median answer-lag: ${String(s.medianLagTicks)} tick(s)`,
   ];
+  // One line per site, only when more than one was consulted: a social-only
+  // run prints exactly what it printed before hollow-17.
+  if (s.bySite.length > 1) {
+    for (const site of s.bySite) {
+      const reasons = site.reasons.map(([r, n]) => `${r} ${String(n)}`).join(", ");
+      lines.push(
+        `    ${site.site}: ${String(site.consultations)} consultation(s), ${String(site.adopted)} adopted ` +
+          `(${site.adoptionPct.toFixed(1)}%), rejected ${String(site.rejected)}` +
+          (reasons === "" ? "" : ` (${reasons})`) +
+          `, median lag ${String(site.medianLagTicks)} tick(s)`,
+      );
+    }
+  }
   // The line that would have prevented hollow-16's original mis-reading: a run
   // with zero adoptions is not evidence the seam is broken, it is a run whose
   // world is by definition the seam-OFF world.

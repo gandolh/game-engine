@@ -8,8 +8,10 @@ updated: 2026-09-19 (hollow-16 closed; hollow-17 queued; audit-53's WebGPU/Chrom
 > *low-rate and genuinely live* (~12% adoption under the contrarian diagnostic; when an answer is
 > adopted the world provably diverges), and every headless run now prints its own adoption rate. See
 > [decisions.md](../wiki/decisions.md) → *Hollow — the LLM-rationalizer seam*.
-> **The one queued spec is [hollow-17](2026-09-19-hollow-17-rationalizer-attachment-point.md)**:
-> move the seam to a decision whose subject outlives the 40-tick answer-lag. This file stays in the
+> **hollow-17 closed 2026-10-06** ([spec](closed/2026-09-19-hollow-17-rationalizer-attachment-point.md)):
+> the seam has a second site, the leader's `shareRate` vote, but its adoption rate (16.5%) is not
+> materially higher, because leaders turn over at the pass timescale. That is filed as
+> [a finding](2026-10-06-hollow-leadership-churn.md); no Hollow spec is queued. This file stays in the
 > live queue because it is the tracker that work records itself in; the milestone *map* it was
 > written against is closed at
 > [todos/closed/2026-07-17-hollow-00-BUILD-ORDER.md](closed/2026-07-17-hollow-00-BUILD-ORDER.md).

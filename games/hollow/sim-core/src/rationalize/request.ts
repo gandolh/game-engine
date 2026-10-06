@@ -18,6 +18,8 @@
 import { needFraction, relationshipScore } from "@engine/core/agent";
 import type { HollowDeliberationContext } from "../agents/registry";
 import type { ScoredChoice, SocialAgent } from "../agents/social-verbs";
+import type { HollowEntity } from "../components";
+import type { Community } from "../community";
 import { candidateFingerprint } from "./validate";
 import type {
   RationalizerCandidate,
@@ -53,7 +55,19 @@ const NEUTRAL_TRUST = 0.5;
  */
 const BELIEF_KEYS = ["starving", "foodDepletedTicks"] as const;
 
-function summarizeGenome(agent: SocialAgent): RationalizerGenomeSummary {
+/**
+ * What any consulted agent must carry, whichever site consults it. A
+ * deliberating `SocialAgent` is one; so is a community leader at a
+ * governance pass.
+ */
+export type ConsultedAgent = HollowEntity & {
+  id: number;
+  genome: NonNullable<HollowEntity["genome"]>;
+  needs: NonNullable<HollowEntity["needs"]>;
+  relationships: NonNullable<HollowEntity["relationships"]>;
+};
+
+function summarizeGenome(agent: ConsultedAgent): RationalizerGenomeSummary {
   const g = agent.genome;
   return {
     behavior: { ...g.behavior },
@@ -67,7 +81,7 @@ function summarizeGenome(agent: SocialAgent): RationalizerGenomeSummary {
   };
 }
 
-function summarizeNeeds(agent: SocialAgent): Record<string, number> {
+function summarizeNeeds(agent: ConsultedAgent): Record<string, number> {
   const out: Record<string, number> = {};
   // `byKind` is a plain object literal built at spawn (engine's `Needs`), so
   // its key order is insertion order and therefore deterministic; sorting
@@ -79,7 +93,7 @@ function summarizeNeeds(agent: SocialAgent): Record<string, number> {
   return out;
 }
 
-function summarizeBeliefs(agent: SocialAgent): Record<string, unknown> {
+function summarizeBeliefs(agent: ConsultedAgent): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   const data = agent.beliefs?.data;
   if (!data) return out;
@@ -195,6 +209,7 @@ export function buildRationalizerRequest(
   bdiChoiceIndex: number,
 ): RationalizerRequest {
   return {
+    site: "social",
     agentId: agent.id,
     tick: ctx.tick,
     genome: summarizeGenome(agent),
@@ -205,5 +220,86 @@ export function buildRationalizerRequest(
     candidates: toRequestCandidates(candidates),
     bdiChoiceIndex,
     candidateFingerprint: candidateFingerprint(candidates),
+  };
+}
+
+/** A fellow community member, as the vote request sees them: who they are and
+ *  which household they belong to. Plain data, like `NeighborView`. */
+export interface VoterView {
+  readonly id: number;
+  readonly householdId: number | null;
+}
+
+/**
+ * The leader's key ties for a vote: the fellow members whose trust in the
+ * leader sits furthest from neutral (grudge counts toward it), up to
+ * `RELATIONSHIP_BUDGET`, ties broken by ascending id, then re-sorted
+ * ascending. These are the people the vote is cast among. No candidate names
+ * a peer, so `isCandidateTarget` is always false.
+ */
+function summarizeVoterRelationships(
+  leader: ConsultedAgent,
+  members: readonly VoterView[],
+): readonly RationalizerRelationship[] {
+  const householdId = leader.householdId ?? null;
+  const scored: Array<{ readonly view: RationalizerRelationship; readonly extremity: number }> = [];
+  for (const member of members) {
+    if (member.id === leader.id) continue;
+    const trust = relationshipScore(leader.relationships, member.id);
+    const grudge = leader.feud?.byId.get(member.id) ?? 0;
+    scored.push({
+      view: {
+        peerId: member.id,
+        trust,
+        grudge,
+        sameHousehold: householdId != null && member.householdId === householdId,
+        sameCommunity: true,
+        isCandidateTarget: false,
+      },
+      extremity: Math.abs(trust - NEUTRAL_TRUST) + grudge,
+    });
+  }
+  const chosen = scored
+    .sort((a, b) => (b.extremity !== a.extremity ? b.extremity - a.extremity : a.view.peerId - b.view.peerId))
+    .slice(0, RELATIONSHIP_BUDGET)
+    .map((e) => e.view);
+  chosen.sort((a, b) => a.peerId - b.peerId);
+  return chosen;
+}
+
+/**
+ * Builds a `governance-vote` request (hollow-17): the leader of `community`
+ * deciding how to cast their own vote on `norm`. `members` must be the
+ * community's members in ascending id order (`CommunityRegistry` keeps them
+ * so). `decision` carries what the stance candidates do not: the norm, its
+ * current value and range, and the community's size.
+ */
+export function buildVoteRequest(
+  leader: ConsultedAgent,
+  community: Community,
+  members: readonly VoterView[],
+  candidates: readonly ScoredChoice[],
+  bdiChoiceIndex: number,
+  tick: number,
+  decision: Readonly<Record<string, number | string>>,
+): RationalizerRequest {
+  return {
+    site: "governance-vote",
+    agentId: leader.id,
+    tick,
+    genome: summarizeGenome(leader),
+    beliefs: summarizeBeliefs(leader),
+    needs: summarizeNeeds(leader),
+    relationships: summarizeVoterRelationships(leader, members),
+    standing: {
+      communityId: community.id,
+      memberCount: community.members.length,
+      standing: community.standing[leader.id] ?? null,
+      isLeader: community.leaderId === leader.id,
+    },
+    candidates: toRequestCandidates(candidates),
+    bdiChoiceIndex,
+    candidateFingerprint: candidateFingerprint(candidates),
+    decision,
   };
 }

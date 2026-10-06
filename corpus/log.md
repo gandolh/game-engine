@@ -4,6 +4,26 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [todos/closed/](todos/closed/), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-10-06] build | hollow-17: the rationalizer's second site, and the premise it disproved
+
+The owner chose governance with the leader deciding. Before any code, the decision went into
+[decisions.md](wiki/decisions.md) → *Hollow — the LLM-rationalizer seam*. Sanctions were measured
+out first: all 545 in the four reference seeds were fines, and most violators are sanctioned once.
+So the site is the leader's own vote on `shareRate`. The candidates are `low`, `own` (the default)
+and `high`, with identity `{communityId, leaderId, stance}`, and only the leader's term in the
+weighted sum changes. The seam's maps are now keyed by site, and governance answers by community,
+so a new leader claims (and rejects) the old leader's answer. An unclaimed governance answer is
+recorded as `rejected: expired`, and the run summary prints a line per site.
+
+**The premise did not survive measurement.** Contrarian, seeds 7/11/23/42 at 1500 ticks: 23 of 139
+votes adopted (16.5%) against the social site's 6 of 52 (11.5%). Every stale rejection was a
+leadership change; every expiry was a community merged or dissolved in the same tick. A leader
+survives only 40–60% of passes. Dropping the live gate gave 16.7%. Seam off and the agreeing stub are
+byte-identical to the pre-change output on all four seeds; seeds 11 and 42 diverge under
+contrarian. Six new tests, two mutation checks (shared key space; leader dropped from identity),
+both caught. The owner chose to ship it; the churn is
+[filed as a finding](todos/2026-10-06-hollow-leadership-churn.md).
+
 ## [2026-10-06] build | Hollow mounts into a container, and builds as a marketplace module
 
 [The spec](todos/2026-10-06-hollow-os-mount-build.md) is built on the game side, in the commit that adds this entry.
@@ -713,7 +733,7 @@ logic buried in a printer.
 point, not loosening anchoring (falsifies the record) and not preempting on arrival (which redirects an
 agent mid-intention — a behavioural change well beyond this seam, and a break of `seam.ts`'s
 "superset, never a different shape" guarantee). Filed as
-[hollow-17](todos/2026-09-19-hollow-17-rationalizer-attachment-point.md), carrying the measurement as
+[hollow-17](todos/closed/2026-09-19-hollow-17-rationalizer-attachment-point.md), carrying the measurement as
 a constraint so the next person does not re-derive it — including the instruction that **a
 zero-adoption run is not a pass**.
 

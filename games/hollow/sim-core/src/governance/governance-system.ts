@@ -74,6 +74,15 @@
  * subscription time, since membership can change between the event and the
  * next governance pass.
  *
+ * ── the leader's vote, through the rationalizer (hollow-17) ───────────────
+ * With a `RationalizerSeam` configured, sub-pass (b) asks it how the leader
+ * casts their own `shareRate` vote: `low`, `own` (the genome-implied
+ * preference, which is the default) or `high`. Only the leader's vote changes
+ * — every other member's standing-weighted vote still counts — and only by
+ * replacing the leader's term in the weighted sum, so with no seam, or a seam
+ * that keeps the default, the arithmetic is the one below unchanged. See
+ * corpus/wiki/decisions.md → Hollow — the LLM-rationalizer seam.
+ *
  * ── determinism ───────────────────────────────────────────────────────────
  * No `Rng` anywhere in this system — every decision here is arithmetic over
  * already-deterministic inputs (trust ledger scores, genome floats, sorted
@@ -91,6 +100,8 @@ import type { HollowEntity } from "../components";
 import { takeGoods } from "../components";
 import { NEED_BELONGING } from "../economy";
 import type { CommunityRegistry, Community } from "../community";
+import type { RationalizerSeam } from "../rationalize";
+import type { ScoredChoice } from "../agents/social-verbs";
 import { ONT_SOCIAL, ONT_GOVERNANCE, type GovernanceNormKind } from "../protocols";
 import {
   GOVERNANCE_INTERVAL_TICKS,
@@ -140,7 +151,16 @@ export interface GovernanceSystemOptions {
   leaderVoteWeightMultiplier?: number;
   sanctionExclusionSeverityThreshold?: number;
   normClashThreshold?: number;
+  /** hollow-17: the seam that may cast the leader's `shareRate` vote. Absent
+   *  (the default) means the leader votes their own preference, as before. */
+  rationalizer?: RationalizerSeam | null;
 }
+
+/** The kind every leader-vote candidate carries (hollow-17). */
+export const SHARE_RATE_VOTE_KIND = "share-rate-vote";
+
+/** The leader's possible stances, in candidate order. `own` is the default. */
+export const SHARE_RATE_VOTE_STANCES = ["low", "own", "high"] as const;
 
 type GovernanceEntity = HollowEntity & {
   id: number;
@@ -183,6 +203,7 @@ export class HollowGovernanceSystem implements System {
   private readonly leaderVoteWeightMultiplier: number;
   private readonly sanctionExclusionSeverityThreshold: number;
   private readonly normClashThreshold: number;
+  private readonly rationalizer: RationalizerSeam | null;
 
   // --- per-agent lifetime tallies, fed by ONT_SOCIAL subscriptions (see header) ---
   private readonly contributionTally = new Map<number, number>();
@@ -214,6 +235,7 @@ export class HollowGovernanceSystem implements System {
     this.sanctionExclusionSeverityThreshold =
       opts.sanctionExclusionSeverityThreshold ?? SANCTION_EXCLUSION_SEVERITY_THRESHOLD;
     this.normClashThreshold = opts.normClashThreshold ?? NORM_CLASH_THRESHOLD;
+    this.rationalizer = opts.rationalizer ?? null;
 
     bus.subscribeOntology(ONT_SOCIAL.SHARE, (msg: AgentMessage) => {
       const actorId = msg.body["actorId"] as number;
@@ -447,11 +469,15 @@ export class HollowGovernanceSystem implements System {
       let weightedCoop = 0;
       let weightedAdmission = 0;
       let totalWeight = 0;
+      let leaderWeight = 0;
       for (const memberId of community.members) {
         const member = byId.get(memberId);
         if (!member) continue;
         let weight = STANDING_VOTE_WEIGHT_FLOOR + (standing.get(memberId) ?? 0);
-        if (memberId === community.leaderId) weight *= this.leaderVoteWeightMultiplier;
+        if (memberId === community.leaderId) {
+          weight *= this.leaderVoteWeightMultiplier;
+          leaderWeight = weight;
+        }
 
         weightedShare += weight * this.preferredShareRate(member);
         weightedCoop += weight * this.preferredCooperationExpectation(member);
@@ -460,10 +486,69 @@ export class HollowGovernanceSystem implements System {
       }
       if (totalWeight <= 0) continue;
 
+      // hollow-17: the seam may cast the leader's shareRate vote differently.
+      // Replacing only the leader's term leaves the sum untouched when it does
+      // not (no seam, or the default kept).
+      const leaderShift = this.consultLeaderVote(community, byId, leaderWeight, weightedShare / totalWeight, tick);
+      if (leaderShift !== 0) weightedShare += leaderWeight * leaderShift;
+
       this.driftNorm(community, "shareRate", weightedShare / totalWeight, tick);
       this.driftNorm(community, "cooperationExpectation", weightedCoop / totalWeight, tick);
       this.driftNorm(community, "admissionPolicy", weightedAdmission / totalWeight, tick);
     }
+  }
+
+  /**
+   * hollow-17: asks the seam how the leader casts their `shareRate` vote and
+   * returns how far that vote moves from the leader's own preference (0 when
+   * there is no seam, no leader, or the default stands). Consulted only for a
+   * community with a living leader and at least two members, and only asked
+   * anew when the vote is live: the target, with the leader voting their own
+   * preference, would move the norm this pass.
+   */
+  private consultLeaderVote(
+    community: Community,
+    byId: Map<number, GovernanceEntity>,
+    leaderWeight: number,
+    defaultTarget: number,
+    tick: number,
+  ): number {
+    const seam = this.rationalizer;
+    if (seam === null || community.leaderId == null || community.members.length < 2 || leaderWeight <= 0) return 0;
+    const leader = byId.get(community.leaderId);
+    if (!leader?.genome) return 0;
+
+    const own = this.preferredShareRate(leader);
+    const range = NORM_SHARE_RATE_MAX - NORM_SHARE_RATE_MIN;
+    const valueOf = { low: NORM_SHARE_RATE_MIN, own, high: NORM_SHARE_RATE_MAX } as const;
+    const candidates: ScoredChoice[] = SHARE_RATE_VOTE_STANCES.map((stance) => ({
+      kind: SHARE_RATE_VOTE_KIND,
+      // Identity: this community, this leader, this stance. A changed leader
+      // makes every answer reasoned by the previous one stale.
+      data: { communityId: community.id, leaderId: leader.id, stance },
+      // The substrate's valuation: closeness to the leader's own preference.
+      score: 1 - Math.abs(valueOf[stance] - own) / range,
+    }));
+    const current = community.norms.shareRate;
+    const chosen = seam.considerVote({
+      leader: { ...leader, genome: leader.genome },
+      community,
+      members: community.members.map((id) => ({ id, householdId: byId.get(id)?.householdId ?? null })),
+      tick,
+      candidates,
+      bdiChoiceIndex: SHARE_RATE_VOTE_STANCES.indexOf("own"),
+      live: Math.abs(defaultTarget - current) >= NORM_CHANGE_EMIT_EPSILON,
+      decision: {
+        norm: "shareRate",
+        currentValue: current,
+        min: NORM_SHARE_RATE_MIN,
+        max: NORM_SHARE_RATE_MAX,
+        memberCount: community.members.length,
+      },
+      timeoutTicks: this.intervalTicks * 2,
+    });
+    const stance = chosen.data["stance"] as (typeof SHARE_RATE_VOTE_STANCES)[number];
+    return valueOf[stance] - own;
   }
 
   private driftNorm(community: Community, norm: GovernanceNormKind, target: number, tick: number): void {

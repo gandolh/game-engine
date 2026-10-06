@@ -34,6 +34,7 @@ afterEach(() => {
 
 function makeRequest(overrides: Partial<RationalizerRequest> = {}): RationalizerRequest {
   return {
+    site: "social",
     agentId: 1,
     tick: 100,
     genome: {
@@ -271,6 +272,20 @@ describe("createClaudeRationalizer", () => {
     expect(Object.keys(sentPayload).sort()).toEqual(
       ["bdiDefaultIndex", "beliefs", "candidates", "genome", "needs", "relationships", "standing"].sort(),
     );
+  });
+
+  it("tells the model a governance vote is a vote, with the norm's facts (hollow-17)", async () => {
+    const create = vi.fn().mockResolvedValue(fakeMessage(JSON.stringify({ choiceIndex: null, rationale: "ok" })));
+    const rationalizer = createClaudeRationalizer({ apiKey: "test-key", client: makeClient(create) });
+    rationalizer.submit(
+      makeRequest({ site: "governance-vote", decision: { norm: "shareRate", currentValue: 0.3, min: 0.05, max: 0.6, memberCount: 5 } }),
+    );
+    await flush();
+
+    const params = create.mock.calls[0]?.[0] as { messages: Array<{ content: string }> };
+    const sentPayload = JSON.parse(params.messages[0]?.content ?? "") as Record<string, unknown>;
+    expect(sentPayload["site"]).toBe("governance-vote");
+    expect(sentPayload["decision"]).toEqual({ norm: "shareRate", currentValue: 0.3, min: 0.05, max: 0.6, memberCount: 5 });
   });
 });
 

@@ -32,9 +32,10 @@ edit the matching line below.
   Life), plus hollow-13's LLM rationalizer seam (**off by default, byte-identical when off**). The 3D
   image is **no longer Chrome-gated** — it is WebGL2 and renders in-sandbox. The seam is **low-rate
   and genuinely live**: ~12% adoption under the contrarian diagnostic, and when an answer is adopted
-  the world provably diverges (hollow-16, 2026-09-19 — every run now prints its own rate). One queued
-  spec: [hollow-17](../todos/2026-09-19-hollow-17-rationalizer-attachment-point.md), moving the seam
-  to a decision whose subject outlives the 40-tick answer-lag. Hollow also builds as an ImbatranimOS
+  the world provably diverges (hollow-16, 2026-09-19 — every run now prints its own rate). hollow-17
+  (2026-10-06) added a second site, the leader's `shareRate` vote; it adopts 16.5% rather than the
+  hoped-for much more, because leaders turn over at the pass timescale
+  ([finding](../todos/2026-10-06-hollow-leadership-churn.md)). No Hollow spec is queued. Hollow also builds as an ImbatranimOS
   marketplace module (`npm run build:os -w @hollow/client` → `dist/os/hollow.mjs`, 2026-10-06);
   installing it waits on a push ([spec](../todos/2026-10-06-hollow-os-mount-build.md)).
   [hollow-overview.md](hollow-overview.md) ·

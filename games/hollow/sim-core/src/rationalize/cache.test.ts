@@ -29,6 +29,7 @@ import {
 
 function makeRequest(overrides: Partial<RationalizerRequest> = {}): RationalizerRequest {
   return {
+    site: "social",
     agentId: 1,
     tick: 100,
     genome: { behavior: { greed: 0.4 }, aptitude: {}, appearance: { height: 1, build: 1, skinTone: "skin", hairTone: "hairBlack" } },

@@ -943,6 +943,9 @@ export function bootstrapHollowSim(opts: HollowSimOptions): BootedHollowSim {
         sanctionExclusionSeverityThreshold:
           opts.governanceSanctionExclusionSeverityThreshold ?? SANCTION_EXCLUSION_SEVERITY_THRESHOLD,
         normClashThreshold: opts.governanceNormClashThreshold ?? NORM_CLASH_THRESHOLD,
+        // hollow-17: the same seam, at its second site — the leader's
+        // shareRate vote. `null` (the default) leaves governance unchanged.
+        rationalizer: rationalizerSeam ?? null,
       }),
     )
     .stage("JOBS")

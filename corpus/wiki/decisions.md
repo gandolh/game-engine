@@ -308,7 +308,58 @@ that produces it; a figure every run prints cannot.
 **The latency itself is unfixed, and fixing it means moving the attachment point** — not loosening
 anchoring and not preempting mid-intention (which would redirect an agent between deliberations, a
 behavioural change well beyond this seam and a break of its "superset, never a different shape"
-guarantee). Filed as [hollow-17](../todos/2026-09-19-hollow-17-rationalizer-attachment-point.md).
+guarantee). Filed as [hollow-17](../todos/closed/2026-09-19-hollow-17-rationalizer-attachment-point.md).
+
+**The second consultation site is the leader's vote on `shareRate`.** (hollow-17, 2026-10-06;
+settled before any enumeration was written, as the spec required. The owner chose governance, with the
+leader deciding.)
+
+- **Which pass: the GOVERNANCE norm vote, `shareRate` only.** Sanctions were the other governance
+  candidate and were measured out. Across the four reference seeds (7, 11, 23, 42, 1500 ticks), all
+  545 sanctions were fines and none were exclusions. Most violators are sanctioned once (seed 7: 58 of
+  176). So a sanction's subject, *this violator, still violating*, rarely survives to the next pass
+  50 ticks later, which is the turnover that sinks the social site. `shareRate` is the norm with
+  consequences downstream: it sets the hoarding-sanction threshold and drives norm-clash defection.
+  One norm, not three, because three consultations a pass would triple the cost for little new signal.
+- **Who decides: the leader, and only their own vote.** The governance model already gives the
+  leader a vote weighted ×`LEADER_VOTE_WEIGHT_MULTIPLIER`: influence, not dictatorship. The model
+  chooses how the leader casts that vote, and every other member's standing-weighted vote still
+  counts. An adopted answer therefore moves the target and never sets it. A leader cannot be
+  consulted on a community they do not lead.
+- **What a candidate is.** The leader's vote is one of `low` (`NORM_SHARE_RATE_MIN`), `own`
+  (their genome-implied preference, which is the substrate's default) or `high`
+  (`NORM_SHARE_RATE_MAX`). Each is a legal value in the range the pass already uses, so nothing new
+  enters the sim's vocabulary. Score is closeness to the leader's own preference.
+- **Identity.** `share-rate-vote` with `{communityId, leaderId, stance}`. If leadership changes, the
+  live set carries the new `leaderId`, the old answer is `stale-candidates`, and a vote reasoned as
+  one leader is never cast by another. Dropping `leaderId` would raise the rate the same way a
+  kind-only match would have on the social site, and is refused for the same reason.
+- **When.** At a pass, for a community with a leader and at least two members, when the vote is live:
+  the standing-weighted target differs from the current `shareRate` by at least
+  `NORM_CHANGE_EMIT_EPSILON`, so the norm would move this pass anyway. A parked answer is claimed at
+  the leader's next pass, so a community is consulted at most every other pass.
+- **Determinism.** One seam serves both sites, with its maps keyed by site and agent, so a leader's
+  social consultation and their vote never collide. Communities are visited in ascending id and
+  answers are claimed by key in that order, so arrival order never reaches stage output. A governance
+  answer expires after two governance intervals. The social site's 50-tick timeout would race the
+  50-tick pass.
+- **Reporting.** Every decision row carries its `site`, and the run summary prints one line per site.
+  A governance answer that expires unclaimed is recorded as `rejected: expired`, so dissolved
+  communities cannot flatter the rate. Social expiries stay silent, as in hollow-16.
+
+**Measured, the premise was wrong: the vote's subject does not outlive the lag either.** Same four
+seeds, `contrarian`: the governance site adopted **23 of 139 (16.5%)**, against the social site's
+6 of 52 (11.5%). That is not the material improvement hollow-17 was after. Every `stale-candidates`
+(73) was a leadership change; every `expired` (43) was a community merged or dissolved in the same
+tick the vote was asked (COMMUNITY runs right after GOVERNANCE). Across all communities, a leader
+survives only **40–60% of 50-tick passes**, and about half of all communities last under two passes.
+The spec's "a community, a norm, a leader persist for hundreds of ticks" does not hold in this sim.
+Dropping the live gate changed nothing (24 of 144, 16.7%), so the gate is not the cause. Adoption
+does not always move the world: a vote in the direction the norm already drifts at the step cap
+changes nothing, and seed 7's six adoptions left it identical to `off`. Seeds 11 and 42 diverge in
+`lineage.json`. The owner chose to ship the site anyway (2026-10-06): it is off by default,
+byte-identical when off, and a leader's vote is a deliberate decision worth studying. The churn is
+filed as its own finding about the governance model.
 
 **Anchoring is per-choice by identity, not per-set by position.** (hollow-13, 2026-09-15.) The seam
 hands the model a set of BDI-produced candidates and takes back a choice among them. The obvious
