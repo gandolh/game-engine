@@ -35,7 +35,7 @@ edit the matching line below.
   the world provably diverges (hollow-16, 2026-09-19 — every run now prints its own rate). hollow-17
   (2026-10-06) added a second site, the leader's `shareRate` vote; it adopts 16.5% rather than the
   hoped-for much more, because leaders turn over at the pass timescale
-  ([finding](../todos/2026-10-06-hollow-leadership-churn.md)). No Hollow spec is queued. Hollow also builds as an ImbatranimOS
+  ([finding](../todos/closed/2026-10-06-hollow-leadership-churn.md)). No Hollow spec is queued. Hollow also builds as an ImbatranimOS
   marketplace module (`npm run build:os -w @hollow/client` → `dist/os/hollow.mjs`, 2026-10-06);
   installing it waits on a push ([spec](../todos/2026-10-06-hollow-os-mount-build.md)).
   [hollow-overview.md](hollow-overview.md) ·

@@ -396,6 +396,19 @@ stale-but-still-feasible option outranked a fresh valuation. The invariant this 
 load-bearing — **seam ON with the echoing stub is byte-identical to seam OFF**, while a contrarian
 stub provably diverges. Those two tests together are what prove the seam is neither inert nor leaky.
 
+
+## Hollow — leadership is volatile by design (2026-10-06)
+
+**A Hollow leader holding office for about one governance pass is intended.** Measured on the four
+reference seeds (1500 ticks, seam off), a leader survives a pass 41–61% of the time and about half of
+all communities last under two passes. The owner read the numbers and kept it: "contestable" means
+contested. **Rejected:** hysteresis, a minimum tenure, and smoothing the trust term. Each would change
+every run, and nothing in the design needs a leader to last.
+
+The consequence to carry: anything keyed to the leader (hollow-17's `shareRate` vote site, jobs
+assignment) inherits the churn, so a leader-keyed site will always be a low-rate one. Don't re-open
+this to raise a rationalizer adoption rate; pick a site that isn't keyed to the leader instead.
+The measurement: [the finding](../todos/closed/2026-10-06-hollow-leadership-churn.md).
 ## WASM
 
 - **AssemblyScript** for native-speed kernels — TypeScript-shaped, no native toolchain, ships as an npm package. See [engine/wasm-modules/README.md](../../engine/wasm-modules/README.md).

@@ -22,7 +22,7 @@
 >   output on all four seeds.
 >
 > Shipped anyway, by the owner's choice. The churn is filed as
-> [its own finding](../2026-10-06-hollow-leadership-churn.md).
+> [its own finding](2026-10-06-hollow-leadership-churn.md).
 
 status: CLOSED 2026-10-06 (see the note above; the original text below is unchanged)
 

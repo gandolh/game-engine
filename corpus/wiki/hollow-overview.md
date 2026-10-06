@@ -326,7 +326,7 @@ because they would falsify the stated-vs-revealed record, are in
 second site: the community leader's own vote on `shareRate` at a governance pass. Its subject was
 supposed to outlive the answer-lag, and measured, it does not: leaders survive only 40–60% of
 passes, so the site adopts 16.5% under `contrarian`, against the social site's 11.5%. The churn is
-[an open finding](../todos/2026-10-06-hollow-leadership-churn.md) about the governance model. The
+a [finding](../todos/closed/2026-10-06-hollow-leadership-churn.md) the owner kept as designed (decisions.md). The
 economy-deepening idea is
 largely **absorbed by hollow-14** (jobs → stockpile); what remains is optional food-economy
 balancing.

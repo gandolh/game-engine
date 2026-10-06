@@ -73,7 +73,7 @@ which is how a "WebGPU-only render path" line outlived the page that already sai
 - **[Hollow as an ImbatranimOS marketplace app](todos/2026-10-06-hollow-os-mount-build.md)** — built
   2026-10-06 (`mount`/`unmount`, `npm run build:os -w @hollow/client`); waiting on the owner's push
   and the install walk in imbatranimOS.
-- **[Hollow's leadership churn](todos/2026-10-06-hollow-leadership-churn.md)** — a finding, not yet a
+- **[Hollow's leadership churn](todos/closed/2026-10-06-hollow-leadership-churn.md)** — a finding, not yet a
   spec: leaders survive only 40–60% of governance passes, which capped
   [hollow-17](todos/closed/2026-09-19-hollow-17-rationalizer-attachment-point.md)'s second
   rationalizer site at 16.5% adoption. Whether that volatility is intended is a design question.

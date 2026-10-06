@@ -1,8 +1,8 @@
 # Hollow's leaders turn over at the governance pass's own timescale
 
-status: open — a finding, not yet a spec
+status: closed 2026-10-06 — kept as designed (owner decision)
 created: 2026-10-06
-context: measured while building [hollow-17](closed/2026-09-19-hollow-17-rationalizer-attachment-point.md).
+context: measured while building [hollow-17](2026-09-19-hollow-17-rationalizer-attachment-point.md).
 
 ## What was measured
 
@@ -20,7 +20,7 @@ from standing, and the trust-held term moves every tick, so a contested leadersh
 
 ## Why it matters
 
-[hollow-overview.md](../wiki/hollow-overview.md) and the governance header describe a "contestable
+[hollow-overview.md](../../wiki/hollow-overview.md) and the governance header describe a "contestable
 emergent leader". At these rates a leader rarely holds office for long enough to matter, and
 anything keyed to a leader (hollow-17's vote site, any future leader-driven decision) inherits the
 churn. Whether that is the intended dynamic is a design question.
@@ -31,3 +31,8 @@ Decide whether leadership *should* be this volatile. If not, the candidates are 
 challenger must beat the incumbent's standing by a margin), smoothing the trust-held term, or a
 minimum tenure. Any of them changes the world for every run, so it needs the usual multi-seed
 `EXPORT=json` comparison, and it would make hollow-17's site worth re-measuring.
+
+## Closed 2026-10-06
+
+The owner kept the volatility: it is the intended contestable leader. Recorded in
+[decisions.md](../../wiki/decisions.md) → *Hollow — leadership is volatile by design*. No spec.

@@ -1,6 +1,6 @@
 ---
 summary: Live list of what is genuinely unresolved, plus settled premises that must not be re-litigated. Resolved items are deleted, not archived.
-updated: 2026-09-20
+updated: 2026-10-06
 ---
 
 # Open Questions & Gaps
@@ -13,11 +13,6 @@ _No defects currently open._ The four found by the 2026-09-20 playtest were buil
 day ([playtest-01..06](../todos/closed/)); the one unsettled question they raised — the repo had no
 written **minimum supported viewport** — was decided as `1280×640` and recorded in
 [decisions.md](decisions.md) → *Minimum supported viewport*, enforced by `assertFitsViewport`.
-
-**Should Hollow's leaders be this volatile?** A leader survives only 40–60% of governance passes,
-which capped hollow-17's second rationalizer site. Whether that is the intended "contestable"
-leadership or needs hysteresis is open:
-[the finding](../todos/2026-10-06-hollow-leadership-churn.md).
 
 > **Resolved 2026-09-20 — "why do ~3 random tests fail on a full `npm run test`?"** They were not
 > failing, they were **timing out** against vitest's 5s default (no workspace sets `testTimeout`),

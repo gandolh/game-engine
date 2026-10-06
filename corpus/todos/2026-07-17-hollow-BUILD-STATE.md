@@ -1,7 +1,7 @@
 # Hollow — BUILD STATE / RESUME (live tracker)
 
 status: in-progress
-updated: 2026-09-19 (hollow-16 closed; hollow-17 queued; audit-53's WebGPU/Chrome gate removed)
+updated: 2026-10-06 (hollow-17 closed; leader churn kept as designed; no spec queued)
 
 > **Where Hollow stands (2026-09-19).** M1–M5 are built: 01–15, plus **hollow-13**'s LLM rationalizer
 > seam. **hollow-16** closed it out by measuring the seam rather than arguing about it — it is
@@ -11,7 +11,7 @@ updated: 2026-09-19 (hollow-16 closed; hollow-17 queued; audit-53's WebGPU/Chrom
 > **hollow-17 closed 2026-10-06** ([spec](closed/2026-09-19-hollow-17-rationalizer-attachment-point.md)):
 > the seam has a second site, the leader's `shareRate` vote, but its adoption rate (16.5%) is not
 > materially higher, because leaders turn over at the pass timescale. That is filed as
-> [a finding](2026-10-06-hollow-leadership-churn.md); no Hollow spec is queued. This file stays in the
+> [a finding](closed/2026-10-06-hollow-leadership-churn.md); no Hollow spec is queued. This file stays in the
 > live queue because it is the tracker that work records itself in; the milestone *map* it was
 > written against is closed at
 > [todos/closed/2026-07-17-hollow-00-BUILD-ORDER.md](closed/2026-07-17-hollow-00-BUILD-ORDER.md).
