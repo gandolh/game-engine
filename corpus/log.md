@@ -4,6 +4,10 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [todos/closed/](todos/closed/), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-10-07] cleanup | Farm's June world-design backlog deleted
+
+`games/farm/client/WORLD_DESIGN_TODO.md` (the 2026-06-04 world-design and UX audit, 16 unticked items) is gone; the owner judged it outdated. Nothing in the repo linked to it, and it predates the seed-generated world (briefs 92 and 93) that its map-placement items assumed. Farm stays shipped, in maintenance.
+
 ## [2026-10-07] build | Hollow's built ImbatranimOS app is in main, at games/hollow/os-app
 
 ImbatranimOS now installs apps from a GitHub URL into a sandbox (its brief 158), and builds nothing it
