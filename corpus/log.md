@@ -4,6 +4,30 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [todos/closed/](todos/closed/), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-10-07] build | Hollow's built ImbatranimOS app is in main, at games/hollow/os-app
+
+ImbatranimOS now installs apps from a GitHub URL into a sandbox (its brief 158), and builds nothing it
+installs that way, so the app ships prebuilt: `imbatranim.json` beside `dist/hollow.mjs` and the sim
+worker. It started on an orphan branch, `imbatranim-app`. The owner wanted it tested from a stable
+main, so the branch is merged as a subtree under `games/hollow/os-app/` (merge `8db15ad`; at the root
+its README would have clashed with main's). The branch is deleted locally and was never pushed.
+`.gitignore` keeps every `dist/` out except that one. `npm run build:os-app -w @hollow/client` rebuilds
+and copies it there without source maps (`scripts/sync-os-app.mjs`); against `8db15ad` it reproduces
+the committed files byte for byte. Checked through ImbatranimOS's real installer (local `file:` repo,
+ref `main`, subdir `games/hollow/os-app`): it resolves to `8db15ad`, installs, serves all four files
+under its token, and uninstalls. Install URL once pushed:
+`https://github.com/gandolh/game-engine/tree/main/games/hollow/os-app`. The catalog install
+(`marketplace/hollow.json`, built from source at `0d83f70`) is unchanged.
+
+## [2026-10-07] maintenance | Hollow BUILD-STATE tracker deleted
+
+The owner asked for the live tracker `todos/2026-07-17-hollow-BUILD-STATE.md` to go: every Hollow
+milestone is built, hollow-17 closed on 2026-10-06, and no Hollow spec is queued. The file is deleted
+(git has it). Live pages no longer point at it: index.md (the queue is now empty), routing.md,
+wiki/status.md and wiki/hollow-overview.md, which now sends the per-brief record to this log and the
+closed `2026-07-17-hollow-*` specs. Links to it in four closed specs and two older log entries are
+plain text, the sanctioned link-repair edit to the archive. Lint OK.
+
 ## [2026-10-07] close | Hollow installs and runs from ImbatranimOS's marketplace
 
 The owner pushed `main` (`0d83f70`, containing the mount build). ImbatranimOS's
@@ -3859,12 +3883,3 @@ detail most likely to be out of date in a reader's head.
 Sources are typed JSON in `docs/diagrams/`, compiled and validated before they
 ship; the artifact is committed because archify is a per-machine agent skill
 rather than an npm dependency. Docs build clean: 26 pages.
-
-## [2026-10-07] maintenance | Hollow BUILD-STATE tracker deleted
-
-The owner asked for the live tracker `todos/2026-07-17-hollow-BUILD-STATE.md` to go: every Hollow
-milestone is built, hollow-17 closed on 2026-10-06, and no Hollow spec is queued. The file is deleted
-(git has it). Live pages no longer point at it: index.md (the queue is now empty), routing.md,
-wiki/status.md and wiki/hollow-overview.md, which now sends the per-brief record to this log and the
-closed `2026-07-17-hollow-*` specs. Links to it in four closed specs and two older log entries are
-plain text, the sanctioned link-repair edit to the archive. Lint OK.

@@ -38,7 +38,9 @@ edit the matching line below.
   ([finding](../todos/closed/2026-10-06-hollow-leadership-churn.md)). No Hollow spec is queued. Hollow also builds as an ImbatranimOS
   marketplace module (`npm run build:os -w @hollow/client` → `dist/os/hollow.mjs`, 2026-10-06),
   and ImbatranimOS installs and runs it from its catalog at `0d83f70` (walked 2026-10-07,
-  [spec](../todos/closed/2026-10-06-hollow-os-mount-build.md)).
+  [spec](../todos/closed/2026-10-06-hollow-os-mount-build.md)). Its built copy is committed at
+  [games/hollow/os-app](../../games/hollow/os-app/README.md) (refresh: `npm run build:os-app -w @hollow/client`),
+  so ImbatranimOS can also install it from this repo's URL, sandboxed (2026-10-07).
   [hollow-overview.md](hollow-overview.md)
 - **MateQuest** — built and playable, M0–M5 complete. Romanian-curriculum math roguelike; UI defaults
   to Romanian. **Grades I–IV** — settled 2026-09-19

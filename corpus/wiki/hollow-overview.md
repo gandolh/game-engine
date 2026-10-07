@@ -25,6 +25,10 @@ The per-brief record is in [log.md](../log.md) and the closed `2026-07-17-hollow
 - **`@hollow/client`** — browser client. **M2 landed** the living 3D town: it consumes the
   engine WebGL2 renderer, reads the Worker snapshot stream, and draws the cozy scene
   (`src/render3d/` + `src/main.ts`, worker `src/worker/`). `npm run hollow`.
+- **`games/hollow/os-app/`** — not a package: Hollow's ImbatranimOS module, **built and committed**
+  with its `imbatranim.json`, for ImbatranimOS's install-from-URL (sandboxed, nothing built on
+  install). Refresh with `npm run build:os-app -w @hollow/client`; see its
+  [README](../../games/hollow/os-app/README.md).
 - **`@tool/hollow-sim`** — the headless research CLI (hollow-07): drives `bootstrapHollowSim` on the
   main thread, samples metrics, captures the event chronicle, exports for offline study. Since M3 it
   consumes the shared `@hollow/sim-core/observe` serializers (one source of truth with the client) and
