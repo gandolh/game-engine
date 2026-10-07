@@ -8,7 +8,7 @@ updated: 2026-09-19 (closeout; and audit-53 corrected decision #7, which said ra
 > (01–15, plus hollow-13's LLM seam). A plan whose every milestone shipped is history, not a queue
 > item. The live design-of-record is [wiki/hollow-overview.md](../../wiki/hollow-overview.md); the
 > live progress tracker — still open, because Hollow work continues — is
-> [2026-07-17-hollow-BUILD-STATE.md](../2026-07-17-hollow-BUILD-STATE.md). The **decisions** in this
+> `2026-07-17-hollow-BUILD-STATE.md`. The **decisions** in this
 > file are still worth reading; they are why the build looks the way it does. Note decision #7's
 > correction: the renderer is WebGL2, not the raw WebGPU this file originally specified.
 

@@ -32,7 +32,7 @@ Evidence gathered 2026-09-15:
    commit: **`df9919f` — "engine: delete both WebGPU backends and purge @webgpu/types (brief 12)"**,
    which added all 11,304 lines of them alongside an unrelated renderer deletion. They were swept in
    by a `git add -A` — precisely the trap this spec was filed about.
-3. **It was already known.** [hollow BUILD-STATE](../2026-07-17-hollow-BUILD-STATE.md) line 312 lists
+3. **It was already known.** hollow BUILD-STATE line 312 lists
    *"ensure `hollow-out/` (CLI EXPORT_DIR) is gitignored"* as outstanding housekeeping.
 
 They are not a fixture. **Untrack them and gitignore the directory.**

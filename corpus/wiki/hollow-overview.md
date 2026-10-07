@@ -1,6 +1,6 @@
 ---
 summary: What Hollow is (generational social-emergence sim on the shared engine) — M1 headless sim (exit-bar PASSED), M2 3D layer (engine **WebGL2** renderer + gene-driven cozy town), M3 research surfaces (observe module + chronicle/dashboard + persona authoring + shocks/replay), M4 hollow-12 governance + antagonism arcs, M5 hollow-14 Daily Life (leader-assigned jobs + diurnal routine + one central hearth + rare/private interaction), M6 hollow-15 Mortality & Care (3-day starvation death + persistent corpses + graveyard/grave-digger burial + rot→disease + medic), plus load-bearing decisions + known traits.
-updated: 2026-09-19
+updated: 2026-10-07
 ---
 
 # Hollow — overview
@@ -15,8 +15,9 @@ seeded initial conditions, not to hand-author a story.
 
 Built via `plan-split-dispatch` (opus controller, Sonnet executors). **On `main` since 2026-08-18** —
 the old `hollow` working branch is history, and `games/hollow/` is part of the default checkout.
-**M1–M5 are complete** (01–15) plus hollow-13's LLM rationalizer seam; see the exit-bar results below
-and the [BUILD-STATE tracker](../todos/2026-07-17-hollow-BUILD-STATE.md) for the per-brief record.
+**M1–M5 are complete** (01–15) plus hollow-13's LLM rationalizer seam; see the exit-bar results below.
+The per-brief record is in [log.md](../log.md) and the closed `2026-07-17-hollow-*` specs in
+[todos/closed/](../todos/closed/).
 
 ## Packages
 - **`@hollow/sim-core`** — the transport-agnostic, deterministic sim (systems, agents, world,
@@ -154,7 +155,7 @@ scheme** (skin×hair×pose), overlay glyphs/tags/click-inspect/follow-cam. Headl
 existed because the sandbox has no WebGPU adapter (`requestAdapter()` → null). On WebGL2 the town
 renders here fine (verified in-browser at 60fps via a software/ANGLE path), so 3D visual acceptance
 is now checkable without a human.
-Full slice-by-slice detail in log.md + BUILD-STATE.
+Full slice-by-slice detail in log.md.
 
 ## M3 — research surfaces + director role (2026-07-20)
 Turns the viewer into a research instrument. **10** promoted the metrics/chronicle/export serializers
@@ -206,7 +207,6 @@ be appended after existing ones + created unconditionally. DOM/interaction flow 
   (`app.ts` render loop, `humanoid.ts`, `agent-anim.ts`, `world-meshes.ts`, `overlay.ts`,
   `screen-project.ts`, `materials.ts`, `interp.ts`, …), `worker/` (`sim-worker.ts` + `inspect.ts`),
   `inspect-panel.ts`, `main.ts`.
-- Live build tracker / handoffs: [../todos/2026-07-17-hollow-BUILD-STATE.md](../todos/2026-07-17-hollow-BUILD-STATE.md).
 
 ## M4 — governance & antagonism arcs (hollow-12, done)
 Depth on the emergent society, both slices sim-core + headless-verifiable (`96f0bf5` + `1b32909`).

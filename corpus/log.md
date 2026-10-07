@@ -685,7 +685,7 @@ Twelve files were checked one by one rather than assumed.
 - **[Hollow BUILD-ORDER](todos/closed/2026-07-17-hollow-00-BUILD-ORDER.md)** — the milestone *map*,
   every milestone shipped. Closed; its decisions are still worth reading, and decision #7's WebGPU
   correction rides along.
-- **[Hollow BUILD-STATE](todos/2026-07-17-hollow-BUILD-STATE.md)** — **kept open**, and this is the
+- **Hollow BUILD-STATE** — **kept open**, and this is the
   one that is not a judgement call: it is the tracker that Hollow work records itself in, and
   hollow-17 is queued. Closing it would freeze the file the next piece of work needs to edit
   (`todos/closed/` is immutable by convention).
@@ -2115,7 +2115,7 @@ hand the human a precise open-in-Chrome checklist rather than claim a visual pas
 
 Resumed the Hollow backlog and finished M1 on branch **`hollow`** (local, unpushed). New synthesis
 page [wiki/hollow-overview.md](wiki/hollow-overview.md) is the durable Hollow entry point + M1
-exit-bar findings; live tracker stays [todos/2026-07-17-hollow-BUILD-STATE.md](todos/2026-07-17-hollow-BUILD-STATE.md).
+exit-bar findings; live tracker stays `todos/2026-07-17-hollow-BUILD-STATE.md`.
 
 - **hollow-05 lifecycle/pair-bonding/genetics** (`c8c3c2b`) — re-dispatched fresh (old stash
   dropped/ignored). Controller caught a population-dynamics defect the green unit tests hid (ample
@@ -3859,3 +3859,12 @@ detail most likely to be out of date in a reader's head.
 Sources are typed JSON in `docs/diagrams/`, compiled and validated before they
 ship; the artifact is committed because archify is a per-machine agent skill
 rather than an npm dependency. Docs build clean: 26 pages.
+
+## [2026-10-07] maintenance | Hollow BUILD-STATE tracker deleted
+
+The owner asked for the live tracker `todos/2026-07-17-hollow-BUILD-STATE.md` to go: every Hollow
+milestone is built, hollow-17 closed on 2026-10-06, and no Hollow spec is queued. The file is deleted
+(git has it). Live pages no longer point at it: index.md (the queue is now empty), routing.md,
+wiki/status.md and wiki/hollow-overview.md, which now sends the per-brief record to this log and the
+closed `2026-07-17-hollow-*` specs. Links to it in four closed specs and two older log entries are
+plain text, the sanctioned link-repair edit to the archive. Lint OK.

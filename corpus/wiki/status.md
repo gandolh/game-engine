@@ -39,8 +39,7 @@ edit the matching line below.
   marketplace module (`npm run build:os -w @hollow/client` → `dist/os/hollow.mjs`, 2026-10-06),
   and ImbatranimOS installs and runs it from its catalog at `0d83f70` (walked 2026-10-07,
   [spec](../todos/closed/2026-10-06-hollow-os-mount-build.md)).
-  [hollow-overview.md](hollow-overview.md) ·
-  [BUILD-STATE](../todos/2026-07-17-hollow-BUILD-STATE.md)
+  [hollow-overview.md](hollow-overview.md)
 - **MateQuest** — built and playable, M0–M5 complete. Romanian-curriculum math roguelike; UI defaults
   to Romanian. **Grades I–IV** — settled 2026-09-19
   ([audit-54](../todos/closed/2026-09-18-audit-54-mathquest-grades-v-viii.md)): the repo used to

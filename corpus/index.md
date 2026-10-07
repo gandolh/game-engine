@@ -60,7 +60,7 @@ which is how a "WebGPU-only render path" line outlived the page that already sai
 
 ### Hollow
 
-- [wiki/hollow-overview.md](wiki/hollow-overview.md) — What Hollow is (generational social-emergence sim / research instrument on the shared engine): **M1** headless sim (exit-bar PASSED), **M2** 3D layer (engine **WebGL2** renderer in `@engine/core/render3d` + gene-driven cozy town in `@hollow/client`), **M3** research surfaces (shared `@hollow/sim-core/observe`, live chronicle/dashboard, persona authoring + deterministic shocks/replay), **M4/hollow-12** governance (emergent leaders/votable norms/sanctions) + antagonism arcs (persistent grudge escalation/reconciliation), **M5/hollow-14** Daily Life (leader-assigned jobs + diurnal routine + one central hearth all gather at + rare/private interaction). Plus the density-brake population stabilizer and known traits (community-merge into one village; steal/trade dormancy; live 3D no longer Chrome-gated (WebGL2, 2026-08-18)). Live build tracker: [todos/2026-07-17-hollow-BUILD-STATE.md](todos/2026-07-17-hollow-BUILD-STATE.md).
+- [wiki/hollow-overview.md](wiki/hollow-overview.md) — What Hollow is (generational social-emergence sim / research instrument on the shared engine): **M1** headless sim (exit-bar PASSED), **M2** 3D layer (engine **WebGL2** renderer in `@engine/core/render3d` + gene-driven cozy town in `@hollow/client`), **M3** research surfaces (shared `@hollow/sim-core/observe`, live chronicle/dashboard, persona authoring + deterministic shocks/replay), **M4/hollow-12** governance (emergent leaders/votable norms/sanctions) + antagonism arcs (persistent grudge escalation/reconciliation), **M5/hollow-14** Daily Life (leader-assigned jobs + diurnal routine + one central hearth all gather at + rare/private interaction). Plus the density-brake population stabilizer and known traits (community-merge into one village; steal/trade dormancy; live 3D no longer Chrome-gated (WebGL2, 2026-08-18)).
 
 ### MateQuest
 
@@ -68,10 +68,10 @@ which is how a "WebGPU-only render path" line outlived the page that already sai
 
 ## Build programs
 
-**The queue holds one thing.** It is in [todos/](todos/); everything else is closed.
+**The queue is empty.** New specs go in [todos/](todos/); everything else is closed. The Hollow
+BUILD-STATE tracker was deleted on 2026-10-07 (git has it); Hollow's record is in log.md and the
+closed `2026-07-17-hollow-*` specs.
 
-- **[Hollow BUILD-STATE](todos/2026-07-17-hollow-BUILD-STATE.md)** — not a task: the live tracker
-  Hollow work records itself in.
 - Closed 2026-10-07: **[Hollow as an ImbatranimOS marketplace app](todos/closed/2026-10-06-hollow-os-mount-build.md)**,
   installed from ImbatranimOS's catalog and walked there. Closed 2026-10-06:
   **[Hollow's leadership churn](todos/closed/2026-10-06-hollow-leadership-churn.md)**, kept as
