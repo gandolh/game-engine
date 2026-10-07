@@ -100,6 +100,11 @@ out
 dist
 .output
 
+# Hollow's built ImbatranimOS app IS committed: ImbatranimOS installs it from
+# this repo's URL and builds nothing (its brief 158). Refresh it with
+# `npm run build:os-app -w @hollow/client`.
+!games/hollow/os-app/dist/
+
 # Gatsby files
 .cache/
 # Comment in the public line in if your project uses Gatsby and not Next.js

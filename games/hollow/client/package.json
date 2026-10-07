@@ -8,6 +8,7 @@
     "demo3d": "vite --open /render3d-demo.html",
     "build": "vite build",
     "build:os": "vite build --mode os",
+    "build:os-app": "vite build --mode os && node scripts/sync-os-app.mjs",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"

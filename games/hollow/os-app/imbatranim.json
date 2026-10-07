@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "name": "Hollow",
+  "description": "A generational social-emergence sim in a small 3D town.",
+  "meta": ["game"],
+  "entry": "dist/hollow.mjs",
+  "window": {
+    "defaultSize": { "w": 960, "h": 640 },
+    "minSize": { "w": 640, "h": 400 }
+  },
+  "capabilities": [],
+  "icon": "gamepad-2",
+  "minSystemVersion": 2
+}
