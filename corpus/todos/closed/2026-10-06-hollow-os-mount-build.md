@@ -42,8 +42,8 @@
 > }
 > ```
 
-status: built 2026-10-06 — awaiting push + the imbatranimOS install walk (see the note above; the
-original text below is unchanged)
+status: closed 2026-10-07 — built 2026-10-06; installed from ImbatranimOS's marketplace and walked
+there 2026-10-07 (outcome at the end)
 created: 2026-10-06
 context: ImbatranimOS can now install apps from other repositories (its brief 120, done
 2026-10-06). It clones a repo at a pinned commit, runs the repo's own build, and imports one ES
@@ -139,3 +139,22 @@ this monorepo:
 Farm Valley and Citadel come after Hollow. They also need their Node sim server run as a
 marketplace "service" (the desktop starts it, gives it a port in `PORT`, and proxies its WebSocket
 to `host.server.ws`); that is a separate spec once Hollow works.
+
+## Outcome (2026-10-07)
+
+Closed: the imbatranimOS side is done and the gate passed.
+
+- The owner pushed; GitHub `main` is `0d83f704ced957b23c44baa510782efb49af17e5`, which contains the
+  mount build (`9575089`). ImbatranimOS's `marketplace/hollow.json` pins that commit with the
+  descriptor above, unchanged. It passes the catalog loader as written: no `subdir`, so the app
+  directory is the repository root.
+- Walked in ImbatranimOS's dev container on a fresh volume. Settings, Marketplace, Install:
+  `npm ci` took 18 s and `build:os` under a second; the served `dist/os/` is 1.5 MB and the install
+  directory 507 MB. Open showed the setup screen; Start ran the 3D town at 45 to 58 fps with the
+  tick advancing. Closing the window removed `.hollow-root` and lost its WebGL2 context. Reopening
+  mounted a fresh context and ran again.
+- Two cosmetic findings, not fixed (game-side, for a later spec if wanted):
+  - the floating label layer (the ⚒ tags and their glyphs) draws on top of the Chronicle and Metrics
+    panels inside the window;
+  - on the setup screen in a 960×530 window the Start button sits over the founders list.
+  Some labels rendered as empty boxes in headless Chrome, likely missing fonts rather than a bug.

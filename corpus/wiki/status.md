@@ -1,6 +1,6 @@
 ---
 summary: The current-state snapshot — where each game stands, current sim/determinism behaviour, which gates run, architecture milestones, and open gaps. Brief-by-brief history lives in log.md and the todos/briefs directories, not here.
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # Project Status
@@ -36,8 +36,9 @@ edit the matching line below.
   (2026-10-06) added a second site, the leader's `shareRate` vote; it adopts 16.5% rather than the
   hoped-for much more, because leaders turn over at the pass timescale
   ([finding](../todos/closed/2026-10-06-hollow-leadership-churn.md)). No Hollow spec is queued. Hollow also builds as an ImbatranimOS
-  marketplace module (`npm run build:os -w @hollow/client` → `dist/os/hollow.mjs`, 2026-10-06);
-  installing it waits on a push ([spec](../todos/2026-10-06-hollow-os-mount-build.md)).
+  marketplace module (`npm run build:os -w @hollow/client` → `dist/os/hollow.mjs`, 2026-10-06),
+  and ImbatranimOS installs and runs it from its catalog at `0d83f70` (walked 2026-10-07,
+  [spec](../todos/closed/2026-10-06-hollow-os-mount-build.md)).
   [hollow-overview.md](hollow-overview.md) ·
   [BUILD-STATE](../todos/2026-07-17-hollow-BUILD-STATE.md)
 - **MateQuest** — built and playable, M0–M5 complete. Romanian-curriculum math roguelike; UI defaults
