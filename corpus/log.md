@@ -4,6 +4,10 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [todos/closed/](todos/closed/), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-10-09] todos | Three bug specs filed
+
+Found during the README refresh; nothing fixed. [Citadel has no Escape or right-click way back to "no mode"](todos/2026-10-09-citadel-no-way-back-to-no-mode.md); [Citadel speed keys are ignored while the build bar has focus](todos/2026-10-09-citadel-speed-keys-ignored-with-build-bar-focus.md) (cause unconfirmed, reproduce first); [package-lock.json drifts on `npm install`](todos/2026-10-09-package-lock-drift-engines-node.md) (missing `engines` on three workspaces).
+
 ## [2026-10-07] cleanup | Farm's June world-design backlog deleted
 
 `games/farm/client/WORLD_DESIGN_TODO.md` (the 2026-06-04 world-design and UX audit, 16 unticked items) is gone; the owner judged it outdated. Nothing in the repo linked to it, and it predates the seed-generated world (briefs 92 and 93) that its map-placement items assumed. Farm stays shipped, in maintenance.
