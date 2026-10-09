@@ -1,171 +1,88 @@
-# Game Engine — four games, one TypeScript ECS core
+# Game Engine
 
-A monorepo where the interesting part isn't any one game: it's the **generic, in-house TypeScript
-engine** underneath, and the discipline that keeps it honest. An ECS, a deterministic fixed-step sim
-loop, a WebGL2 renderer (2D *and* 3D), input, animation, and a WebAssembly pathfinder — consumed by
-four independent games that never import each other.
+An in-house TypeScript game engine and the four browser games built on it, kept in one monorepo. It is for readers who want to see how one deterministic simulation engine can carry very different games that never import each other.
 
-The engine is game-agnostic by rule, not by hope: a test scans every workspace on disk and fails if
-`@engine/core` ever reaches into a game, or if one game reaches into another.
+<p align="center">
+  <img src="docs/images/four-games.webp" width="100%" alt="Four game screens in a two-by-two grid. Top left, Farm Valley: pixel-art farm islands joined by wooden bridges, with a Farmers panel listing each AI farmer's gold, state and action points. Top right, Citadel: an isometric village with a mill, a field, houses, a chapel and a road. Bottom left, Hollow: a 3D town of red-roofed houses next to a chronicle of events and population charts. Bottom right, MateQuest: a knight facing a small green dragon above the problem 5 - 2 = ? and a number pad.">
+</p>
+<p align="center"><sub>Top: Farm Valley, Citadel. Bottom: Hollow, MateQuest.</sub></p>
 
-## The four games
+**Status:** Personal project, in active development since May 2026. Farm Valley, Citadel and Hollow are playable online; MateQuest runs locally only. The engine packages are used only inside this repo.
 
-| Game | What it is | Sim runs | Run it |
-|---|---|---|---|
-| **Farm Valley** 🌾 | 21 farmers (20 BDI AI + the playable **Pip**) compete over 100 in-game days. Mostly a watch-it-play sim. | Node WebSocket **server** | `npm run dev` → :5173 |
-| **Citadel** 🏰 | A cozy settlement sim — a placement puzzle you read by watching the town live. Threats dent happiness, never destroy. | in-browser **Web Worker** (plus a server for online MP) | `npm run citadel` → :5174 |
-| **Hollow** 🌙 | A generational social-emergence sim / research instrument: needs, relationships, lineage, governance, mortality. The only **3D** game. | in-browser **Web Worker** | `npm run hollow` → :5175 |
-| **MateQuest** 📐 | A Romanian-curriculum (**grades I–IV**) math roguelike where solving a problem *is* the combat action. UI defaults to Romanian. | in-browser **Web Worker** | `npm run mathquest` → :5176 |
+## What it does
 
-## Try it
+- Runs four unlike games on one engine: a farming sim you mostly watch, a cozy settlement builder, a 3D sim of a society across generations, and a math roguelike for primary school.
+- Replays any run exactly from its seed. Sim code may not call `Math.random` or `Date.now`, and a guard test fails if it does.
+- Runs the sims headless, with no browser and no server. Tests drive the same code the games ship, and Farm Valley, Citadel and Hollow have command-line runners.
+- Enforces its layering. The engine never imports a game and no game imports another; a test scans every workspace on disk and fails on a violation.
+- Treats art as code. Sprites are ASCII pixel grids and Citadel's buildings are meshes written in code, all baked at build or boot time. Each game has a fixed palette, and a test fails on any colour outside it.
 
-Requirements: **Node ≥ 24** and npm. (Pinned in `engines`; it matches the container the sim server
-ships in.)
+| Game | What it is | Play |
+|---|---|---|
+| Farm Valley | 21 farmers (20 BDI agents plus Pip, whom you can steer) compete for gold over 100 in-game days | [gandolh.ro/farm-valley](https://gandolh.ro/farm-valley/) |
+| Citadel | A settlement builder: place buildings and roads, then watch the town live. In cozy mode setbacks pass; in challenge mode fire and raids can ruin you | [gandolh.ro/citadel](https://gandolh.ro/citadel/) |
+| Hollow | A generational social sim and research tool: needs, relationships, lineage, governance, death. The only 3D game | [gandolh.ro/hollow](https://gandolh.ro/hollow/) |
+| MateQuest | A roguelike on the Romanian grades I-IV math curriculum, where solving a problem is the attack. UI defaults to Romanian | `npm run mathquest` |
+
+This is not a general-purpose engine. There is no editor, no published npm package and no API reference; the engine grows only as far as these four games need. If you want to ship your own game, Phaser or Godot will serve you better. If you want to read a small engine end to end, with the reasons for each decision written down, this is that.
+
+## Screenshots
+
+MateQuest: pick a path on the map, choose Attack, answer the problem, and the answer lands as damage.
+
+<img src="docs/images/mathquest-combat.gif" width="100%" alt="MateQuest turn sequence: the route map, then a fight against a small dragon. The player picks Attack, answers 5 - 2 with 3, and the dragon's health drops from 24 to 16. Next turn the player answers a comparison, 10 and 7, with the greater-than sign, and the dragon drops to 8.">
+
+| Hollow's chronicle and live metrics | Farm Valley's Farmers panel |
+|---|---|
+| ![Hollow's left panel: a chronicle of year-18 events such as villagers joining community #1 and gifting food, above population, births and deaths charts, beside the 3D town](docs/images/hollow-chronicle.webp) | ![Farm Valley at midday on day 1: Pip's island on the left and the Farmers panel on the right, listing Cora, Atticus and Hannah with their gold, crops, state, action points and region](docs/images/farm-farmers-panel.webp) |
+
+## How it works
+
+The engine (`@engine/core`) has an ECS, a fixed-step sim loop, a WebGL2 renderer for 2D and 3D, input and animation. `@engine/wasm-modules` adds AssemblyScript kernels for pathfinding and noise, and `@engine/ui` draws the in-canvas UI. Each game splits into a `sim-core` package and a browser client. The sim never runs on the render path: Farm Valley's runs in a Node WebSocket server, the other three run in a Web Worker, and the browser draws from the snapshots the sim sends. Because a run depends only on its seed, a check is one command:
+
+```console
+$ CHECK_DETERMINISM=1 MAX_DAYS=5 TICKS_PER_DAY=20 npm run sim
+Determinism check — 1 seed(s), 5 days @ 20 ticks/day (parallel, up to 2 workers)
+  seed 0xc0ffee: MATCH (5 day snapshots, 21 farmers)
+DETERMINISM CHECK PASSED — all seeds reproduced identically.
+```
+
+More on the docs site: [the engine](https://gandolh.ro/game-engine/docs/architecture/) and [patterns and techniques](https://gandolh.ro/game-engine/docs/patterns/). The full map is [corpus/wiki/architecture.md](corpus/wiki/architecture.md).
+
+## Run it locally
+
+Requires Node 24 or later and npm.
 
 ```bash
 npm install
-npm run dev          # Farm Valley: sim server + client at http://localhost:5173
+npm run dev          # Farm Valley: sim server on :8787, game on http://localhost:5173
+npm run citadel      # Citadel on http://localhost:5174
+npm run hollow       # Hollow on http://localhost:5175
+npm run mathquest    # MateQuest on http://localhost:5176
 ```
 
-`npm run build-wasm` is **not** needed after a clone — the WASM artifacts are committed.
+In Farm Valley, click Start or press Enter and the farmers play themselves; Tab opens the leaderboard. The WASM files are committed, so a fresh clone needs no WASM build. Tests, the gate sequence, the headless sims and their settings: [docs/getting-started.md](docs/getting-started.md).
 
-`npm run dev` runs both halves of Farm Valley: the Node sim server (`@farm/server`, on `:8787`) and
-the Vite client, which proxies the sim WebSocket to it. Click **Start** (or press Enter) on the home
-screen; the simulation runs itself. When day 100 ends, a leaderboard pops up. The other three games
-need no server — their sim runs in a Web Worker in the page.
+## Project layout
 
-## Farm Valley, in a bit more detail
+| Path | What lives there |
+|---|---|
+| `engine/` | `@engine/core` (ECS, sim loop, renderer, input), `@engine/ui`, `@engine/wasm-modules` |
+| `games/` | One folder per game: `sim-core` and `client`, plus a `server` for Farm Valley and Citadel |
+| `tools/` | Headless sims for Farm Valley, Citadel and Hollow, the Farm world preview, the atlas builder |
+| `docs/` | The Starlight docs site, plus the guides and images this README links |
+| `corpus/` | The design wiki: decisions, status, glossary and the work queue |
+| `infrastructure/` | The container image for Farm Valley's sim server |
+| `examples/` | An outside-the-workspace project that installs the packed engine libraries |
+| `scripts/` | The dev runner and the gate sequence (`npm run gates`) |
 
-![Home screen](media/fv-home-screen.png)
-![Game running — world, day/night clock, observer panel, leaderboard, and activity feed](media/fv-edg32-running.png)
+## Docs
 
-A 240×240 seed-generated archipelago of rectangular islands, bridged by a spanning tree plus a few
-loops. 21 farmers work it: five named (Cora, Atticus, Hannah, Otto, and Pip) plus sixteen
-procedurally-placed archetype clones on their own farm islands.
-
-| Farmer  | Personality   | Style                                           |
-|---------|---------------|-------------------------------------------------|
-| Cora    | conservative  | Plays it safe. Low risk, steady radish income.  |
-| Atticus | aggressive    | Goes big on diverse crops, accepts losses.      |
-| Hannah  | hoarder       | Keeps a fat gold reserve, plants when sure.     |
-| Otto    | opportunist   | Adapts to weather and prices on the fly.        |
-| Pip     | *you*         | A real farmer entity — intentions come from the keyboard. |
-
-Each AI farmer is a [BDI agent](https://en.wikipedia.org/wiki/Belief%E2%80%93desire%E2%80%93intention_software_model)
-(Belief–Desire–Intention) that perceives the world, deliberates, and acts under an action-point
-budget per day. Every option — farming, fishing, foraging, mining — is scored in the same unit,
-**gold per action point**, so non-farm work competes honestly with crops.
-
-- **Weather & seasons** — a season/day clock drives forecasts; rain/drought changes yields, and a
-  render-side day/night wash tints the world from dawn to dusk.
-- **Market & shopkeeper** — farmers buy seeds and sell 8 crops (radish → grape) at supply-driven
-  prices, plus a peer-to-peer market wall with escrowed offers.
-- **Mid-game shock** — a one-time blight strikes a random farmer around day 50, wiping their planted
-  crops and reshuffling the standings.
-- **Observer panel** — live readout of every farmer's gold, crops, FSM state, and remaining AP; click
-  a farmer to follow them.
-- **Pip** — inspect card, drag-from-world hotbar, and a diegetic HUD, all drawn through the shared
-  in-canvas `@engine/ui` toolkit. Movement is free; actions still obey AP, tool, and proximity rules.
-
-## What makes it worth reading
-
-- **Determinism is load-bearing.** All randomness flows through a seeded mulberry32 `Rng` with named
-  `fork(label)` derivation. No `Math.random`, no `Date.now` in sim code — a tick's output depends
-  only on the tick count, so **seed + params** fully describes a run and reproduces it byte-for-byte.
-  There's no save-file model because there doesn't need to be one.
-- **The sim never runs on the render path.** The ECS world and scheduler live behind a snapshot
-  stream — in a server, a Worker, or a bare test — and the client interpolates between the latest two
-  snapshots. `bootstrapSim()` stays transport-agnostic, which is why the same sim can be driven
-  straight from a test with no browser and no server.
-- **A fixed palette per game, with zero raw hex.** Every colour — sprites, tiles, particles, the
-  day/night wash, HTML *and* canvas UI — comes from a named role constant.
-  Engine + Farm use [EDG32](https://lospec.com/palette-list/endesga-32); Citadel and Hollow use
-  Apollo-46; MateQuest uses Resurrect-64. A path-scoped guard test scans the tree (including HTML and
-  CSS) and fails on any off-palette literal.
-- **Assets are code.** Sprites are ASCII `PixelRecipe` grids baked into an atlas at build time, keyed
-  on a content fingerprint; Citadel's buildings are in-code 3D meshes flat-shaded by a deterministic
-  software rasterizer; the UI font is a vendored bitmap baked at boot. Byte-identical art on every
-  machine.
-- **WebGL2 is the only render backend** (Canvas2D and WebGPU were both deleted in 2026-08). Shaders
-  are GLSL ES 3.00 and a per-directory lint enforces it.
-
-## Repository layout
-
-npm workspaces, grouped by the dependency seam:
-
-```
-engine/
-  core            @engine/core          generic ECS engine (subpath exports: /ecs /render /sim /runtime /input …)
-  ui              @engine/ui            shared in-canvas UI toolkit (Farm, Citadel, MateQuest)
-  wasm-modules    @engine/wasm-modules  AssemblyScript kernels (pathfinder, noise, rng, floodfill)
-games/
-  farm/           sim-core · client · server · atlas-recipes
-  citadel/        sim-core · client · server
-  hollow/         sim-core · client
-  mathquest/      sim-core · client
-tools/
-  run-sim         headless deterministic Farm sim (no browser, no server)
-  citadel-sim     headless Citadel sim
-  hollow-sim      headless Hollow sim (+ metrics / chronicle export)
-  world-preview   renders the Farm world/atlas to a PNG
-  atlas-builder   builds the sprite atlas from pixel recipes
-corpus/           the project's living design wiki (source of truth for intent)
-docs/             a Starlight docs site: authored showcase + the corpus rendered
-infrastructure/   the sim server's container build
-```
-
-**Dependency rule (enforced):** `@engine/wasm-modules` → `@engine/core` → the four `sim-core`
-packages → their matching clients and servers. Nothing points upward.
-
-Notable Farm entry points: [main.ts](games/farm/client/src/main.ts) (boot, home → game, render loop),
-[net/sim-client/](games/farm/client/src/net/sim-client/) (the WebSocket client that interpolates and
-renders snapshots), [agents/](games/farm/sim-core/src/agents/) (one file per personality),
-[systems/](games/farm/sim-core/src/systems/) (the ECS systems that run each tick).
-
-## Commands
-
-```bash
-# run a game
-npm run dev          # Farm Valley: sim server + client (vite :5173)
-npm run server       # just the Farm sim server (WebSocket :8787)
-npm run citadel      # Citadel: server (:8788) + client (:5174); add ?mp for online MP
-npm run hollow       # Hollow client (:5175)
-npm run mathquest    # MateQuest client (:5176)
-
-# check it
-npm run typecheck    # tsc --noEmit across all workspaces
-npm run test         # vitest across all workspaces
-npm run gates        # the full sequence: typecheck → test → build → four startup smokes → pack-smoke
-npm run pack-smoke   # pack @engine/* and install the tarballs into examples/library-consumer
-
-# headless / offline
-npm run sim          # deterministic Farm sim, no browser and no server
-npm run sim:citadel  # headless Citadel sim
-npm run sim:hollow   # headless Hollow sim (+ metrics / chronicle export)
-npm run preview      # render the Farm world to a PNG
-npm run atlas        # rebuild the sprite atlas
-npm run build-wasm   # rebuild the WASM kernels (commit the artifacts)
-npm run docs         # build the documentation site
-```
-
-**There is no hosted CI.** `npm run gates` *is* the gate sequence — it keeps going after a failure and
-exits non-zero with the list. The startup smokes are the point: typecheck and tests both stayed green
-through a `.glsl` import break that threw on every real entry point.
-
-Headless Farm sim knobs (env vars on `npm run sim`): `SEED`, `TICKS_PER_DAY` (default 1200),
-`MAX_DAYS` (default 100), `EXPORT=csv|json`, `EXPORT_FILE`, and `CHECK_DETERMINISM=1` to run a seed
-twice and assert byte-identical results. (`sim:hollow` takes `MAX_YEARS` instead.)
-
-## Documentation
-
-- **[corpus/](corpus/)** — the living, LLM-maintained design wiki, and the source of truth for
-  *intent*: [index](corpus/index.md) · [architecture](corpus/wiki/architecture.md) ·
-  [decisions](corpus/wiki/decisions.md) · [status](corpus/wiki/status.md) ·
-  [glossary](corpus/wiki/glossary.md).
-- **[docs/](docs/)** — a Starlight site that pairs an authored showcase with the durable corpus pages
-  rendered straight from `corpus/`, so the deep detail can't drift from what the site claims.
-- **[CLAUDE.md](CLAUDE.md)** — the orientation file for coding agents working in this repo.
+- [docs/](docs/README.md): getting started, the four games in more detail, and how each image here was made
+- Docs site: <https://gandolh.ro/game-engine/docs/>, built from `docs/`
+- Design wiki: [corpus/](corpus/index.md), with [decisions](corpus/wiki/decisions.md), [status](corpus/wiki/status.md) and the [glossary](corpus/wiki/glossary.md)
+- [CLAUDE.md](CLAUDE.md): orientation for coding agents working in this repo
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+[MIT](LICENSE)
