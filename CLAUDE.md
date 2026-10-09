@@ -145,3 +145,8 @@ Vitest, `node` env for `@engine/core`, `jsdom` env for the browser clients (UI/D
 `@engine/wasm-modules` **does** declare `test` — `node build/check-drift.mjs` (audit-29), a fast, toolchain-free sha256 comparison that fails if a `src/*.ts` kernel was edited without a rebuild, or if the two committed artifact locations (`dist/` vs `games/farm/client/public/wasm/`) have drifted apart. It is not a behavioral test of the kernels themselves — that coverage is still consumer-side, via `engine/core/src/wasm/pathfinder.test.ts` (uses the compiled `.wasm`) and `npm run typecheck -w @engine/wasm-modules` (type-checks all four AssemblyScript sources).
 
 Every other workspace declares `test`. If you add one, declare a `test` script even if the suite starts thin, or it will not be gated. Tests in `@tool/run-sim` / `@tool/citadel-sim` must stay unit-scoped — **no test in those packages may boot a sim** (constrained hardware).
+
+## brief-board
+
+Brief progress goes on brief-board. Run `brief-board guide` before you
+start or resume a brief, and follow it.
