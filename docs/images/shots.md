@@ -17,9 +17,9 @@ Each was captured from the deployed game (MateQuest from a local dev server, sin
 [...document.querySelectorAll("div")].filter(d => d.style.whiteSpace === "pre").forEach(d => d.style.display = "none")
 ```
 
-- **Farm Valley.** Open <https://gandolh.ro/farm-valley/>, click Start (seed 0xc0ffee), wait about 25 s for the sim, zoom in two mouse-wheel steps, open Panels → Farmers, and capture at midday on day 1.
-- **Citadel.** Open <https://gandolh.ro/citadel/?cozy>, which skips the ruleset picker. Extend the starter road south-east with the road tool, then place two houses beside it and a well, a chapel and a market off it. Run a few days, then pick the road tool so no placement ghost shows, and park the pointer over the build bar.
-- **Hollow.** Open <https://gandolh.ro/hollow/>, set the seed to 42, Start, choose 4x and run about 40 s (to year 18).
+- **Farm Valley.** Open `/farm-valley/`, click Start (seed 0xc0ffee), wait about 25 s for the sim, zoom in two mouse-wheel steps, open Panels → Farmers, and capture at midday on day 1.
+- **Citadel.** Open `/citadel/?cozy`, which skips the ruleset picker. Extend the starter road south-east with the road tool, then place two houses beside it and a well, a chapel and a market off it. Run a few days, then pick the road tool so no placement ghost shows, and park the pointer over the build bar.
+- **Hollow.** Open `/hollow/`, set the seed to 42, Start, choose 4x and run about 40 s (to year 18).
 - **MateQuest.** Fresh page, click the top-left map node, then Attack, so the first problem shows.
 
 GIF: the MateQuest frames are single screenshots, joined with ffmpeg's concat demuxer (1.0 to 2.2 s per frame), then `fps=10,scale=960:-1` with a two-pass 128-colour palette. Screenshots convert with `ffmpeg -i shot.png -c:v libwebp -quality 82 shot.webp`.

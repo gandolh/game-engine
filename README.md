@@ -19,9 +19,9 @@ An in-house TypeScript game engine and the four browser games built on it, kept 
 
 | Game | What it is | Play |
 |---|---|---|
-| Farm Valley | 21 farmers (20 BDI agents plus Pip, whom you can steer) compete for gold over 100 in-game days | [gandolh.ro/farm-valley](https://gandolh.ro/farm-valley/) |
-| Citadel | A settlement builder: place buildings and roads, then watch the town live. In cozy mode setbacks pass; in challenge mode fire and raids can ruin you | [gandolh.ro/citadel](https://gandolh.ro/citadel/) |
-| Hollow | A generational social sim and research tool: needs, relationships, lineage, governance, death. The only 3D game | [gandolh.ro/hollow](https://gandolh.ro/hollow/) |
+| Farm Valley | 21 farmers (20 BDI agents plus Pip, whom you can steer) compete for gold over 100 in-game days | `/farm-valley/` |
+| Citadel | A settlement builder: place buildings and roads, then watch the town live. In cozy mode setbacks pass; in challenge mode fire and raids can ruin you | `/citadel/` |
+| Hollow | A generational social sim and research tool: needs, relationships, lineage, governance, death. The only 3D game | `/hollow/` |
 | MateQuest | A roguelike on the Romanian grades I-IV math curriculum, where solving a problem is the attack. UI defaults to Romanian | `npm run mathquest` |
 
 This is not a general-purpose engine. There is no editor, no published npm package and no API reference; the engine grows only as far as these four games need. If you want to ship your own game, Phaser or Godot will serve you better. If you want to read a small engine end to end, with the reasons for each decision written down, this is that.
@@ -47,7 +47,7 @@ Determinism check — 1 seed(s), 5 days @ 20 ticks/day (parallel, up to 2 worker
 DETERMINISM CHECK PASSED — all seeds reproduced identically.
 ```
 
-More on the docs site: [the engine](https://gandolh.ro/game-engine/docs/architecture/) and [patterns and techniques](https://gandolh.ro/game-engine/docs/patterns/). The full map is [corpus/wiki/architecture.md](corpus/wiki/architecture.md).
+More on the docs site: [the engine](docs/src/content/docs/architecture.mdx) and [patterns and techniques](docs/src/content/docs/patterns.mdx). The full map is [corpus/wiki/architecture.md](corpus/wiki/architecture.md).
 
 ## Run it locally
 
@@ -79,7 +79,7 @@ In Farm Valley, click Start or press Enter and the farmers play themselves; Tab 
 ## Docs
 
 - [docs/](docs/README.md): getting started, the four games in more detail, and how each image here was made
-- Docs site: <https://gandolh.ro/game-engine/docs/>, built from `docs/`
+- Docs site: `/game-engine/docs/`, built from `docs/`
 - Design wiki: [corpus/](corpus/index.md), with [decisions](corpus/wiki/decisions.md), [status](corpus/wiki/status.md) and the [glossary](corpus/wiki/glossary.md)
 - [CLAUDE.md](CLAUDE.md): orientation for coding agents working in this repo
 

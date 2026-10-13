@@ -10,7 +10,7 @@ Start with the [main README](../README.md). This folder is two things: the guide
 
 Going deeper:
 
-- Docs site: <https://gandolh.ro/game-engine/docs/>, built from this folder. Start with [the engine](https://gandolh.ro/game-engine/docs/architecture/) and [patterns and techniques](https://gandolh.ro/game-engine/docs/patterns/).
+- Docs site: `/game-engine/docs/`, built from this folder. Start with [the engine](src/content/docs/architecture.mdx) and [patterns and techniques](src/content/docs/patterns.mdx).
 - Design wiki: [corpus/](../corpus/index.md), with the decisions, the status and the work queue.
 
 ## The docs site (`@game-engine/docs-site`)
