@@ -3891,3 +3891,7 @@ detail most likely to be out of date in a reader's head.
 Sources are typed JSON in `docs/diagrams/`, compiled and validated before they
 ship; the artifact is committed because archify is a per-machine agent skill
 rather than an npm dependency. Docs build clean: 26 pages.
+
+## [2026-10-18] todo | Spec filed: the docs site moves from Starlight to Docusaurus
+
+The owner's call (2026-10-18), one spec in every repo with a docs site. [The spec](todos/2026-10-18-docs-site-on-docusaurus.md) ports the splash landing, LayerStack and the Starlight cards, badges and steps to React, keeps the sync's `DENY` cut and the URLs, and fixes one stale anchor into `citadel-decisions.md`. The deploy waits on vps-deploy brief 11.
