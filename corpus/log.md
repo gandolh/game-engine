@@ -3895,3 +3895,7 @@ rather than an npm dependency. Docs build clean: 26 pages.
 ## [2026-10-18] todo | Spec filed: the docs site moves from Starlight to Docusaurus
 
 The owner's call (2026-10-18), one spec in every repo with a docs site. [The spec](todos/2026-10-18-docs-site-on-docusaurus.md) ports the splash landing, LayerStack and the Starlight cards, badges and steps to React, keeps the sync's `DENY` cut and the URLs, and fixes one stale anchor into `citadel-decisions.md`. The deploy waits on vps-deploy brief 11.
+
+## [2026-10-23] todo | Docs-site spec refreshed
+
+The owner asked for a Docusaurus spec for this repo. [The 2026-10-18 spec](todos/2026-10-18-docs-site-on-docusaurus.md) already covers it and still matches the site, so it was refreshed rather than duplicated: it now names the skill at v0.31.1, keeps the route baseline under `corpus/verify/` rather than `/tmp`, and says what changes in vps-deploy once it lands. game-engine is the last docs site on Starlight.

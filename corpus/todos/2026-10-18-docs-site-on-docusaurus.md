@@ -3,6 +3,7 @@
 status: todo
 created: 2026-10-18
 context: the owner's decision of 2026-10-18 to move every project's docs site to Docusaurus; one spec per repo.
+refreshed: 2026-10-23 (skill v0.31.1, route baseline kept in the repo, vps-deploy's generator switch). The owner asked for it again that day; it is the last docs site still on Starlight.
 
 ## Why
 
@@ -11,14 +12,14 @@ Starlight site. The owner decided on 2026-10-18 to move every project's docs sit
 to Docusaurus. This is the game-engine part.
 
 The recipe is written and verified. The `corpus-docs-site` skill
-(personal-skills v0.31.0, source in
+(personal-skills v0.31.1, source in
 `~/projects/my-personal-skills/skills/corpus-docs-site/`) now scaffolds
 Docusaurus 3.10, and `references/migrating-from-starlight.md` beside it holds
 the file, config and content maps plus ten gotchas, each hit during a real
 port. **Read that guide first.** Its `references/` folder has React versions of
 this site's components: `Hero.tsx` (the splash hero), `Metrics.tsx`,
 `Cards.tsx` (`Card`/`CardGrid`) and `Diagram.tsx`. If the installed plugin is
-older than v0.31.0, read them from the source path.
+older than v0.31.1, read them from the source path.
 
 ## What the site has today (checked 2026-10-18)
 
@@ -55,7 +56,8 @@ no longer produces that id. Fix it in the corpus.
 ## What to do
 
 1. **Baseline.** `npm run docs`, then save
-   `(cd docs/dist && find . -name index.html | sort) > /tmp/ge-routes-before.txt`.
+   `(cd docs/dist && find . -name index.html | sort) > corpus/verify/2026-10-18-docs-site-routes/before.txt`
+   (in the repo, not `/tmp`, which a WSL restart wipes).
 2. **Config.** Write `docs/docusaurus.config.ts` from the skill's reference.
    Set baseUrl `process.env.DOCS_BASE ?? '/game-engine/docs/'`,
    `trailingSlash: true`, `routeBasePath: '/'`, `markdown.format: 'detect'`,
@@ -112,7 +114,8 @@ no longer produces that id. Fix it in the corpus.
 
 - `npm run docs` (turbo) exits 0 with `onBrokenLinks: 'throw'` and no
   broken-anchor warning.
-- Route parity: the new route list equals `/tmp/ge-routes-before.txt` plus
+- Route parity: the new route list equals
+  `corpus/verify/2026-10-18-docs-site-routes/before.txt` plus
   `./search/index.html`.
 - `grep -c '/game-engine/docs/assets/' docs/dist/index.html` is non-zero, and
   `grep -rl '_astro' docs/dist` finds nothing.
@@ -131,6 +134,9 @@ no longer produces that id. Fix it in the corpus.
 
 ## Out of scope
 
-- Deploying. vps-deploy's brief 11 switches the `game-engine` docs stack's
-  check from `_astro/` to `assets/`; the owner deploys after that.
+- Deploying. vps-deploy's brief 11 is done: each `DocsStack` takes
+  `generator: "starlight" | "docusaurus"`. Once this lands, the `game-engine`
+  stack in `../vps-deploy/app.ts` gets `generator: "docusaurus"`. It is the
+  last Starlight site, so `DEFAULT_GENERATOR` can then become `"docusaurus"`.
+  That edit and the deploy are owner steps in vps-deploy.
 - New content, and the deliberate absence of an API reference.
