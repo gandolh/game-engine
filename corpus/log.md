@@ -3899,3 +3899,16 @@ The owner's call (2026-10-18), one spec in every repo with a docs site. [The spe
 ## [2026-10-23] todo | Docs-site spec refreshed
 
 The owner asked for a Docusaurus spec for this repo. [The 2026-10-18 spec](todos/2026-10-18-docs-site-on-docusaurus.md) already covers it and still matches the site, so it was refreshed rather than duplicated: it now names the skill at v0.31.1, keeps the route baseline under `corpus/verify/` rather than `/tmp`, and says what changes in vps-deploy once it lands. game-engine is the last docs site on Starlight.
+
+## [2026-10-27] todo | Three research specs filed: immediate mode, tiled textures, a portal
+
+The owner asked for three research specs, to be grilled when work starts.
+[MateQuest immediate mode](todos/2026-10-27-mathquest-immediate-mode-research.md) names the two
+readings: an immediate-mode UI in place of `@engine/ui`'s retained tree, or a sim with no loop,
+which audit-03 already delivered apart from the Worker itself.
+[Tiled textures](todos/2026-10-27-tiled-textures-for-large-assets-research.md) starts from the
+single static-layer texture (Farm's is 3840 px, under the 4096 most devices allow) and Citadel's
+re-baking window, and compares a fixed grid of textures; the pieces need a name, since "chunk" and
+"tile" are taken. [A games portal](todos/2026-10-27-game-portal-research.md) researches a
+Miniclip-style card grid that plays each deployed game in place; MateQuest has no deploy stack yet.
+The index's "queue is empty" line was stale and now lists what is open.
