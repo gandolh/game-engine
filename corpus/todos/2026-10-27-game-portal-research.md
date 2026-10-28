@@ -53,3 +53,28 @@ the answers are under "Settled at the grill".
   rough card-grid sketch (HTML in `corpus/verify/` is fine).
 - The proposed follow-up specs for this repo and briefs for vps-deploy, for the owner to approve.
 - No code in `engine/` or `games/`.
+
+## Paused 2026-10-28 (run cut to three agents): where this stopped
+
+Still open, in this file. Only step 1 (the pattern survey) is done; its screenshots are in
+[verify/2026-10-28-portal-research/](../verify/2026-10-28-portal-research/) (11 JPEGs, taken with
+headless Chromium on 2026-10-28). Measured there:
+
+- **Miniclip** is no longer a portal: its web page is two big banners (640×377 at 1280 wide) whose
+  "Play now" links out to each game's own site; nothing is embedded. Y8 and itch.io are the models.
+- **Y8**: cards 180×135 (4:3 image filling the card, title and rating over it), about 6 columns on
+  desktop, 2 on a phone (135×101). The play page frames the game in an `<iframe>` from a separate
+  CDN domain with `allow="autoplay"` and `allowfullscreen`, no sandbox; a sidebar and ads beside
+  it; a fullscreen button on the player. On a phone the play page has no iframe until a tap
+  launches the game (inferred, not tapped).
+- **itch.io** browser games: 4 columns of 237×301 cards (5:4 image, title, one-line pitch, author,
+  genre tag); the play page shows a "Run game" button first, then an `<iframe>` from a separate
+  domain with a long `allow` list (`fullscreen *`, `autoplay`, `gamepad`, …) and no sandbox. On a
+  phone, 2 columns and a full-viewport iframe after the tap.
+- Takeaway for four games: a 2×2 or 4×1 grid of larger cards (about 280 px wide), 4:3 or 16:10
+  image, title, one-line pitch; play page = header, ~16:9 iframe, fullscreen button, description.
+
+**Not done:** step 2 (the iframe test: build the four games with their `*_BASE`, serve them and a
+local portal page from one origin, Farm's WebSocket through a proxy), step 3 (card images), step 4
+(`curl -I` the deployed games for `X-Frame-Options`/`frame-ancestors`, and the proposed vps-deploy
+briefs), `portal.md`, the card-grid sketch and the follow-up specs. No code was written for it.

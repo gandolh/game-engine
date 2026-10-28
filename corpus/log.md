@@ -4,6 +4,15 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [todos/closed/](todos/closed/), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-10-28] pause | Tiled-textures and portal research stopped part-way
+
+The run was cut to three agents. Both specs stay in `todos/` with a "Paused" section saying what
+is done. Tiled textures: the patch prototype is in (`90434df`, behind `staticPatchSize` / Farm's
+`?patches=`), the boot inventory and breaking points are measured (Citadel's 192×192 bake is
+6144×3072 at boot and fails under a 4096 limit; Farm fails under 2048 and runs on patches), the
+write-up, steps 5-6 and the full gates are not done. Portal: only the pattern survey is done
+(screenshots in `verify/2026-10-28-portal-research/`).
+
 ## [2026-10-28] research | MateQuest stays retained; the IMGUI prototype is behind ?imgui
 
 [Spec](todos/closed/2026-10-27-mathquest-immediate-mode-research.md), findings on

@@ -74,3 +74,42 @@ it at the grill and add it to the glossary.
 - A recommendation, and if it is to build, the follow-up specs for the owner to approve.
 - `npm run gates` passes with the prototype behind its flag. Render-only: no sim or determinism
   change.
+
+## Paused 2026-10-28 (run cut to three agents): where this stopped
+
+Still open, in this file. Done so far, with the numbers so nothing depends on the scratchpad:
+
+**Prototype (step 4), code `90434df`:** `createRenderer(…, { staticPatchSize })` →
+`StaticLayerPass` slices the baked canvas into square patches (one texture each) and blits only the
+patches the visible rect touches, same shader, no new GLSL. Off by default; Farm's `?patches=<px>`
+turns it on. 4 unit tests in `static-layer-pass.test.ts`; the targeted engine tests (static layer,
+renderer, palette, layering: 64) pass. **The full `npm run gates` has not run on it yet.**
+
+**Measured** (Chromium 1243 headless, SwiftShader WebGL, real `MAX_TEXTURE_SIZE` 8192, 1280×800, a
+WebGL wrapper counting uploaded texel bytes, not the driver's allocation):
+
+- Step 1, inventory at boot. **Farm**: static layer 3840×3840 (56.3 MB), the overlay-light texture
+  at viewport size 1280×800 (3.9 MB, re-uploaded many times a second: 32-44 uploads in the first
+  seconds), six atlases 128×128 to 128×1024 (1.2 MB with the 936×8 font and the 1×1 white texel),
+  water depth mask 240×240 R8 and pattern 48×48: 12 live textures, 61.4 MB. **Citadel** (192×192):
+  static layer 6144×3072 (72 MB), atlas 256×4096 (4 MB), 1632×16, 936×8, 1×1: 76.1 MB. It takes the
+  windowed path (`windowState().windowed === true`), but the boot camera frames the whole map, so
+  the first window is tiles 0-191 and the bake is the whole iso world. **Hollow**: no textures at
+  all (vertex-coloured 3D, DOM panels). **MateQuest**: 2 (font 936×8, 1×1).
+- Step 2, breaking points (`MAX_TEXTURE_SIZE` forced via `getParameter`). At 4096: Farm boots
+  (3840 fits); **Citadel fails at boot** ("static-layer bake is 6144×3072px but this device's
+  MAX_TEXTURE_SIZE is 4096px", `[citadel] boot failed`). At 2048: **Farm fails** (page error, same
+  message for 3840×3840); with `?patches=2048` Farm runs on 4 patches.
+- Step 4, prototype on Farm: static memory is the same 56.3 MB at every patch size (all patches are
+  kept); textures 1 / 4 / 16 / 64 for single / 2048 / 1024 / 512. Upload time in `texImage2D`:
+  single 15.7 ms, 2048 patches 3.2-3.8 ms (4 uploads), 512 patches 37.8 ms (64 uploads). Frame time
+  (rAF intervals over 10 s, load average 24-34): p50 133 / 200 / 150 / 150 ms, noise-dominated
+  under SwiftShader and that load, so no difference can be claimed. No seam visible by eye with 512
+  patches after two wheel-zoom steps (not pixel-verified; the zoom value was not read back).
+
+**Not done:** step 3's written comparison of the three designs (and the iso question), steps 5
+(Tiled maps) and 6 (hand-drawn images), the findings section in `asset-pipeline.md` (raw numbers to
+`performance-measurements.md`), the recommendation, the follow-up specs, and the full gates.
+Leads for step 3: the window controller's boot window covering the whole map is itself a finding
+(Citadel's windowing does not keep the first bake under 4096); patches cost no memory unless far
+ones are freed.
