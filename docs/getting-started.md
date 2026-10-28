@@ -5,7 +5,7 @@ Everything the main README shortens: prerequisites, running each game, the check
 ## Prerequisites
 
 - Node 24 or later. The root `package.json` pins it in `engines`, and it matches the `node:24-alpine` image the Farm Valley sim server ships in.
-- npm (the repo declares `npm@11.4.2`).
+- npm (the repo declares `npm@11.19.1`).
 - Docker only if you want to build the sim server image in [infrastructure/](../infrastructure/README.md).
 
 ## Install
