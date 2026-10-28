@@ -35,6 +35,7 @@ import {
   setFollowId,
   clearFollow,
   updateModeLabel,
+  setTool,
 } from "./build-controls";
 import { settingsDispatcher, settingsMirror, settingsModal, closeSettings } from "./settings";
 import { newGameDispatcher, newGameMirror, newGameOpen } from "./new-game";
@@ -334,16 +335,52 @@ window.addEventListener("keydown", (e) => {
 export let lastUiX = -1;
 export let lastUiY = -1;
 
+/**
+ * A right press released within this many CSS px of where it went down is a CLICK, and leaves the
+ * placement tool; anything further is a pan drag and keeps the tool. Measured as the pointer's
+ * furthest excursion during the press (not just press-vs-release), so a pan that wanders back to
+ * its start is still a pan.
+ */
+const STILL_RIGHT_CLICK_SLOP_PX = 4;
+/** The world-owned right press in flight (null when none), for the still-click test above. */
+let rightPress: { readonly x: number; readonly y: number; moved: boolean } | null = null;
+/** A world-owned left press is down (mousedown seen, its click not yet). */
+let primaryPressInFlight = false;
+/**
+ * Set when the tool was left (Escape / still right-click) while a left press was down: that
+ * press's eventual `click` lands in "none" mode, and must not open inspect or pick a villager
+ * under the cursor. Cleared by the click it swallows, or by the next left press.
+ */
+let swallowIdleClick = false;
+
+/**
+ * Leave any placement tool for "none" — the same `setTool("none")` the build bar's Cancel (X)
+ * calls, so the mode label and the bar highlight follow. An in-progress road/wall drag is ended
+ * and its tiles DROPPED (nothing is sent), so a cancelled run never lands half-placed.
+ * Returns whether there was a tool to leave.
+ */
+function leavePlacementTool(): boolean {
+  if (placementState.mode === "none") return false;
+  if (placementState.isDraggingRoad) placementState.endRoadDrag(); // discard the run
+  if (primaryPressInFlight) swallowIdleClick = true;
+  setTool("none");
+  return true;
+}
+
 canvas.addEventListener("mousedown", (e) => {
   if (!inputReady) return; // camera not yet created (async boot) — ignore early events
-  // Right button (2) pans the camera; left button (0) interacts/builds.
+  // Right button (2) pans the camera; left button (0) interacts/builds. A right press that never
+  // moves is a click instead: it leaves the placement tool on release (see the mouseup below).
   if (e.button === 2) {
     isPanning = true;
     lastMouseX = e.clientX;
     lastMouseY = e.clientY;
+    rightPress = { x: e.clientX, y: e.clientY, moved: false };
     return;
   }
   if (e.button !== 0) return;
+  primaryPressInFlight = true;
+  swallowIdleClick = false; // a fresh press: any earlier swallow is stale
   placementState.updateCursor(e, canvas, camera, iso, terrain, currentBuildings);
   if (placementState.mode === "road" || placementState.mode === "wall") {
     placementState.startRoadDrag();
@@ -353,6 +390,18 @@ canvas.addEventListener("mousedown", (e) => {
 
 canvas.addEventListener("mouseup", (e) => {
   if (!inputReady) return; // camera not yet created (async boot) — ignore early events
+  if (e.button === 2) {
+    // End of a right press: a pan ends here; a still one is a click and leaves the tool. Either
+    // way it never commits a road/wall run a left drag has in progress (only the left release does).
+    const press = rightPress;
+    rightPress = null;
+    isPanning = false;
+    if (press !== null && !press.moved && Math.hypot(e.clientX - press.x, e.clientY - press.y) <= STILL_RIGHT_CLICK_SLOP_PX) {
+      leavePlacementTool();
+    }
+    return;
+  }
+  if (e.button === 0) primaryPressInFlight = false;
   if ((placementState.mode === "road" || placementState.mode === "wall") && placementState.isDraggingRoad) {
     placementState.updateCursor(e, canvas, camera, iso, terrain, currentBuildings);
     const routeBlocked = placementState.lastRouteBlocked;
@@ -371,10 +420,18 @@ canvas.addEventListener("mouseup", (e) => {
   }
   isPanning = false;
 });
-canvas.addEventListener("mouseleave", () => { isPanning = false; });
+canvas.addEventListener("mouseleave", () => {
+  isPanning = false;
+  // A right press that leaves the canvas is not a still click, even if it is released back inside.
+  rightPress = null;
+});
 
 canvas.addEventListener("mousemove", (e) => {
   if (!inputReady) return; // camera not yet created (async boot) — ignore early events
+  if (rightPress !== null && !rightPress.moved &&
+      Math.hypot(e.clientX - rightPress.x, e.clientY - rightPress.y) > STILL_RIGHT_CLICK_SLOP_PX) {
+    rightPress.moved = true; // past the slop: this right press is a pan drag, not a click
+  }
   if (isPanning) {
     // Convert CSS-px mouse delta to world-px using the live GPU scale.
     // sx = canvas.width (device px) / camera.worldUnitsX. dpr maps CSS→device.
@@ -475,6 +532,13 @@ canvas.addEventListener("contextmenu", (e) => {
 // (Clicks the UI consumed never reach here — the capture-phase handler stopped them.)
 // Placement modes have their own `click` handler above, so only the idle case is wired here.
 canvas.addEventListener("click", (e) => {
+  primaryPressInFlight = false;
+  if (swallowIdleClick) {
+    // This press began in a placement tool that Escape / a still right-click left mid-press: its
+    // release is not an idle click on whatever happens to be under the cursor.
+    swallowIdleClick = false;
+    return;
+  }
   if (isPanning) return; // tail of a pan, not a click
   if (placementState.mode !== "none") return; // placement clicks aren't follow-cam/inspect
   const { tx, ty } = eventTile(e);
@@ -492,9 +556,30 @@ canvas.addEventListener("click", (e) => {
   }
 });
 
+/**
+ * Escape — ONE handler, so one press peels exactly ONE layer, most recently opened first:
+ *
+ *   0. new-game picker up → nothing. It is deliberately not dismissable; the capture-phase key
+ *      handler above stops every key while it is up, so this never even sees the event.
+ *   1. settings modal open → close it, and ONLY it (it is modal: nothing behind it reacts).
+ *   2. a placement tool selected (place / road / wall / demolish / upgrade) → leave it for
+ *      "none", dropping any road/wall run being dragged (`leavePlacementTool`).
+ *   3. inspect panel open → close it.
+ *   4. following a villager → release the follow-cam.
+ *
+ * Tool before inspect: the inspect panel only opens from a "none"-mode click, so when both are up
+ * the tool was picked after it — and the tool is the layer that makes the next click do something
+ * (demolish!). Follow can't coexist with a tool (picking one releases it), so 2 vs 4 never ties.
+ * (These used to be two separate window listeners, so Escape with the modal open ALSO closed an
+ * open inspect panel behind it.)
+ */
 window.addEventListener("keydown", (e) => {
-  // Esc closes the inspect panel first (most recently opened transient), else releases follow.
   if (e.key !== "Escape") return;
+  if (settingsModal.isOpen()) {
+    closeSettings();
+    return;
+  }
+  if (leavePlacementTool()) return;
   if (inspectOpen()) closeInspect();
   else if (followId !== null) clearFollow();
 });
@@ -511,12 +596,6 @@ window.addEventListener("keydown", (e) => {
     coverageOverlay ? "Coverage overlay ON — faith/safety/goods" : "Coverage overlay OFF",
     performance.now(),
   );
-});
-
-// Global Escape: close the settings modal if open (placement/follow Escape
-// handlers above remain; this just adds modal dismissal at the window level too).
-window.addEventListener("keydown", (e) => {
-  if (e.key === "Escape" && settingsModal.isOpen()) closeSettings();
 });
 
 /**

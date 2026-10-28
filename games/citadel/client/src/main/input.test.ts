@@ -80,7 +80,51 @@ const refs = vi.hoisted(() => ({
   // audit-48: rebindable so a test can make the HUD genuinely CONSUME a press and put a real
   // pointer gesture in flight. Defaults to a never-consuming stub for every other test.
   uiDispatcher: undefined as InputDispatcher | undefined,
+  // 2026-10-09 no-way-back-to-none: the WORLD pointer handlers bail until the camera exists
+  // (`inputReady`), so the right-click tests flip this on; every other suite keeps it off.
+  inputReady: false,
+  settingsOpen: false,
+  inspectOpen: false,
+  newGameOpen: false,
 }));
+
+/**
+ * The placement singleton + the build-bar setter, faked just far enough for input.ts: `setTool`
+ * moves `mode` exactly as build-controls.ts's real one does, and the drag API records whether a
+ * run was ended. Hoisted for the same reason as `refs`.
+ */
+const fakes = vi.hoisted(() => {
+  const placement = {
+    mode: "none" as string,
+    isDraggingRoad: false,
+    lastRouteBlocked: false,
+    roadTiles: [] as Array<{ x: number; y: number }>,
+    updateCursor: vi.fn(),
+    startRoadDrag: vi.fn(() => {
+      placement.isDraggingRoad = true;
+      placement.roadTiles = [{ x: 1, y: 1 }, { x: 2, y: 1 }];
+    }),
+    endRoadDrag: vi.fn(() => {
+      placement.isDraggingRoad = false;
+      const tiles = placement.roadTiles;
+      placement.roadTiles = [];
+      return tiles;
+    }),
+  };
+  return {
+    placement,
+    setTool: vi.fn((tool: string) => {
+      placement.mode = tool;
+    }),
+    sendCommand: vi.fn(),
+    togglePause: vi.fn(),
+    setSpeedAndResume: vi.fn(),
+    closeSettings: vi.fn(),
+    closeInspect: vi.fn(),
+    openInspectAtTile: vi.fn(() => false),
+    camera: { centerX: 0, centerY: 0, zoom: 1, worldUnitsX: 100, worldUnitsY: 100, setCenter: vi.fn(), setZoom: vi.fn() },
+  };
+});
 
 vi.mock("./dom", () => ({
   canvas: document.createElement("canvas"),
@@ -117,13 +161,15 @@ vi.mock("../ui/minimap", () => ({
 }));
 
 vi.mock("./renderer-state", () => ({
-  camera: {},
+  camera: fakes.camera,
   iso: {},
-  inputReady: false,
+  get inputReady() {
+    return refs.inputReady;
+  },
 }));
 
 vi.mock("./placement-wiring", () => ({
-  placementState: { mode: "none", updateCursor: vi.fn() },
+  placementState: fakes.placement,
 }));
 
 vi.mock("./terrain", () => ({ terrain: {} }));
@@ -133,7 +179,9 @@ vi.mock("./hud-wiring", () => ({ toasts: { push: vi.fn() } }));
 vi.mock("./sim-client", () => ({
   currentBuildings: [],
   currentVillagers: [],
-  client: { sendCommand: vi.fn() },
+  client: { sendCommand: fakes.sendCommand },
+  togglePause: fakes.togglePause,
+  setSpeedAndResume: fakes.setSpeedAndResume,
 }));
 
 // The dispatcher/mirror under test: real @engine/ui plumbing over a real status-panel.ts tree,
@@ -154,9 +202,9 @@ vi.mock("./hud-panels", () => ({
 vi.mock("./inspect", () => ({
   inspectDispatcher: stubDispatcher(),
   inspectMirror: stubMirror(),
-  inspectOpen: vi.fn(() => false),
-  closeInspect: vi.fn(),
-  openInspectAtTile: vi.fn(() => false),
+  inspectOpen: () => refs.inspectOpen,
+  closeInspect: fakes.closeInspect,
+  openInspectAtTile: fakes.openInspectAtTile,
 }));
 
 vi.mock("./build-controls", () => ({
@@ -168,19 +216,20 @@ vi.mock("./build-controls", () => ({
   setFollowId: vi.fn(),
   clearFollow: vi.fn(),
   updateModeLabel: vi.fn(),
+  setTool: fakes.setTool,
 }));
 
 vi.mock("./settings", () => ({
   settingsDispatcher: stubDispatcher(),
   settingsMirror: stubMirror(),
-  settingsModal: { isOpen: vi.fn(() => false) },
-  closeSettings: vi.fn(),
+  settingsModal: { isOpen: () => refs.settingsOpen },
+  closeSettings: fakes.closeSettings,
 }));
 
 vi.mock("./new-game", () => ({
   newGameDispatcher: stubDispatcher(),
   newGameMirror: stubMirror(),
-  newGameOpen: vi.fn(() => false),
+  newGameOpen: () => refs.newGameOpen,
 }));
 
 vi.mock("./minimap-wiring", () => ({ minimap: null }));
@@ -450,5 +499,135 @@ describe("input.ts pointer gestures that end off-canvas — the four acceptance 
 
     expect(activations).toBe(1);
     expect(btn.state).toBe("hover");
+  });
+});
+
+/**
+ * 2026-10-09 citadel-no-way-back-to-no-mode: once a build tool was picked, only the build bar's
+ * Cancel (X) returned to "Mode: None". Escape and a still right-click now both leave the tool
+ * through the same `setTool("none")` the Cancel button calls (faked here to move `mode` exactly as
+ * the real one does, so "the mode label/highlight follow" reduces to `mode === "none"`).
+ */
+describe("input.ts — Escape and a still right-click leave the placement tool", () => {
+  let canvas: HTMLCanvasElement;
+  const TOOLS = ["place", "road", "wall", "demolish", "upgrade"] as const;
+
+  function mouse(type: string, x: number, y: number, button = 0): MouseEvent {
+    return new MouseEvent(type, { clientX: x, clientY: y, button, bubbles: true, cancelable: true });
+  }
+
+  beforeEach(async () => {
+    const dom = await import("./dom");
+    canvas = dom.canvas;
+    canvas.getBoundingClientRect = () =>
+      ({ left: 0, top: 0, width: 800, height: 600, right: 800, bottom: 600, x: 0, y: 0, toJSON() {} }) as DOMRect;
+    refs.inputReady = true;
+    fakes.placement.mode = "none";
+    fakes.placement.isDraggingRoad = false;
+    fakes.placement.roadTiles = [];
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    refs.inputReady = false;
+    refs.settingsOpen = false;
+    refs.inspectOpen = false;
+    refs.newGameOpen = false;
+    fakes.placement.mode = "none";
+    canvas.dispatchEvent(new MouseEvent("mouseleave")); // drop any right press left in flight
+  });
+
+  it.each(TOOLS)("Escape in %s mode returns to none through setTool('none')", (tool) => {
+    fakes.placement.mode = tool;
+    dispatchKeydown("Escape");
+    expect(fakes.setTool).toHaveBeenCalledWith("none");
+    expect(fakes.placement.mode).toBe("none");
+  });
+
+  it("Escape mid road drag drops the run: nothing is placed, then or on the release", () => {
+    fakes.placement.mode = "road";
+    canvas.dispatchEvent(mouse("mousedown", 100, 100)); // starts the drag
+    expect(fakes.placement.isDraggingRoad).toBe(true);
+
+    dispatchKeydown("Escape");
+    expect(fakes.placement.endRoadDrag).toHaveBeenCalledTimes(1);
+    expect(fakes.placement.isDraggingRoad).toBe(false);
+    expect(fakes.placement.mode).toBe("none");
+
+    canvas.dispatchEvent(mouse("mouseup", 140, 100));
+    canvas.dispatchEvent(mouse("click", 140, 100));
+    expect(fakes.sendCommand).not.toHaveBeenCalled();
+    // The cancelled press's click lands in "none" mode; it must not inspect what is under it.
+    expect(fakes.openInspectAtTile).not.toHaveBeenCalled();
+  });
+
+  it.each(TOOLS)("a still right-click in %s mode returns to none", (tool) => {
+    fakes.placement.mode = tool;
+    canvas.dispatchEvent(mouse("mousedown", 200, 200, 2));
+    canvas.dispatchEvent(mouse("mouseup", 202, 201, 2)); // within the slop
+    expect(fakes.setTool).toHaveBeenCalledWith("none");
+    expect(fakes.placement.mode).toBe("none");
+  });
+
+  it("a right-DRAG still pans and keeps the tool", () => {
+    fakes.placement.mode = "road";
+    canvas.dispatchEvent(mouse("mousedown", 200, 200, 2));
+    canvas.dispatchEvent(mouse("mousemove", 260, 230, 2));
+    canvas.dispatchEvent(mouse("mouseup", 260, 230, 2));
+    expect(fakes.camera.setCenter).toHaveBeenCalled(); // it panned
+    expect(fakes.setTool).not.toHaveBeenCalled();
+    expect(fakes.placement.mode).toBe("road");
+  });
+
+  it("a right-drag that wanders back to its start is still a pan, not a click", () => {
+    fakes.placement.mode = "demolish";
+    canvas.dispatchEvent(mouse("mousedown", 200, 200, 2));
+    canvas.dispatchEvent(mouse("mousemove", 240, 200, 2));
+    canvas.dispatchEvent(mouse("mousemove", 201, 200, 2));
+    canvas.dispatchEvent(mouse("mouseup", 201, 200, 2));
+    expect(fakes.placement.mode).toBe("demolish");
+  });
+
+  it("a right release mid left road drag never commits the run", () => {
+    fakes.placement.mode = "road";
+    canvas.dispatchEvent(mouse("mousedown", 100, 100)); // left: drag starts
+    canvas.dispatchEvent(mouse("mousedown", 150, 100, 2));
+    canvas.dispatchEvent(mouse("mousemove", 220, 100, 2)); // right-drag pans
+    canvas.dispatchEvent(mouse("mouseup", 220, 100, 2));
+    expect(fakes.sendCommand).not.toHaveBeenCalled();
+    expect(fakes.placement.isDraggingRoad).toBe(true); // the left drag is still live
+    canvas.dispatchEvent(mouse("mouseup", 220, 100)); // the left release commits it, as before
+    expect(fakes.sendCommand).toHaveBeenCalledWith(expect.objectContaining({ type: "placeRoad" }));
+  });
+
+  it("Escape with the settings modal open closes ONLY the modal", () => {
+    fakes.placement.mode = "road";
+    refs.settingsOpen = true;
+    refs.inspectOpen = true;
+    dispatchKeydown("Escape");
+    expect(fakes.closeSettings).toHaveBeenCalledTimes(1);
+    expect(fakes.setTool).not.toHaveBeenCalled();
+    expect(fakes.closeInspect).not.toHaveBeenCalled();
+    expect(fakes.placement.mode).toBe("road");
+  });
+
+  it("Escape with the new-game picker up does nothing", () => {
+    fakes.placement.mode = "road";
+    refs.newGameOpen = true;
+    refs.inspectOpen = true;
+    dispatchKeydown("Escape");
+    expect(fakes.setTool).not.toHaveBeenCalled();
+    expect(fakes.closeSettings).not.toHaveBeenCalled();
+    expect(fakes.closeInspect).not.toHaveBeenCalled();
+  });
+
+  it("precedence: the tool goes first, the inspect panel on the next Escape", () => {
+    fakes.placement.mode = "demolish";
+    refs.inspectOpen = true;
+    dispatchKeydown("Escape");
+    expect(fakes.placement.mode).toBe("none");
+    expect(fakes.closeInspect).not.toHaveBeenCalled();
+    dispatchKeydown("Escape");
+    expect(fakes.closeInspect).toHaveBeenCalledTimes(1);
   });
 });
