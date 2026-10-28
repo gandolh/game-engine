@@ -78,3 +78,32 @@ headless Chromium on 2026-10-28). Measured there:
 local portal page from one origin, Farm's WebSocket through a proxy), step 3 (card images), step 4
 (`curl -I` the deployed games for `X-Frame-Options`/`frame-ancestors`, and the proposed vps-deploy
 briefs), `portal.md`, the card-grid sketch and the follow-up specs. No code was written for it.
+
+### Resumed and stopped again 2026-10-28 (session ended): step 2, first pass
+
+The four games were built with their deploy bases (`/farm-valley/`, `/citadel/`, `/hollow/`,
+`/mathquest/`) and served with a local play page (header, `<iframe allow="fullscreen; autoplay;
+gamepad">`, a Fullscreen button) from **one origin** by a small Node server that upgrades
+`/farm-valley/sim` to the Farm sim server. One run per game, headless Chromium + SwiftShader, load
+average 0.6 at the start and 6.7 at the end:
+
+- **Focus**: a click inside the frame leaves the parent's `activeElement` on the `IFRAME` for all
+  four, and keys then reach the game: Citadel's picker took Tab + Enter and Space toggled pause
+  (the HUD read "Resume"); MateQuest's map took `1` and opened combat.
+- **Fullscreen**: the portal button made the iframe `document.fullscreenElement` for all four.
+- **Audio**: Farm's and Citadel's `AudioContext` reported `running` after the click in the frame;
+  Hollow and MateQuest create none.
+- **Workers**: Hollow's chronicle grew 109 → 201 lines in 4 s inside the frame; Citadel and
+  MateQuest ran.
+- **Farm, not verified**: Enter after the click did not start the run, so no WebSocket opened and the
+  `/farm-valley/sim` path through the frame is unchecked. Next: click Farm's Start button by
+  coordinates inside the frame.
+- **Frame rate** (rAF p50, 5 s each, framed vs direct): Farm 16.7 / 16.7 ms, Citadel 33.3 / 33.3,
+  Hollow 33.3 / 16.7, MateQuest 33.4 / 366.7 (the direct page was still booting). SwiftShader and
+  one run: no claim.
+
+Still not done: Farm's WebSocket in the frame, a phone viewport, step 3 (card images; the README
+captures and `docs/images/shots.md` are the starting point), step 4 (`curl -I` the deployed games
+for `X-Frame-Options`/`frame-ancestors`, proposed vps-deploy briefs for a portal stack and a
+MateQuest stack), `portal.md`, the card-grid sketch, the follow-up specs. The build/serve scripts
+lived in the session scratchpad and are gone; recreate them from this description.
