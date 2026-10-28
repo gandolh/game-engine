@@ -66,13 +66,15 @@ which is how a "WebGPU-only render path" line outlived the page that already sai
 ### MateQuest
 
 - [wiki/mathquest-overview.md](wiki/mathquest-overview.md) — What MateQuest is (the **fourth** game — a Romanian-curriculum, **grades I–IV**, math roguelike where **solving a problem IS the combat action**): **built and playable** (design settled 2026-07-21, M0–M5 complete 2026-07-23). Pokémon-style Attack/Heal/Shield + Slay-the-Spire turn stakes; branching runs; two-layer progression (in-run XP + persistent per-topic mastery); soft-roguelike death; loot grants math lifelines; bilingual RO/EN; Romanian-folklore theme; Resurrect-64 palette; Web-Worker solo build like Citadel. Build plan + milestones: [todos/closed/2026-07-21-mathquest-BUILD-STATE.md](todos/closed/2026-07-21-mathquest-BUILD-STATE.md).
+- [wiki/mathquest-ui.md](wiki/mathquest-ui.md) — Retained vs immediate-mode (IMGUI) UI for MateQuest: what the retained sync costs, what an IMGUI must keep, where it could live, and the measured `?imgui` combat prototype. Verdict: keep retained.
 
 ## Build programs
 
-**Open in the queue** (list [todos/](todos/) for the current set): three research specs filed
-2026-10-27 and grilled 2026-10-28: [MateQuest on an immediate-mode UI](todos/2026-10-27-mathquest-immediate-mode-research.md),
-[tiled textures for large assets](todos/2026-10-27-tiled-textures-for-large-assets-research.md) and
-[a games portal page](todos/2026-10-27-game-portal-research.md). The three specs from 2026-10-09
+**Open in the queue** (list [todos/](todos/) for the current set): two research specs filed
+2026-10-27 and grilled 2026-10-28, [tiled textures for large assets](todos/2026-10-27-tiled-textures-for-large-assets-research.md) and
+[a games portal page](todos/2026-10-27-game-portal-research.md); and one proposed follow-up awaiting the
+owner, [retire MateQuest's `?imgui` prototype](todos/2026-10-28-mathquest-retire-imgui-prototype.md) (the
+[immediate-mode research](todos/closed/2026-10-27-mathquest-immediate-mode-research.md) closed 2026-10-28). The three specs from 2026-10-09
 and the docs-site spec (2026-10-18, now on Docusaurus) closed on 2026-10-28. Everything else is closed. The Hollow
 BUILD-STATE tracker was deleted on 2026-10-07 (git has it); Hollow's record is in log.md and the
 closed `2026-07-17-hollow-*` specs.

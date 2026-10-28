@@ -1,6 +1,6 @@
 ---
 summary: What MateQuest is (a Romanian-curriculum math roguelike — the FOURTH game on the shared engine) — design-of-record v0.1, BUILT (M0–M5 complete, playable). Turn-based Pokémon-style + Slay-the-Spire combat where solving a programa-școlară problem (**grades I–IV** — narrowed from the I–VIII intention on 2026-09-19, audit-54) IS the action; branching runs, two-layer progression (in-run XP + persistent per-topic mastery), soft-roguelike death, loot that grants math lifelines, Romanian-folklore theme, Resurrect-64 palette, Web-Worker solo build like Citadel; renders on the engine's WebGL2 backend (Canvas2D until 2026-08-18). Design settled 2026-07-21; the whole milestone plan shipped by 2026-07-23.
-updated: 2026-08-18
+updated: 2026-10-28
 ---
 
 # MateQuest — overview
@@ -134,3 +134,7 @@ engine names no game; MateQuest imports only `@engine/*`. It is the fourth palet
 [architecture.md](architecture.md) for the shared engine, [decisions.md](decisions.md) for locked
 tech choices, and [citadel-overview.md](citadel-overview.md) for the Web-Worker solo-sim pattern this
 game copies.
+
+The screens are retained `@engine/ui` trees (the map is custom-drawn). Whether they should be
+immediate-mode was researched on 2026-10-28: keep retained; the measured prototype and the
+reasoning are on [mathquest-ui.md](mathquest-ui.md).

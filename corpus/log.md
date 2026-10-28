@@ -4,6 +4,18 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [todos/closed/](todos/closed/), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-10-28] research | MateQuest stays retained; the IMGUI prototype is behind ?imgui
+
+[Spec](todos/closed/2026-10-27-mathquest-immediate-mode-research.md), findings on
+[mathquest-ui.md](wiki/mathquest-ui.md). Retained sync costs ~100 code lines on the combat screen
+and 20-25 per card screen, and no shipped bug came from it (both UI defects on record are in the
+already-immediate map). A keyed immediate layer over `@engine/ui`'s nodes (133 lines, no engine
+change; nodes must persist per key because the dispatcher matches by object identity) rebuilt the
+combat screen in 155 tree lines vs 236, with an identical tree, mirror, keyboard play and pixels,
+at 6-18× the per-frame refresh and a one-frame click delay. Recommendation: keep retained. The
+prototype stays behind `?imgui`; MateQuest gained `?profile`. Proposed follow-up:
+[retire the prototype](todos/2026-10-28-mathquest-retire-imgui-prototype.md) (or promote it).
+
 ## [2026-10-28] close | The docs site is on Docusaurus
 
 [Spec](todos/closed/2026-10-18-docs-site-on-docusaurus.md), code `b43d881`. Ported with the
@@ -3950,7 +3962,7 @@ The owner asked for a Docusaurus spec for this repo. [The 2026-10-18 spec](todos
 ## [2026-10-27] todo | Three research specs filed: immediate mode, tiled textures, a portal
 
 The owner asked for three research specs, to be grilled when work starts.
-[MateQuest immediate mode](todos/2026-10-27-mathquest-immediate-mode-research.md) names the two
+[MateQuest immediate mode](todos/closed/2026-10-27-mathquest-immediate-mode-research.md) names the two
 readings: an immediate-mode UI in place of `@engine/ui`'s retained tree, or a sim with no loop,
 which audit-03 already delivered apart from the Worker itself.
 [Tiled textures](todos/2026-10-27-tiled-textures-for-large-assets-research.md) starts from the
@@ -3963,7 +3975,7 @@ The index's "queue is empty" line was stale and now lists what is open.
 ## [2026-10-28] grill | The three research specs grilled
 
 The owner settled each spec's opening questions.
-[MateQuest immediate mode](todos/2026-10-27-mathquest-immediate-mode-research.md): reading A, the
+[MateQuest immediate mode](todos/closed/2026-10-27-mathquest-immediate-mode-research.md): reading A, the
 screens as an immediate-mode UI; the worker question (B) is not asked for.
 [Tiled textures](todos/2026-10-27-tiled-textures-for-large-assets-research.md): all three readings
 (bigger worlds, large hand-drawn images, and Tiled the map editor, now steps 5 and 6); desktop is the
