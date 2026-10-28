@@ -4,9 +4,21 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [todos/closed/](todos/closed/), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-10-28] close | Citadel: Escape and a still right-click leave the build tool
+
+[Spec](todos/closed/2026-10-09-citadel-no-way-back-to-no-mode.md), code `4833917`. Reproduced in
+Chromium first: only the build bar's Cancel reached `Mode: None`. Escape is now one handler with a
+written precedence (settings modal, build tool, inspect panel, follow-cam; the picker stays
+undismissable). The old pair of listeners also closed the inspect panel behind an open settings
+modal; that is fixed. A right press that never moves past 4 CSS px leaves the tool; a right-drag
+still pans. Leaving mid-drag drops the run, and a right release no longer commits a left drag.
+16 new tests in `input.test.ts` (14 fail on the old code). New page
+[citadel-controls.md](wiki/citadel-controls.md) holds the bindings and the precedence. Gates: all
+green except two Hollow sim-core tests that timed out at load 31 and pass alone.
+
 ## [2026-10-09] todos | Three bug specs filed
 
-Found during the README refresh; nothing fixed. [Citadel has no Escape or right-click way back to "no mode"](todos/2026-10-09-citadel-no-way-back-to-no-mode.md); [Citadel speed keys are ignored while the build bar has focus](todos/2026-10-09-citadel-speed-keys-ignored-with-build-bar-focus.md) (cause unconfirmed, reproduce first); [package-lock.json drifts on `npm install`](todos/2026-10-09-package-lock-drift-engines-node.md) (missing `engines` on three workspaces).
+Found during the README refresh; nothing fixed. [Citadel has no Escape or right-click way back to "no mode"](todos/closed/2026-10-09-citadel-no-way-back-to-no-mode.md); [Citadel speed keys are ignored while the build bar has focus](todos/2026-10-09-citadel-speed-keys-ignored-with-build-bar-focus.md) (cause unconfirmed, reproduce first); [package-lock.json drifts on `npm install`](todos/2026-10-09-package-lock-drift-engines-node.md) (missing `engines` on three workspaces).
 
 ## [2026-10-07] cleanup | Farm's June world-design backlog deleted
 

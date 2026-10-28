@@ -56,6 +56,7 @@ which is how a "WebGPU-only render path" line outlived the page that already sai
 - [wiki/citadel-art-style.md](wiki/citadel-art-style.md) — The cozy-medieval-storybook iso pixel-art style bible — palette roles, shading/form/light rules, the layered-composite authoring path. **Caveat:** that path was applied to the char-recipe buildings, which 3D meshes replaced on 2026-07-14.
 - [wiki/citadel-asset-critique.md](wiki/citadel-asset-critique.md) — The whole-set visual acceptance bar: a seven-section critique checklist plus the PASS/CONDITIONAL/FAIL verdict rule.
 - [wiki/citadel-asset-verdicts.md](wiki/citadel-asset-verdicts.md) — Historical grading record for the art-04..07 wave (baseline, re-grade, final verdicts).
+- [wiki/citadel-controls.md](wiki/citadel-controls.md) — Mouse and keyboard bindings and their precedence: the three ways out of a build tool (Cancel, Escape, a still right-click), what one Escape closes, right-click vs right-drag.
 - [wiki/citadel-road-builder-ux.md](wiki/citadel-road-builder-ux.md) — Road/wall drawing UX: what OpenTTD, Skylines, Factorio and Anno do, mapped onto Citadel's drag-build, with the connectivity-feedback gap.
 
 ### Hollow
@@ -72,7 +73,7 @@ which is how a "WebGPU-only render path" line outlived the page that already sai
 2026-10-27, not grilled: [MateQuest on an immediate-mode UI](todos/2026-10-27-mathquest-immediate-mode-research.md),
 [tiled textures for large assets](todos/2026-10-27-tiled-textures-for-large-assets-research.md) and
 [a games portal page](todos/2026-10-27-game-portal-research.md); beside them the docs-site spec
-(2026-10-18) and three small specs from 2026-10-09. Everything else is closed. The Hollow
+(2026-10-18) and two small specs from 2026-10-09 (the third, Citadel's no-mode exit, closed 2026-10-28). Everything else is closed. The Hollow
 BUILD-STATE tracker was deleted on 2026-10-07 (git has it); Hollow's record is in log.md and the
 closed `2026-07-17-hollow-*` specs.
 
