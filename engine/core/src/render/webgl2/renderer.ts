@@ -290,7 +290,7 @@ export class WebGl2Renderer implements RendererLike {
     this._store = new GlAtlasStore(gl);
     this._batch = new SpriteBatch(gl);
     this._shadowBatch = new ShadowBatch(gl);
-    this._staticPass = new StaticLayerPass(glCtx);
+    this._staticPass = new StaticLayerPass(glCtx, this._staticPatchSize);
     this._waterPass = new WaterPass(glCtx);
     this._particleBatch = new ParticleBatch(glCtx);
     this._weatherPass = new WeatherPass(glCtx);
@@ -334,7 +334,10 @@ export class WebGl2Renderer implements RendererLike {
     return this._restoring;
   }
 
-  static create(canvas: HTMLCanvasElement, camera: Camera2D): WebGl2Renderer {
+  /** Research prototype: the static layer's patch size (0 = one texture). See StaticLayerPass. */
+  private _staticPatchSize = 0;
+
+  static create(canvas: HTMLCanvasElement, camera: Camera2D, staticPatchSize = 0): WebGl2Renderer {
     const glCtx = GlContext.create(canvas);
     const { gl } = glCtx;
 
@@ -342,7 +345,7 @@ export class WebGl2Renderer implements RendererLike {
     const batch = new SpriteBatch(gl);
     const shadowBatch = new ShadowBatch(gl);
     const overlay = new Overlay2D(canvas);
-    const staticPass = new StaticLayerPass(glCtx);
+    const staticPass = new StaticLayerPass(glCtx, staticPatchSize);
     const waterPass = new WaterPass(glCtx);
     const particleBatch = new ParticleBatch(glCtx);
     const weatherPass = new WeatherPass(glCtx);
@@ -350,10 +353,12 @@ export class WebGl2Renderer implements RendererLike {
     const cloudPass = new CloudShadowPass(gl);
     const overlayLightPass = new OverlayLightPass(gl);
 
-    return new WebGl2Renderer(
+    const renderer = new WebGl2Renderer(
       canvas, camera, glCtx, store, batch, shadowBatch, overlay, staticPass, waterPass,
       particleBatch, weatherPass, tintPass, cloudPass, overlayLightPass,
     );
+    renderer._staticPatchSize = staticPatchSize; // so a context-loss rebuild keeps the same shape
+    return renderer;
   }
 
   addAtlas(atlas: LoadedAtlasImage): void {

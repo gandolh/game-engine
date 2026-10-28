@@ -68,8 +68,12 @@ async function setupRuntime(canvas: HTMLCanvasElement): Promise<Runtime> {
   // pre-migration behaviour, where createRenderer rethrew and nothing caught it.
   let renderer: RendererLike;
   try {
+    // RESEARCH FLAG (2026-10-28, tiled-textures spec): `?patches=<px>` uploads the static layer as
+    // square patches of that size instead of one texture. Off by default.
+    const patches = Number(new URLSearchParams(location.search).get("patches") ?? 0);
     renderer = await createRenderer(canvas, camera, {
       onBackend: (b) => console.info("[render] backend:", b),
+      ...(patches > 0 ? { staticPatchSize: patches } : {}),
     });
   } catch (err) {
     console.error("[render] WebGL2 unavailable:", err);

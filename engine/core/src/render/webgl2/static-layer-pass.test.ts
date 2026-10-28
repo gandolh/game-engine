@@ -263,3 +263,55 @@ describe("StaticLayerPass", () => {
     expect(viewUpload).toEqual([{ __uniform: "u_view" }, 2, -2, 5, 7]);
   });
 });
+
+// Research prototype (2026-10-28, tiled-textures spec): the patched static layer. A bake larger
+// than the driver's MAX_TEXTURE_SIZE is cut into patches that each fit, and draw() blits only the
+// patches the visible rect touches. patchSize 0 (the default) is the single-texture path above.
+describe("StaticLayerPass — patches (research prototype)", () => {
+  it("cuts a 100×70 bake into 32px patches: 4×3, the edge patches cropped", () => {
+    const { gl } = makeFakeGl();
+    const pass = new StaticLayerPass(fakeGlContext(gl), 32);
+    pass.bake([], new Map([["terrain", fakeAtlas()]]), 100, 70);
+    expect(pass.textureCount).toBe(12);
+    expect(gl.createTexture).toHaveBeenCalledTimes(12);
+  });
+
+  it("a bake over the driver limit throws as one texture but bakes as patches", () => {
+    const one = makeFakeGl();
+    vi.mocked(one.gl.getParameter).mockReturnValue(2048);
+    expect(() => new StaticLayerPass(fakeGlContext(one.gl)).bake([], new Map([["terrain", fakeAtlas()]]), 3840, 3840)).toThrow(
+      RangeError,
+    );
+    const patched = makeFakeGl();
+    vi.mocked(patched.gl.getParameter).mockReturnValue(2048);
+    const pass = new StaticLayerPass(fakeGlContext(patched.gl), 2048);
+    expect(() => pass.bake([], new Map([["terrain", fakeAtlas()]]), 3840, 3840)).not.toThrow();
+    expect(pass.textureCount).toBe(4);
+  });
+
+  it("draws only the patches the visible rect touches, each with its own src/dst rect", () => {
+    const { gl, calls } = makeFakeGl();
+    const pass = new StaticLayerPass(fakeGlContext(gl), 32);
+    pass.bake([], new Map([["terrain", fakeAtlas()]]), 128, 128); // 4×4 patches
+    pass.setView(identityView);
+    pass.draw(fakeGlContext(gl), identityView, { visL: 40, visT: 40, visR: 70, visB: 70 }); // inside patches (1..2, 1..2)
+    expect(calls.drawArrays.length).toBe(4);
+    const dst = calls.uniform4f.filter((a) => (a[0] as { __uniform: string }).__uniform === "u_dstRect").map((a) => a.slice(1));
+    // The four dst rects tile the visible rect exactly: no gap, no overlap at x = 64 / y = 64.
+    expect(dst).toEqual([
+      [40, 40, 64, 64],
+      [64, 40, 70, 64],
+      [40, 64, 64, 70],
+      [64, 64, 70, 70],
+    ]);
+  });
+
+  it("clear() deletes every patch texture", () => {
+    const { gl } = makeFakeGl();
+    const pass = new StaticLayerPass(fakeGlContext(gl), 32);
+    pass.bake([], new Map([["terrain", fakeAtlas()]]), 64, 64);
+    pass.clear();
+    expect(gl.deleteTexture).toHaveBeenCalledTimes(4);
+    expect(pass.textureCount).toBe(0);
+  });
+});

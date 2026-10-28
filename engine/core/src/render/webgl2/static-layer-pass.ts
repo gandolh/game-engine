@@ -87,6 +87,19 @@ function uploadImageTexture(
 
 const VIEW_UNIFORM_NAMES = ["u_view", "u_srcRect", "u_dstRect", "u_tex"] as const;
 
+/**
+ * One PATCH of a patched bake (research prototype, 2026-10-28 — corpus spec
+ * 2026-10-27-tiled-textures-for-large-assets-research): a fixed-size square of the baked image,
+ * uploaded as its own texture, with the world-px rect it covers.
+ */
+interface Patch {
+  texture: WebGLTexture;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
 export class StaticLayerPass {
   private readonly ctx: GlContext;
 
@@ -108,8 +121,19 @@ export class StaticLayerPass {
   private viewOffsetX = 0;
   private viewOffsetY = 0;
 
-  constructor(ctx: GlContext) {
+  /**
+   * RESEARCH PROTOTYPE (off unless a host opts in via `createRenderer`'s `staticPatchSize`): when
+   * > 0, `bake` cuts the baked image into patches of at most this many px a side, each its own
+   * texture, and `draw` blits only the patches the visible rect touches. 0 (the default) keeps the
+   * single texture, byte-identical to before. The bake itself is unchanged (one CPU canvas, then
+   * sliced), so this lifts the GPU texture limit but not the 2D-canvas size limit.
+   */
+  private readonly patchSize: number;
+  private patches: Patch[] = [];
+
+  constructor(ctx: GlContext, patchSize = 0) {
     this.ctx = ctx;
+    this.patchSize = patchSize > 0 ? Math.floor(patchSize) : 0;
   }
 
   private initProgram(): void {
@@ -168,17 +192,47 @@ export class StaticLayerPass {
     this.initProgram();
     const { gl } = this.ctx;
     if (this.texture) gl.deleteTexture(this.texture);
-    this.texture = uploadImageTexture(gl, surface, w, h, gl.CLAMP_TO_EDGE, "static-layer bake");
+    this.texture = null;
+    this.deletePatches();
+    if (this.patchSize > 0) {
+      const P = this.patchSize;
+      for (let py = 0; py < h; py += P) {
+        for (let px = 0; px < w; px += P) {
+          const pw = Math.min(P, w - px);
+          const ph = Math.min(P, h - py);
+          const patch = createOffscreen(pw, ph);
+          const pctx = patch.getContext("2d") as Ctx2D | null;
+          if (!pctx) throw new Error("StaticLayerPass.bake: failed to acquire a patch 2d context");
+          pctx.imageSmoothingEnabled = false;
+          pctx.drawImage(surface, px, py, pw, ph, 0, 0, pw, ph);
+          const texture = uploadImageTexture(gl, patch, pw, ph, gl.CLAMP_TO_EDGE, `static-layer patch ${px},${py}`);
+          this.patches.push({ texture, x: reg.originX + px, y: reg.originY + py, w: pw, h: ph });
+        }
+      }
+    } else {
+      this.texture = uploadImageTexture(gl, surface, w, h, gl.CLAMP_TO_EDGE, "static-layer bake");
+    }
     this.textureW = w;
     this.textureH = h;
     this.regionOriginX = reg.originX;
     this.regionOriginY = reg.originY;
   }
 
+  private deletePatches(): void {
+    for (const p of this.patches) this.ctx.gl.deleteTexture(p.texture);
+    this.patches = [];
+  }
+
+  /** How many textures the current bake uses (1, or the patch count). Research readout. */
+  get textureCount(): number {
+    return this.patches.length > 0 ? this.patches.length : this.texture ? 1 : 0;
+  }
+
   clear(): void {
     if (this.texture) {
       this.ctx.gl.deleteTexture(this.texture);
     }
+    this.deletePatches();
     this.texture = null;
     this.textureW = 0;
     this.textureH = 0;
@@ -187,6 +241,10 @@ export class StaticLayerPass {
   }
 
   draw(target: GlContext, _view: ViewUniform, visRect: VisibleRect): void {
+    if (this.patches.length > 0) {
+      this.drawPatches(target, visRect);
+      return;
+    }
     if (!this.texture || !this.program || !this.uniforms) return;
     if (target.isLost()) return;
     const { visL, visT, visR, visB } = visRect;
@@ -227,5 +285,34 @@ export class StaticLayerPass {
     gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
 
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  }
+
+  /** Patched draw: one blit per patch the visible rect touches, same shader and blend. */
+  private drawPatches(target: GlContext, visRect: VisibleRect): void {
+    if (!this.program || !this.uniforms) return;
+    if (target.isLost()) return;
+    const { visL, visT, visR, visB } = visRect;
+    const gl = target.gl;
+    gl.useProgram(this.program);
+    gl.uniform4f(this.uniforms.u_view, this.viewScaleX, this.viewScaleY, this.viewOffsetX, this.viewOffsetY);
+    gl.activeTexture(gl.TEXTURE0);
+    if (this.uniforms.u_tex) gl.uniform1i(this.uniforms.u_tex, 0);
+    gl.enable(gl.BLEND);
+    gl.blendEquation(gl.FUNC_ADD);
+    gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+    for (const p of this.patches) {
+      const blit = staticBlitRect(visL, visT, visR, visB, { originX: p.x, originY: p.y, width: p.w, height: p.h });
+      if (!blit) continue;
+      gl.uniform4f(
+        this.uniforms.u_srcRect,
+        blit.srcX / p.w,
+        blit.srcY / p.h,
+        (blit.srcX + blit.srcW) / p.w,
+        (blit.srcY + blit.srcH) / p.h,
+      );
+      gl.uniform4f(this.uniforms.u_dstRect, blit.dstL, blit.dstT, blit.dstL + blit.dstW, blit.dstT + blit.dstH);
+      gl.bindTexture(gl.TEXTURE_2D, p.texture);
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    }
   }
 }

@@ -9,6 +9,13 @@ export interface CreateRendererOptions {
    * when the answer is never in doubt.
    */
   onBackend?: (backend: "webgl2") => void;
+  /**
+   * RESEARCH PROTOTYPE (2026-10-28, corpus spec 2026-10-27-tiled-textures-for-large-assets-research):
+   * when > 0, the static layer is uploaded as square PATCHES of at most this many px a side instead of
+   * one texture, so a bake larger than the device's `MAX_TEXTURE_SIZE` still draws. Off by default;
+   * only Farm's `?patches=<px>` sets it.
+   */
+  staticPatchSize?: number;
 }
 
 /**
@@ -39,7 +46,7 @@ export async function createRenderer(
   // hollow-sim — crash on startup even though none of them ever renders. The WebGPU
   // backend was loaded this same way for this same reason; keep it that way.
   const { WebGl2Renderer } = await import("./webgl2/renderer");
-  const renderer = WebGl2Renderer.create(canvas, camera);
+  const renderer = WebGl2Renderer.create(canvas, camera, opts?.staticPatchSize ?? 0);
   opts?.onBackend?.("webgl2");
   return renderer;
 }
