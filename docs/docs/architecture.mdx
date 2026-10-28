@@ -3,10 +3,11 @@ title: The engine
 description: The load-bearing map — the four-layer dependency rule, deterministic fixed-step sim, the sim↔render snapshot boundary, ECS, and WASM kernels.
 ---
 
-import { Card, CardGrid, Aside, Badge } from '@astrojs/starlight/components'
-import Metrics from '../../components/Metrics.astro'
-import LayerStack from '../../components/LayerStack.astro'
-import Diagram from '../../components/Diagram.astro'
+import { Card, CardGrid } from '@site/src/components/Cards'
+import Badge from '@site/src/components/Badge'
+import Metrics from '@site/src/components/Metrics'
+import LayerStack from '@site/src/components/LayerStack'
+import Diagram from '@site/src/components/Diagram'
 
 `@engine/core` is an in-house, game-agnostic TypeScript engine: an ECS, a
 fixed-step deterministic sim loop, a WebGL2 renderer (2D **and** 3D), input,
@@ -29,13 +30,13 @@ fails if the engine reaches into a game, or one game into another.
 
 <LayerStack />
 
-<Aside type="note">
-  Inside the monorepo, packages resolve **raw TypeScript source** via subpath
-  `exports` — there's no build step for the engine. The same packages are also
-  shippable as MIT libraries (v0.1.0) that resolve emitted `dist/` for external
-  consumers, via a prepack manifest swap. Read the full map in
-  [Architecture](/wiki/architecture/).
-</Aside>
+:::note
+Inside the monorepo, packages resolve **raw TypeScript source** via subpath
+`exports` — there's no build step for the engine. The same packages are also
+shippable as MIT libraries (v0.1.0) that resolve emitted `dist/` for external
+consumers, via a prepack manifest swap. Read the full map in
+[Architecture](/wiki/architecture/).
+:::
 
 ## Determinism is the foundation
 
@@ -57,12 +58,12 @@ byte-for-byte. There is no snapshot-save or input-log model because there
 doesn't need to be one.
 
 <CardGrid>
-  <Card title="Fixed step, interpolated render" icon="seti:clock">
+  <Card title="Fixed step, interpolated render">
     The sim ticks at a fixed 20 Hz (`FixedStepClock`). The renderer interpolates
     between the **latest two snapshots** with `smoothstep(alpha)`, drawing ~2 ticks
     behind latest to absorb dropped frames — logic and framerate fully decoupled.
   </Card>
-  <Card title="Interpolate position, snap frames" icon="seti:image">
+  <Card title="Interpolate position, snap frames">
     Animation is render-side and wall-clock-driven (zero determinism risk). The
     rule: **never interpolate frames** — interpolate position via `alpha`, snap the
     sprite frame. A semantic snapshot (`moving`/`facing`/`action`) lets render
@@ -96,32 +97,32 @@ transport-agnostic, so the same sim runs in a server, a Worker, or a bare test.
 ## Under the hood
 
 <CardGrid>
-  <Card title="In-house ECS" icon="setting">
+  <Card title="In-house ECS">
     Replaced miniplex while keeping `spawn`/`query`/`despawn`. Queries are cached by
     component-key set; `for…of` borrows a pooled scratch buffer, so steady-state
     iteration allocates **zero** arrays and despawn-mid-loop is safe.
   </Card>
-  <Card title="Message bus (FIPA-ACL)" icon="email">
+  <Card title="Message bus (FIPA-ACL)">
     Generic pub/sub with a buffer-swap (`inflight`↔`deliverable`, no realloc).
     Messages carry `performative` + `ontology` + body — mirroring the Python SPADE
     prototype the gameplay descends from.
   </Card>
-  <Card title="Scheduler in 10 bands" icon="list-format">
+  <Card title="Scheduler in 10 bands">
     Systems register in a deliberate order that encodes real data dependencies —
     e.g. an event feed must snoop the inbox before `PerceiveSystem` clears it. A
     clear placed too early is a correctness bug, not a perf one.
   </Card>
-  <Card title="WASM kernels" icon="rocket">
+  <Card title="WASM kernels">
     AssemblyScript, artifacts committed: pathfinder (A*), noise (~8× faster than
     JS), rng, floodfill. A pure-JS pathfinder is a tested fallback — but the two
     aren't route-equivalent, so the server uses WASM to preserve what players see.
   </Card>
 </CardGrid>
 
-<Aside type="caution" title="Palette discipline">
-  A fixed palette is enforced **per game, with no raw hex anywhere** — every color
-  is a named role constant. Engine + Farm use **EDG32**; Citadel and Hollow use
-  **Apollo-46** under the same role keys; MateQuest uses **Resurrect-64**. The guard
-  test is scoped **by path** and reads HTML and CSS too, not just TS — so each game
-  is validated against its own palette. See [Decisions](/wiki/decisions/).
-</Aside>
+:::caution[Palette discipline]
+A fixed palette is enforced **per game, with no raw hex anywhere** — every color
+is a named role constant. Engine + Farm use **EDG32**; Citadel and Hollow use
+**Apollo-46** under the same role keys; MateQuest uses **Resurrect-64**. The guard
+test is scoped **by path** and reads HTML and CSS too, not just TS — so each game
+is validated against its own palette. See [Decisions](/wiki/decisions/).
+:::

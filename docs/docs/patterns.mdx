@@ -3,8 +3,9 @@ title: Patterns & techniques
 description: The formulas, patterns, and techniques the engine and games are built from — determinism, agent deliberation, procedural worlds, economy math, and rendering.
 ---
 
-import { Card, CardGrid, Aside, Badge, Steps } from '@astrojs/starlight/components'
-import Metrics from '../../components/Metrics.astro'
+import { Card, CardGrid } from '@site/src/components/Cards'
+import Badge from '@site/src/components/Badge'
+import Metrics from '@site/src/components/Metrics'
 
 A tour of the load-bearing ideas — the ones worth stealing. Each links into the
 [design corpus](/wiki/architecture/) for the full derivation.
@@ -18,11 +19,11 @@ Deliberation dispatches by `personality.kind` through a registry — each
 personality file self-registers, then composes shared `deliberate*` helpers into
 a prioritized intention queue.
 
-<Aside type="tip">
-  The lineage is a Python **SPADE** multi-agent prototype (XMPP + FIPA-ACL + BDI +
-  FSM). The Python design is treated as the gameplay spec; the TypeScript is the
-  implementation.
-</Aside>
+:::tip
+The lineage is a Python **SPADE** multi-agent prototype (XMPP + FIPA-ACL + BDI +
+FSM). The Python design is treated as the gameplay spec; the TypeScript is the
+implementation.
+:::
 
 ## Everything is priced in one unit
 
@@ -115,7 +116,7 @@ integer-only math so the same seed reproduces the same map byte-for-byte. It run
 in three acts, each drawing from its own `rng.fork(label)` so streams never
 interfere.
 
-<Steps>
+<div className="doc-steps">
 
 1. **Partition — carve the map into one cell per region (BSP).** Start with the
    whole map as a single leaf, then repeatedly split the *largest splittable* leaf
@@ -162,18 +163,18 @@ interfere.
      if (rng.nextFloat() < 0.18 && !crossesBridge(c)) keep(c)
    ```
 
-</Steps>
+</div>
 
 A light corner-carve (notch depth ≤ 3) keeps islands from reading as perfect
 rectangles, and a **30-seed property test** is the accept gate: never throws, ≥2
 gap everywhere, BFS-connected from the village, forced cores on land, in-bounds,
 full roster, coverage in band.
 
-<Aside type="note">
-  There's no L-bend fallback for bridges: BSP siblings reliably share an overlap
-  window, so if a partition can't be connected with straight bridges the generator
-  just **re-salts and retries** — simpler than a bent-bridge special case.
-</Aside>
+:::note
+There's no L-bend fallback for bridges: BSP siblings reliably share an overlap
+window, so if a partition can't be connected with straight bridges the generator
+just **re-salts and retries** — simpler than a bent-bridge special case.
+:::
 
 ### In depth — ground noise: fBm + domain warping
 
@@ -181,7 +182,7 @@ The mottled ground texture is **render-only** coherent noise (it never touches t
 sim, so determinism is free). It's built bottom-up in
 [`ground-noise.ts`](https://github.com/gandolh/game-engine/blob/main/games/farm/client/src/render/ground-noise.ts):
 
-<Steps>
+<div className="doc-steps">
 
 1. **Value noise — a smooth lattice.** Integer grid corners are hashed to `[0,1)`
    (an `Math.imul` bit-mix, `hash2`), then bilinearly interpolated using the
@@ -234,14 +235,14 @@ sim, so determinism is free). It's built bottom-up in
    with `multiply` — a subtle ±12% mottle over the flat ground, with `b === 1`
    skipped entirely.
 
-</Steps>
+</div>
 
-<Aside type="tip">
-  The committed `noise.wasm` kernel (~8× faster than JS) is still the old *hash*
-  noise; this fBm+warp path is the JS upgrade that drives the ground pass. The same
-  coherent field is the intended source if organic *island shapes* (noise-threshold
-  masks) are ever pursued — see [World generation](/wiki/world-generation/).
-</Aside>
+:::tip
+The committed `noise.wasm` kernel (~8× faster than JS) is still the old *hash*
+noise; this fBm+warp path is the JS upgrade that drives the ground pass. The same
+coherent field is the intended source if organic *island shapes* (noise-threshold
+masks) are ever pursued — see [World generation](/wiki/world-generation/).
+:::
 
 ## Rendering techniques
 
@@ -258,11 +259,11 @@ sim, so determinism is free). It's built bottom-up in
 - **Bitmap UI font baked at boot** — the vendored UNSCII font bakes to an atlas on
   startup: byte-identical text everywhere, no runtime font load or measurement.
 
-<Aside type="note" title="A performance war story">
-  A per-`(atlas, frame, rgb)` glyph-tint cache turned a 5-fps regression around:
-  `ui.flush` **106.0 → 5.2 ms**, fps **3.36 → 57.06**. Small caches, load-bearing
-  results — see [Performance](/wiki/performance/).
-</Aside>
+:::note[A performance war story]
+A per-`(atlas, frame, rgb)` glyph-tint cache turned a 5-fps regression around:
+`ui.flush` **106.0 → 5.2 ms**, fps **3.36 → 57.06**. Small caches, load-bearing
+results — see [Performance](/wiki/performance/).
+:::
 
 ## When the sim fights back
 

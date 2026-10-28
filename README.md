@@ -47,7 +47,7 @@ Determinism check — 1 seed(s), 5 days @ 20 ticks/day (parallel, up to 2 worker
 DETERMINISM CHECK PASSED — all seeds reproduced identically.
 ```
 
-More on the docs site: [the engine](docs/src/content/docs/architecture.mdx) and [patterns and techniques](docs/src/content/docs/patterns.mdx). The full map is [corpus/wiki/architecture.md](corpus/wiki/architecture.md).
+More on the docs site: [the engine](docs/docs/architecture.mdx) and [patterns and techniques](docs/docs/patterns.mdx). The full map is [corpus/wiki/architecture.md](corpus/wiki/architecture.md).
 
 ## Run it locally
 
@@ -70,7 +70,7 @@ In Farm Valley, click Start or press Enter and the farmers play themselves; Tab 
 | `engine/` | `@engine/core` (ECS, sim loop, renderer, input), `@engine/ui`, `@engine/wasm-modules` |
 | `games/` | One folder per game: `sim-core` and `client`, plus a `server` for Farm Valley and Citadel |
 | `tools/` | Headless sims for Farm Valley, Citadel and Hollow, the Farm world preview, the atlas builder |
-| `docs/` | The Starlight docs site, plus the guides and images this README links |
+| `docs/` | The Docusaurus docs site, plus the guides and images this README links |
 | `corpus/` | The design wiki: decisions, status, glossary and the work queue |
 | `infrastructure/` | The container image for Farm Valley's sim server |
 | `examples/` | An outside-the-workspace project that installs the packed engine libraries |

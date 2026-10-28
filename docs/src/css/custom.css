@@ -1,0 +1,173 @@
+/*
+ * The site's theme, on Infima's tokens. Light only, one accent: farm green
+ * from the EDG32 palette (green #63c74d / greenMid #3e8948 / greenDark
+ * #265c42). The seven --ifm-color-primary* values are greenMid darkened and
+ * lightened by 10/15/30% lightness; change them to rebrand.
+ *
+ * The token block also covers [data-theme='dark'], so a crafted
+ * `?docusaurus-data-theme=dark` cannot repaint the site.
+ */
+
+:root,
+:root[data-theme='light'],
+:root[data-theme='dark'] {
+  color-scheme: light only;
+
+  --ifm-color-primary: #3e8948;
+  --ifm-color-primary-dark: #387b41;
+  --ifm-color-primary-darker: #35743d;
+  --ifm-color-primary-darkest: #2b6032;
+  --ifm-color-primary-light: #44974f;
+  --ifm-color-primary-lighter: #479e53;
+  --ifm-color-primary-lightest: #52b15f;
+
+  --ifm-background-color: #ffffff;
+  --ifm-background-surface-color: #ffffff;
+  --ifm-font-color-base: #17171a;
+  --ifm-heading-color: #17171a;
+  --ifm-code-font-size: 92%;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.06);
+}
+
+/* Prose links only: --ifm-link-decoration would underline the sidebar, the TOC
+   and the navbar too, which Starlight never did. */
+.markdown a {
+  text-underline-offset: 0.18em;
+}
+
+/* "You are here". Not .menu__link--active: Infima puts that on the parent
+   category of the current page as well. */
+.menu__link[aria-current='page'] {
+  font-weight: 600;
+}
+
+/* No ligatures in inline code — reads more like a terminal. */
+.markdown :not(pre) > code {
+  font-variant-ligatures: none;
+}
+
+/* --- Diagram frames (Diagram.tsx) ---------------------------------------- */
+.doc-diagram {
+  margin: 1.75rem 0;
+}
+
+.doc-diagram__frame {
+  width: 100%;
+  display: block;
+  border: 1px solid #e6e6ea;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.doc-diagram__caption {
+  margin-top: 0.5rem;
+  font-size: 0.8125rem;
+  color: #6a6a72;
+}
+
+/* --- Cards (Cards.tsx) ----------------------------------------------------- */
+.doc-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 1rem;
+  margin: 1.25rem 0 1.75rem;
+}
+
+.doc-card {
+  display: block;
+  padding: 1rem 1.1rem;
+  border: 1px solid #e6e6ea;
+  border-radius: 12px;
+  background: #fff;
+  color: inherit;
+}
+
+.doc-card--link:hover {
+  border-color: var(--ifm-color-primary);
+  text-decoration: none;
+  color: inherit;
+}
+
+.doc-card__title {
+  font-weight: 700;
+  margin: 0 0 0.35rem;
+}
+
+.doc-card__body > :last-child {
+  margin-bottom: 0;
+}
+
+/* --- Hero (Hero.tsx, the old splash page) --------------------------------- */
+.doc-hero {
+  padding: 2.5rem 0 1.5rem;
+}
+
+.doc-hero__tagline {
+  font-size: 1.2rem;
+  max-width: 42rem;
+}
+
+.doc-hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.doc-hero__minimal {
+  padding: 0 0.5rem;
+}
+
+/* Crisper admonitions on white (the Starlight asides had the same radius). */
+.theme-admonition {
+  border-radius: 10px;
+}
+
+/* --- Steps (Starlight's <Steps>): an ordered list in <div className="doc-steps">,
+   numbered in circles on a guide line. ----------------------------------- */
+.doc-steps > ol {
+  list-style: none;
+  counter-reset: doc-step;
+  padding-left: 0;
+}
+
+.doc-steps > ol > li {
+  counter-increment: doc-step;
+  position: relative;
+  padding-left: 2.75rem;
+  padding-bottom: 0.5rem;
+  margin-bottom: 0;
+}
+
+.doc-steps > ol > li::before {
+  content: counter(doc-step);
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1.85rem;
+  height: 1.85rem;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #fff;
+  background: var(--ifm-color-primary);
+}
+
+.doc-steps > ol > li::after {
+  content: '';
+  position: absolute;
+  left: calc(0.925rem - 1px);
+  top: 2.1rem;
+  bottom: 0.2rem;
+  width: 2px;
+  background: #d4eccd;
+}
+
+/* --- Badges (Badge.tsx): a little lighter than Infima's default. ---------- */
+.markdown .badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  vertical-align: middle;
+}

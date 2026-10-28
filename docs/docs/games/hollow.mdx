@@ -3,8 +3,9 @@ title: Hollow
 description: A director's-eye multi-generational social sim — needs, scarcity, emergent communities, heritable genomes, governance and mortality — and the one game here with a real 3D layer.
 ---
 
-import { Card, CardGrid, Aside, Badge, Steps } from '@astrojs/starlight/components'
-import Metrics from '../../../components/Metrics.astro'
+import { Card, CardGrid } from '@site/src/components/Cards'
+import Badge from '@site/src/components/Badge'
+import Metrics from '@site/src/components/Metrics'
 
 <Badge text="M1–M5 shipped" variant="success" /> &nbsp; <Badge text="the only 3D game" variant="note" /> &nbsp; <Badge text="research instrument" variant="tip" />
 
@@ -33,20 +34,20 @@ promoted into `@engine/core/agent` so both games share it — which makes the tw
 games *more* isolated, not less.
 
 <CardGrid>
-  <Card title="Emergent communities" icon="star">
+  <Card title="Emergent communities">
     Communities crystallize from trust ties and grow / split / merge / dissolve on
     their own — never authored.
   </Card>
-  <Card title="Multi-generational" icon="seti:clock">
+  <Card title="Multi-generational">
     Aging, death (age / starvation / violence / disease), pair-bonding, children —
     open-ended lineages, not a fixed cast.
   </Card>
-  <Card title="Genome = behaviour" icon="puzzle">
+  <Card title="Genome = behaviour">
     A genome carries behaviour (BDI), aptitude, and appearance — heritable via
     crossover + mutation, and visible in 3D. Personality is inherited; lived
     beliefs and desires are not.
   </Card>
-  <Card title="Governance & antagonism" icon="approve-check">
+  <Card title="Governance & antagonism">
     Leaders emerge, assign jobs, and are followed or resented. Feuds, sabotage and
     care all run as first-class social verbs.
   </Card>
@@ -57,7 +58,7 @@ games *more* isolated, not less.
 Built via a plan-split-dispatch orchestration (an Opus controller, Sonnet
 executors), one brief per wave. All of it is on `main`.
 
-<Steps>
+<div className="doc-steps">
 
 1. **M1 — the headless sim ✅** (`hollow-01…07`) — workspace skeleton; engine
    agent-kernel promotion + a Farm refactor onto it; needs / economy / scarcity;
@@ -82,7 +83,7 @@ executors), one brief per wave. All of it is on `main`.
    then starvation death, persistent corpses, graveyard burial by a grave-digger,
    rot → disease, and a medic.
 
-</Steps>
+</div>
 
 ## The LLM seam, and the number that justifies it
 
@@ -97,15 +98,15 @@ diverges. Every run now prints its own adoption rate, so the seam can't quietly
 become decorative. One spec remains queued: moving the attachment point to a
 decision whose subject outlives the ~40-tick answer lag.
 
-<Aside type="caution" title="A war story worth keeping">
-  Lifecycle first showed population **bistability** — food scarcity alone couldn't
-  bound it. The fix was a **density-dependent birth brake**
-  (`BIRTH_PERCAPITA_FOOD_TARGET`), giving a bounded, never-extinct ~15–65 plateau
-  across seeds. Instrument the real run; re-derive the premise.
-</Aside>
+:::caution[A war story worth keeping]
+Lifecycle first showed population **bistability** — food scarcity alone couldn't
+bound it. The fix was a **density-dependent birth brake**
+(`BIRTH_PERCAPITA_FOOD_TARGET`), giving a bounded, never-extinct ~15–65 plateau
+across seeds. Instrument the real run; re-derive the premise.
+:::
 
-<Aside type="note">
-  Hollow's design of record — the tick order, the genome, the economy, the
-  governance and mortality models — is [Hollow overview](/wiki/hollow-overview/).
-  Current state across all four games is [Status](/wiki/status/).
-</Aside>
+:::note
+Hollow's design of record — the tick order, the genome, the economy, the
+governance and mortality models — is [Hollow overview](/wiki/hollow-overview/).
+Current state across all four games is [Status](/wiki/status/).
+:::

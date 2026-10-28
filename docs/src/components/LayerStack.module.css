@@ -1,0 +1,59 @@
+.layerstack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 1.5rem 0 1rem;
+}
+
+.layer {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid #e6e6ea;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.tag {
+  flex: 0 0 8.5rem;
+  display: flex;
+  align-items: center;
+  padding: 0.85rem 1rem;
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: #fff;
+}
+
+.body {
+  padding: 0.75rem 1rem;
+  min-width: 0;
+}
+
+.pkgs {
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.85rem;
+  color: #17171a;
+  word-break: break-word;
+}
+
+.note {
+  font-size: 0.78rem;
+  color: #6a6a72;
+  margin-top: 0.3rem;
+}
+
+/* EDG32 green ramp: lighter at the top, deepest at the load-bearing kernel. */
+.depth3 .tag { background: #8fd98a; color: #17171a; }
+.depth2 .tag { background: #63c74d; color: #17171a; }
+.depth1 .tag { background: #3e8948; }
+.depth0 .tag { background: #265c42; }
+
+.rule {
+  text-align: center;
+  font-size: 0.78rem;
+  color: #6a6a72;
+  margin-top: 0.35rem;
+}
