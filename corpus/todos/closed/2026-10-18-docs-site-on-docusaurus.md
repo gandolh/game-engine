@@ -1,6 +1,6 @@
 # Move the docs site from Starlight to Docusaurus
 
-status: todo
+status: closed 2026-10-28 — migrated; route parity holds; vps-deploy flip is an owner step
 created: 2026-10-18
 context: the owner's decision of 2026-10-18 to move every project's docs site to Docusaurus; one spec per repo.
 refreshed: 2026-10-23 (skill v0.31.1, route baseline kept in the repo, vps-deploy's generator switch). The owner asked for it again that day; it is the last docs site still on Starlight.
@@ -140,3 +140,65 @@ no longer produces that id. Fix it in the corpus.
   last Starlight site, so `DEFAULT_GENERATOR` can then become `"docusaurus"`.
   That edit and the deploy are owner steps in vps-deploy.
 - New content, and the deliberate absence of an API reference.
+
+## Outcome (2026-10-28)
+
+Migrated with the `corpus-docs-site` recipe (personal-skills v0.31.1), on the pins the estate's
+other Docusaurus sites use: `@docusaurus/*` 3.10.2, search-local 0.55.3, React 19.2.8, TypeScript
+6.0.3 (the root's), all exact.
+
+- **Baseline** taken first: [before.txt](../../verify/2026-10-18-docs-site-routes/before.txt), 27
+  routes, built by the Starlight site at `495ad13` (it already held the new `citadel-controls` page).
+- **Layout**: config + sidebars in `docs/`, the six authored pages in `docs/docs/` (`games/`
+  included), the landing in `src/pages/index.mdx` with `<Hero>` and no sidebar, the diagram moved
+  with `git mv` to `static/diagrams/` (byte-identical after `build-diagrams` re-rendered it).
+  Astro config, content config, both `Theme*.astro`, and the three `.astro` components are gone.
+- **Components**: the skill's `Hero`, `Cards`, `Metrics` (accent `#3e8948`) and `Diagram`; a
+  five-line `Badge.tsx` (note/tip/success/caution/danger → Infima classes); `LayerStack.tsx` with a
+  CSS module (literal light colours kept). `<Aside>` became `:::note`/`:::tip`/`:::caution`, titles
+  kept as `[Title]`; `<Steps>` became `<div className="doc-steps">` with numbered circles on a guide
+  line in `custom.css`; card `icon=` props dropped.
+- **Sync**: the skill's script with this site's `DENY` (the same eleven slugs, `log` included) and
+  `GITHUB_REPO` set. 20 corpus pages synced, no "link leaves the repo" warning.
+- **Theme**: the seven `--ifm-color-primary*` shades from `#3e8948` (10/15/30% lightness), light
+  only, no toggle.
+- **Wiring**: `.gitignore` (`docs/.docusaurus/`, `docs/docs/wiki/`), the `turbo.json` comment,
+  README lines 50 and 73, `routing.md` line 42, `docs/README.md` (rewritten for Docusaurus, with
+  the static-server preview recipe), and `docs/games.md`'s four links to the old `src/content/docs/`
+  paths, which the spec did not list.
+- **Anchor**: `citadel-decisions.md` linked `#2026-07-10-second-grilling-session-21-26`; the
+  heading's slug drops the en dash and `#`, so the id is `…-session-2126`. Fixed in the corpus. That
+  link was broken on GitHub too, which uses the same slugger.
+
+**Acceptance, checked:**
+
+- `npm run docs` (turbo) exits 0 with `onBrokenLinks: 'throw'`; a second build through the
+  workspace script printed no warning of any kind (no broken anchor). 21 s through turbo at load
+  average 20.
+- Route parity: [after.txt](../../verify/2026-10-18-docs-site-routes/after.txt) is `before.txt` plus
+  `./search/index.html`, nothing else.
+- `grep -c '/game-engine/docs/assets/' docs/dist/index.html` → 1; `grep -rl '_astro' docs/dist`
+  finds nothing.
+- `npm run typecheck -w @game-engine/docs-site` is clean. Repo gates: see below.
+- Browser (Chromium via Playwright, `dist/` symlinked under `/game-engine/docs/` and served by
+  `python3 -m http.server`): the landing has the hero with both actions, 5 stat tiles, 8 cards and
+  no sidebar; `/architecture/` has the 4 LayerStack rows and the diagram iframe loads its content;
+  `/patterns/` has 2 step lists (7 steps) with the counters; the game pages show 2, 2, 3 and 3
+  badges (the ten); no theme toggle; a search for "determinism" returns 9 suggestions; no 4xx/5xx
+  or page error on any page visited. Screenshots:
+  [landing](../../verify/2026-10-18-docs-site-routes/after-landing.png),
+  [MateQuest](../../verify/2026-10-18-docs-site-routes/after-mathquest.png),
+  [search](../../verify/2026-10-18-docs-site-routes/after-search.png).
+- `bash corpus/lint.sh` passes.
+
+`package-lock.json` changed with the install (+21,229 / −6,657 lines: Astro out, Docusaurus in),
+written by npm 11.19.1 like the rest of the file (see the
+[lockfile spec](2026-10-09-package-lock-drift-engines-node.md)).
+
+**Owner step (vps-deploy, not done here):** in `../vps-deploy/app.ts`, give the `game-engine`
+`DocsStack` `generator: "docusaurus"`. It was the last Starlight site, so `DEFAULT_GENERATOR` can
+become `"docusaurus"` in the same change. Then deploy. Until then the deploy's base check fails by
+name ("a Starlight build"), because it looks for `<base>_astro/`.
+
+Code: `b43d881`. **Repo gates** after the install (`npm run gates`, load average 11 to 25): all 8 passed, including
+the root typecheck (which now covers `@game-engine/docs-site`) and the full test run.

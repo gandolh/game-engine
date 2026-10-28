@@ -4,6 +4,19 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [todos/closed/](todos/closed/), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-10-28] close | The docs site is on Docusaurus
+
+[Spec](todos/closed/2026-10-18-docs-site-on-docusaurus.md), code `b43d881`. Ported with the
+`corpus-docs-site` recipe (v0.31.1): Docusaurus 3.10.2, local search, light only, the farm-green
+Infima ramp, every dependency pinned. Route parity holds (the 27 Starlight routes plus
+`/search/`, [before/after](verify/2026-10-18-docs-site-routes/)); no broken link or anchor; no
+`_astro` left. Checked in Chromium under `/game-engine/docs/`: hero, tiles and cards, LayerStack
+and the diagram, numbered steps, the ten badges, no toggle, search results. The stale
+`citadel-decisions.md` anchor (`…-21-26` → `…-2126`) is fixed; it was broken on GitHub too.
+All 8 gates green. **Owner step:** `generator: "docusaurus"` on the `game-engine` `DocsStack` in
+`../vps-deploy/app.ts` (and `DEFAULT_GENERATOR` can flip, this was the last Starlight site),
+then deploy.
+
 ## [2026-10-28] close | The lockfile drift was already fixed; npm versions disagree
 
 [Spec](todos/closed/2026-10-09-package-lock-drift-engines-node.md). The missing `engines` blocks
@@ -3928,11 +3941,11 @@ rather than an npm dependency. Docs build clean: 26 pages.
 
 ## [2026-10-18] todo | Spec filed: the docs site moves from Starlight to Docusaurus
 
-The owner's call (2026-10-18), one spec in every repo with a docs site. [The spec](todos/2026-10-18-docs-site-on-docusaurus.md) ports the splash landing, LayerStack and the Starlight cards, badges and steps to React, keeps the sync's `DENY` cut and the URLs, and fixes one stale anchor into `citadel-decisions.md`. The deploy waits on vps-deploy brief 11.
+The owner's call (2026-10-18), one spec in every repo with a docs site. [The spec](todos/closed/2026-10-18-docs-site-on-docusaurus.md) ports the splash landing, LayerStack and the Starlight cards, badges and steps to React, keeps the sync's `DENY` cut and the URLs, and fixes one stale anchor into `citadel-decisions.md`. The deploy waits on vps-deploy brief 11.
 
 ## [2026-10-23] todo | Docs-site spec refreshed
 
-The owner asked for a Docusaurus spec for this repo. [The 2026-10-18 spec](todos/2026-10-18-docs-site-on-docusaurus.md) already covers it and still matches the site, so it was refreshed rather than duplicated: it now names the skill at v0.31.1, keeps the route baseline under `corpus/verify/` rather than `/tmp`, and says what changes in vps-deploy once it lands. game-engine is the last docs site on Starlight.
+The owner asked for a Docusaurus spec for this repo. [The 2026-10-18 spec](todos/closed/2026-10-18-docs-site-on-docusaurus.md) already covers it and still matches the site, so it was refreshed rather than duplicated: it now names the skill at v0.31.1, keeps the route baseline under `corpus/verify/` rather than `/tmp`, and says what changes in vps-deploy once it lands. game-engine is the last docs site on Starlight.
 
 ## [2026-10-27] todo | Three research specs filed: immediate mode, tiled textures, a portal
 

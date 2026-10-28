@@ -39,7 +39,7 @@ executor chunks on Sonnet 5 successfully.)
 | "what should we work on" / find the debt / audit the repo | audit | **gated** — `improve`; it must read `corpus/wiki/decisions.md` + `citadel-decisions.md` first, and file promoted findings as specs in **`corpus/todos/`** |
 | Name a concept, settle a term, record a locked call | domain | corpus-flow §9 → [wiki/glossary.md](wiki/glossary.md) + [wiki/decisions.md](wiki/decisions.md); `grill-me` if still contested |
 | Game art / UI feel (in-canvas, pixel art) | design | **not the web-design skills** — the game UI is `@engine/ui` drawn into WebGL2 under a locked palette. Route to the game's own art page (`citadel-art-style.md`, `citadel-asset-critique.md`) + a real-browser pass |
-| The docs site (`docs/`, Starlight HTML) | design | `impeccable` / the taste presets / `web-design-guidelines` — this is the **only** HTML/CSS surface in the repo |
+| The docs site (`docs/`, Docusaurus HTML) | design | `impeccable` / the taste presets / `web-design-guidelines` — this is the **only** HTML/CSS surface in the repo |
 | Docs or prose need a style pass | docs | `writing-guidelines`; `unslop` first if the text was AI-drafted |
 | A diagram would beat prose | docs | `diagram-design` |
 | Strict maintainability pass on a diff | review (strict) | `thermo-nuclear-review` — deliberate use only; it is very opinionated |

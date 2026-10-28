@@ -72,8 +72,8 @@ which is how a "WebGPU-only render path" line outlived the page that already sai
 **Open in the queue** (list [todos/](todos/) for the current set): three research specs filed
 2026-10-27 and grilled 2026-10-28: [MateQuest on an immediate-mode UI](todos/2026-10-27-mathquest-immediate-mode-research.md),
 [tiled textures for large assets](todos/2026-10-27-tiled-textures-for-large-assets-research.md) and
-[a games portal page](todos/2026-10-27-game-portal-research.md); beside them the docs-site spec
-(2026-10-18). The three specs from 2026-10-09 closed on 2026-10-28. Everything else is closed. The Hollow
+[a games portal page](todos/2026-10-27-game-portal-research.md). The three specs from 2026-10-09
+and the docs-site spec (2026-10-18, now on Docusaurus) closed on 2026-10-28. Everything else is closed. The Hollow
 BUILD-STATE tracker was deleted on 2026-10-07 (git has it); Hollow's record is in log.md and the
 closed `2026-07-17-hollow-*` specs.
 

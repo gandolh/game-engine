@@ -15,7 +15,7 @@ Game-design decisions, numbered. **These win over any older text**, including
 player's hand is placement + economic intent, **#9** the downside rule — every problem is a
 throttle-to-floor, never a loss, **#10** terrain is the puzzle).
 
-> ⚠️ **Read [#21–#26](#2026-07-10-second-grilling-session-21-26) before acting on #11–#20.** Both
+> ⚠️ **Read [#21–#26](#2026-07-10-second-grilling-session-2126) before acting on #11–#20.** Both
 > sets were written on 2026-07-10. The later session **deprecated multiplayer**, which was the
 > premise the earlier one was built on: #11, #14, #16, #17 and #20 are dead, and #15's reasoning is
 > reversed. #12, #13, #18 and #19 survive in modified form. The stale block is kept, not deleted,
