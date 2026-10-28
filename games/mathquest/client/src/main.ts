@@ -70,6 +70,7 @@ import { createLootScreen, type LootScreen, type LootScreenActions } from "./ui/
 import { createMapScreen } from "./ui/map-screen";
 import { createMapMirror, type MapMirror } from "./ui/map-mirror";
 import { createRunOverScreen, type RunOverScreen, type RunOverScreenActions } from "./ui/run-over-screen";
+import { createImmediateCombatScreen } from "./ui/combat-screen-immediate";
 import type { WorkerInbound, WorkerOutbound } from "./worker/sim-worker";
 
 // M3 has no run/seed-select screen yet — a fixed seed proves the deterministic-seed seam and
@@ -80,6 +81,16 @@ const SEED = 1;
 // 9801, or a grade-4 sum up to ~9998) — 5 digits leaves headroom without letting the buffer grow
 // unbounded if the player mashes the keypad.
 const MAX_ANSWER_DIGITS = 5;
+
+// RESEARCH FLAGS (spec 2026-10-27-mathquest-immediate-mode-research, 2026-10-28). Both off by
+// default; neither changes the default path.
+//   ?imgui   — the combat screen comes from the immediate-mode prototype
+//              (`ui/combat-screen-immediate.ts`) instead of the retained `ui/combat-screen.ts`.
+//   ?profile — time the widget UI pass each frame (refresh, layout, draw, mirror) and expose the
+//              summary as `window.__mqProfile()`. MateQuest had no `?profile` before this.
+const SEARCH = new URLSearchParams(location.search);
+const USE_IMGUI = SEARCH.has("imgui");
+const PROFILE = SEARCH.has("profile");
 
 const canvasRaw = document.getElementById("scene");
 if (!(canvasRaw instanceof HTMLCanvasElement)) {
@@ -285,7 +296,7 @@ async function main(): Promise<void> {
   let lootScreen: LootScreen;
 
   function buildScreens(): void {
-    combatScreen = createCombatScreen(combatActions, strings);
+    combatScreen = USE_IMGUI ? createImmediateCombatScreen(combatActions, strings) : createCombatScreen(combatActions, strings);
     runOverScreen = createRunOverScreen(runOverActions, strings);
     levelUpScreen = createLevelUpScreen(levelUpActions, strings);
     lootScreen = createLootScreen(lootActions, strings);
@@ -568,6 +579,30 @@ async function main(): Promise<void> {
   /** Fallback inset for a card screen on a viewport too small to centre the card in. */
   const CARD_INSET = 24;
 
+  // ?profile: per-frame ms of the widget UI pass, split where the two combat shapes differ
+  // (refresh = build/re-bind, layout) from what they share (draw, mirror). A ring of the last 600
+  // widget frames; map frames are not counted.
+  const PROFILE_RING = 600;
+  const profileRing: Array<{ refresh: number; layout: number; draw: number; mirror: number; mode: string }> = [];
+  if (PROFILE) {
+    const stat = (xs: number[]): { avg: number; p50: number; p95: number } => {
+      const sorted = [...xs].sort((a, b) => a - b);
+      const at = (q: number): number => sorted[Math.min(sorted.length - 1, Math.floor(q * sorted.length))] ?? 0;
+      return { avg: xs.reduce((a, b) => a + b, 0) / Math.max(1, xs.length), p50: at(0.5), p95: at(0.95) };
+    };
+    (window as unknown as { __mqProfile?: unknown }).__mqProfile = (mode?: string) => {
+      const rows = mode === undefined ? profileRing : profileRing.filter((r) => r.mode === mode);
+      return {
+        shape: USE_IMGUI ? "immediate" : "retained",
+        frames: rows.length,
+        refresh: stat(rows.map((r) => r.refresh)),
+        layout: stat(rows.map((r) => r.layout)),
+        draw: stat(rows.map((r) => r.draw)),
+        mirror: stat(rows.map((r) => r.mirror)),
+      };
+    };
+  }
+
   // --- Render loop ----------------------------------------------------------------------------
   function frame(): void {
     renderer.beginFrame();
@@ -590,6 +625,7 @@ async function main(): Promise<void> {
         const root = currentWidgetRoot();
         if (root !== null) {
           let changed: boolean;
+          const t0 = PROFILE ? performance.now() : 0;
           switch (snapshot.mode) {
             case "combat":
               changed = combatScreen.refresh(snapshot.combat, typedValue, snapshot.run.lifelines);
@@ -617,6 +653,7 @@ async function main(): Promise<void> {
           // the screen empty around a small top-left box and read as unfinished next to combat and
           // the map, both of which fill the frame. Measure-then-place is the same two-pass idiom
           // Citadel uses to bottom-anchor its build bar.
+          const t1 = PROFILE ? performance.now() : 0;
           if (snapshot.mode === "combat") {
             computeLayout(root, 0, 0, MATE_THEME, { width: canvas.clientWidth, height: canvas.clientHeight });
           } else {
@@ -629,6 +666,7 @@ async function main(): Promise<void> {
             const y = Math.max(CARD_INSET, Math.round((canvas.clientHeight - cardH) / 2));
             computeLayout(root, x, y, MATE_THEME); // pass 2: place it centred
           }
+          const t2 = PROFILE ? performance.now() : 0;
           surface.begin();
           if (snapshot.mode === "combat") {
             // Battle backdrop + the two combatant sprites go DOWN FIRST so the HP windows +
@@ -643,7 +681,12 @@ async function main(): Promise<void> {
             combatScreen.drawFx(surface, snapshot.combat);
           }
           surface.end();
+          const t3 = PROFILE ? performance.now() : 0;
           if (changed) mirror?.update(root); // reconcile a11y DOM only when the tree changed
+          if (PROFILE) {
+            profileRing.push({ refresh: t1 - t0, layout: t2 - t1, draw: t3 - t2, mirror: performance.now() - t3, mode: snapshot.mode });
+            if (profileRing.length > PROFILE_RING) profileRing.shift();
+          }
         }
       }
     }
