@@ -1,5 +1,8 @@
 # MateQuest: retire the `?imgui` prototype (or promote it)
 
+> **Owner, 2026-10-28: move it, don't delete it.** The immediate-mode prototype moves into `@engine/ui` as an optional feature for a future game; MateQuest keeps its retained UI and `?profile` stays. The deletion this spec describes is not to be built; rewrite the steps for the move before work starts.
+
+
 status: proposed — for the owner to approve or reject
 created: 2026-10-28
 context: follow-up to the immediate-mode research

@@ -4013,3 +4013,9 @@ version that already writes `package-lock.json` cleanly, so the lockfile stays a
 it is (`docs/getting-started.md` follows). And the two Hollow sim-core tests that
 cross vitest's 5 s default under load (`mortality-emergence`, `scarcity`) get no
 declared budgets: computation-heavy tests are skipped on agent brief runs instead.
+
+## [2026-10-28] decision | The immediate-mode prototype moves into @engine/ui
+
+The owner did not approve deleting MateQuest's immediate-mode prototype. It moves into
+`@engine/ui` as an optional feature; MateQuest keeps its retained UI. The follow-up spec
+`2026-10-28-mathquest-retire-imgui-prototype.md` carries the note and needs its steps rewritten.
