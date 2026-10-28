@@ -2,8 +2,8 @@
 
 status: todo
 created: 2026-10-27
-context: the owner, 2026-10-27: "we should research Tiles for large assets maybe". Research only;
-not grilled yet.
+context: the owner, 2026-10-27: "we should research Tiles for large assets maybe". Research only.
+Grilled 2026-10-28; the answers are under "Settled at the grill".
 
 ## What "large assets" are today
 
@@ -30,11 +30,17 @@ ones in view. It is the other answer to the problem Citadel's window solves by r
 ([glossary.md](../wiki/glossary.md)). The pieces need a name of their own before any code; settle
 it at the grill and add it to the glossary.
 
-## Settle when grilling
+## Settled at the grill (2026-10-28)
 
-1. Is this about the static layers above, or about something new: large hand-drawn images, a
-   bigger world for one game, or Tiled (the map editor)? The rest assumes the static layers.
-2. The target: which devices (a phone's 4096 limit?) and which world sizes must work.
+1. **All three readings.** Bigger worlds (the static layers above) and large hand-drawn images
+   share one mechanism, a large image cut into patches; both are in scope. **Tiled, the map
+   editor**, is a separate question (loading its `.tmj`/`.tmx` maps into the engine): research it
+   as step 5 below, or split it into its own spec if it turns out not to touch patches.
+2. **Desktop is the target; phones degrade.** Size for desktop GPUs; on a phone a game still runs,
+   every patch under 4096 px, even if large worlds are slower. Worlds: at least twice today's
+   largest (Farm's 240 × 240 at 16 px).
+3. **The name is patch**: one fixed-size square of a large baked or drawn image, uploaded as its own
+   texture. Added to the glossary; not "chunk" or "tile", which mean other things here.
 
 ## What to find out
 
@@ -52,6 +58,12 @@ it at the grill and add it to the glossary.
 4. **Prototype the grid** on Farm's static layer behind a flag, and compare frame time
    (`?profile`) and GPU memory against the single texture. Check the seams with nearest filtering
    at fractional zoom.
+
+5. **Tiled maps.** What Tiled exports (`.tmj` JSON, tile layers, object layers, tilesets), what
+   the engine's map and terrain code would need to load one, and whether any game would use it
+   (Citadel's and Farm's worlds are generated, not drawn). A short answer is fine.
+6. **Large hand-drawn images.** Whether the patch grid from step 3 serves a painted background or
+   map unchanged, and what an asset needs (a source size, a slicing step in the asset pipeline).
 
 ## Deliverable
 

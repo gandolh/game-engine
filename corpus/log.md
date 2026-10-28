@@ -3912,3 +3912,15 @@ re-baking window, and compares a fixed grid of textures; the pieces need a name,
 "tile" are taken. [A games portal](todos/2026-10-27-game-portal-research.md) researches a
 Miniclip-style card grid that plays each deployed game in place; MateQuest has no deploy stack yet.
 The index's "queue is empty" line was stale and now lists what is open.
+
+## [2026-10-28] grill | The three research specs grilled
+
+The owner settled each spec's opening questions.
+[MateQuest immediate mode](todos/2026-10-27-mathquest-immediate-mode-research.md): reading A, the
+screens as an immediate-mode UI; the worker question (B) is not asked for.
+[Tiled textures](todos/2026-10-27-tiled-textures-for-large-assets-research.md): all three readings
+(bigger worlds, large hand-drawn images, and Tiled the map editor, now steps 5 and 6); desktop is the
+target and phones degrade; the pieces are **patches**, added to the glossary.
+[A games portal](todos/2026-10-27-game-portal-research.md): a `portal/` workspace served at `/games`,
+each game in a frame inside the portal with its own path as the fallback, and all four games, so
+MateQuest gets a deploy stack.

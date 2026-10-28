@@ -2,8 +2,9 @@
 
 status: todo
 created: 2026-10-27
-context: the owner, 2026-10-27: "research if we can make mathquest immediate mode". Research only;
-not grilled yet. The first grill question is which of the two readings below is meant.
+context: the owner, 2026-10-27: "research if we can make mathquest immediate mode". Research only.
+Grilled 2026-10-28: the owner meant **A, immediate-mode screens**. Steps 1-3 are the work; step 4
+(B) is not asked for.
 
 ## Two readings, and what the code already says
 
@@ -23,8 +24,7 @@ worker's 20 Hz snapshot pump was deleted by
 each command and nothing else. What B could still mean: dropping the Web Worker and calling the
 sim on the main thread. That is a smaller question, and step 4 covers it.
 
-The rest of this spec assumes A, the reading with real work in it. If the grill picks B, steps 1-3
-are skipped.
+The owner picked A on 2026-10-28, so steps 1-3 below are the work.
 
 ## What to find out
 

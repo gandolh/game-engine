@@ -3,7 +3,8 @@
 status: todo
 created: 2026-10-27
 context: the owner, 2026-10-27: a web page "like miniclip or y8games", a home page of squares with
-an image for each game, where a click plays the game on that site. Research only; not grilled yet.
+an image for each game, where a click plays the game on that site. Research only. Grilled 2026-10-28;
+the answers are under "Settled at the grill".
 
 ## What exists
 
@@ -19,16 +20,17 @@ an image for each game, where a click plays the game on that site. Research only
   over a metaphor-led design). Keep the portal's layout just as familiar: a grid of cards, a
   title, a click.
 
-## Settle when grilling
+## Settled at the grill (2026-10-28)
 
-1. **Where it lives.** A new workspace in this repo (for example `portal/`, importing no game
-   code), a page in showcase, or its own small repo. And where it is served: `/games`, `/arcade`
-   or the apex `/`.
-2. **How a game plays "on the site".** Opening the game's own path, or an `<iframe>` of it inside
-   the portal with the portal's header around it. Same origin, so the iframe is allowed; the
-   questions are keyboard focus, fullscreen (`allow="fullscreen"`), Farm's WebSocket and phones.
-3. **Which games.** The four engine games, MateQuest included once it has a stack. Games in other
-   repos only if the owner adds them.
+1. **Where it lives: a `portal/` workspace in this repo, served at `/games`.** It imports no game
+   code. It gets its own static stack in `../vps-deploy`; the apex `/` stays as it is.
+2. **A game plays inside the portal**: an `<iframe>` of the game's own path under the portal's
+   header, with a fullscreen button (`allow="fullscreen"`), like Miniclip. Same origin, so the
+   frame is allowed. Check keyboard focus, fullscreen, Farm's WebSocket and phones per game; a game
+   that misbehaves in the frame opens on its own path instead, and the findings say which and why.
+3. **All four engine games**, MateQuest included: the follow-up specs give it a static stack in
+   `../vps-deploy` like Hollow's (its client already reads `MATHQUEST_BASE`). No games from other
+   repos.
 
 ## What to find out
 

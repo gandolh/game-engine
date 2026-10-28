@@ -1,6 +1,6 @@
 ---
 summary: The project's vocabulary — one canonical name per concept across the engine and the four games, each listing the synonyms it displaces (tick vs frame, spec vs brief, the two senses of "villager").
-updated: 2026-09-20
+updated: 2026-10-28
 ---
 
 # Glossary
@@ -118,6 +118,12 @@ The smallest canvas every in-canvas UI must stay fully operable in — `1280×64
 *require* more than the floor to be usable.
 _Avoid_: min resolution, min screen size, breakpoint, minimum window (a screen size is not a
 viewport — the bar is on `clientWidth`/`clientHeight`).
+
+**Patch**:
+One fixed-size square of a large baked or drawn image, uploaded as its own texture, so an image
+bigger than the GPU's texture limit can still be drawn. Named 2026-10-28 for the large-assets research
+([spec](../todos/2026-10-27-tiled-textures-for-large-assets-research.md)).
+_Avoid_: chunk (a dispatch unit here), tile (a world grid square), sheet, block, page.
 
 ## Per-game vocabulary
 
