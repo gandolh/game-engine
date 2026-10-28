@@ -3992,3 +3992,12 @@ target and phones degrade; the pieces are **patches**, added to the glossary.
 [A games portal](todos/2026-10-27-game-portal-research.md): a `portal/` workspace served at `/games`,
 each game in a frame inside the portal with its own path as the fallback, and all four games, so
 MateQuest gets a deploy stack.
+
+## [2026-10-28] decision | npm 11.19.1 is canonical; no budgets for the heavy Hollow tests
+
+The owner answered the two questions the paused run left. The latest npm is the
+canonical one: `packageManager` moves from `npm@11.4.2` to `npm@11.19.1`, the
+version that already writes `package-lock.json` cleanly, so the lockfile stays as
+it is (`docs/getting-started.md` follows). And the two Hollow sim-core tests that
+cross vitest's 5 s default under load (`mortality-emergence`, `scarcity`) get no
+declared budgets: computation-heavy tests are skipped on agent brief runs instead.

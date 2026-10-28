@@ -9,15 +9,9 @@ Live list of what's **genuinely unresolved**. Shipped/resolved items are deleted
 
 ## Open
 
-- **Which npm is canonical?** (2026-10-28) The root `packageManager` says `npm@11.4.2`, but
-  `package-lock.json` has been written by npm 11.19.1 since `48cb415`: 11.4.2 drops 38 `libc`
-  arrays and adds 26 `"peer": true` on install, while 11.19.1 leaves the tree clean. Owner call:
-  bump the field, or regenerate with 11.4.2
-  ([spec](../todos/closed/2026-10-09-package-lock-drift-engines-node.md)).
-- **Two Hollow sim-core tests time out under machine load** (2026-10-28).
-  `sim-bootstrap.mortality-emergence` (7.7 s) and `sim-bootstrap.scarcity` (5.1 s) crossed vitest's
-  5 s default on two full `npm run gates` runs at load average 15 to 31, and pass alone. The same
-  class of failure playtest-06 fixed below; the fix there was a declared per-test budget.
+_Nothing open._ Both questions of 2026-10-28 were answered the same day: npm 11.19.1 is canonical
+(`packageManager` bumped), and the two Hollow sim tests get no time budgets; computation-heavy
+tests are simply not run on agent brief runs (see [log.md](../log.md)).
 
 _No game defects currently open._ The four found by the 2026-09-20 playtest were built and closed the same
 day ([playtest-01..06](../todos/closed/)); the one unsettled question they raised — the repo had no
