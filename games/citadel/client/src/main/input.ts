@@ -273,7 +273,9 @@ canvas.addEventListener("wheel", (e) => {
 }, { capture: true, passive: false });
 // Keyboard: the UI consumes Tab (focus traversal) + Enter/Space (activate focused button)
 // when a HUD widget is focused, so world key handlers (Escape/C) don't double-fire. Run in
-// capture so it precedes the window-level world keydown listeners.
+// capture so it precedes the window-level world keydown listeners. The sim keys (Space, 1/2/4)
+// are the exception outside the settings modal: they are never offered to the dispatchers, so
+// Space pauses whichever root holds focus — see the sim-key handler at the bottom of this file.
 //
 // IMPORTANT: when a real mirror <button> already holds DOM focus, NATIVE Tab/Enter +
 // the mirror's own listeners drive things (mirror focusin → onFocusNode → dispatcher.focus,
@@ -312,6 +314,9 @@ window.addEventListener("keydown", (e) => {
   // checkbox / range) holds DOM focus, native Tab/Enter/Arrow + the mirror's listeners drive it.
   if (active !== null && settingsA11yMount !== null && settingsA11yMount.contains(active)) return;
   if (active !== null && (active.tagName === "INPUT" || active.tagName === "TEXTAREA")) return;
+  // Outside the modal, the sim keys skip the widget dispatchers and reach the sim-key handler:
+  // no widget acts on a digit, and Space pauses rather than activating a focused button.
+  if (isSimKey(e) && !settingsModal.isOpen()) return;
   const hudConsumed = uiDispatcher.key({ key: e.key, shiftKey: e.shiftKey }).consumed;
   // Todo 2026-07-16: forward to the siege/status dispatcher too, consistent with every other
   // in-canvas root below — this is what makes the collapsible "Status" toggle Tab-reachable.
@@ -598,6 +603,12 @@ window.addEventListener("keydown", (e) => {
   );
 });
 
+/** Space or 1/2/4 with no modifier held: the sim keys (pause, speed). */
+function isSimKey(e: KeyboardEvent): boolean {
+  if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return false;
+  return e.key === " " || e.code === "Space" || e.key === "1" || e.key === "2" || e.key === "4";
+}
+
 /**
  * Sim controls on the keyboard: Space pauses, 1/2/4 pick a speed (playtest-02, 2026-09-20).
  *
@@ -608,25 +619,28 @@ window.addEventListener("keydown", (e) => {
  * through the SAME command path as the buttons (`sim-client`'s `togglePause`/`setSpeedAndResume`,
  * which already drop non-host commands), so host gating and snapshot-derived state are unchanged.
  *
- * Space is deliberately handled here rather than left to the widget dispatcher: the dispatcher only
- * consumes it when a widget holds focus, so this fires exactly when nothing is focused, which is the
- * case every player is actually in.
+ * They work WHICHEVER in-canvas root holds focus — HUD, Status, inspect, build bar — on the
+ * dispatcher path and on the a11y-mirror `<button>` path alike (2026-10-28). Only three things
+ * block them: typing in a text field, the settings modal (it owns the keyboard), and the new-game
+ * picker (the capture handler stops every key while it is up).
+ *
+ * DECISION (2026-10-28): Space PAUSES even when a widget holds focus; Enter is the key that
+ * activates a focused button. Until then this handler stood down whenever the HUD or Status
+ * dispatcher had a focused node, and the dispatchers took Space as "activate". But dispatcher focus
+ * is sticky and mostly invisible: one Tab focuses a node in EVERY root at once, a pointer press
+ * moves focus without a miss ever clearing it, and the Status mirror has no focus bridge back to its
+ * dispatcher, so after a single Tab its toggle stayed focused for the rest of the session. Space
+ * then meant "re-press whatever was focused last" (re-pick a tool, collapse Status) instead of the
+ * genre's pause. Inside the settings modal Space keeps toggling the focused control.
  */
 window.addEventListener("keydown", (e) => {
-  if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
+  if (!isSimKey(e)) return;
   const t = e.target as HTMLElement | null;
   if (t !== null && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
   if (settingsModal.isOpen()) return; // the modal owns the keyboard while it is up
-  // Don't steal a key the focused widget is about to act on (Space activates a focused button).
-  if (uiDispatcher?.focused() != null || siegeDispatcher?.focused() != null) return;
 
-  if (e.key === " " || e.code === "Space") {
-    togglePause();
-    e.preventDefault();
-    return;
-  }
-  if (e.key === "1" || e.key === "2" || e.key === "4") {
-    setSpeedAndResume(Number(e.key));
-    e.preventDefault();
-  }
+  // preventDefault also keeps a focused mirror <button> from treating Space as a click.
+  e.preventDefault();
+  if (e.key === " " || e.code === "Space") togglePause();
+  else setSpeedAndResume(Number(e.key));
 });

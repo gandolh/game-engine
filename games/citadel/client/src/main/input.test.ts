@@ -83,6 +83,8 @@ const refs = vi.hoisted(() => ({
   // 2026-10-09 no-way-back-to-none: the WORLD pointer handlers bail until the camera exists
   // (`inputReady`), so the right-click tests flip this on; every other suite keeps it off.
   inputReady: false,
+  // 2026-10-09 speed-keys spec: a REAL build-bar dispatcher for the focus cases (stub otherwise).
+  buildBarDispatcher: undefined as InputDispatcher | undefined,
   settingsOpen: false,
   inspectOpen: false,
   newGameOpen: false,
@@ -132,7 +134,9 @@ vi.mock("./dom", () => ({
   siegeA11yMount: null,
   inspectA11yMount: null,
   villagerA11yMount: null,
-  buildBarA11yMount: null,
+  // A real (detached) element so the mirror-<button> keyboard branch is reachable: the speed-key
+  // suite appends it to the document and focuses a button inside it.
+  buildBarA11yMount: document.createElement("div"),
   settingsA11yMount: null,
   newGameA11yMount: null,
 }));
@@ -210,7 +214,9 @@ vi.mock("./inspect", () => ({
 vi.mock("./build-controls", () => ({
   villagerPanel: undefined,
   villagerDispatcher: stubDispatcher(),
-  buildBarDispatcher: stubDispatcher(),
+  get buildBarDispatcher() {
+    return refs.buildBarDispatcher ?? stubDispatcher();
+  },
   buildBarMirror: stubMirror(),
   followId: null,
   setFollowId: vi.fn(),
@@ -629,5 +635,125 @@ describe("input.ts — Escape and a still right-click leave the placement tool",
     expect(fakes.closeInspect).not.toHaveBeenCalled();
     dispatchKeydown("Escape");
     expect(fakes.closeInspect).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * 2026-10-09 citadel-speed-keys-ignored-with-build-bar-focus. Reproduced in Chromium: after one Tab,
+ * 1/2/4 and Space did nothing. The Tab is forwarded to EVERY root's dispatcher, so it focuses the
+ * Status toggle too, and the Status mirror has no focus bridge back to its dispatcher — that focus
+ * never clears, and the sim-key handler stood down whenever the HUD or Status dispatcher had one.
+ * These tests use REAL dispatchers for the build bar and the Status panel, so that trap is live.
+ */
+describe("input.ts — speed keys and Space whichever root holds focus", () => {
+  let canvas: HTMLCanvasElement;
+  let mount: HTMLElement;
+  let activations: number;
+
+  function mouse(type: string, x: number, y: number): MouseEvent {
+    return new MouseEvent(type, { clientX: x, clientY: y, button: 0, bubbles: true, cancelable: true });
+  }
+  function keyOn(target: EventTarget, key: string): KeyboardEvent {
+    const evt = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true });
+    target.dispatchEvent(evt);
+    return evt;
+  }
+
+  beforeEach(async () => {
+    const dom = await import("./dom");
+    canvas = dom.canvas;
+    mount = dom.buildBarA11yMount as HTMLElement;
+    canvas.getBoundingClientRect = () =>
+      ({ left: 0, top: 0, width: 800, height: 600, right: 800, bottom: 600, x: 0, y: 0, toJSON() {} }) as DOMRect;
+    activations = 0;
+    const house = button("House", { layout: { width: 100, height: 40 }, onActivate: () => { activations++; } });
+    const road = button("Road", { layout: { width: 100, height: 40 } });
+    const bar = panel({ width: 220, height: 50, direction: "row" }, [house, road]);
+    computeLayout(bar, 0, 0);
+    refs.buildBarDispatcher = createInputDispatcher(() => bar);
+    const status = createStatusPanel(makeFakePrefs({ status: true }));
+    refs.siegeDispatcher = createInputDispatcher(() => status.root);
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    refs.buildBarDispatcher = undefined;
+    refs.siegeDispatcher = undefined;
+    refs.settingsOpen = false;
+    (document.activeElement as HTMLElement | null)?.blur();
+    mount.replaceChildren();
+    mount.remove();
+    document.body.replaceChildren();
+    window.dispatchEvent(mouse("mouseup", 900, 700));
+  });
+
+  it("dispatcher path, bar focused by Tab: 1, 2 and 4 change the speed", () => {
+    dispatchKeydown("Tab");
+    expect(refs.buildBarDispatcher?.focused()).not.toBeNull();
+    expect(refs.siegeDispatcher?.focused()).not.toBeNull(); // the same Tab focused Status too — the trap
+    dispatchKeydown("1");
+    dispatchKeydown("2");
+    dispatchKeydown("4");
+    expect(fakes.setSpeedAndResume.mock.calls).toEqual([[1], [2], [4]]);
+  });
+
+  it("dispatcher path, bar focused by a click: 2 changes the speed", () => {
+    canvas.dispatchEvent(mouse("mousedown", 10, 10));
+    canvas.dispatchEvent(mouse("mouseup", 10, 10));
+    expect(refs.buildBarDispatcher?.focused()).not.toBeNull();
+    const evt = dispatchKeydown("2");
+    expect(fakes.setSpeedAndResume).toHaveBeenCalledWith(2);
+    expect(evt.defaultPrevented).toBe(true);
+  });
+
+  it("dispatcher path: Space pauses and does NOT activate the focused button (the decision)", () => {
+    dispatchKeydown("Tab");
+    const evt = dispatchKeydown(" ");
+    expect(fakes.togglePause).toHaveBeenCalledTimes(1);
+    expect(activations).toBe(0);
+    expect(evt.defaultPrevented).toBe(true);
+  });
+
+  it("Enter still activates the focused build-bar button, and does not pause", () => {
+    dispatchKeydown("Tab");
+    dispatchKeydown("Enter");
+    expect(activations).toBe(1);
+    expect(fakes.togglePause).not.toHaveBeenCalled();
+  });
+
+  it("mirror-button path: with a real toolbar <button> focused, 2 sets the speed and Space pauses", () => {
+    dispatchKeydown("Tab"); // leaves Status with stale dispatcher focus, as in the browser
+    document.body.append(mount);
+    const btn = document.createElement("button");
+    btn.textContent = "House";
+    mount.append(btn);
+    btn.focus();
+    expect(document.activeElement).toBe(btn);
+
+    keyOn(btn, "2");
+    const space = keyOn(btn, " ");
+    expect(fakes.setSpeedAndResume).toHaveBeenCalledWith(2);
+    expect(fakes.togglePause).toHaveBeenCalledTimes(1);
+    // Default prevented on keydown, so the native button does not also take Space as a click.
+    expect(space.defaultPrevented).toBe(true);
+  });
+
+  it("typing in a text input blocks the keys", () => {
+    const input = document.createElement("input");
+    document.body.append(input);
+    input.focus();
+    keyOn(input, "2");
+    keyOn(input, " ");
+    expect(fakes.setSpeedAndResume).not.toHaveBeenCalled();
+    expect(fakes.togglePause).not.toHaveBeenCalled();
+  });
+
+  it("the open settings modal blocks the keys", () => {
+    refs.settingsOpen = true;
+    dispatchKeydown("Tab");
+    dispatchKeydown("2");
+    dispatchKeydown(" ");
+    expect(fakes.setSpeedAndResume).not.toHaveBeenCalled();
+    expect(fakes.togglePause).not.toHaveBeenCalled();
   });
 });
