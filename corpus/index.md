@@ -32,7 +32,7 @@ which is how a "WebGPU-only render path" line outlived the page that already sai
 - [wiki/open-questions.md](wiki/open-questions.md) — Live list of what is genuinely unresolved, plus settled premises that must not be re-litigated. Resolved items are deleted, not archived.
 - [wiki/performance.md](wiki/performance.md) — Ranked optimization backlog for the engine, filtered against what the code actually does — tiers 0–3, what is already done, and what is explicitly not worth doing at Farm Valley's scale.
 - [wiki/performance-measurements.md](wiki/performance-measurements.md) — The profiling record: how to measure (`Profiler` + `?profile` + DebugOverlay), plus the 2026-06-05 and 2026-06-10 measured baselines every optimization claim is scored against.
-- [wiki/asset-pipeline.md](wiki/asset-pipeline.md) — The bake principle (assets are code, not images), asset-cooking and atlas research, and the cache-key/incremental-build recommendations that became brief 71.
+- [wiki/asset-pipeline.md](wiki/asset-pipeline.md) — The bake principle (assets are code, not images), asset-cooking and atlas research, the cache-key/incremental-build recommendations that became brief 71, and the 2026-10-28 large-image research (texture inventory, breaking points, patches).
 - [wiki/engine-ui.md](wiki/engine-ui.md) — The shared in-canvas UI toolkit (@engine/ui): the UNSCII text stack, the palette-agnostic icon pipeline, and the layout traps that bite when text metrics change.
 - [wiki/shader-ideas.md](wiki/shader-ideas.md) — Book-of-Shaders techniques filtered against the WebGL2 renderer. Ideas, not committed work.
 
@@ -70,11 +70,13 @@ which is how a "WebGPU-only render path" line outlived the page that already sai
 
 ## Build programs
 
-**Open in the queue** (list [todos/](todos/) for the current set): two research specs filed
-2026-10-27 and grilled 2026-10-28, [tiled textures for large assets](todos/2026-10-27-tiled-textures-for-large-assets-research.md) and
-[a games portal page](todos/2026-10-27-game-portal-research.md); and one proposed follow-up awaiting the
-owner, [retire MateQuest's `?imgui` prototype](todos/2026-10-28-mathquest-retire-imgui-prototype.md) (the
-[immediate-mode research](todos/closed/2026-10-27-mathquest-immediate-mode-research.md) closed 2026-10-28). The three specs from 2026-10-09
+**Open in the queue** (list [todos/](todos/) for the current set): one research spec filed
+2026-10-27 and grilled 2026-10-28, [a games portal page](todos/2026-10-27-game-portal-research.md); and four proposed
+follow-ups awaiting the owner: [retire MateQuest's `?imgui` prototype](todos/2026-10-28-mathquest-retire-imgui-prototype.md),
+[Citadel's boot bake over 4096](todos/2026-10-28-citadel-boot-bake-over-4096.md), [the engine patched static layer](todos/2026-10-28-engine-patched-static-layer.md)
+and [Citadel's window onto patches](todos/2026-10-28-citadel-window-onto-patches.md). The
+[immediate-mode](todos/closed/2026-10-27-mathquest-immediate-mode-research.md) and
+[tiled-textures](todos/closed/2026-10-27-tiled-textures-for-large-assets-research.md) research closed 2026-10-28. The three specs from 2026-10-09
 and the docs-site spec (2026-10-18, now on Docusaurus) closed on 2026-10-28. Everything else is closed. The Hollow
 BUILD-STATE tracker was deleted on 2026-10-07 (git has it); Hollow's record is in log.md and the
 closed `2026-07-17-hollow-*` specs.

@@ -135,3 +135,21 @@ One-snapshot composition (101.8 KB total): `sprites` 80.2 KB (302 sprites × ~26
 
 ⚠️ Probe side-finding: the 10-sim run loudly reproduced the open-questions "travel intents dropped en masse" issue — repeated `[travel] pathfinder fault from (x,y) to 'undefined'` with a WASM `RuntimeError: unreachable` escaping `Pathfinder.findPath` → caught per-intent in TravelSystem. Live servers hit this too; see [open-questions.md](open-questions.md).
 
+## Large textures (2026-10-28)
+
+For the [tiled-textures research](../todos/closed/2026-10-27-tiled-textures-for-large-assets-research.md);
+synthesis on [asset-pipeline.md](asset-pipeline.md). Chromium 1243 headless, SwiftShader WebGL (real
+`MAX_TEXTURE_SIZE` 8192), 1280×800, Vite dev servers, a WebGL wrapper counting uploaded texel bytes
+(not the driver's allocation). One run per case.
+
+- Inventory at boot, load average 6 (16:06). Farm: 3840×3840 static (56.3 MB), 1280×800
+  overlay-light (3.9 MB, 32-44 uploads in the first seconds), six atlases (128×128 to 128×1024,
+  1.2 MB with the 936×8 font and the 1×1 white texel), water depth mask 240×240 R8, pattern 48×48;
+  61.4 MB. Citadel: 6144×3072 static (72 MB), 256×4096 atlas (4 MB), 1632×16, 936×8, 1×1;
+  76.1 MB. Hollow: none. MateQuest: 936×8, 1×1.
+- Forced limits. 4096: Farm boots; Citadel throws at boot. 2048: Farm throws; Farm `?patches=2048`
+  runs on 4 patches.
+- Farm `?patches=` (load average 24-34, 16:14-16:23): static memory 56.3 MB for single / 2048 /
+  1024 / 512 (1 / 4 / 16 / 64 textures). Time inside `texImage2D` for the static layer: single
+  15.7 ms, 2048 3.2-3.8 ms, 512 37.8 ms. Frame time from rAF intervals over 10 s, p50:
+  133 / 200 / 150 / 150 ms. SwiftShader and that load swamp the difference; no claim.

@@ -1,6 +1,6 @@
 ---
-summary: The bake principle (assets are code, not images), asset-cooking and atlas research, and the cache-key/incremental-build recommendations that became brief 71.
-updated: 2026-08-18
+summary: The bake principle (assets are code, not images), asset-cooking and atlas research, the cache-key/incremental-build recommendations that became brief 71, and the 2026-10-28 large-image research (texture inventory, MAX_TEXTURE_SIZE breaking points, patches).
+updated: 2026-10-28
 ---
 
 # Asset Pipeline — Baking, Caching, and Atlas Strategy
@@ -83,6 +83,60 @@ A designer pass over the recipes themselves (not the pipeline), guided by the cl
 - **Fire is a 4-step ramp** `y→o→f→r`; the overlay frames (campfire/forge a-b-c) keep their exact shapes/positions — only colors changed, so render-loop anchoring is untouched. Waterfall frames carry cyan `i` glints that step down one row per frame, matching the documented falling-streak behavior.
 - **Crops read by hue**: grapes/radish purple `U/u/P`, tomato `R/x`, carrot `f/p`, pumpkin ribbed `f/p/r/x`, squash `h/W/H` — each mature crop has a glint and a shaded side.
 - **Farmer sprites were deliberately left alone** — they're template-generated ([templates.ts](../../games/farm/atlas-recipes/src/templates.ts)) with personality substitution maps and hat-silhouette guard tests; restyling them is its own brief.
+
+## Large images and patches (research 2026-10-28)
+
+From [the tiled-textures research](../todos/closed/2026-10-27-tiled-textures-for-large-assets-research.md).
+A **patch** is one fixed-size square of a large baked or drawn image, uploaded as its own texture
+([glossary](glossary.md)). Target: desktop GPUs, worlds at least twice Farm's 240×240 at 16 px;
+phones still run, every texture under 4096 px. Raw numbers:
+[performance-measurements.md](performance-measurements.md) → *Large textures*.
+
+**What each game uploads at boot** (uploaded texel bytes, measured with a WebGL wrapper):
+
+| Game | Largest texture | Total live |
+|---|---|---|
+| Farm | static layer 3840×3840 (56.3 MB) | 12 textures, 61.4 MB (+ a viewport-sized overlay-light texture, re-uploaded often) |
+| Citadel 192×192 | static layer 6144×3072 (72 MB) | 5 textures, 76.1 MB |
+| Hollow | none: vertex-coloured 3D, DOM panels | 0 |
+| MateQuest | font 936×8 | 2 textures |
+
+**Breaking points** (`MAX_TEXTURE_SIZE` forced lower): at **4096 Citadel does not boot**. Its
+192×192 world takes the windowed path, but the boot camera frames the whole map, so the first window
+is the whole iso world: 6144 px wide. Farm boots at 4096 (3840 fits) and fails at 2048. Atlases are
+256×4096 at most, so they are not the problem.
+
+**Three designs compared** (Farm's 3840² bake unless stated):
+
+| | One texture (today) | Citadel's window, in the engine | Patch grid |
+|---|---|---|---|
+| GPU memory | whole image | window + pad only | whole image if all kept; view + a ring if far patches are freed |
+| Draw calls | 1 | 1 | visible patches: 1 to 4 at 2048 px, up to 16 at 1024 |
+| Bake | once | again on every pan past the pad (one per frame) | once; uploads 3.2-3.8 ms for 4 patches, 37.8 ms for 64, vs 15.7 ms single (one or two runs each) |
+| Over the limit | throws, naming the limit | throws when the window is wide (Citadel's boot) | fits by construction |
+| Code | exists | ~380 lines in Citadel today | ~90 lines prototyped (`90434df`) |
+
+**Iso**: a tile's diamond crossing a patch edge is not a problem when the bake is cut after it is
+composed (the prototype), and not when each patch bakes its own iso region either: Citadel already
+bakes diamonds into an arbitrary iso sub-region (`makeTerrainDecorate(iso, grid, window)`), which is
+exactly a patch bake. Seams: none visible by eye with 512 px patches at a wheel-zoomed scale, and the
+unit test shows neighbouring blits share edges exactly; not pixel-verified on a GPU.
+
+**Tiled maps** (`.tmj`, the map editor): a JSON map of tile layers (GID arrays, optionally chunked),
+object layers and tilesets. Loading one means a GID → atlas-frame table and a sprite list for the
+static bake, which then goes through the same patches; it touches nothing else here. No game draws
+its world (Farm and Citadel generate theirs from a seed), so no spec.
+
+**Hand-drawn images**: a painted background is the same problem as a big bake. The patch grid serves
+it unchanged if the image arrives already sliced: the asset step cuts the source (say 8192×8192) into
+patch-sized files, the loader uploads each as a patch. That is part of the engine spec below.
+
+**Recommendation**: move the static layer onto patches in the engine, sized from the device limit
+(2048 px, or the limit if smaller), baked per region and lazily, far ones freed. It fixes Citadel's
+boot today and lets Farm grow past 4096. Keep one texture when a bake fits. Follow-up specs, for the
+owner: [Citadel boot bake over 4096](../todos/2026-10-28-citadel-boot-bake-over-4096.md),
+[patched static layer in the engine](../todos/2026-10-28-engine-patched-static-layer.md), then
+[Citadel's window onto patches](../todos/2026-10-28-citadel-window-onto-patches.md).
 
 ## Sources
 

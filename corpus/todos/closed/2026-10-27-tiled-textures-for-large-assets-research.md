@@ -1,6 +1,6 @@
 # Tiled textures for large assets (research)
 
-status: todo
+status: closed 2026-10-28 — researched; recommend engine patches; prototype behind staticPatchSize; three follow-up specs proposed
 created: 2026-10-27
 context: the owner, 2026-10-27: "we should research Tiles for large assets maybe". Research only.
 Grilled 2026-10-28; the answers are under "Settled at the grill".
@@ -9,25 +9,25 @@ Grilled 2026-10-28; the answers are under "Settled at the grill".
 
 Each game bakes its static layer (the ground that never changes) once on the CPU into one
 offscreen canvas, then uploads it as **one** WebGL2 texture
-([`static-layer-pass.ts`](../../engine/core/src/render/webgl2/static-layer-pass.ts)). A texture
+([`static-layer-pass.ts`](../../../engine/core/src/render/webgl2/static-layer-pass.ts)). A texture
 wider or taller than the driver's `MAX_TEXTURE_SIZE` throws (`assertTextureWithinLimits`), and
-[asset-pipeline.md](../wiki/asset-pipeline.md) gives 4096 px as the size 99% of devices support.
+[asset-pipeline.md](../../wiki/asset-pipeline.md) gives 4096 px as the size 99% of devices support.
 
 - **Farm** bakes 240 × 240 tiles at 16 px: 3840 × 3840 px, about 59 MB of RGBA, a little under
   4096. Widening the world again would cross it.
 - **Citadel** bakes in iso. Its render window
-  ([`window-controller.ts`](../../games/citadel/client/src/render/window-controller.ts), Citadel
+  ([`window-controller.ts`](../../../games/citadel/client/src/render/window-controller.ts), Citadel
   briefs 21 and 22) bakes only a camera-centred window on a large map and re-bakes as the camera
   pans, at a per-frame budget. The 256 × 256 multiplayer world is 8192 × 4112 px whole. The
   default world is now 192 × 192 (`terrain.ts`); check which path it takes.
-- Engine brief 07 ([closed](closed/07-chunked-tile-layer.md)) chose one cached layer over a grid of
+- Engine brief 07 ([closed](07-chunked-tile-layer.md)) chose one cached layer over a grid of
   textures in 2026-05, when the world was 640 px across.
 
 So tiling here means: cut a large baked image into a grid of fixed-size textures and draw only the
 ones in view. It is the other answer to the problem Citadel's window solves by re-baking.
 
 **Naming.** "Chunk" means a dispatch unit in this repo, and "tile" means a world grid tile
-([glossary.md](../wiki/glossary.md)). The pieces need a name of their own before any code; settle
+([glossary.md](../../wiki/glossary.md)). The pieces need a name of their own before any code; settle
 it at the grill and add it to the glossary.
 
 ## Settled at the grill (2026-10-28)
@@ -67,9 +67,9 @@ it at the grill and add it to the glossary.
 
 ## Deliverable
 
-- A findings section in [asset-pipeline.md](../wiki/asset-pipeline.md) or
-  [performance.md](../wiki/performance.md), with the inventory, the breaking points and the
-  prototype's numbers ([performance-measurements.md](../wiki/performance-measurements.md) gets the
+- A findings section in [asset-pipeline.md](../../wiki/asset-pipeline.md) or
+  [performance.md](../../wiki/performance.md), with the inventory, the breaking points and the
+  prototype's numbers ([performance-measurements.md](../../wiki/performance-measurements.md) gets the
   raw numbers).
 - A recommendation, and if it is to build, the follow-up specs for the owner to approve.
 - `npm run gates` passes with the prototype behind its flag. Render-only: no sim or determinism
@@ -113,3 +113,27 @@ WebGL wrapper counting uploaded texel bytes, not the driver's allocation):
 Leads for step 3: the window controller's boot window covering the whole map is itself a finding
 (Citadel's windowing does not keep the first bake under 4096); patches cost no memory unless far
 ones are freed.
+
+## Outcome (2026-10-28, resumed after the pause above)
+
+All six steps done. Findings, the inventory and the comparison are in
+[asset-pipeline.md](../../wiki/asset-pipeline.md) → *Large images and patches*; raw numbers in
+[performance-measurements.md](../../wiki/performance-measurements.md) → *Large textures*.
+
+- **Step 3**: one texture, Citadel's window moved to the engine, and a patch grid, compared on
+  memory, draw calls, bake/upload time and code. The window does not guarantee the limit (its size
+  follows the camera); the grid does, and its iso bake is the region bake Citadel already has.
+- **Step 5, Tiled maps**: a loader is a GID → atlas-frame table feeding the same static bake; it does
+  not touch patches, and no game draws its world, so no spec.
+- **Step 6, hand-drawn images**: served by the same patch grid if the asset step slices the source;
+  folded into the engine spec.
+- **Recommendation**: patches in the engine, sized from the device, baked per region and lazily,
+  far ones freed; one texture stays when a bake fits.
+- **Follow-up specs, for the owner** (written, not built):
+  [Citadel boot bake over 4096](../2026-10-28-citadel-boot-bake-over-4096.md) (a bug today),
+  [engine patched static layer](../2026-10-28-engine-patched-static-layer.md),
+  [Citadel's window onto patches](../2026-10-28-citadel-window-onto-patches.md).
+- **Checks**: the prototype (`90434df`) passed the engine typecheck, the Farm client typecheck and
+  the targeted engine tests (static layer, renderer, palette, layering: 64). **The full
+  `npm run gates` was skipped on the owner's rule** (no computation-intensive tests for the rest of
+  the run). Render-only: no sim or determinism change. Corpus lint passes.

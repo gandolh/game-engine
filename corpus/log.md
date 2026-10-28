@@ -4,6 +4,18 @@ Append-only chronological record. Each entry starts with `## [YYYY-MM-DD] <kind>
 
 **Compaction note (updated 2026-07-02):** older entries are collapsed into dated **era summaries** (2026-06-11/06-12, and now the 2026-06-19 → 2026-06-30 Citadel wave). Only 2026-07-01 onward is kept as full prose. Full text for every trimmed entry is in git history (`git log -p -- corpus/log.md`); each brief's detail lives in [todos/closed/](todos/closed/), closed todos in [todos/closed/](todos/closed/), and durable synthesis in [wiki/](wiki/). Treat the trimmed git prose as **obsolete** — if an old decision resurfaces and can't be justified from current code + the wiki + the brief, re-derive it rather than trusting the archived narrative.
 
+## [2026-10-28] research | Large textures: patches in the engine; Citadel's boot bake is a bug
+
+[Spec](todos/closed/2026-10-27-tiled-textures-for-large-assets-research.md), findings on
+[asset-pipeline.md](wiki/asset-pipeline.md), numbers on
+[performance-measurements.md](wiki/performance-measurements.md). Farm's static layer is 3840² (56 MB)
+and fails under a 2048 limit; Citadel's 192×192 boot bake is 6144×3072 (72 MB) because the window
+follows a camera that frames the whole map, so it fails under 4096; Hollow uploads no textures. The
+prototype (`90434df`, `staticPatchSize` / Farm `?patches=`) runs Farm under a forced 2048 on four
+patches. Recommended: engine patches sized from the device, baked per region and lazily. Tiled maps:
+no spec. Three follow-ups proposed: Citadel's boot bake, the engine patched static layer, Citadel's
+window onto patches. Full gates skipped on the owner's rule; typecheck and targeted tests passed.
+
 ## [2026-10-28] pause | Tiled-textures and portal research stopped part-way
 
 The run was cut to three agents. Both specs stay in `todos/` with a "Paused" section saying what
@@ -3974,7 +3986,7 @@ The owner asked for three research specs, to be grilled when work starts.
 [MateQuest immediate mode](todos/closed/2026-10-27-mathquest-immediate-mode-research.md) names the two
 readings: an immediate-mode UI in place of `@engine/ui`'s retained tree, or a sim with no loop,
 which audit-03 already delivered apart from the Worker itself.
-[Tiled textures](todos/2026-10-27-tiled-textures-for-large-assets-research.md) starts from the
+[Tiled textures](todos/closed/2026-10-27-tiled-textures-for-large-assets-research.md) starts from the
 single static-layer texture (Farm's is 3840 px, under the 4096 most devices allow) and Citadel's
 re-baking window, and compares a fixed grid of textures; the pieces need a name, since "chunk" and
 "tile" are taken. [A games portal](todos/2026-10-27-game-portal-research.md) researches a
@@ -3986,7 +3998,7 @@ The index's "queue is empty" line was stale and now lists what is open.
 The owner settled each spec's opening questions.
 [MateQuest immediate mode](todos/closed/2026-10-27-mathquest-immediate-mode-research.md): reading A, the
 screens as an immediate-mode UI; the worker question (B) is not asked for.
-[Tiled textures](todos/2026-10-27-tiled-textures-for-large-assets-research.md): all three readings
+[Tiled textures](todos/closed/2026-10-27-tiled-textures-for-large-assets-research.md): all three readings
 (bigger worlds, large hand-drawn images, and Tiled the map editor, now steps 5 and 6); desktop is the
 target and phones degrade; the pieces are **patches**, added to the glossary.
 [A games portal](todos/2026-10-27-game-portal-research.md): a `portal/` workspace served at `/games`,

@@ -122,7 +122,7 @@ viewport — the bar is on `clientWidth`/`clientHeight`).
 **Patch**:
 One fixed-size square of a large baked or drawn image, uploaded as its own texture, so an image
 bigger than the GPU's texture limit can still be drawn. Named 2026-10-28 for the large-assets research
-([spec](../todos/2026-10-27-tiled-textures-for-large-assets-research.md)).
+([spec](../todos/closed/2026-10-27-tiled-textures-for-large-assets-research.md)).
 _Avoid_: chunk (a dispatch unit here), tile (a world grid square), sheet, block, page.
 
 ## Per-game vocabulary
