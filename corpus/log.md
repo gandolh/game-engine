@@ -4019,3 +4019,7 @@ declared budgets: computation-heavy tests are skipped on agent brief runs instea
 The owner did not approve deleting MateQuest's immediate-mode prototype. It moves into
 `@engine/ui` as an optional feature; MateQuest keeps its retained UI. The follow-up spec
 `2026-10-28-mathquest-retire-imgui-prototype.md` carries the note and needs its steps rewritten.
+
+## [2026-10-31] maintenance | README and images checked; still current
+
+A README refresh pass with the readme-docs standard. The README already met it. Since the images were taken on 2026-10-09 the only game and engine changes are a MateQuest prototype behind `?imgui`, a static-layer research prototype behind `staticPatchSize`, and two Citadel keyboard fixes, none of which changes a default screen; MateQuest's map today matched the GIF's first frame. Checked: `npm install` with Node 24 and npm 11.19.1, the README's `CHECK_DETERMINISM=1 MAX_DAYS=5 TICKS_PER_DAY=20 npm run sim` printed the same three lines, and `npm run mathquest` answered on port 5176. No image retaken, no README change.
