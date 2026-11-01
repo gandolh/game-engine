@@ -47,7 +47,7 @@ Infima ramp, every dependency pinned. Route parity holds (the 27 Starlight route
 and the diagram, numbered steps, the ten badges, no toggle, search results. The stale
 `citadel-decisions.md` anchor (`…-21-26` → `…-2126`) is fixed; it was broken on GitHub too.
 All 8 gates green. **Owner step:** `generator: "docusaurus"` on the `game-engine` `DocsStack` in
-`../vps-deploy/app.ts` (and `DEFAULT_GENERATOR` can flip, this was the last Starlight site),
+`vps-deploy/app.ts` (and `DEFAULT_GENERATOR` can flip, this was the last Starlight site),
 then deploy.
 
 ## [2026-10-28] close | The lockfile drift was already fixed; npm versions disagree
@@ -104,7 +104,7 @@ and copies it there without source maps (`scripts/sync-os-app.mjs`); against `8d
 the committed files byte for byte. Checked through ImbatranimOS's real installer (local `file:` repo,
 ref `main`, subdir `games/hollow/os-app`): it resolves to `8db15ad`, installs, serves all four files
 under its token, and uninstalls. Install URL once pushed:
-`https://github.com/gandolh/game-engine/tree/main/games/hollow/os-app`. The catalog install
+`https://github.com/<owner>/game-engine/tree/main/games/hollow/os-app`. The catalog install
 (`marketplace/hollow.json`, built from source at `0d83f70`) is unchanged.
 
 ## [2026-10-07] maintenance | Hollow BUILD-STATE tracker deleted
@@ -2276,7 +2276,7 @@ yet — planning only.
 **What it is.** A director/observer **multi-generational social simulation** on the shared engine.
 User authors personas + seeds a ~30–60-agent, ~64² town, then observes/perturbs (no player avatar).
 BDI substrate, **no LLM in v1** (genome trait-vector is the LLM plug-in seam). Motivated by the
-user's prior LLM agent-society study (github.com/gandolh/agent-society), where unanchored agents
+user's prior LLM agent-society study (`github.com/<owner>/agent-society`), where unanchored agents
 hallucinated — so Hollow's thesis is that **decisions must have weight**: needs + scarce located
 resources + a real economy anchor every choice; scarcity regulates population.
 

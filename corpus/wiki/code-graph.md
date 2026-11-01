@@ -47,7 +47,7 @@ Two deliberate details:
 - **`${CODEGRAPH_INDEX_PATH:-.}`** — the default resolves to whatever checkout the server starts in.
   **In a worktree, export the main checkout's absolute path** so every tree shares one index rather
   than re-indexing a throwaway tree:
-  `export CODEGRAPH_INDEX_PATH=/home/gandolh/projects/game-engine`.
+  `export CODEGRAPH_INDEX_PATH=/absolute/path/to/game-engine`.
 
 `codegraph status` must report a **native** backend; the WASM fallback is 5–10× slower.
 

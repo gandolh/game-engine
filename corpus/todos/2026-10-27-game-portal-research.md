@@ -8,7 +8,7 @@ the answers are under "Settled at the grill".
 
 ## What exists
 
-- Three games are deployed by `../vps-deploy`, each a static Vite build on its own path of the
+- Three games are deployed by `vps-deploy`, each a static Vite build on its own path of the
   production domain: Farm Valley (with its sim server behind a WebSocket), Citadel and Hollow.
   The engine docs are at `/game-engine/docs`.
 - **MateQuest is not deployed**: there is no stack for it in vps-deploy. Its client already reads
@@ -16,20 +16,20 @@ the answers are under "Settled at the grill".
   stack like Hollow's would serve it.
 - The apex `/` has no page: it answers 404 (vps-deploy brief 19 makes that a plain "not found"
   page).
-- The owner's portfolio, `../showcase`, already has a card grid with filters (picked 2026-09-27
+- The owner's portfolio, `showcase`, already has a card grid with filters (picked 2026-09-27
   over a metaphor-led design). Keep the portal's layout just as familiar: a grid of cards, a
   title, a click.
 
 ## Settled at the grill (2026-10-28)
 
 1. **Where it lives: a `portal/` workspace in this repo, served at `/games`.** It imports no game
-   code. It gets its own static stack in `../vps-deploy`; the apex `/` stays as it is.
+   code. It gets its own static stack in `vps-deploy`; the apex `/` stays as it is.
 2. **A game plays inside the portal**: an `<iframe>` of the game's own path under the portal's
    header, with a fullscreen button (`allow="fullscreen"`), like Miniclip. Same origin, so the
    frame is allowed. Check keyboard focus, fullscreen, Farm's WebSocket and phones per game; a game
    that misbehaves in the frame opens on its own path instead, and the findings say which and why.
 3. **All four engine games**, MateQuest included: the follow-up specs give it a static stack in
-   `../vps-deploy` like Hollow's (its client already reads `MATHQUEST_BASE`). No games from other
+   `vps-deploy` like Hollow's (its client already reads `MATHQUEST_BASE`). No games from other
    repos.
 
 ## What to find out

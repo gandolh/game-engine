@@ -13,7 +13,7 @@ to Docusaurus. This is the game-engine part.
 
 The recipe is written and verified. The `corpus-docs-site` skill
 (personal-skills v0.31.1, source in
-`~/projects/my-personal-skills/skills/corpus-docs-site/`) now scaffolds
+`my-personal-skills/skills/corpus-docs-site`) now scaffolds
 Docusaurus 3.10, and `references/migrating-from-starlight.md` beside it holds
 the file, config and content maps plus ten gotchas, each hit during a real
 port. **Read that guide first.** Its `references/` folder has React versions of
@@ -136,7 +136,7 @@ no longer produces that id. Fix it in the corpus.
 
 - Deploying. vps-deploy's brief 11 is done: each `DocsStack` takes
   `generator: "starlight" | "docusaurus"`. Once this lands, the `game-engine`
-  stack in `../vps-deploy/app.ts` gets `generator: "docusaurus"`. It is the
+  stack in `vps-deploy/app.ts` gets `generator: "docusaurus"`. It is the
   last Starlight site, so `DEFAULT_GENERATOR` can then become `"docusaurus"`.
   That edit and the deploy are owner steps in vps-deploy.
 - New content, and the deliberate absence of an API reference.
@@ -195,7 +195,7 @@ other Docusaurus sites use: `@docusaurus/*` 3.10.2, search-local 0.55.3, React 1
 written by npm 11.19.1 like the rest of the file (see the
 [lockfile spec](2026-10-09-package-lock-drift-engines-node.md)).
 
-**Owner step (vps-deploy, not done here):** in `../vps-deploy/app.ts`, give the `game-engine`
+**Owner step (vps-deploy, not done here):** in `vps-deploy/app.ts`, give the `game-engine`
 `DocsStack` `generator: "docusaurus"`. It was the last Starlight site, so `DEFAULT_GENERATOR` can
 become `"docusaurus"` in the same change. Then deploy. Until then the deploy's base check fails by
 name ("a Starlight build"), because it looks for `<base>_astro/`.

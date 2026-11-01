@@ -30,7 +30,7 @@
 >   "schemaVersion": 1, "id": "hollow", "name": "Hollow",
 >   "description": "A generational social-emergence sim in a small 3D town.",
 >   "meta": ["game"],
->   "source": { "repo": "https://github.com/gandolh/game-engine", "ref": "<pushed commit, 40 chars>" },
+>   `"source": { "repo": "https://github.com/<owner>/game-engine", "ref": "<pushed commit, 40 chars>" },`
 >   "type": "static", "runtime": "native",
 >   "build": {
 >     "install": ["npm", "ci"],

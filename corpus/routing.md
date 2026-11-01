@@ -14,7 +14,7 @@ executor chunks on Sonnet 5 successfully.)
 **Review skill:** /code-review (repo skill) over the diff; `npm run typecheck` + `npm run test` are the gates
 **PR skill:** propose git commands (gh CLI available). **Commit completed specs at closeout** (one commit for code + one for the corpus change); never push / open a PR / tag without the user's say-so.
 **Issue tracker:** none — the work queue is `corpus/todos/` (ready/in-progress specs) and **every finished spec, of any era, is in `corpus/todos/closed/`** (the separate `corpus/briefs/` tree was folded in on 2026-09-19)
-**Code host:** GitHub (gh) — github.com/gandolh/game-engine
+**Code host:** GitHub (gh) — `github.com/<owner>/game-engine`
 
 > **Skill-contract deviations — read before invoking any personal skill.** This corpus predates the
 > orchestrate convention, so three of the paths the skills name do not exist here:

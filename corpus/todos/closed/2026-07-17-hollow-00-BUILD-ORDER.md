@@ -33,7 +33,7 @@ briefs. It supersedes nothing (new game). When M1 lands, fold a durable summary 
    Decisions have weight because agents can fail (hunger → poverty → isolation → death).
    **Scarcity is the population regulator** (population is not otherwise capped). This is the
    direct answer to the failure mode observed in the prior LLM agent-society study
-   (github.com/gandolh/agent-society): agents hallucinated thoughts because decisions had no
+   (`github.com/<owner>/agent-society`): agents hallucinated thoughts because decisions had no
    consequence. Here every social move is a survival strategy.
 3. **Communities are EMERGENT.** No pre-drawn factions. A community crystallizes when a
    cluster of agents accumulates enough mutual trust / shared activity, then becomes a

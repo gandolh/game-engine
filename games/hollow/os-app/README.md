@@ -9,7 +9,7 @@ installs from a URL. The source is `games/hollow/client` (the module entry is
 Install it from **Settings → Marketplace → Install from a URL** with:
 
 ```
-https://github.com/gandolh/game-engine/tree/main/games/hollow/os-app
+https://github.com/<owner>/game-engine/tree/main/games/hollow/os-app
 ```
 
 It runs in ImbatranimOS's sandboxed frame. It asks for no capabilities, and
