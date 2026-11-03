@@ -59,15 +59,15 @@ import { MATE_PAL } from "../render/mate-palette";
 import type { Strings } from "../strings";
 import { ENEMY_SPRITE_DRAW, drawHero } from "./sprites";
 
-export const HP_BAR_WIDTH = 200;
-export const HP_BAR_HEIGHT = 12;
+const HP_BAR_WIDTH = 200;
+const HP_BAR_HEIGHT = 12;
 /** Comparison always generates exactly 3 choices (`<`, `>`, `=`) — see the M2 brief. */
-export const CHOICE_SLOTS = 3;
+const CHOICE_SLOTS = 3;
 
 /** Triviador/Conquiztador-style quiz theming for the problem window: each math TOPIC gets a
  * category colour (paints the question banner's header strip + the topic chip), and each answer
  * TILE gets a distinct colour frame (the quiz-show A/B/C/D-tile identity cue). All `MATE_PAL`. */
-export const TOPIC_ACCENT: Record<MathTopic, string> = {
+const TOPIC_ACCENT: Record<MathTopic, string> = {
   addition: MATE_PAL.green,
   subtraction: MATE_PAL.skyBlue,
   multiplication: MATE_PAL.gold,
@@ -124,7 +124,7 @@ function setHpBar(bar: HpBar, hp: number, maxHp: number): boolean {
 }
 
 /** HP-bar fill colour by fraction remaining — the classic green→amber→red battle cue. */
-export function hpColor(hp: number, maxHp: number): string {
+function hpColor(hp: number, maxHp: number): string {
   const pct = maxHp > 0 ? hp / maxHp : 0;
   return pct > 0.5 ? MATE_PAL.green : pct > 0.2 ? MATE_PAL.gold : MATE_PAL.red;
 }
@@ -562,7 +562,7 @@ export function createCombatScreen(actions: CombatScreenActions, strings: String
 
 /** A quiz-tile frame: a drop shadow + a thick coloured ring hugging the button's rect. A 50-50'd
  * ("eliminated") tile also gets a dim overlay + a red bar so it reads as struck out. */
-export function drawTileFrame(surface: UISurface, rect: Rect, color: string, eliminated: boolean): void {
+function drawTileFrame(surface: UISurface, rect: Rect, color: string, eliminated: boolean): void {
   const { x, y, width: w, height: h } = rect;
   const t = 3; // ring thickness (drawn OUTSIDE the button so it never covers the label)
   surface.rect(x - t + 3, y - t + 4, w + 2 * t, h + 2 * t, MATE_PAL.ink, 0.3); // drop shadow
@@ -578,7 +578,7 @@ export function drawTileFrame(surface: UISurface, rect: Rect, color: string, eli
 
 /** A flat elliptical grass platform (stacked rows), with a shadow skirt + a lit top rim — the
  * ground the combatants stand on, matching the map screen's rect-only prop idiom. */
-export function drawPlatform(surface: UISurface, cx: number, cy: number, rx: number, ry: number): void {
+function drawPlatform(surface: UISurface, cx: number, cy: number, rx: number, ry: number): void {
   ellipse(surface, cx, cy + ry * 0.18, rx * 0.98, ry * 0.9, MATE_PAL.ink, 0.22); // shadow skirt
   ellipse(surface, cx, cy, rx, ry, MATE_PAL.greenDark);
   ellipse(surface, cx, cy - ry * 0.25, rx * 0.94, ry * 0.6, MATE_PAL.green); // lit top
@@ -597,7 +597,7 @@ function ellipse(surface: UISurface, cx: number, cy: number, rx: number, ry: num
 }
 
 /** A small soft cloud puff (a few overlapping pale rects). */
-export function drawCloud(surface: UISurface, cx: number, cy: number, r: number): void {
+function drawCloud(surface: UISurface, cx: number, cy: number, r: number): void {
   surface.rect(cx - r * 2, cy - r * 0.5, r * 4, r, MATE_PAL.white, 0.5);
   surface.rect(cx - r * 1.2, cy - r, r * 2.4, r * 1.6, MATE_PAL.white, 0.5);
   surface.rect(cx + r * 0.4, cy - r * 1.2, r * 1.6, r * 1.4, MATE_PAL.white, 0.45);

@@ -1,42 +1,43 @@
 /**
- * RESEARCH PROTOTYPE (spec 2026-10-27-mathquest-immediate-mode-research, built 2026-10-28).
- * MateQuest uses it only under the `?imgui` URL flag; the default path is the retained screens.
+ * An optional immediate-mode layer over `@engine/ui`'s retained nodes.
  *
- * An immediate-mode API over `@engine/ui`'s retained nodes. The screen's code runs every frame and
- * describes the whole screen — `if (ui.button("act.attack", "Atac")) chooseAction("attack")` — and
- * nothing outlives the frame in the SCREEN's code: no node variables, no `setText`, no swapping
- * subtrees in and out of a slot, no `firstRefresh`.
+ * A screen built on it runs its code every frame and describes the whole screen:
+ * `if (ui.button("act.attack", "Atac")) chooseAction("attack")`. Nothing outlives the frame in
+ * the SCREEN's code: no node variables, no `setText`, no swapping subtrees in and out of a slot.
+ * `@engine/ui` stays retained by default; reach for this on a screen that is mostly dynamic
+ * lists, where keeping a tree in step costs more than describing it each frame (corpus
+ * decisions.md → *UI — retained by default, immediate mode optional*).
  *
- * Why the nodes are still kept (a keyed cache, not a throwaway tree): `@engine/ui`'s input
- * dispatcher holds node OBJECTS, not ids — `focusedNode`, the pressed node, and the "press and
- * release on the same leaf" activation test (`releasedLeaf === startedOn`). A tree of fresh nodes
- * every frame would break Tab order, hover, pressed state and every click that spans two frames.
- * The a11y mirror diffs by node `id`, so fresh ids would also rebuild its DOM every frame. Reusing
- * the node object for a key keeps all three working with no engine change. That is the cheapest
- * IMGUI this toolkit allows; a truly throwaway tree needs a dispatcher that tracks ids instead.
+ * Why the nodes are still kept (a keyed cache, not a throwaway tree): the input dispatcher holds
+ * node OBJECTS, not ids — the focused node, the pressed node, and the "press and release on the
+ * same leaf" activation test. A tree of fresh nodes every frame would break Tab order, hover,
+ * pressed state and every click that spans two frames, and the a11y mirror, which diffs by node
+ * `id`, would rebuild its DOM every frame. Reusing the node for a key keeps all three working.
  *
  * Keys are unique within one `ImmediateUi` (not scoped by parent), and a node never changes kind
- * under its key. Entries are never evicted: a screen has a fixed, small key space (combat uses
- * ~60), so keeping a hidden node means it comes back with its id, focus and mirror entry intact,
- * the same as the retained screens' build-once subtrees. A general engine version would evict
- * keys unseen for some frames.
+ * under its key. A key not emitted for `evictAfter` consecutive frames (default 60) is evicted:
+ * its node is forgotten, a pending click on it is dropped, and if it comes back it gets a fresh
+ * node. A key emitted again sooner keeps its node, id, focus and mirror entry.
  *
  * Clicks are delivered one frame late, the usual IMGUI contract: the dispatcher calls the node's
  * `onActivate`, which records the key; the next frame's `button()` call for that key returns true.
  * A click on a button that is not emitted on the next frame is dropped.
  *
- * Imports only `@engine/ui`'s public surface, so it could move into `@engine/ui` unchanged.
+ * Measured on MateQuest's combat screen (2026-10-28, corpus mathquest-ui.md): the same tree,
+ * mirror and keyboard as the retained screen, a third less tree code, and 6 to 18 times the
+ * per-frame refresh (still well under 1% of a frame).
  */
-import { box, button, label, panel } from "@engine/ui";
-import type { ButtonNode, ContainerNode, LabelNode, LayoutProps, UINode } from "@engine/ui";
+import { box, button, label, panel } from "../widget";
+import type { ButtonNode, ContainerNode, LabelNode, UINode } from "../widget";
+import type { LayoutProps } from "../layout";
 
-export interface LabelOpts {
+export interface ImmediateLabelOpts {
   readonly color?: string;
   readonly scale?: number;
   readonly maxWidth?: number;
 }
 
-export interface ButtonOpts {
+export interface ImmediateButtonOpts {
   readonly scale?: number;
   readonly disabled?: boolean;
 }
@@ -50,9 +51,9 @@ export interface ImmediateUi {
   frame(build: () => void): { root: ContainerNode; changed: boolean };
   panel(key: string, layout: LayoutProps, body?: () => void): ContainerNode;
   box(key: string, layout: LayoutProps, body?: () => void): ContainerNode;
-  label(key: string, text: string, opts?: LabelOpts): LabelNode;
+  label(key: string, text: string, opts?: ImmediateLabelOpts): LabelNode;
   /** True on the frame after this button was activated (click, Enter/Space, or the a11y mirror). */
-  button(key: string, text: string, opts?: ButtonOpts): boolean;
+  button(key: string, text: string, opts?: ImmediateButtonOpts): boolean;
   /** The node emitted under `key` (this frame or earlier) — custom draw passes read its `rect`. */
   node(key: string): UINode | undefined;
 }
@@ -80,8 +81,17 @@ function sameChildren(a: readonly UINode[], b: readonly UINode[]): boolean {
   return true;
 }
 
-export function createImmediateUi(): ImmediateUi {
+export interface ImmediateUiOptions {
+  /** Frames a key may go unemitted before its node is evicted. Default 60. */
+  readonly evictAfter?: number;
+}
+
+export function createImmediateUi(opts: ImmediateUiOptions = {}): ImmediateUi {
+  const evictAfter = Math.max(1, opts.evictAfter ?? 60);
   const cache = new Map<string, UINode>();
+  /** The frame each cached key was last emitted in. */
+  const lastSeen = new Map<string, number>();
+  let frameNo = 0;
   const clicked = new Set<string>();
   /** Child lists being built, innermost last. */
   const stack: UINode[][] = [];
@@ -89,7 +99,8 @@ export function createImmediateUi(): ImmediateUi {
   let changed = false;
   let first = true;
 
-  function emit(node: UINode): void {
+  function emit(key: string, node: UINode): void {
+    lastSeen.set(key, frameNo);
     const parent = stack[stack.length - 1];
     if (parent !== undefined) parent.push(node);
     else if (top === null && (node.kind === "panel" || node.kind === "box")) top = node;
@@ -106,7 +117,7 @@ export function createImmediateUi(): ImmediateUi {
       node.layout = layout;
       changed = true;
     }
-    emit(node);
+    emit(key, node);
     const kids: UINode[] = [];
     stack.push(kids);
     body?.();
@@ -122,12 +133,19 @@ export function createImmediateUi(): ImmediateUi {
     frame(build) {
       changed = first;
       first = false;
+      frameNo += 1;
       top = null;
       stack.length = 0;
       build();
       if (top === null) throw new Error("ImmediateUi: the frame emitted no root container");
       // A click recorded for a button that this frame did not emit is stale; drop it.
       clicked.clear();
+      for (const [key, seen] of lastSeen) {
+        if (frameNo - seen >= evictAfter) {
+          lastSeen.delete(key);
+          cache.delete(key);
+        }
+      }
       return { root: top, changed };
     },
 
@@ -152,7 +170,7 @@ export function createImmediateUi(): ImmediateUi {
           changed = true;
         }
       }
-      emit(node);
+      emit(key, node);
       return node;
     },
 
@@ -179,7 +197,7 @@ export function createImmediateUi(): ImmediateUi {
         node.state = "normal";
         changed = true;
       }
-      emit(node);
+      emit(key, node);
       return clicked.delete(key);
     },
 

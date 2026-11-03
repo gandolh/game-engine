@@ -12,6 +12,9 @@
  * events into it and the widgets become interactive (hover/active/click/focus/drag), with
  * each entry point reporting whether the UI consumed the event.
  *
+ * `./immediate` is an optional immediate-mode layer over the same nodes (keyed, so focus, presses
+ * and the a11y mirror survive frames); screens stay retained unless they choose it.
+ *
  * Layering: this package consumes `@engine/core` only and MUST NOT import any game.
  */
 export * from "./render";
@@ -25,3 +28,4 @@ export * from "./scroll";
 export * from "./anim";
 export * from "./a11y";
 export * from "./state";
+export * from "./immediate";

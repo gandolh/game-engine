@@ -70,7 +70,6 @@ import { createLootScreen, type LootScreen, type LootScreenActions } from "./ui/
 import { createMapScreen } from "./ui/map-screen";
 import { createMapMirror, type MapMirror } from "./ui/map-mirror";
 import { createRunOverScreen, type RunOverScreen, type RunOverScreenActions } from "./ui/run-over-screen";
-import { createImmediateCombatScreen } from "./ui/combat-screen-immediate";
 import type { WorkerInbound, WorkerOutbound } from "./worker/sim-worker";
 
 // M3 has no run/seed-select screen yet — a fixed seed proves the deterministic-seed seam and
@@ -82,15 +81,9 @@ const SEED = 1;
 // unbounded if the player mashes the keypad.
 const MAX_ANSWER_DIGITS = 5;
 
-// RESEARCH FLAGS (spec 2026-10-27-mathquest-immediate-mode-research, 2026-10-28). Both off by
-// default; neither changes the default path.
-//   ?imgui   — the combat screen comes from the immediate-mode prototype
-//              (`ui/combat-screen-immediate.ts`) instead of the retained `ui/combat-screen.ts`.
-//   ?profile — time the widget UI pass each frame (refresh, layout, draw, mirror) and expose the
-//              summary as `window.__mqProfile()`. MateQuest had no `?profile` before this.
-const SEARCH = new URLSearchParams(location.search);
-const USE_IMGUI = SEARCH.has("imgui");
-const PROFILE = SEARCH.has("profile");
+// ?profile — time the widget UI pass each frame (refresh, layout, draw, mirror) and expose the
+// summary as `window.__mqProfile()`. Off by default; it doesn't change the default path.
+const PROFILE = new URLSearchParams(location.search).has("profile");
 
 const canvasRaw = document.getElementById("scene");
 if (!(canvasRaw instanceof HTMLCanvasElement)) {
@@ -296,7 +289,7 @@ async function main(): Promise<void> {
   let lootScreen: LootScreen;
 
   function buildScreens(): void {
-    combatScreen = USE_IMGUI ? createImmediateCombatScreen(combatActions, strings) : createCombatScreen(combatActions, strings);
+    combatScreen = createCombatScreen(combatActions, strings);
     runOverScreen = createRunOverScreen(runOverActions, strings);
     levelUpScreen = createLevelUpScreen(levelUpActions, strings);
     lootScreen = createLootScreen(lootActions, strings);
@@ -579,9 +572,8 @@ async function main(): Promise<void> {
   /** Fallback inset for a card screen on a viewport too small to centre the card in. */
   const CARD_INSET = 24;
 
-  // ?profile: per-frame ms of the widget UI pass, split where the two combat shapes differ
-  // (refresh = build/re-bind, layout) from what they share (draw, mirror). A ring of the last 600
-  // widget frames; map frames are not counted.
+  // ?profile: per-frame ms of the widget UI pass (refresh = re-bind, layout, draw, mirror). A ring
+  // of the last 600 widget frames; map frames are not counted.
   const PROFILE_RING = 600;
   const profileRing: Array<{ refresh: number; layout: number; draw: number; mirror: number; mode: string }> = [];
   if (PROFILE) {
@@ -593,7 +585,6 @@ async function main(): Promise<void> {
     (window as unknown as { __mqProfile?: unknown }).__mqProfile = (mode?: string) => {
       const rows = mode === undefined ? profileRing : profileRing.filter((r) => r.mode === mode);
       return {
-        shape: USE_IMGUI ? "immediate" : "retained",
         frames: rows.length,
         refresh: stat(rows.map((r) => r.refresh)),
         layout: stat(rows.map((r) => r.layout)),
