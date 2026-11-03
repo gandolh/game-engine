@@ -7,7 +7,8 @@
     "engine/*",
     "games/*/*",
     "tools/*",
-    "docs"
+    "docs",
+    "portal"
   ],
   "packageManager": "npm@11.19.1",
   "engines": {
@@ -21,6 +22,7 @@
     "farm": "node scripts/dev.mjs farm",
     "hollow": "npm run dev -w @hollow/client",
     "mathquest": "npm run dev -w @mathquest/client",
+    "portal": "npm run dev -w @game-engine/portal",
     "build": "npm run build -w @farm/client",
     "test": "turbo run test --continue=always --concurrency=1",
     "typecheck": "turbo run typecheck --continue=always",

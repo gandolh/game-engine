@@ -123,6 +123,7 @@ describe("no source file uses an off-palette color literal", () => {
   walk(join(REPO_ROOT, "engine"), files);
   walk(join(REPO_ROOT, "games"), files);
   walk(join(REPO_ROOT, "tools"), files);
+  walk(join(REPO_ROOT, "portal"), files);
 
   // Palette is scoped by path: Citadel source (games/citadel/) and Hollow
   // source (games/hollow/) are validated against Apollo; MateQuest source

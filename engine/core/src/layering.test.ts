@@ -26,6 +26,8 @@ const SCOPES: ReadonlyArray<{ root: string; game: Game | null }> = [
   { root: "engine", game: null },
   // Drives no game: it cuts painted images into patches with the engine's own slicing.
   { root: "tools/image-patches", game: null },
+  // The games portal frames the games by URL and must import none of them.
+  { root: "portal", game: null },
   { root: "games/farm", game: "farm" },
   { root: "tools/run-sim", game: "farm" },
   { root: "tools/world-preview", game: "farm" },
@@ -168,6 +170,11 @@ describe("layering — the engine imports no game, and no game imports another g
       }
     }
     if (!declared.has("engine")) missing.push('engine — add { root: "engine", game: null } to SCOPES');
+    // Top-level workspaces outside engine/games/tools: the portal (docs is Docusaurus with no TS
+    // imports of the engine, so it is not scanned).
+    if (statSync(join(REPO_ROOT, "portal"), { throwIfNoEntry: false })?.isDirectory() === true && !declared.has("portal")) {
+      missing.push('portal — add { root: "portal", game: null } to SCOPES');
+    }
 
     expect(
       missing,

@@ -56,6 +56,7 @@ tools/
   citadel-sim     @tool/citadel-sim      headless Citadel sim
   hollow-sim      @tool/hollow-sim       headless Hollow sim (+ metrics/chronicle export)
   image-patches   @tool/image-patches    cuts a painted image into static-layer patches; `npm run harness` is a dev page for the patched static layer
+portal            @game-engine/portal    the games portal at /games: a card per game, each played in a frame (imports no game)
 ```
 
 **Dependency rule (enforced):** `@engine/wasm-modules` → `@engine/core` → `{@farm/sim-core, @citadel/sim-core, @hollow/sim-core, @mathquest/sim-core}` → the matching clients/servers. The engine is generic and never imports a game; **no game imports another game.**
@@ -72,6 +73,7 @@ npm run server         # just the Farm sim server (WebSocket :8787)
 npm run citadel        # Citadel: sim server (:8788) + client (vite :5174) together; open ?mp for online MP (solo runs in a Web Worker, no server)
 npm run hollow         # Hollow client (vite :5175) — sim runs in an in-browser Web Worker, no server
 npm run mathquest      # MateQuest client (vite :5176) — sim runs in an in-browser Web Worker, no server
+npm run portal         # the games portal (vite :5177); `npm run serve-all -w @game-engine/portal` serves it with the four built games from one origin
 npm run build          # production build of the Farm client
 npm run typecheck      # tsc --noEmit across all workspaces — run before committing
 npm run gates          # the FULL gate sequence: typecheck -> test -> build -> four startup smokes
