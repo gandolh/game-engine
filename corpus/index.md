@@ -34,6 +34,7 @@ which is how a "WebGPU-only render path" line outlived the page that already sai
 - [wiki/performance-measurements.md](wiki/performance-measurements.md) — The profiling record: how to measure (`Profiler` + `?profile` + DebugOverlay), plus the 2026-06-05 and 2026-06-10 measured baselines every optimization claim is scored against.
 - [wiki/asset-pipeline.md](wiki/asset-pipeline.md) — The bake principle (assets are code, not images), asset-cooking and atlas research, the cache-key/incremental-build recommendations that became brief 71, and the 2026-10-28 large-image research (texture inventory, breaking points, patches).
 - [wiki/engine-ui.md](wiki/engine-ui.md) — The shared in-canvas UI toolkit (@engine/ui): the UNSCII text stack, the palette-agnostic icon pipeline, the optional immediate-mode layer (2026-11-03), and the layout traps that bite when text metrics change.
+- [wiki/portal.md](wiki/portal.md) — The games portal at /games (built 2026-11-03): a card per engine game played in a same-origin frame, the phone warning page, EDG32 pixel style, the per-game frame check, card art, deploy stacks, the owner's checks.
 - [wiki/shader-ideas.md](wiki/shader-ideas.md) — Book-of-Shaders techniques filtered against the WebGL2 renderer. Ideas, not committed work.
 
 ### Farm Valley
