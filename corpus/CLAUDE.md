@@ -11,8 +11,10 @@ corpus/
   routing.md        which question goes to which layer (wiki / code graph / grep / tests)
   lint.sh           health check: frontmatter, link resolution, page size, stale paths
   log.md            chronological record of corpus changes
-  todos/            THE WORK QUEUE — specs that are ready or in progress
-    closed/         THE ONE ARCHIVE — every finished spec ever, immutable once here
+  briefs/           THE WORK QUEUE since 2026-11-03 — numbered specs brief-board reads
+    todo/ done/ superseded/
+  todos/            captured ideas; until 2026-11-03 also the work queue
+    closed/         THE ARCHIVE of every spec before 2026-11-03, immutable once here
   verify/           evidence attached to a specific verdict (screenshots, data, a rebuildable page)
   wiki/             LLM-curated synthesis pages (the actual knowledge base)
     overview.md, architecture.md, decisions.md, glossary.md, status.md, open-questions.md, …
@@ -24,9 +26,14 @@ folded into `todos/closed/` and deleted. Old numbered names were kept (`117-coll
 sits beside `2026-09-18-audit-52-….md`), because **names are stable for the life of the file**.
 Supersession is now a **note at the top of the file**, never a directory.
 
+**Briefs again, since 2026-11-03.** brief-board reads each project's `corpus/briefs/`, so new
+work specs go to `briefs/todo/<NN>-<slug>.md`, numbered from 01 and never restarted, and move to
+`briefs/done/` (or `briefs/superseded/`) when finished. `todos/` keeps captured ideas; nothing
+moves out of `todos/closed/`.
+
 ## Three layers
 
-1. **todos/** — raw, immutable specs. Each file is a task spec that was used to direct work (typically by a subagent). Once a spec is in `todos/closed/`, do **not** edit it — the two sanctioned exceptions are a supersession note (below) and correcting a link a directory move broke. **A closed spec's own `status:` line is frozen at authoring time and routinely still reads `todo`** — the directory it sits in is what tells you its real state. New work gets a new dated spec in `todos/`.
+1. **todos/** — raw, immutable specs. Each file is a task spec that was used to direct work (typically by a subagent). Once a spec is in `todos/closed/`, do **not** edit it — the two sanctioned exceptions are a supersession note (below) and correcting a link a directory move broke. **A closed spec's own `status:` line is frozen at authoring time and routinely still reads `todo`** — the directory it sits in is what tells you its real state. New work gets a numbered brief in `briefs/todo/`.
 2. **wiki/** — the LLM owns this. Synthesis, entity pages, concept pages, current status. Edited freely as understanding evolves.
 3. **index.md + log.md** — navigation aids. Updated on every meaningful change.
 

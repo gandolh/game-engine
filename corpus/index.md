@@ -15,9 +15,11 @@ which is how a "WebGPU-only render path" line outlived the page that already sai
 - [CLAUDE.md](CLAUDE.md) — how this directory works; conventions; workflows; the retrieval budget
 - [routing.md](routing.md) — which question goes to which layer (wiki / code graph / grep / tests)
 - [log.md](log.md) — chronological record of corpus changes
-- [todos/](todos/) — **the work queue**: specs that are ready or in progress. Finished ones move to
-  [todos/closed/](todos/closed/). A closed brief's own `status:` line is frozen at authoring time —
-  the directory and [status.md](wiki/status.md) are what tell you its real state.
+- [briefs/](briefs/) — **the work queue** since 2026-11-03, numbered from 01: [todo](briefs/todo/) ·
+  [done](briefs/done/) · [superseded](briefs/superseded/). brief-board reads it.
+- [todos/](todos/) — captured ideas. Until 2026-11-03 it was also the queue; every spec finished
+  before then is in [todos/closed/](todos/closed/). A closed brief's own `status:` line is frozen at
+  authoring time — the directory and [status.md](wiki/status.md) are what tell you its real state.
 - [verify/](verify/) — evidence attached to a specific verdict (screenshots, gamut data, a rebuildable page)
 
 ## Wiki — start here for synthesis
@@ -71,7 +73,7 @@ which is how a "WebGPU-only render path" line outlived the page that already sai
 
 ## Build programs
 
-**Open in the queue** (list [todos/](todos/) for the current set): [retake the README's Farm and Citadel images](todos/2026-11-03-retake-readme-images-after-the-flip-fix.md)
+**Open in the queue** (list [briefs/todo/](briefs/todo/) for the current set): brief 01, [retake the README's Farm and Citadel images](briefs/todo/01-retake-readme-images-after-the-flip-fix.md)
 after the upside-down static-layer fix. Done 2026-11-03, all approved at that day's grill:
 [the engine patched static layer](todos/closed/2026-10-28-engine-patched-static-layer.md),
 [Citadel's terrain onto patches](todos/closed/2026-10-28-citadel-window-onto-patches.md) (which closed

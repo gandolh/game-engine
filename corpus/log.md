@@ -4053,7 +4053,7 @@ ignored for ImageBitmaps (the atlases), so the terrain was mirrored under correc
 in the README's Farm image (2026-10-09), with houses in water. The flag is now off for every upload. Farm
 was checked right way up, at its own limit and on 2048 px patches. Both calls are in [decisions.md](wiki/decisions.md),
 and the record is [asset-pipeline.md](wiki/asset-pipeline.md) → *Patches as built*. Filed:
-[retake the README images](todos/2026-11-03-retake-readme-images-after-the-flip-fix.md).
+retake the README images (brief 01 since 2026-11-03).
 
 ## [2026-11-03] close | Citadel's terrain on patches; the re-baking window removed
 
@@ -4095,3 +4095,12 @@ MateQuest's battle backdrop is now `drawBattle`, which `drawScene` calls unchang
 Hollow framed ran 50 ms per frame against 33 ms direct, on SwiftShader under load. It stays framed
 until the owner measures it on a real GPU. [routing.md](routing.md) now lists the portal as the second
 HTML/CSS surface. Record: [portal.md](wiki/portal.md).
+
+## [2026-11-03] todo | Brief 01, and briefs/ is the work queue again
+
+brief-board reads each project's `corpus/briefs/`, so this corpus has one again: `briefs/todo/`,
+`done/` and `superseded/`, numbered from 01. The todo to retake the README's Farm and Citadel images
+after the upside-down fix is now
+[briefs/todo/01-retake-readme-images-after-the-flip-fix.md](briefs/todo/01-retake-readme-images-after-the-flip-fix.md),
+promoted in an estate-wide grill with the owner; the todo is deleted. [CLAUDE.md](CLAUDE.md) and
+[index.md](index.md) say where new specs go; `todos/closed/` stays the archive of everything before.
