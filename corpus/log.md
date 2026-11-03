@@ -3989,7 +3989,7 @@ which audit-03 already delivered apart from the Worker itself.
 [Tiled textures](todos/closed/2026-10-27-tiled-textures-for-large-assets-research.md) starts from the
 single static-layer texture (Farm's is 3840 px, under the 4096 most devices allow) and Citadel's
 re-baking window, and compares a fixed grid of textures; the pieces need a name, since "chunk" and
-"tile" are taken. [A games portal](todos/2026-10-27-game-portal-research.md) researches a
+"tile" are taken. [A games portal](todos/closed/2026-10-27-game-portal-research.md) researches a
 Miniclip-style card grid that plays each deployed game in place; MateQuest has no deploy stack yet.
 The index's "queue is empty" line was stale and now lists what is open.
 
@@ -4001,7 +4001,7 @@ screens as an immediate-mode UI; the worker question (B) is not asked for.
 [Tiled textures](todos/closed/2026-10-27-tiled-textures-for-large-assets-research.md): all three readings
 (bigger worlds, large hand-drawn images, and Tiled the map editor, now steps 5 and 6); desktop is the
 target and phones degrade; the pieces are **patches**, added to the glossary.
-[A games portal](todos/2026-10-27-game-portal-research.md): a `portal/` workspace served at `/games`,
+[A games portal](todos/closed/2026-10-27-game-portal-research.md): a `portal/` workspace served at `/games`,
 each game in a frame inside the portal with its own path as the fallback, and all four games, so
 MateQuest gets a deploy stack.
 
@@ -4023,3 +4023,16 @@ The owner did not approve deleting MateQuest's immediate-mode prototype. It move
 ## [2026-10-31] maintenance | README and images checked; still current
 
 A README refresh pass with the readme-docs standard. The README already met it. Since the images were taken on 2026-10-09 the only game and engine changes are a MateQuest prototype behind `?imgui`, a static-layer research prototype behind `staticPatchSize`, and two Citadel keyboard fixes, none of which changes a default screen; MateQuest's map today matched the GIF's first frame. Checked: `npm install` with Node 24 and npm 11.19.1, the README's `CHECK_DETERMINISM=1 MAX_DAYS=5 TICKS_PER_DAY=20 npm run sim` printed the same three lines, and `npm run mathquest` answered on port 5176. No image retaken, no README change.
+
+## [2026-11-03] grill | The four open follow-ups grilled before building
+
+The owner settled what the open specs left to decide. Patches: approved, with the
+pre-cut painted image built now and Farm's map left at 240×240 (the twice-as-wide check uses a
+world that exists only in tests). The Citadel boot fix folds into moving Citadel onto patches, with no stopgap
+([decisions.md](wiki/decisions.md) → Renderer). MateQuest: the immediate layer moves into
+`@engine/ui` and the `?imgui` combat screen is deleted, `?profile` stays
+([decisions.md](wiki/decisions.md) → *UI — retained by default*). The portal: built, not researched further. A
+game that isn't marked as playable on phones shows a warning page when the screen is under 1280×640. The
+portal uses pixel style on EDG32, and the card art is composed from each game's sprites (Hollow's comes from a posed 3D
+render). This run adds the portal and MateQuest stacks to vps-deploy. *Portal* and *card art* are added to the
+glossary. Each answer is a note at the top of its spec.

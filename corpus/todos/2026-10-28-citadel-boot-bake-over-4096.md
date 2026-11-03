@@ -1,6 +1,10 @@
 # Citadel: the boot bake is 6144 px wide and fails on a 4096 device
 
-status: proposed — for the owner to approve or reject
+> **Owner, 2026-11-03: fold this into the patches work.** No stopgap in `window-controller.ts`; the
+> boot cap is met by [moving Citadel's window onto patches](2026-10-28-citadel-window-onto-patches.md),
+> whose acceptance already boots at 4096. Close this spec when that one closes.
+
+status: todo (approved 2026-11-03)
 created: 2026-10-28
 context: found by the large-textures research
 ([spec](closed/2026-10-27-tiled-textures-for-large-assets-research.md), findings on

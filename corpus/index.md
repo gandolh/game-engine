@@ -70,11 +70,13 @@ which is how a "WebGPU-only render path" line outlived the page that already sai
 
 ## Build programs
 
-**Open in the queue** (list [todos/](todos/) for the current set): one research spec filed
-2026-10-27 and grilled 2026-10-28, [a games portal page](todos/2026-10-27-game-portal-research.md); and four proposed
-follow-ups awaiting the owner: [retire MateQuest's `?imgui` prototype](todos/2026-10-28-mathquest-retire-imgui-prototype.md),
-[Citadel's boot bake over 4096](todos/2026-10-28-citadel-boot-bake-over-4096.md), [the engine patched static layer](todos/2026-10-28-engine-patched-static-layer.md)
-and [Citadel's window onto patches](todos/2026-10-28-citadel-window-onto-patches.md). The
+**Open in the queue** (list [todos/](todos/) for the current set), all approved at the 2026-11-03 grill and
+built in this order: [the engine patched static layer](todos/2026-10-28-engine-patched-static-layer.md),
+[Citadel's window onto patches](todos/2026-10-28-citadel-window-onto-patches.md) (which also closes
+[Citadel's boot bake over 4096](todos/2026-10-28-citadel-boot-bake-over-4096.md)),
+[the immediate layer into `@engine/ui`](todos/2026-10-28-mathquest-retire-imgui-prototype.md) and
+[the games portal](todos/2026-11-03-games-portal.md). The [portal research](todos/closed/2026-10-27-game-portal-research.md)
+closed into that last spec. The
 [immediate-mode](todos/closed/2026-10-27-mathquest-immediate-mode-research.md) and
 [tiled-textures](todos/closed/2026-10-27-tiled-textures-for-large-assets-research.md) research closed 2026-10-28. The three specs from 2026-10-09
 and the docs-site spec (2026-10-18, now on Docusaurus) closed on 2026-10-28. Everything else is closed. The Hollow

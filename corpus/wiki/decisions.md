@@ -45,6 +45,22 @@ Tech choices that are settled. Listed here so future briefs and reviews don't re
   1. **The renderer must be imported DYNAMICALLY.** `createRenderer` uses `await import("./webgl2/renderer")`, and `render/index.ts` exports `WebGl2Renderer` as a **type only**. The WebGL2 passes `import … from "*.glsl?raw"`, which only a bundler resolves — a static import or a value export crashes every Node consumer (both game servers, `run-sim`, `world-preview`, `citadel-sim`, `hollow-sim`) with `ERR_UNKNOWN_FILE_EXTENSION`. This happened once during the migration and **typecheck plus 689 passing tests did not catch it.**
   2. **Verification must include running things.** A green typecheck and a green suite say nothing about whether the app or the headless tools still start. `npm run build`, `sim`, `sim:citadel`, `sim:hollow` and `preview` are part of the gate, not ceremony.
 
+- **A static layer larger than the device allows is drawn as patches (approved 2026-11-03, not built yet).**
+  This replaces brief 07's single cached texture for any bake bigger than the device limit. A bake that fits keeps
+  one texture. Past the limit, the engine bakes square **patches** sized from the device (2048 px, or
+  `MAX_TEXTURE_SIZE` if smaller). Each patch bakes its own world region the first time it comes into view,
+  and far patches are freed. A pre-cut painted image loads the same way.
+  - **Why.** One texture caps a world at `MAX_TEXTURE_SIZE`. Citadel's 6144 px boot bake fails on a
+    4096 device, and Farm's 3840 px bake fails on a 2048 one. The owner wants worlds twice Farm's width
+    on desktop while phones still run
+    ([research](../todos/closed/2026-10-27-tiled-textures-for-large-assets-research.md),
+    [asset-pipeline.md](asset-pipeline.md) → *Large images and patches*).
+  - **Rejected: Citadel's re-baking window, moved into the engine.** It re-bakes on every pan past
+    its pad, and its size follows the camera, which is how the boot bake reached 6144 px. Citadel moves
+    onto patches and its window code is deleted.
+  - **Rejected: a quick cap in Citadel first.** The owner folded the boot fix into the patches work
+    instead of writing code that would be deleted.
+
 ## Assets
 
 - **Build-time procedural atlas** via [tools/atlas-builder](../../tools/atlas-builder/). PNG + JSON manifest. No external art pipeline.
@@ -107,6 +123,19 @@ Tech choices that are settled. Listed here so future briefs and reviews don't re
     than the floor to be operable. Panels that legitimately want more room (Hollow's research
     sidebars) scroll instead — Hollow's DOM panels already do, which is why Hollow produced no
     findings in the playtest.
+
+## UI — retained by default, immediate mode optional (2026-10-28)
+
+- **`@engine/ui` stays retained, and gains an optional immediate-mode layer.** The owner decided this on
+  2026-10-28, after the [MateQuest research](mathquest-ui.md) prototyped a keyed immediate layer on
+  the combat screen behind `?imgui`. The prototype kept the tree, the a11y mirror and the keyboard identical and
+  cut the screen's tree code by a third. But it costs 6-18× the per-frame refresh and delivers clicks a frame
+  late, and no shipped bug came from retained sync. So MateQuest keeps its retained screens.
+  - **Rejected: delete the prototype.** The research recommended it, and the owner kept it instead:
+    the layer moves into `@engine/ui` as an opt-in feature for a future game whose screens
+    are mostly dynamic lists, since it sits on the same nodes, layout and renderer.
+  - **Rejected: switch MateQuest to it.** Doing so would pay the per-frame cost on a screen that has no
+    sync bugs.
 
 ## Concurrency
 

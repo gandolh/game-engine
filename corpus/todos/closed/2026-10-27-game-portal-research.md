@@ -1,5 +1,27 @@
 # A games portal page (research)
 
+> **Closed 2026-11-03 into a build spec.** At the 2026-11-03 grill the owner chose to build the portal
+> instead of finishing this research. Steps 2 to 4 are now checks in
+> [the build spec](../2026-11-03-games-portal.md). The findings below (step 1, and step 2's first pass)
+> stay as the record.
+
+> **Owner, 2026-11-03: build it.** The research closes into a build spec. Farm's WebSocket in the
+> frame, phones and the card images are checked during the build. The live games send no
+> `X-Frame-Options` or CSP `frame-ancestors` (curl, 2026-11-03), so framing them needs no header change.
+> Phones (owner, 2026-11-03): each game says whether it plays on phones and tablets. One that does
+> not opens a warning page there instead of the game ("this game is unavailable for phones or
+> tablets"). Today no game does: all four need the 1280×640 floor.
+> Detection is by screen size only: the warning shows when the viewport is under 1280×640. A large
+> tablet in landscape opens the game.
+> Look (owner, 2026-11-03): pixel style, with colours from EDG32 and the engine's pixel font for headings.
+> The palette scan covers `portal/`.
+> Card images (owner, 2026-11-03): made art for each card, 4:3, not captures.
+> Each card is composed in code from its game's own sprites and palette by a build step that can be
+> rerun when the sprites change, and the owner reviews it in a browser. Hollow has no sprites (vertex-coloured
+> 3D), so its card is a posed render of its 3D scene cut down to Hollow's palette.
+> vps-deploy (owner, 2026-11-03): this run adds the portal and MateQuest static stacks there, modelled
+> on `stacks/hollow.ts`, committed on its main and neither pushed nor deployed. The owner runs the rollout.
+
 status: todo
 created: 2026-10-27
 context: the owner, 2026-10-27: a web page "like miniclip or y8games", a home page of squares with
@@ -12,7 +34,7 @@ the answers are under "Settled at the grill".
   production domain: Farm Valley (with its sim server behind a WebSocket), Citadel and Hollow.
   The engine docs are at `/game-engine/docs`.
 - **MateQuest is not deployed**: there is no stack for it in vps-deploy. Its client already reads
-  `MATHQUEST_BASE` ([`vite.config.ts`](../../games/mathquest/client/vite.config.ts)), so a static
+  `MATHQUEST_BASE` ([`vite.config.ts`](../../../games/mathquest/client/vite.config.ts)), so a static
   stack like Hollow's would serve it.
 - The apex `/` has no page: it answers 404 (vps-deploy brief 19 makes that a plain "not found"
   page).
@@ -57,7 +79,7 @@ the answers are under "Settled at the grill".
 ## Paused 2026-10-28 (run cut to three agents): where this stopped
 
 Still open, in this file. Only step 1 (the pattern survey) is done; its screenshots are in
-[verify/2026-10-28-portal-research/](../verify/2026-10-28-portal-research/) (11 JPEGs, taken with
+[verify/2026-10-28-portal-research/](../../verify/2026-10-28-portal-research/) (11 JPEGs, taken with
 headless Chromium on 2026-10-28). Measured there:
 
 - **Miniclip** is no longer a portal: its web page is two big banners (640×377 at 1280 wide) whose

@@ -1,42 +1,61 @@
-# MateQuest: retire the `?imgui` prototype (or promote it)
+# MateQuest: move the immediate-mode layer into `@engine/ui`, retire `?imgui`
 
-> **Owner, 2026-10-28: move it, don't delete it.** The immediate-mode prototype moves into `@engine/ui` as an optional feature for a future game; MateQuest keeps its retained UI and `?profile` stays. The deletion this spec describes is not to be built; rewrite the steps for the move before work starts.
+> **Owner, 2026-10-28: move it, don't delete it.** The immediate-mode prototype moves into `@engine/ui` as an optional feature for a future game; MateQuest keeps its retained UI and `?profile` stays.
+>
+> **Owner, 2026-11-03: MateQuest's immediate combat screen goes.** After the layer moves to
+> `@engine/ui` (with the eviction of unseen keys, its own tests on a small sample screen), delete
+> `combat-screen-immediate.ts`, its test and the `?imgui` switch; keep `?profile`.
+>
+> Steps rewritten 2026-11-03 for the move. The original "delete everything" steps were not built.
 
-
-status: proposed — for the owner to approve or reject
-created: 2026-10-28
+status: todo
+created: 2026-10-28 (rewritten 2026-11-03)
 context: follow-up to the immediate-mode research
 ([spec](closed/2026-10-27-mathquest-immediate-mode-research.md), findings on
-[mathquest-ui.md](../wiki/mathquest-ui.md)). The research recommends keeping `@engine/ui` retained.
+[mathquest-ui.md](../wiki/mathquest-ui.md)); the call is in [decisions.md](../wiki/decisions.md) →
+*UI — retained by default, immediate mode optional*.
 
 ## Why
 
-The prototype proved its point and the recommendation is not to build on it. Left in the tree it is
-a second combat screen to keep in step with the first: every change to `combat-screen.ts` would
-need the same change in `combat-screen-immediate.ts`, or its tree-diff test fails.
+The research's keyed immediate layer
+([imgui/immediate.ts](../../games/mathquest/client/src/ui/imgui/immediate.ts)) imports only
+`@engine/ui`'s public API and keeps the dispatcher, the a11y mirror and the keyboard working. The
+owner wants it kept as an opt-in engine feature for a future game whose screens are mostly dynamic
+lists. MateQuest's second combat screen built on it is a copy to keep in step with the real one,
+so it goes.
 
-## What to do (the recommended option)
+## What to do
 
-- Delete `games/mathquest/client/src/ui/combat-screen-immediate.ts`, its test, and
-  `games/mathquest/client/src/ui/imgui/`.
-- In `games/mathquest/client/src/main.ts`, drop `USE_IMGUI` and the `createImmediateCombatScreen`
-  import. **Keep `?profile`**: MateQuest had no frame profile before the research, and the readout
-  is cheap.
-- Make the helpers `combat-screen.ts` exported for the prototype (`HP_BAR_WIDTH`, `HP_BAR_HEIGHT`,
-  `CHOICE_SLOTS`, `TOPIC_ACCENT`, `hpColor`, `drawTileFrame`, `drawPlatform`, `drawCloud`)
-  module-private again.
-- Record the decision in `corpus/wiki/decisions.md` using the proposed entry on
-  [mathquest-ui.md](../wiki/mathquest-ui.md).
+1. **Move the layer.** `games/mathquest/client/src/ui/imgui/immediate.ts` →
+   `engine/ui/src/immediate/` (an `index.ts` barrel plus the module), exported from
+   [engine/ui/src/index.ts](../../engine/ui/src/index.ts). Rewrite its header for its new home:
+   what it is, when a screen should use it (a pointer to the decision), the keyed-node reason, and
+   the one-frame-late click. Drop the "research prototype" wording.
+2. **Evict unseen keys.** The prototype never evicts. Add eviction for keys not emitted for N
+   consecutive frames (an option with a small default, e.g. 60). An evicted key's node leaves the
+   cache, and a pending click on it is dropped. A key that comes back gets a fresh node.
+3. **Tests in the engine**, on a small sample screen built in the test (a panel, a label, two
+   buttons, one conditional subtree):
+   - the same node object for a key across frames;
+   - `changed` false on an identical frame and true on a text change or a structural change;
+   - the click arrives on the frame after activation, and a click on a button not emitted on
+     the next frame is dropped;
+   - eviction after N unseen frames, and a key re-emitted before N keeps its node;
+   - a key reused with a different node kind throws (or whatever the prototype does; keep it).
+   Port whatever of the prototype's `combat-screen-immediate.test.ts` checks the layer rather than
+   the combat screen.
+4. **Retire MateQuest's copy.** Delete `combat-screen-immediate.ts`, its test and `ui/imgui/`.
+   In `main.ts`, drop `USE_IMGUI` and its import. **Keep `?profile`** (`window.__mqProfile()`).
+   Make the `combat-screen.ts` helpers exported only for the prototype (`HP_BAR_WIDTH`,
+   `HP_BAR_HEIGHT`, `CHOICE_SLOTS`, `TOPIC_ACCENT`, `hpColor`, `drawTileFrame`, `drawPlatform`,
+   `drawCloud`) module-private again where nothing else imports them (grep first).
+5. **Corpus.** [mathquest-ui.md](../wiki/mathquest-ui.md): the prototype section says where the
+   layer went; [engine-ui.md](../wiki/engine-ui.md) gains a short *Immediate mode* section.
 
-## The other option, if the owner wants immediate mode
+## Acceptance
 
-Promote instead of deleting: move `imgui/immediate.ts` to `engine/ui/src/immediate/` (it imports only
-`@engine/ui`'s public API), export it from the barrel, add eviction for keys unseen for N frames, and
-switch MateQuest's combat screen to it. That is a new engine surface and a decision entry saying
-when a screen should use it; write it as its own spec.
-
-## Acceptance (recommended option)
-
-- No `imgui` in `games/mathquest/client/src/` and no `?imgui` handling in `main.ts`.
-- `?profile` still exposes `window.__mqProfile()`.
-- `npm run gates` passes.
+- `@engine/ui` exports the immediate layer; its tests pass (`npm run test -w @engine/ui`).
+- No `imgui` under `games/mathquest/client/src/` and no `?imgui` handling in `main.ts`.
+- `?profile` still exposes `window.__mqProfile()` in the browser, and MateQuest's combat plays.
+- `npm run typecheck`, `npm run test -w @mathquest/client` and `npm run pack-smoke` pass (the
+  barrel is part of the published package).

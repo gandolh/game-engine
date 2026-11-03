@@ -1,6 +1,12 @@
 # Engine: the static layer on patches, sized from the device
 
-status: proposed — for the owner to approve or reject
+> **Owner, 2026-11-03: approved, step 4 included.** The patches replace the single static texture,
+> and Citadel's boot fix is folded into the Citadel follow-up. Build step 4, loading a pre-cut painted image
+> as patches, now, even though no game uses it yet. Test it with a generated on-palette sample image.
+> Farm's map stays 240×240 (owner, 2026-11-03). The "twice the width" acceptance uses a synthetic
+> 480×480 world that exists only in tests and a dev-only browser harness, never in the game.
+
+status: todo (approved 2026-11-03)
 created: 2026-10-28
 context: the recommendation of the large-textures research
 ([spec](closed/2026-10-27-tiled-textures-for-large-assets-research.md), findings on

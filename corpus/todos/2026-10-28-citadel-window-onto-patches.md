@@ -1,6 +1,6 @@
 # Citadel: replace the re-baking render window with engine patches
 
-status: proposed — for the owner to approve or reject; after
+status: todo (approved 2026-11-03); after
 [the engine patch spec](2026-10-28-engine-patched-static-layer.md)
 created: 2026-10-28
 context: the large-textures research

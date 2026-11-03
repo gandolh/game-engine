@@ -125,6 +125,16 @@ bigger than the GPU's texture limit can still be drawn. Named 2026-10-28 for the
 ([spec](../todos/closed/2026-10-27-tiled-textures-for-large-assets-research.md)).
 _Avoid_: chunk (a dispatch unit here), tile (a world grid square), sheet, block, page.
 
+**Portal**:
+The page at `/games` that lists the four engine games as cards and plays one inside a frame. It is the
+`portal/` workspace (named 2026-10-28, built from 2026-11-03).
+_Avoid_: hub, launcher, arcade, home page (the apex `/` is not the portal).
+
+**Card art**:
+The 4:3 image on a portal card, composed in code from that game's own sprites and palette. It is not a
+screenshot.
+_Avoid_: thumbnail, capture, cover, key art.
+
 ## Per-game vocabulary
 
 The four games share the engine but not their nouns. Where a word means different things in two
