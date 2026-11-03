@@ -1,5 +1,32 @@
 # Engine: the static layer on patches, sized from the device
 
+> **Done 2026-11-03.** Built as specified, with three changes found while building.
+> - **A 4096 px ceiling for one texture.** One texture is kept only up to 4096 px (and the device's
+>   limit). Otherwise, on a desktop, the "twice Farm's width" world (7680 px) fits one 225 MB texture and is
+>   never patched ([decisions.md](../../wiki/decisions.md) → Renderer).
+> - **Testing a smaller device:** the prototype's `staticPatchSize` and Farm's `?patches=` are gone.
+>   `createRenderer`'s `textureLimit`, read by Farm from `?textureLimit=` in dev builds, makes the
+>   renderer behave as a smaller device.
+> - **The upside-down upload:** walking the patches showed that every baked static layer was drawn upside down.
+>   Canvas uploads set `UNPACK_FLIP_Y_WEBGL`. It is now off for every upload.
+>
+> The rest:
+> - `DecorateFn` gained a `region` argument, and Farm's three decorators paint only that region's tiles.
+> - Painted images: `@tool/image-patches` cuts them into patches, `loadPatchedImage` loads them and
+>   `bakeStaticImage` shows them.
+> - The dev page: `npm run harness -w @tool/image-patches`.
+>
+> Checks:
+> - engine tests 688, Farm client 273, Citadel client 597, the tool 3, and the typecheck all pass.
+> - In headless Chromium: the 7680 px world held no texture over 2048 px while panning, with far patches freed.
+>   There were no gap pixels at four fractional zooms, and 1024 px patches matched one texture at zoom 2.37.
+>   At 1.37 and 0.73, 0.01-0.04% of pixels differed: one-pixel tile markers that nearest sampling rounds
+>   differently, none on a patch edge.
+> - Farm drew identically at its own limit and at `?textureLimit=2048`, now the right way up.
+> - Citadel booted.
+>
+> Record: [asset-pipeline.md](../../wiki/asset-pipeline.md) → *Patches as built*.
+
 > **Owner, 2026-11-03: approved, step 4 included.** The patches replace the single static texture,
 > and Citadel's boot fix is folded into the Citadel follow-up. Build step 4, loading a pre-cut painted image
 > as patches, now, even though no game uses it yet. Test it with a generated on-palette sample image.
@@ -9,8 +36,8 @@
 status: todo (approved 2026-11-03)
 created: 2026-10-28
 context: the recommendation of the large-textures research
-([spec](closed/2026-10-27-tiled-textures-for-large-assets-research.md), findings on
-[asset-pipeline.md](../wiki/asset-pipeline.md) → *Large images and patches*). The research
+([spec](2026-10-27-tiled-textures-for-large-assets-research.md), findings on
+[asset-pipeline.md](../../wiki/asset-pipeline.md) → *Large images and patches*). The research
 prototype is `90434df` (`staticPatchSize`, Farm's `?patches=`).
 
 ## Why
@@ -34,7 +61,7 @@ canvas and keeps every patch, so it does not save memory or lift the 2D-canvas s
 4. **Hand-drawn images**: the same path for a pre-sliced large image (an asset step cuts the source
    into patch-sized files; the loader uploads each as a patch).
 5. Replace the prototype's `staticPatchSize` option and Farm's `?patches=` with the real switch.
-6. Record the call in [decisions.md](../wiki/decisions.md); it supersedes engine brief 07's
+6. Record the call in [decisions.md](../../wiki/decisions.md); it supersedes engine brief 07's
    one-cached-layer choice for worlds past the limit.
 
 ## Acceptance

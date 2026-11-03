@@ -4036,3 +4036,21 @@ game that isn't marked as playable on phones shows a warning page when the scree
 portal uses pixel style on EDG32, and the card art is composed from each game's sprites (Hollow's comes from a posed 3D
 render). This run adds the portal and MateQuest stacks to vps-deploy. *Portal* and *card art* are added to the
 glossary. Each answer is a note at the top of its spec.
+
+## [2026-11-03] close | The static layer on patches, and the upside-down static layer fixed
+
+[The engine spec](todos/closed/2026-10-28-engine-patched-static-layer.md) is built:
+- A static layer past 4096 px or the device's limit is drawn as patches (2048 px), each baked from its own
+  world rect when the view first touches it, one baked ahead per frame and the far ones freed.
+- Painted images arrive pre-cut by the new `@tool/image-patches`.
+- `createRenderer`'s `textureLimit` makes the renderer behave as a smaller device, and Farm reads it
+  from `?textureLimit=` in dev.
+- The 4096 px ceiling is new: without it a desktop holds a 7680 px world as one 225 MB texture.
+
+Walking the patches in a browser showed an older bug. Every baked static layer had been drawn upside down
+since the WebGL2 port, because canvas uploads set `UNPACK_FLIP_Y_WEBGL`. The flag flips canvases and is
+ignored for ImageBitmaps (the atlases), so the terrain was mirrored under correct sprites. It shows
+in the README's Farm image (2026-10-09), with houses in water. The flag is now off for every upload. Farm
+was checked right way up, at its own limit and on 2048 px patches. Both calls are in [decisions.md](wiki/decisions.md),
+and the record is [asset-pipeline.md](wiki/asset-pipeline.md) → *Patches as built*. Filed:
+[retake the README images](todos/2026-11-03-retake-readme-images-after-the-flip-fix.md).

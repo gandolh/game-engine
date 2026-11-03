@@ -1,6 +1,6 @@
 ---
-summary: Locked tech choices that future briefs must not relitigate — stack, sim, ECS, renderer (WebGL2-only as of 2026-08-18, migration shipped), assets, palette, concurrency, tick-pump/speed semantics, build & verify gates (the turbo cache-key rule, the Node-importable barrel rule), WASM, and the gameplay source-of-truth.
-updated: 2026-09-15
+summary: Locked tech choices that future briefs must not relitigate — stack, sim, ECS, renderer (WebGL2-only as of 2026-08-18; static-layer patches past 4096 px and the no-flip texture upload, 2026-11-03), assets, palette, concurrency, tick-pump/speed semantics, build & verify gates (the turbo cache-key rule, the Node-importable barrel rule), WASM, and the gameplay source-of-truth.
+updated: 2026-11-03
 ---
 
 # Locked Decisions
@@ -45,21 +45,32 @@ Tech choices that are settled. Listed here so future briefs and reviews don't re
   1. **The renderer must be imported DYNAMICALLY.** `createRenderer` uses `await import("./webgl2/renderer")`, and `render/index.ts` exports `WebGl2Renderer` as a **type only**. The WebGL2 passes `import … from "*.glsl?raw"`, which only a bundler resolves — a static import or a value export crashes every Node consumer (both game servers, `run-sim`, `world-preview`, `citadel-sim`, `hollow-sim`) with `ERR_UNKNOWN_FILE_EXTENSION`. This happened once during the migration and **typecheck plus 689 passing tests did not catch it.**
   2. **Verification must include running things.** A green typecheck and a green suite say nothing about whether the app or the headless tools still start. `npm run build`, `sim`, `sim:citadel`, `sim:hollow` and `preview` are part of the gate, not ceremony.
 
-- **A static layer larger than the device allows is drawn as patches (approved 2026-11-03, not built yet).**
-  This replaces brief 07's single cached texture for any bake bigger than the device limit. A bake that fits keeps
-  one texture. Past the limit, the engine bakes square **patches** sized from the device (2048 px, or
-  `MAX_TEXTURE_SIZE` if smaller). Each patch bakes its own world region the first time it comes into view,
-  and far patches are freed. A pre-cut painted image loads the same way.
-  - **Why.** One texture caps a world at `MAX_TEXTURE_SIZE`. Citadel's 6144 px boot bake fails on a
-    4096 device, and Farm's 3840 px bake fails on a 2048 one. The owner wants worlds twice Farm's width
+- **A static layer past 4096 px or the device's limit is drawn as patches (decided and built 2026-11-03).**
+  This replaces brief 07's single cached texture for any layer past either limit. A layer up to 4096 px a side
+  (`SINGLE_TEXTURE_MAX`) that the device allows keeps one texture, which leaves Farm's 3840 px bake unchanged. A
+  bigger one is cut into square **patches** (2048 px, or `MAX_TEXTURE_SIZE` if smaller). Each is baked from its own world
+  region the first time the view touches it, and far ones are freed. A painted image arrives already cut, and loads
+  the same way. Built record: [asset-pipeline.md](asset-pipeline.md) → *Patches as built*.
+  - **Why.** One texture caps a world at `MAX_TEXTURE_SIZE`. Citadel's 6144 px boot bake failed on a
+    4096 device, and Farm's 3840 px bake failed on a 2048 one. The owner wants worlds twice Farm's width
     on desktop while phones still run
-    ([research](../todos/closed/2026-10-27-tiled-textures-for-large-assets-research.md),
-    [asset-pipeline.md](asset-pipeline.md) → *Large images and patches*).
+    ([research](../todos/closed/2026-10-27-tiled-textures-for-large-assets-research.md)).
+  - **Why 4096 and not the device's limit.** A desktop allows 8192 to 16384 px, so a world twice Farm's
+    width (7680 px) would fit one texture there. That is 225 MB of texture held whatever the view, on a size
+    phones can't load. Past 4096, which nearly every device supports, patches keep memory to the view.
   - **Rejected: Citadel's re-baking window, moved into the engine.** It re-bakes on every pan past
     its pad, and its size follows the camera, which is how the boot bake reached 6144 px. Citadel moves
     onto patches and its window code is deleted.
   - **Rejected: a quick cap in Citadel first.** The owner folded the boot fix into the patches work
     instead of writing code that would be deleted.
+
+- **Every texture upload keeps `UNPACK_FLIP_Y_WEBGL` off; a source's top row is v=0 (fixed 2026-11-03).**
+  Every shader here reads v=0 as the top edge, which is WebGL's default for any source. The WebGL2 port
+  set the flag on, on the belief that WebGL stores images bottom-up. It does not, and the flag flips canvas
+  sources while it is ignored for ImageBitmaps. So the atlases (ImageBitmaps) were right, and every baked static
+  layer (a canvas) was drawn upside down under them: the houses in water in the README's Farm image.
+  A mock GL can't see orientation, so the check is in a browser: the patch harness puts a sand band on its
+  top edge only. Do not "restore" the flip.
 
 ## Assets
 

@@ -1,6 +1,6 @@
 ---
-summary: The bake principle (assets are code, not images), asset-cooking and atlas research, the cache-key/incremental-build recommendations that became brief 71, and the 2026-10-28 large-image research (texture inventory, MAX_TEXTURE_SIZE breaking points, patches).
-updated: 2026-10-28
+summary: The bake principle (assets are code, not images), asset-cooking and atlas research, the cache-key/incremental-build recommendations that became brief 71, the 2026-10-28 large-image research, and the static layer's patches as built 2026-11-03 (the 4096 px single-texture ceiling, lazy per-patch bakes, painted images, the dev page, the upside-down upload fix).
+updated: 2026-11-03
 ---
 
 # Asset Pipeline — Baking, Caching, and Atlas Strategy
@@ -135,8 +135,39 @@ patch-sized files, the loader uploads each as a patch. That is part of the engin
 (2048 px, or the limit if smaller), baked per region and lazily, far ones freed. It fixes Citadel's
 boot today and lets Farm grow past 4096. Keep one texture when a bake fits. Follow-up specs, for the
 owner: [Citadel boot bake over 4096](../todos/2026-10-28-citadel-boot-bake-over-4096.md),
-[patched static layer in the engine](../todos/2026-10-28-engine-patched-static-layer.md), then
+[patched static layer in the engine](../todos/closed/2026-10-28-engine-patched-static-layer.md), then
 [Citadel's window onto patches](../todos/2026-10-28-citadel-window-onto-patches.md).
+
+## Patches as built (2026-11-03)
+
+The [engine spec](../todos/closed/2026-10-28-engine-patched-static-layer.md) built the recommendation:
+- **The rule:** a static layer up to 4096 px (`SINGLE_TEXTURE_MAX`) that the device allows stays one
+  texture, so Farm's 3840 px bake is unchanged on desktop. A bigger layer, or one past the device's
+  limit, is drawn as a grid of patches 2048 px a side (or the device limit, if smaller).
+- **When patches are baked:** each patch bakes its own world rect the first time the view touches it.
+  That bake covers the sprites whose box overlaps the patch and the decorator, which receives the patch's
+  rect as `region`. One patch in the ring round the view is baked ahead per frame, and patches two rings out are freed.
+- **The code:** the planning is pure and tested ([static-patches.ts](../../engine/core/src/render/static-patches.ts));
+  the GL pass is [static-layer-pass.ts](../../engine/core/src/render/webgl2/static-layer-pass.ts).
+  `renderer.staticLayerInfo()` reports the mode and the live patches.
+- **Testing a smaller device:** `createRenderer`'s `textureLimit` makes the renderer behave as a
+  device with that limit. Farm reads it from `?textureLimit=` in dev builds only.
+- **Painted images:** `@tool/image-patches` cuts a PNG into 2048 px files plus a `patches.json`
+  file. `loadPatchedImage` fetches each file the first time its patch is in view and closes it when the patch is freed.
+  `renderer.bakeStaticImage` shows the result. No game uses this yet.
+- **The dev page** (`npm run harness -w @tool/image-patches`, at `/harness/`) has two modes: a 480×480-tile
+  world (7680 px, twice Farm's width) and the generated sample painted image. It exposes
+  `window.__patchHarness()`.
+- **Checked in headless Chromium:**
+  - no texture over 2048 px while panning across the 7680 px world;
+  - no gap pixels at four fractional zooms;
+  - against a single texture, the same world on 1024 px patches matched at zoom 2.37. At 1.37 and 0.73,
+    0.01-0.04% of pixels differed, all one-pixel tile markers away from patch edges: nearest sampling
+    rounds differently against a smaller texture.
+- **Upside-down fix:** the patch walk also showed that every baked static layer had been drawn upside down.
+  The upload set `UNPACK_FLIP_Y_WEBGL`, which flips canvas sources and is ignored for ImageBitmaps,
+  so the atlases were fine and the terrain was mirrored under them. The houses-in-water in the README's
+  Farm image are this bug. See [decisions.md](decisions.md) → Renderer.
 
 ## Sources
 

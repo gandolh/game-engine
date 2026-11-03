@@ -131,7 +131,7 @@ All six steps done. Findings, the inventory and the comparison are in
   far ones freed; one texture stays when a bake fits.
 - **Follow-up specs, for the owner** (written, not built):
   [Citadel boot bake over 4096](../2026-10-28-citadel-boot-bake-over-4096.md) (a bug today),
-  [engine patched static layer](../2026-10-28-engine-patched-static-layer.md),
+  [engine patched static layer](2026-10-28-engine-patched-static-layer.md),
   [Citadel's window onto patches](../2026-10-28-citadel-window-onto-patches.md).
 - **Checks**: the prototype (`90434df`) passed the engine typecheck, the Farm client typecheck and
   the targeted engine tests (static layer, renderer, palette, layering: 64). **The full
