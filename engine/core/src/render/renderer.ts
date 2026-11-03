@@ -3,12 +3,19 @@ import type { LoadedAtlasImage } from "../assets/loader";
 import type { ParticleSystem } from "./particles";
 import type { Sprite, Ctx2D } from "./sprite-types";
 import type { StaticRegion } from "./static-region";
+import type { PatchedImage, StaticLayerInfo } from "./static-patches";
 
 export type { Sprite };
 
 export interface WashOptions { color: string; alpha: number; }
 export interface WeatherLike { count: number; draw(ctx: Ctx2D): void; }
-export type DecorateFn = (ctx: Ctx2D, widthPx: number, heightPx: number) => void;
+/**
+ * Paints on top of the baked static sprites, in world coords. `widthPx`/`heightPx` are the world's
+ * extent; `region` is the world rect this call bakes (the whole world, a sub-region, or one
+ * patch). The context is already translated so world coords land, and anything outside `region`
+ * is clipped, so a decorator may skip it.
+ */
+export type DecorateFn = (ctx: Ctx2D, widthPx: number, heightPx: number, region: StaticRegion) => void;
 
 /**
  * A world-space 2D draw callback, invoked once per `endFrame` between the sprites and
@@ -108,6 +115,13 @@ export interface RendererLike {
     decorate?: DecorateFn,
     region?: StaticRegion,
   ): void;
+  /**
+   * Show a painted image, already cut into patches (`loadPatchedImage`), as the static layer in
+   * place of a sprite bake. Its top-left sits at world (0, 0).
+   */
+  bakeStaticImage(image: PatchedImage): void;
+  /** What the static layer holds now: one texture or patches, and how many are live. */
+  staticLayerInfo(): StaticLayerInfo;
   bakeWaterPattern(frame: string, atlasId: string, tileSize: number, pixelScale?: number): void;
   setWaterScroll(offsetX: number, offsetY: number): void;
   setWaterSwell(alpha: number, offsetX: number, offsetY: number): void;

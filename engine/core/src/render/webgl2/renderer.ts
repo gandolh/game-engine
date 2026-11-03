@@ -6,6 +6,7 @@ import type {
 } from "../renderer";
 import { drawUIQuad } from "../ui-draw";
 import type { StaticRegion } from "../static-region";
+import type { PatchedImage, StaticLayerInfo } from "../static-patches";
 import { EDG } from "../palette";
 import { effectiveDpr } from "../dpr";
 import type { ViewUniform } from "../view-uniform";
@@ -201,7 +202,7 @@ export class WebGl2Renderer implements RendererLike {
     worldHeight: number;
     decorate?: DecorateFn;
     region?: StaticRegion;
-  } | undefined = undefined;
+  } | PatchedImage | undefined = undefined;
 
   private _waterPatternArgs: {
     frame: string; atlasId: string; tileSize: number; pixelScale?: number;
@@ -290,7 +291,7 @@ export class WebGl2Renderer implements RendererLike {
     this._store = new GlAtlasStore(gl);
     this._batch = new SpriteBatch(gl);
     this._shadowBatch = new ShadowBatch(gl);
-    this._staticPass = new StaticLayerPass(glCtx, this._staticPatchSize);
+    this._staticPass = new StaticLayerPass(glCtx, this._textureLimit);
     this._waterPass = new WaterPass(glCtx);
     this._particleBatch = new ParticleBatch(glCtx);
     this._weatherPass = new WeatherPass(glCtx);
@@ -309,7 +310,9 @@ export class WebGl2Renderer implements RendererLike {
 
     // Replay the baked layers and water state, in the order a caller would have.
     const bake = this._bakeArgs;
-    if (bake) {
+    if (bake && "manifest" in bake) {
+      this._staticPass.bakeImage(bake);
+    } else if (bake) {
       this._staticPass.bake(
         bake.sprites, this._atlases, bake.worldWidth, bake.worldHeight, bake.decorate, bake.region,
       );
@@ -334,10 +337,14 @@ export class WebGl2Renderer implements RendererLike {
     return this._restoring;
   }
 
-  /** Research prototype: the static layer's patch size (0 = one texture). See StaticLayerPass. */
-  private _staticPatchSize = 0;
+  /** The host's cap on the static layer's texture size (see `CreateRendererOptions.textureLimit`). */
+  private _textureLimit = Number.POSITIVE_INFINITY;
 
-  static create(canvas: HTMLCanvasElement, camera: Camera2D, staticPatchSize = 0): WebGl2Renderer {
+  static create(
+    canvas: HTMLCanvasElement,
+    camera: Camera2D,
+    textureLimit = Number.POSITIVE_INFINITY,
+  ): WebGl2Renderer {
     const glCtx = GlContext.create(canvas);
     const { gl } = glCtx;
 
@@ -345,7 +352,7 @@ export class WebGl2Renderer implements RendererLike {
     const batch = new SpriteBatch(gl);
     const shadowBatch = new ShadowBatch(gl);
     const overlay = new Overlay2D(canvas);
-    const staticPass = new StaticLayerPass(glCtx, staticPatchSize);
+    const staticPass = new StaticLayerPass(glCtx, textureLimit);
     const waterPass = new WaterPass(glCtx);
     const particleBatch = new ParticleBatch(glCtx);
     const weatherPass = new WeatherPass(glCtx);
@@ -357,7 +364,7 @@ export class WebGl2Renderer implements RendererLike {
       canvas, camera, glCtx, store, batch, shadowBatch, overlay, staticPass, waterPass,
       particleBatch, weatherPass, tintPass, cloudPass, overlayLightPass,
     );
-    renderer._staticPatchSize = staticPatchSize; // so a context-loss rebuild keeps the same shape
+    renderer._textureLimit = textureLimit; // so a context-loss rebuild keeps the same limit
     return renderer;
   }
 
@@ -421,6 +428,19 @@ export class WebGl2Renderer implements RendererLike {
     this._waterDepthMaskArgs = { data, tilesX, tilesY, worldWidthPx, worldHeightPx, tilePxSize };
     if (this._glCtx.isLost()) return;
     this._waterPass.setDepthMask(data, tilesX, tilesY, worldWidthPx, worldHeightPx, tilePxSize);
+  }
+
+  bakeStaticImage(image: PatchedImage): void {
+    // Retained so a context loss can replay it — see _rebuildGpuState.
+    this._bakeArgs = image;
+    this._staticLayerW = image.manifest.width;
+    this._staticLayerH = image.manifest.height;
+    if (this._glCtx.isLost()) return;
+    this._staticPass.bakeImage(image);
+  }
+
+  staticLayerInfo(): StaticLayerInfo {
+    return this._staticPass.info();
   }
 
   clearStaticLayer(): void {
@@ -596,7 +616,8 @@ export class WebGl2Renderer implements RendererLike {
 
   endFrame(wash?: WashOptions, particles?: ParticleSystem, weather?: WeatherLike, overlay?: OverlayFn): void {
     if (this._glCtx.isLost() || this._restoring) return;
-    if (this._atlases.size === 0) return;
+    // Nothing to draw yet. A painted static image needs no atlas, so it counts.
+    if (this._atlases.size === 0 && this._bakeArgs === undefined) return;
 
     const { camera } = this;
     const canvas = this._canvas;

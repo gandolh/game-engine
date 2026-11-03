@@ -1,0 +1,23 @@
+{
+  "name": "@tool/image-patches",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/cli.ts",
+    "sample": "tsx src/sample-cli.ts",
+    "harness": "tsx src/harness-prep.ts && vite --config vite.harness.config.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@engine/core": "0.1.0",
+    "pngjs": "7.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "25.9.1",
+    "@types/pngjs": "6.0.5",
+    "tsx": "4.22.3",
+    "vitest": "4.1.12"
+  }
+}

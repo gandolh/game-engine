@@ -55,6 +55,7 @@ tools/
   atlas-builder   @tool/atlas-builder    builds the sprite atlas from pixel recipes
   citadel-sim     @tool/citadel-sim      headless Citadel sim
   hollow-sim      @tool/hollow-sim       headless Hollow sim (+ metrics/chronicle export)
+  image-patches   @tool/image-patches    cuts a painted image into static-layer patches; `npm run harness` is a dev page for the patched static layer
 ```
 
 **Dependency rule (enforced):** `@engine/wasm-modules` → `@engine/core` → `{@farm/sim-core, @citadel/sim-core, @hollow/sim-core, @mathquest/sim-core}` → the matching clients/servers. The engine is generic and never imports a game; **no game imports another game.**

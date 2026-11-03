@@ -24,6 +24,8 @@ type Game = (typeof GAMES)[number];
 // tool's package.json dependencies.
 const SCOPES: ReadonlyArray<{ root: string; game: Game | null }> = [
   { root: "engine", game: null },
+  // Drives no game: it cuts painted images into patches with the engine's own slicing.
+  { root: "tools/image-patches", game: null },
   { root: "games/farm", game: "farm" },
   { root: "tools/run-sim", game: "farm" },
   { root: "tools/world-preview", game: "farm" },

@@ -65,7 +65,7 @@ function fakeAtlas(id: string, width: number, height: number, frames: Record<str
 }
 
 describe("GlAtlasStore#add", () => {
-  it("uploads with UNPACK_FLIP_Y_WEBGL set true during texImage2D, then restores false", () => {
+  it("uploads with UNPACK_FLIP_Y_WEBGL off, so the sheet's top row is v=0", () => {
     const { gl, raw } = makeFakeGl();
     const store = new GlAtlasStore(gl);
     const atlas = fakeAtlas("sheetA", 64, 64, { f: { x: 0, y: 0, w: 16, h: 16 } });
@@ -73,12 +73,7 @@ describe("GlAtlasStore#add", () => {
     store.add(atlas);
 
     const tex = (raw.createTexture as ReturnType<typeof vi.fn>).mock.results[0]!.value as FakeTexture;
-    expect(tex.uploads).toEqual([{ flipYAtUpload: true }]);
-    // pixelStorei called with true then false (restored after upload).
-    const flipCalls = (raw.pixelStorei as ReturnType<typeof vi.fn>).mock.calls.filter(
-      (c: unknown[]) => c[0] === raw.UNPACK_FLIP_Y_WEBGL,
-    );
-    expect(flipCalls.map((c: unknown[]) => c[1])).toEqual([true, false]);
+    expect(tex.uploads).toEqual([{ flipYAtUpload: false }]);
   });
 
   it("sets NEAREST filtering and CLAMP_TO_EDGE wrapping (never linear/mipmap)", () => {

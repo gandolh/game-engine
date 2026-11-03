@@ -2,6 +2,8 @@
 interface ImportMetaEnv {
   /** Deploy base path, set via Vite's `base` config (e.g. "/" or "/farm-valley/"). */
   readonly BASE_URL: string;
+  /** Vite dev-mode flag — true under `vite dev`, false in a production build. */
+  readonly DEV: boolean;
 }
 
 interface ImportMeta {

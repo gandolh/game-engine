@@ -33,6 +33,31 @@ export type { UnsupportedNoticeColors } from "./unsupported-notice";
 export { resolveStaticRegion, staticBlitRect } from "./static-region";
 export type { StaticRegion, StaticBlit } from "./static-region";
 export {
+  DEFAULT_PATCH_SIZE,
+  SINGLE_TEXTURE_MAX,
+  RING_BAKES_PER_FRAME,
+  patchSizeFor,
+  patchGrid,
+  patchKey,
+  patchRect,
+  visiblePatchRange,
+  planPatches,
+  spriteBounds,
+  spritesInRect,
+  slicePatches,
+  validatePatchManifest,
+} from "./static-patches";
+export type {
+  PatchGrid,
+  PatchRange,
+  PatchPlan,
+  PatchManifest,
+  PatchManifestEntry,
+  PatchSource,
+  PatchedImage,
+  StaticLayerInfo,
+} from "./static-patches";
+export {
   lerp,
   // Exported with no external caller today — it is used internally by `computeSnapshotAlpha` and
   // `lerpEntityPositions`. KEPT on purpose (audit-50): it is a legitimate primitive for a consumer

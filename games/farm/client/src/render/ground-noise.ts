@@ -8,6 +8,8 @@ import { EDG } from "@engine/core/render";
 export { hash2, valueNoise2d, fbm } from "@engine/core/render";
 // ...and imported for this module's own use below.
 import { fbm } from "@engine/core/render";
+import { tileSpan } from "./tile-span";
+import type { TileRegionPx } from "./tile-span";
 
 export const GROUND_NOISE_AMPLITUDE = 0.12;
 
@@ -85,14 +87,15 @@ export function makeGroundNoiseDecorator(
   tilePx: number,
   amplitude: number = GROUND_NOISE_AMPLITUDE,
   wasmBrightness?: Float32Array,
-): (ctx: AnyCtx2D, widthPx: number, heightPx: number) => void {
-  return (ctx, widthPx, heightPx) => {
+): (ctx: AnyCtx2D, widthPx: number, heightPx: number, region?: TileRegionPx) => void {
+  return (ctx, widthPx, heightPx, region) => {
     const cols = Math.ceil(widthPx / tilePx);
     const rows = Math.ceil(heightPx / tilePx);
+    const { tx0, ty0, tx1, ty1 } = tileSpan(cols, rows, tilePx, region);
     const prevOp = ctx.globalCompositeOperation;
     const prevAlpha = ctx.globalAlpha;
-    for (let ty = 0; ty < rows; ty++) {
-      for (let tx = 0; tx < cols; tx++) {
+    for (let ty = ty0; ty < ty1; ty++) {
+      for (let tx = tx0; tx < tx1; tx++) {
         const idx = ty * cols + tx;
         const b = (wasmBrightness && idx < wasmBrightness.length)
           ? wasmBrightness[idx]!

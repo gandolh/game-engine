@@ -2,6 +2,8 @@
 
 import { EDG } from "@engine/core";
 import { SAND_SHORES, type ShoreTile } from "@farm/sim-core/render-systems";
+import { tileSpan } from "./tile-span";
+import type { TileRegionPx } from "./tile-span";
 
 type AnyCtx2D = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 
@@ -19,14 +21,16 @@ function oceanDir(rotation: number): { dx: number; dy: number } {
 export function makeShoreDescentDecorator(
   tilePx: number,
   shores: readonly ShoreTile[] = SAND_SHORES,
-): (ctx: AnyCtx2D, widthPx: number, heightPx: number) => void {
+): (ctx: AnyCtx2D, widthPx: number, heightPx: number, region?: TileRegionPx) => void {
   const bt = Math.max(1, Math.round(tilePx / 8)); 
-  return (ctx) => {
+  return (ctx, widthPx, heightPx, region) => {
+    const { tx0, ty0, tx1, ty1 } = tileSpan(Math.ceil(widthPx / tilePx), Math.ceil(heightPx / tilePx), tilePx, region);
     const prevOp = ctx.globalCompositeOperation;
     const prevAlpha = ctx.globalAlpha;
     ctx.globalCompositeOperation = "multiply";
     ctx.fillStyle = EDG.skinMid;
     for (const s of shores) {
+      if (s.tx < tx0 || s.tx >= tx1 || s.ty < ty0 || s.ty >= ty1) continue;
       const ox = s.tx * tilePx;
       const oy = s.ty * tilePx;
       const { dx, dy } = oceanDir(s.rotation);

@@ -4,6 +4,8 @@ import { EDG } from "@engine/core";
 import { oceanDepthAt, COAST_DEPTH_MAX } from "@farm/sim-core/render-systems";
 // audit-61: was a byte-identical private copy of ground-noise.ts's hash2, in the same package.
 import { hash2 } from "@engine/core/render";
+import { tileSpan } from "./tile-span";
+import type { TileRegionPx } from "./tile-span";
 
 type AnyCtx2D = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 
@@ -22,16 +24,17 @@ const SPECKLE_COLOR_SEED = 0x85ebca6b;
 export function makeWaterDepthDecorator(
   tilePx: number,
   seed: number,
-): (ctx: AnyCtx2D, widthPx: number, heightPx: number) => void {
+): (ctx: AnyCtx2D, widthPx: number, heightPx: number, region?: TileRegionPx) => void {
   const sub = Math.max(1, Math.floor(tilePx / SPECKLE_PX)); 
-  return (ctx, widthPx, heightPx) => {
+  return (ctx, widthPx, heightPx, region) => {
     const cols = Math.ceil(widthPx / tilePx);
     const rows = Math.ceil(heightPx / tilePx);
+    const { tx0, ty0, tx1, ty1 } = tileSpan(cols, rows, tilePx, region);
     const prevOp = ctx.globalCompositeOperation;
     const prevAlpha = ctx.globalAlpha;
     ctx.globalCompositeOperation = "source-over";
-    for (let ty = 0; ty < rows; ty++) {
-      for (let tx = 0; tx < cols; tx++) {
+    for (let ty = ty0; ty < ty1; ty++) {
+      for (let tx = tx0; tx < tx1; tx++) {
         const d = oceanDepthAt(tx, ty);
         if (d <= 0 || d > COAST_DEPTH_MAX) continue;
 

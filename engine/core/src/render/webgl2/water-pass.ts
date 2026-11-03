@@ -39,8 +39,7 @@ const WATER_CAUSTICS = hexToRgb(EDG.cyan);
 /**
  * Upload a canvas-shaped image source as an RGBA8 texture with the given wrap mode, nearest
  * filtered. See ./static-layer-pass.ts's `uploadImageTexture` for why `UNPACK_FLIP_Y_WEBGL` is
- * toggled just for this call and restored immediately after (context-global state; must not leak
- * into another pass's upload this frame). Duplicated here (not imported) because that helper is not
+ * set false (source top at V=0). Duplicated here (not imported) because that helper is not
  * exported — two small near-identical upload paths in sibling files is cheaper than widening
  * ./static-layer-pass.ts's public surface for a private helper.
  */
@@ -53,9 +52,8 @@ function uploadPatternTexture(
   const tex = gl.createTexture();
   if (!tex) throw new Error('webgl2: gl.createTexture() returned null for "water pattern bake"');
   gl.bindTexture(gl.TEXTURE_2D, tex);
-  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, source);
   gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, source);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
   // The scrolling pattern is the one texture in this port that needs REPEAT — WebGL2 allows REPEAT

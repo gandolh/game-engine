@@ -1,4 +1,4 @@
-import type { RendererLike } from "@engine/core";
+import type { DecorateFn, RendererLike } from "@engine/core";
 import type { NoiseGenerator } from "@engine/core";
 import { makeGroundNoiseDecorator, GROUND_NOISE_AMPLITUDE } from "../render/ground-noise";
 import { makeWaterDepthDecorator } from "../render/water-depth";
@@ -45,10 +45,12 @@ export function bakeStaticLayer(
   const shoreDescent = makeShoreDescentDecorator(TILE);
   const waterDepth = makeWaterDepthDecorator(TILE, seed);
 
-  const decorate = (ctx: Parameters<typeof groundNoise>[0], w: number, h: number): void => {
-    groundNoise(ctx, w, h);
-    shoreDescent(ctx, w, h);
-    waterDepth(ctx, w, h);
+  // Each decorator paints only the tiles of the region being baked (the whole world, or one
+  // patch when the static layer is patched).
+  const decorate: DecorateFn = (ctx, w, h, region) => {
+    groundNoise(ctx, w, h, region);
+    shoreDescent(ctx, w, h, region);
+    waterDepth(ctx, w, h, region);
   };
   client.onStaticLayer((msg) => {
     renderer.bakeStaticLayer(

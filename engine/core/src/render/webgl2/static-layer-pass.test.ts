@@ -67,7 +67,7 @@ describe("assertTextureWithinLimits", () => {
 
   it("names the offending size, the limit, and the way out", () => {
     expect(() => assertTextureWithinLimits(gl, 12000, 6000, "static-layer bake")).toThrow(
-      /static-layer bake is 12000×6000px.*MAX_TEXTURE_SIZE is 8192px.*window the bake/s,
+      /static-layer bake is 12000×6000px.*MAX_TEXTURE_SIZE is 8192px.*draw it as patches/s,
     );
   });
 
@@ -264,37 +264,54 @@ describe("StaticLayerPass", () => {
   });
 });
 
-// Research prototype (2026-10-28, tiled-textures spec): the patched static layer. A bake larger
-// than the driver's MAX_TEXTURE_SIZE is cut into patches that each fit, and draw() blits only the
-// patches the visible rect touches. patchSize 0 (the default) is the single-texture path above.
-describe("StaticLayerPass — patches (research prototype)", () => {
-  it("cuts a 100×70 bake into 32px patches: 4×3, the edge patches cropped", () => {
+// The patched static layer. A bake past 4096 px or the device's limit is cut into patches that
+// each fit, baked lazily as the view reaches them; draw() blits only the patches the view touches.
+describe("StaticLayerPass — patches", () => {
+  const atlases = () => new Map([["terrain", fakeAtlas()]]);
+  const frame = (pass: StaticLayerPass, gl: WebGL2RenderingContext, l: number, t: number, r: number, b: number) =>
+    pass.draw(fakeGlContext(gl), identityView, { visL: l, visT: t, visR: r, visB: b });
+
+  it("a bake that fits stays one texture (today's Farm: 3840 px against 8192)", () => {
+    const { gl } = makeFakeGl();
+    const pass = new StaticLayerPass(fakeGlContext(gl));
+    pass.bake([], atlases(), 3840, 3840);
+    expect(pass.info()).toMatchObject({ mode: "single", live: 1, largest: 3840 });
+    expect(gl.createTexture).toHaveBeenCalledTimes(1);
+  });
+
+  it("a bake past 4096 px is patched even when the device could hold it whole", () => {
+    const { gl } = makeFakeGl(); // reports 8192
+    const pass = new StaticLayerPass(fakeGlContext(gl));
+    pass.bake([], atlases(), 6144, 3072); // Citadel's 192×192 iso world
+    expect(pass.info()).toMatchObject({ mode: "patched", patchSize: 2048, cols: 3, rows: 2, live: 0 });
+    expect(gl.createTexture).not.toHaveBeenCalled(); // nothing uploads until a view needs it
+  });
+
+  it("a bake over the device's limit bakes as patches instead of throwing", () => {
+    const { gl } = makeFakeGl();
+    vi.mocked(gl.getParameter).mockReturnValue(2048);
+    const pass = new StaticLayerPass(fakeGlContext(gl));
+    expect(() => pass.bake([], atlases(), 3840, 3840)).not.toThrow();
+    expect(pass.info()).toMatchObject({ mode: "patched", patchSize: 2048, cols: 2, rows: 2 });
+  });
+
+  it("a host's textureLimit patches a bake that would fit, cropping the edge patches", () => {
     const { gl } = makeFakeGl();
     const pass = new StaticLayerPass(fakeGlContext(gl), 32);
-    pass.bake([], new Map([["terrain", fakeAtlas()]]), 100, 70);
+    pass.bake([], atlases(), 100, 70);
+    expect(pass.info()).toMatchObject({ mode: "patched", patchSize: 32, cols: 4, rows: 3 });
+    frame(pass, gl, 0, 0, 100, 70);
     expect(pass.textureCount).toBe(12);
-    expect(gl.createTexture).toHaveBeenCalledTimes(12);
+    const sizes = vi.mocked(gl.texImage2D).mock.calls.length;
+    expect(sizes).toBe(12);
   });
 
-  it("a bake over the driver limit throws as one texture but bakes as patches", () => {
-    const one = makeFakeGl();
-    vi.mocked(one.gl.getParameter).mockReturnValue(2048);
-    expect(() => new StaticLayerPass(fakeGlContext(one.gl)).bake([], new Map([["terrain", fakeAtlas()]]), 3840, 3840)).toThrow(
-      RangeError,
-    );
-    const patched = makeFakeGl();
-    vi.mocked(patched.gl.getParameter).mockReturnValue(2048);
-    const pass = new StaticLayerPass(fakeGlContext(patched.gl), 2048);
-    expect(() => pass.bake([], new Map([["terrain", fakeAtlas()]]), 3840, 3840)).not.toThrow();
-    expect(pass.textureCount).toBe(4);
-  });
-
-  it("draws only the patches the visible rect touches, each with its own src/dst rect", () => {
+  it("draws only the patches the view touches, each with its own src/dst rect", () => {
     const { gl, calls } = makeFakeGl();
     const pass = new StaticLayerPass(fakeGlContext(gl), 32);
-    pass.bake([], new Map([["terrain", fakeAtlas()]]), 128, 128); // 4×4 patches
+    pass.bake([], atlases(), 128, 128); // 4×4 patches
     pass.setView(identityView);
-    pass.draw(fakeGlContext(gl), identityView, { visL: 40, visT: 40, visR: 70, visB: 70 }); // inside patches (1..2, 1..2)
+    frame(pass, gl, 40, 40, 70, 70); // inside patches (1..2, 1..2)
     expect(calls.drawArrays.length).toBe(4);
     const dst = calls.uniform4f.filter((a) => (a[0] as { __uniform: string }).__uniform === "u_dstRect").map((a) => a.slice(1));
     // The four dst rects tile the visible rect exactly: no gap, no overlap at x = 64 / y = 64.
@@ -306,12 +323,130 @@ describe("StaticLayerPass — patches (research prototype)", () => {
     ]);
   });
 
-  it("clear() deletes every patch texture", () => {
+  it("bakes one ring patch ahead per frame and frees patches two rings out", () => {
     const { gl } = makeFakeGl();
     const pass = new StaticLayerPass(fakeGlContext(gl), 32);
-    pass.bake([], new Map([["terrain", fakeAtlas()]]), 64, 64);
+    pass.bake([], atlases(), 320, 32); // a 10×1 strip
+    frame(pass, gl, 0, 0, 32, 32); // patch 0 visible, patch 1 baked ahead
+    expect(pass.info()).toMatchObject({ live: 2, produced: 2 });
+    frame(pass, gl, 0, 0, 32, 32); // nothing left to bake ahead (the ring is just patch 1)
+    expect(pass.info()).toMatchObject({ live: 2, produced: 2 });
+    frame(pass, gl, 160, 0, 192, 32); // jump to patch 5: 0 and 1 are freed
+    expect(pass.info()).toMatchObject({ live: 2, produced: 4 });
+    expect(gl.deleteTexture).toHaveBeenCalledTimes(2);
+    frame(pass, gl, 160, 0, 192, 32); // the other ring neighbour now
+    expect(pass.info()).toMatchObject({ live: 3, produced: 5 });
+  });
+
+  it("the decorator bakes each patch with that patch's world rect, on the world's extent", () => {
+    const { gl } = makeFakeGl();
+    const decorate = vi.fn();
+    const pass = new StaticLayerPass(fakeGlContext(gl), 32);
+    pass.bake([], atlases(), 64, 32, decorate);
+    frame(pass, gl, 40, 0, 50, 32); // patch 1 visible, patch 0 ahead
+    expect(decorate.mock.calls.map((c) => c.slice(1))).toEqual([
+      [64, 32, { originX: 32, originY: 0, width: 32, height: 32 }],
+      [64, 32, { originX: 0, originY: 0, width: 32, height: 32 }],
+    ]);
+  });
+
+  it("a world twice Farm's width (480×480 tiles, 7680 px) never holds a texture over 2048 px, and memory follows the view", () => {
+    const { gl } = makeFakeGl(); // a desktop driver: 8192
+    const pass = new StaticLayerPass(fakeGlContext(gl));
+    const world = 480 * 16;
+    pass.bake([], atlases(), world, world);
+    expect(pass.info()).toMatchObject({ mode: "patched", patchSize: 2048, cols: 4, rows: 4 });
+    // A 1280×720 view crossing the world left to right along its middle, 64 px a frame.
+    let maxLive = 0;
+    for (let x = 0; x + 1280 <= world; x += 64) {
+      frame(pass, gl, x, 3500, x + 1280, 4220);
+      const info = pass.info();
+      expect(info.largest).toBeLessThanOrEqual(2048);
+      maxLive = Math.max(maxLive, info.live);
+    }
+    // The view touches at most 2×2 patches, and the ring round it can reach the whole 4×4 grid of
+    // a world this size. What bounds memory is the freeing: crossing frees the left columns, so at
+    // the right edge only the two right columns (8 patches) are held.
+    expect(maxLive).toBeLessThanOrEqual(16);
+    expect(gl.deleteTexture).toHaveBeenCalled();
+    expect(pass.info().live).toBeLessThanOrEqual(8);
+  });
+
+  it("clear() deletes every live patch texture", () => {
+    const { gl } = makeFakeGl();
+    const pass = new StaticLayerPass(fakeGlContext(gl), 32);
+    pass.bake([], atlases(), 64, 64);
+    frame(pass, gl, 0, 0, 64, 64);
     pass.clear();
     expect(gl.deleteTexture).toHaveBeenCalledTimes(4);
     expect(pass.textureCount).toBe(0);
+    expect(pass.info().mode).toBe("none");
+  });
+});
+
+describe("StaticLayerPass — painted images", () => {
+  const manifest = {
+    version: 1 as const,
+    width: 64,
+    height: 32,
+    patchSize: 32,
+    patches: [
+      { file: "patch-0-0.png", x: 0, y: 0, w: 32, h: 32 },
+      { file: "patch-1-0.png", x: 32, y: 0, w: 32, h: 32 },
+    ],
+  };
+
+  it("uploads a patch once its file has loaded, and releases it when freed", () => {
+    const { gl } = makeFakeGl();
+    const ready = new Set<number>();
+    const released: number[] = [];
+    const image = {
+      manifest,
+      produce: (key: number) => (ready.has(key) ? ({} as ImageBitmap) : null),
+      release: (key: number) => released.push(key),
+    };
+    const pass = new StaticLayerPass(fakeGlContext(gl));
+    pass.bakeImage(image);
+    pass.draw(fakeGlContext(gl), identityView, { visL: 0, visT: 0, visR: 30, visB: 30 });
+    expect(pass.info()).toMatchObject({ mode: "patched", live: 0 }); // still loading
+    ready.add(0);
+    ready.add(1);
+    pass.draw(fakeGlContext(gl), identityView, { visL: 0, visT: 0, visR: 30, visB: 30 });
+    expect(pass.info()).toMatchObject({ live: 2 }); // patch 0, and patch 1 ahead
+    pass.clear();
+    expect(released.sort()).toEqual([0, 1]);
+  });
+
+  it("refuses patches bigger than the device allows", () => {
+    const { gl } = makeFakeGl();
+    const pass = new StaticLayerPass(fakeGlContext(gl), 16);
+    expect(() => pass.bakeImage({ manifest, produce: () => null })).toThrow(/Cut the image at a smaller patch size/);
+  });
+});
+
+// The static layer's canvas bake has its top row at world top. WebGL stores a canvas source
+// bottom row first while UNPACK_FLIP_Y_WEBGL is on, and every shader here reads v=0 as the
+// world-top edge, so the flag must be off at upload. It was on until 2026-11-03, and every baked
+// layer was drawn upside down; mocks can't see that, so this pins the flag. The browser check is
+// tools/image-patches' harness (a sand band on the top edge only).
+describe("StaticLayerPass — upload orientation", () => {
+  it("uploads with UNPACK_FLIP_Y_WEBGL off, single texture and patches alike", () => {
+    for (const limit of [Number.POSITIVE_INFINITY, 32]) {
+      const { gl } = makeFakeGl();
+      let flip = false;
+      const flips: boolean[] = [];
+      vi.mocked(gl.pixelStorei).mockImplementation((p: number, v: number | boolean) => {
+        if (p === gl.UNPACK_FLIP_Y_WEBGL) flip = Boolean(v);
+      });
+      vi.mocked(gl.texImage2D).mockImplementation(() => {
+        flips.push(flip);
+      });
+      flip = true; // left on by someone else: the upload must still turn it off
+      const pass = new StaticLayerPass(fakeGlContext(gl), limit);
+      pass.bake([], new Map([["terrain", fakeAtlas()]]), 64, 64);
+      pass.draw(fakeGlContext(gl), identityView, { visL: 0, visT: 0, visR: 64, visB: 64 });
+      expect(flips.length).toBeGreaterThan(0);
+      expect(flips.every((f) => !f)).toBe(true);
+    }
   });
 });

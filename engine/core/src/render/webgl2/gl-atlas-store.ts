@@ -7,10 +7,11 @@
 // `AtlasUV` (brief 08 / later passes may read it), but a `TEXTURE_2D_ARRAY` would be
 // unused complexity — checked before deciding, per the brief.
 //
-// v-flip decision: WebGPU samples v=0 at the image TOP; WebGL2 samples v=0 at the
-// image BOTTOM. Fixed HERE, on upload, via `UNPACK_FLIP_Y_WEBGL` — NOT in `uv()`.
-// `uv()` below keeps the exact same top-left-origin arithmetic as `GpuAtlasStore`.
-// Do not also flip in `uv()` or in a shader — that would cancel this out.
+// v-origin: WebGL stores a source's top row at v=0 (with `UNPACK_FLIP_Y_WEBGL` off), so
+// `uv()` below keeps the same top-left-origin arithmetic as the WebGPU original and
+// nothing is flipped anywhere. The flag is set false on upload because it is
+// context-global state. (It is ignored for an ImageBitmap anyway, which every atlas is;
+// a canvas source with it on would come out upside down — see ./static-layer-pass.ts.)
 import type { LoadedAtlasImage } from "../../assets/loader";
 
 export interface AtlasUV {
@@ -62,12 +63,9 @@ export class GlAtlasStore {
 
     gl.bindTexture(gl.TEXTURE_2D, texture);
 
-    // See the file-level comment: this is the ONE place the v-origin mismatch is
-    // fixed. `UNPACK_FLIP_Y_WEBGL` is reset to false right after so it never leaks
-    // into some other module's texture upload sharing this context.
-    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, atlas.bitmap);
+    // See the file-level comment: source top at v=0, no flip.
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, atlas.bitmap);
 
     // Nearest-neighbour always (pixel-art engine), clamp-to-edge, no mipmaps —
     // matches GpuAtlasStore's sampler (`magFilter`/`minFilter: "nearest"`,
