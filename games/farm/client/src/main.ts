@@ -366,4 +366,10 @@ async function startGame(
   }
 }
 
-void boot();
+// DEV only: `?card` draws the games portal's card art instead of the game (see ./card.ts).
+if (import.meta.env.DEV && new URLSearchParams(location.search).has("card")) {
+  const canvasEl = document.getElementById("canvas") as HTMLCanvasElement | null;
+  if (canvasEl) void import("./card").then((m) => m.runCard(canvasEl));
+} else {
+  void boot();
+}

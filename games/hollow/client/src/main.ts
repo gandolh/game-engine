@@ -11,4 +11,6 @@ const app = document.getElementById("app");
 if (!(app instanceof HTMLElement)) {
   throw new Error("hollow: #app container missing from index.html");
 }
-mountHollow(app, { pageHash: true });
+// DEV only: `?card` draws the games portal's card art (see MountOptions.card).
+const card = import.meta.env.DEV && new URLSearchParams(location.search).has("card");
+mountHollow(app, { pageHash: true, ...(card ? { card: true } : {}) });

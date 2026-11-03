@@ -108,6 +108,12 @@ export interface MountOptions {
    * reads none and shows no Share button.
    */
   readonly pageHash: boolean;
+  /**
+   * DEV only (`?card` on the standalone page): the games portal's card art. Skips the authoring
+   * screen, runs seed 42 at the top speed, and after a few seconds of town growth hides every
+   * overlay but the 3D scene and sets `window.__cardReady` for the portal's capture script.
+   */
+  readonly card?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -567,7 +573,19 @@ export function mountHollow(container: HTMLElement, options: MountOptions): () =
   // ---------------------------------------------------------------------------
 
   const hashDescriptor = options.pageHash ? decodeHashDescriptor() : null;
-  if (hashDescriptor) {
+  if (options.card === true) {
+    startRun({ seed: 42 });
+    worker.postMessage({ type: "setSpeed", multiplier: 8 } satisfies WorkerSetSpeedMessage);
+    setTimeout(() => {
+      for (const el of [...appEl.children]) {
+        if (el !== canvas && el.tagName !== "STYLE") (el as HTMLElement).style.display = "none";
+      }
+      worker.postMessage({ type: "setPaused", paused: true });
+      setTimeout(() => {
+        (window as unknown as { __cardReady?: boolean }).__cardReady = true;
+      }, 1500);
+    }, 20000);
+  } else if (hashDescriptor) {
     startRun({
       seed: hashDescriptor.seed,
       persona: hashDescriptor.persona,

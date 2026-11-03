@@ -9,6 +9,7 @@ tablets shows a warning page instead. It imports no game code.
 npm run portal                                   # dev server on :5177 (the frames point at paths it doesn't serve)
 PORTAL_BASE=/games/ npm run build -w @game-engine/portal
 npm run serve-all -w @game-engine/portal         # the portal and the four built games from one origin
+npm run cards -w @game-engine/portal             # retake the card art from each game's dev-only ?card scene
 ```
 
 The design and the checks are in the corpus: `corpus/wiki/portal.md`.

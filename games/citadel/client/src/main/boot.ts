@@ -169,7 +169,14 @@ async function boot(): Promise<void> {
 // production (import.meta.env.DEV) and never reached in a normal client load.
 const SHOWCASE_MODE = import.meta.env.DEV && new URLSearchParams(location.search).has("showcase");
 
-if (SHOWCASE_MODE) {
+// DEV only: `?card` draws the games portal's card art instead of the game (see render/card.ts).
+const CARD_MODE = import.meta.env.DEV && new URLSearchParams(location.search).has("card");
+
+if (CARD_MODE) {
+  void import("../render/card")
+    .then((m) => m.runCard(canvas, terrain))
+    .catch((err) => console.error("[citadel] card boot failed", err));
+} else if (SHOWCASE_MODE) {
   void (async () => {
     const { runShowcase } = await import("../render/showcase");
     const handle = await runShowcase(canvas, terrain);

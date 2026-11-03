@@ -687,4 +687,9 @@ async function main(): Promise<void> {
   requestAnimationFrame(frame);
 }
 
-void main();
+// DEV only: `?card` draws the games portal's card art instead of the game (see ./card.ts).
+if (import.meta.env.DEV && new URLSearchParams(location.search).has("card")) {
+  void import("./card").then((m) => m.runCard(canvas));
+} else {
+  void main();
+}

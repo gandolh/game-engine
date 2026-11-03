@@ -53,7 +53,7 @@
  */
 import { box, button, label, panel } from "@engine/ui";
 import type { ButtonNode, ButtonState, ContainerNode, LabelNode, Rect, UINode, UISurface } from "@engine/ui";
-import type { CombatAction, CombatSnapshot, LifelineCharges, LifelineKind, MathTopic } from "@mathquest/sim-core";
+import type { CombatAction, CombatSnapshot, EnemySprite, LifelineCharges, LifelineKind, MathTopic } from "@mathquest/sim-core";
 import { LIFELINE_KINDS } from "@mathquest/sim-core";
 import { MATE_PAL } from "../render/mate-palette";
 import type { Strings } from "../strings";
@@ -501,40 +501,7 @@ export function createCombatScreen(actions: CombatScreenActions, strings: String
     // sprites stand on two grass platforms within it (enemy upper-right, hero lower-left).
     const skyTop = topBar.rect.height > 0 ? topBar.rect.y + topBar.rect.height : 40;
     const groundTop = commandBox.rect.height > 0 ? commandBox.rect.y : viewH * 0.7;
-    const playH = Math.max(80, groundTop - skyTop);
-    const horizonY = skyTop + playH * 0.6;
-
-    // --- sky ---------------------------------------------------------------------------------
-    surface.rect(0, 0, viewW, viewH, MATE_PAL.skyBlue);
-    surface.rect(0, skyTop, viewW, playH * 0.6, MATE_PAL.skyBlue);
-    // a faint haze toward the horizon + a few soft cloud puffs
-    surface.rect(0, skyTop + playH * 0.44, viewW, playH * 0.16, MATE_PAL.silver, 0.1);
-    drawCloud(surface, viewW * 0.2, skyTop + playH * 0.16, playH * 0.05);
-    drawCloud(surface, viewW * 0.78, skyTop + playH * 0.1, playH * 0.045);
-    drawCloud(surface, viewW * 0.52, skyTop + playH * 0.26, playH * 0.04);
-
-    // --- ground ------------------------------------------------------------------------------
-    surface.rect(0, horizonY, viewW, groundTop - horizonY, MATE_PAL.greenMid);
-    surface.rect(0, horizonY, viewW, Math.max(2, playH * 0.02), MATE_PAL.green); // lit horizon rim
-    surface.rect(0, groundTop - Math.max(3, playH * 0.06), viewW, Math.max(3, playH * 0.06), MATE_PAL.greenDark);
-
-    // --- platforms + sprites -----------------------------------------------------------------
-    const enemyCx = viewW * 0.7;
-    const enemyCy = skyTop + playH * 0.44;
-    const heroCx = viewW * 0.28;
-    const heroCy = groundTop - playH * 0.12;
-    const platRx = Math.min(viewW * 0.15, 150);
-
-    drawPlatform(surface, enemyCx, enemyCy, platRx * 0.9, platRx * 0.28);
-    drawPlatform(surface, heroCx, heroCy, platRx, platRx * 0.3);
-
-    // Bigger, tougher enemies loom larger: scale the base unit by playH, nudged up by maxHp
-    // (combat 24 → base, boss 32 → a touch larger).
-    const enemyU = Math.max(2.4, (playH * 0.4) / 22) * (1 + (snapshot.enemy.maxHp - 24) / 90);
-    const heroU = Math.max(2.4, (playH * 0.34) / 28);
-    ENEMY_SPRITE_DRAW[snapshot.enemy.sprite](surface, enemyCx, enemyCy + platRx * 0.14, enemyU);
-    drawHero(surface, heroCx, heroCy + platRx * 0.16, heroU);
-
+    drawBattle(surface, viewW, viewH, skyTop, groundTop, snapshot.enemy.sprite, snapshot.enemy.maxHp);
     // A subtle dark strip behind the top HUD so the title/grade stay legible over the sky.
     surface.rect(0, 0, viewW, skyTop, MATE_PAL.ink, 0.5);
   }
@@ -562,6 +529,55 @@ export function createCombatScreen(actions: CombatScreenActions, strings: String
 
 /** A quiz-tile frame: a drop shadow + a thick coloured ring hugging the button's rect. A 50-50'd
  * ("eliminated") tile also gets a dim overlay + a red bar so it reads as struck out. */
+/**
+ * The battle backdrop and its two combatants: sky with clouds, ground, the two grass platforms, the
+ * enemy upper-right and Făt-Frumos lower-left, between `skyTop` and `groundTop`. The combat screen
+ * draws it under its HUD; the games portal's card art (`../card.ts`) draws it alone.
+ */
+export function drawBattle(
+  surface: UISurface,
+  viewW: number,
+  viewH: number,
+  skyTop: number,
+  groundTop: number,
+  enemySprite: EnemySprite,
+  enemyMaxHp: number,
+): void {
+  const playH = Math.max(80, groundTop - skyTop);
+  const horizonY = skyTop + playH * 0.6;
+
+  // --- sky ---------------------------------------------------------------------------------
+  surface.rect(0, 0, viewW, viewH, MATE_PAL.skyBlue);
+  surface.rect(0, skyTop, viewW, playH * 0.6, MATE_PAL.skyBlue);
+  // a faint haze toward the horizon + a few soft cloud puffs
+  surface.rect(0, skyTop + playH * 0.44, viewW, playH * 0.16, MATE_PAL.silver, 0.1);
+  drawCloud(surface, viewW * 0.2, skyTop + playH * 0.16, playH * 0.05);
+  drawCloud(surface, viewW * 0.78, skyTop + playH * 0.1, playH * 0.045);
+  drawCloud(surface, viewW * 0.52, skyTop + playH * 0.26, playH * 0.04);
+
+  // --- ground ------------------------------------------------------------------------------
+  surface.rect(0, horizonY, viewW, groundTop - horizonY, MATE_PAL.greenMid);
+  surface.rect(0, horizonY, viewW, Math.max(2, playH * 0.02), MATE_PAL.green); // lit horizon rim
+  surface.rect(0, groundTop - Math.max(3, playH * 0.06), viewW, Math.max(3, playH * 0.06), MATE_PAL.greenDark);
+
+  // --- platforms + sprites -----------------------------------------------------------------
+  const enemyCx = viewW * 0.7;
+  const enemyCy = skyTop + playH * 0.44;
+  const heroCx = viewW * 0.28;
+  const heroCy = groundTop - playH * 0.12;
+  const platRx = Math.min(viewW * 0.15, 150);
+
+  drawPlatform(surface, enemyCx, enemyCy, platRx * 0.9, platRx * 0.28);
+  drawPlatform(surface, heroCx, heroCy, platRx, platRx * 0.3);
+
+  // Bigger, tougher enemies loom larger: scale the base unit by playH, nudged up by maxHp
+  // (combat 24 → base, boss 32 → a touch larger).
+  const enemyU = Math.max(2.4, (playH * 0.4) / 22) * (1 + (enemyMaxHp - 24) / 90);
+  const heroU = Math.max(2.4, (playH * 0.34) / 28);
+  ENEMY_SPRITE_DRAW[enemySprite](surface, enemyCx, enemyCy + platRx * 0.14, enemyU);
+  drawHero(surface, heroCx, heroCy + platRx * 0.16, heroU);
+}
+
 function drawTileFrame(surface: UISurface, rect: Rect, color: string, eliminated: boolean): void {
   const { x, y, width: w, height: h } = rect;
   const t = 3; // ring thickness (drawn OUTSIDE the button so it never covers the label)
