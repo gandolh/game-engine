@@ -35,7 +35,7 @@ change; nodes must persist per key because the dispatcher matches by object iden
 combat screen in 155 tree lines vs 236, with an identical tree, mirror, keyboard play and pixels,
 at 6-18× the per-frame refresh and a one-frame click delay. Recommendation: keep retained. The
 prototype stays behind `?imgui`; MateQuest gained `?profile`. Proposed follow-up:
-[retire the prototype](todos/2026-10-28-mathquest-retire-imgui-prototype.md) (or promote it).
+[retire the prototype](todos/closed/2026-10-28-mathquest-retire-imgui-prototype.md) (or promote it).
 
 ## [2026-10-28] close | The docs site is on Docusaurus
 
@@ -4067,3 +4067,13 @@ patches without baking, frees and re-bakes at the far corners, and shows no seam
 Found on the way: the client renders its own 192×192 terrain even under `?mp`, so the server's 256×256
 world is never drawn. Online play is deprecated (Citadel decision #21), so nothing was changed. The
 256×256 case is covered by the unit check only.
+
+## [2026-11-03] close | The immediate-mode layer is in @engine/ui; MateQuest's ?imgui is gone
+
+[The move spec](todos/closed/2026-10-28-mathquest-retire-imgui-prototype.md) is built, as the owner
+decided on 2026-10-28 and 2026-11-03. `createImmediateUi` is now part of `@engine/ui`, with key eviction
+(`evictAfter`, default 60 frames) and nine tests on a sample screen. It ships in the packed package
+(pack-smoke passed). MateQuest keeps its retained combat screen. Its immediate copy, the `ui/imgui/`
+folder and `?imgui` are deleted, and `?profile` stays. The `combat-screen.ts` helpers that only the
+prototype used are private again. [engine-ui.md](wiki/engine-ui.md) has an *Immediate mode* section,
+and [mathquest-ui.md](wiki/mathquest-ui.md) says where the layer went.

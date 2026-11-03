@@ -1,6 +1,6 @@
 ---
-summary: Whether MateQuest's screens should be immediate-mode (IMGUI) instead of @engine/ui's retained trees — what retained mode costs today, what an IMGUI must keep, the three places it could live, and the measured ?imgui combat prototype. Verdict: keep retained.
-updated: 2026-10-28
+summary: Whether MateQuest's screens should be immediate-mode (IMGUI) instead of @engine/ui's retained trees — what retained mode costs today, what an IMGUI must keep, the three places it could live, and the measured ?imgui combat prototype. Verdict: keep retained; the layer moved into @engine/ui as an option (2026-11-03).
+updated: 2026-11-03
 ---
 
 # MateQuest — retained or immediate-mode UI
@@ -68,10 +68,14 @@ code moved, not rewritten. It sits in the client for this research only.
 
 ## 4. The prototype (`?imgui`)
 
-[imgui/immediate.ts](../../games/mathquest/client/src/ui/imgui/immediate.ts) (133 code lines) and
-[combat-screen-immediate.ts](../../games/mathquest/client/src/ui/combat-screen-immediate.ts)
-implement the same `CombatScreen` interface; `main.ts` picks it under `?imgui`. `?profile` (new for
-MateQuest) times the widget pass per frame.
+*Moved 2026-11-03:* the layer now lives in `@engine/ui`
+([engine/ui/src/immediate/](../../engine/ui/src/immediate/immediate.ts), with key eviction), and
+MateQuest's second combat screen and `?imgui` are gone. The files named below are in git history at
+`381802ef`. `?profile` stayed.
+
+`imgui/immediate.ts` (133 code lines) and `combat-screen-immediate.ts` implemented the same
+`CombatScreen` interface; `main.ts` picked it under `?imgui`. `?profile` (new for MateQuest) times
+the widget pass per frame.
 
 - **Lines**: tree code 155 against the retained 236 (−34%); the draw passes are the same ~50 in both.
 - **Same output**: a test diffs the two trees after the same refresh for all seven phases, and along
@@ -86,12 +90,9 @@ MateQuest) times the widget pass per frame.
 - **Clicks arrive one frame late** (the IMGUI contract): `button()` returns true on the frame after
   the activation.
 
-## Proposed decision (for the owner; not in decisions.md)
+## Decision (owner, 2026-10-28)
 
-> **`@engine/ui` stays retained.** An immediate layer was prototyped on MateQuest's combat screen
-> (2026-10-28): it keeps the tree, mirror and keyboard identical and cuts the screen's tree code by a
-> third, but costs 6-18× the per-frame refresh, delays clicks a frame and adds an engine surface;
-> no shipped bug came from retained sync. Revisit if a game's screens become mostly dynamic lists.
-
-Follow-up for the owner: [retire the prototype](../todos/2026-10-28-mathquest-retire-imgui-prototype.md),
-or promote it to `@engine/ui` (the spec lists both).
+`@engine/ui` stays retained, and the immediate layer moved into it as an opt-in feature: it was not
+deleted as the research recommended. MateQuest keeps its retained screens. Recorded in
+[decisions.md](decisions.md) → *UI — retained by default, immediate mode optional*; built by
+[the move spec](../todos/closed/2026-10-28-mathquest-retire-imgui-prototype.md).

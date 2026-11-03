@@ -33,7 +33,7 @@ which is how a "WebGPU-only render path" line outlived the page that already sai
 - [wiki/performance.md](wiki/performance.md) — Ranked optimization backlog for the engine, filtered against what the code actually does — tiers 0–3, what is already done, and what is explicitly not worth doing at Farm Valley's scale.
 - [wiki/performance-measurements.md](wiki/performance-measurements.md) — The profiling record: how to measure (`Profiler` + `?profile` + DebugOverlay), plus the 2026-06-05 and 2026-06-10 measured baselines every optimization claim is scored against.
 - [wiki/asset-pipeline.md](wiki/asset-pipeline.md) — The bake principle (assets are code, not images), asset-cooking and atlas research, the cache-key/incremental-build recommendations that became brief 71, and the 2026-10-28 large-image research (texture inventory, breaking points, patches).
-- [wiki/engine-ui.md](wiki/engine-ui.md) — The shared in-canvas UI toolkit (@engine/ui): the UNSCII text stack, the palette-agnostic icon pipeline, and the layout traps that bite when text metrics change.
+- [wiki/engine-ui.md](wiki/engine-ui.md) — The shared in-canvas UI toolkit (@engine/ui): the UNSCII text stack, the palette-agnostic icon pipeline, the optional immediate-mode layer (2026-11-03), and the layout traps that bite when text metrics change.
 - [wiki/shader-ideas.md](wiki/shader-ideas.md) — Book-of-Shaders techniques filtered against the WebGL2 renderer. Ideas, not committed work.
 
 ### Farm Valley
@@ -66,16 +66,16 @@ which is how a "WebGPU-only render path" line outlived the page that already sai
 ### MateQuest
 
 - [wiki/mathquest-overview.md](wiki/mathquest-overview.md) — What MateQuest is (the **fourth** game — a Romanian-curriculum, **grades I–IV**, math roguelike where **solving a problem IS the combat action**): **built and playable** (design settled 2026-07-21, M0–M5 complete 2026-07-23). Pokémon-style Attack/Heal/Shield + Slay-the-Spire turn stakes; branching runs; two-layer progression (in-run XP + persistent per-topic mastery); soft-roguelike death; loot grants math lifelines; bilingual RO/EN; Romanian-folklore theme; Resurrect-64 palette; Web-Worker solo build like Citadel. Build plan + milestones: [todos/closed/2026-07-21-mathquest-BUILD-STATE.md](todos/closed/2026-07-21-mathquest-BUILD-STATE.md).
-- [wiki/mathquest-ui.md](wiki/mathquest-ui.md) — Retained vs immediate-mode (IMGUI) UI for MateQuest: what the retained sync costs, what an IMGUI must keep, where it could live, and the measured `?imgui` combat prototype. Verdict: keep retained.
+- [wiki/mathquest-ui.md](wiki/mathquest-ui.md) — Retained vs immediate-mode (IMGUI) UI for MateQuest: what the retained sync costs, what an IMGUI must keep, where it could live, and the measured `?imgui` combat prototype. Verdict: keep retained; the layer moved into `@engine/ui` as an option (2026-11-03).
 
 ## Build programs
 
-**Open in the queue** (list [todos/](todos/) for the current set), all approved at the 2026-11-03 grill:
-[the immediate layer into `@engine/ui`](todos/2026-10-28-mathquest-retire-imgui-prototype.md), then
-[the games portal](todos/2026-11-03-games-portal.md); and [retake the README's Farm and Citadel images](todos/2026-11-03-retake-readme-images-after-the-flip-fix.md)
+**Open in the queue** (list [todos/](todos/) for the current set): [the games portal](todos/2026-11-03-games-portal.md),
+approved at the 2026-11-03 grill, and [retake the README's Farm and Citadel images](todos/2026-11-03-retake-readme-images-after-the-flip-fix.md)
 after the upside-down static-layer fix. Done 2026-11-03: [the engine patched static layer](todos/closed/2026-10-28-engine-patched-static-layer.md),
 [Citadel's terrain onto patches](todos/closed/2026-10-28-citadel-window-onto-patches.md) (which closed
-[Citadel's boot bake over 4096](todos/closed/2026-10-28-citadel-boot-bake-over-4096.md)). The
+[Citadel's boot bake over 4096](todos/closed/2026-10-28-citadel-boot-bake-over-4096.md)), and
+[the immediate layer into `@engine/ui`](todos/closed/2026-10-28-mathquest-retire-imgui-prototype.md). The
 [portal research](todos/closed/2026-10-27-game-portal-research.md) closed into the portal spec. The
 [immediate-mode](todos/closed/2026-10-27-mathquest-immediate-mode-research.md) and
 [tiled-textures](todos/closed/2026-10-27-tiled-textures-for-large-assets-research.md) research closed 2026-10-28. The three specs from 2026-10-09

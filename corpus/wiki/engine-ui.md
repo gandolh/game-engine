@@ -1,6 +1,6 @@
 ---
-summary: The shared in-canvas UI toolkit (@engine/ui) — the UNSCII text stack, the palette-agnostic icon pipeline, the widget vocabulary, the custom-draw escape hatch, and the layout traps that bite when text metrics change.
-updated: 2026-09-19
+summary: The shared in-canvas UI toolkit (@engine/ui) — the UNSCII text stack, the palette-agnostic icon pipeline, the widget vocabulary, the custom-draw escape hatch, the optional immediate-mode layer, and the layout traps that bite when text metrics change.
+updated: 2026-11-03
 ---
 
 # @engine/ui — the in-canvas UI toolkit
@@ -162,6 +162,15 @@ inner box without shifting siblings) it also folds *on-top* passes into a panel'
 absolute screen-space, rect vestigial) and Citadel `minimap` (`node()`/`setFrame()` — draws at its
 laid-out rect origin; clicks stay separate via `trySeek`, since a custom node is non-interactive).
 There is no longer any bespoke `drawX(surface, …)` pass beside `renderTree` in either render loop.
+
+## Immediate mode (optional, 2026-11-03)
+
+`createImmediateUi()` ([immediate/](../../engine/ui/src/immediate/immediate.ts)) lets a screen describe itself
+every frame (`if (ui.button("buy", "Buy")) …`) over the same retained nodes, layout, renderer and
+a11y mirror. Nodes are cached per key, so focus, presses and mirror ids survive frames. A key unseen
+for `evictAfter` frames (default 60) is dropped, and clicks arrive one frame late. No screen uses it today.
+Retained is the default ([decisions.md](decisions.md) → *UI — retained by default, immediate mode
+optional*). The cost and the comparison are measured on [mathquest-ui.md](mathquest-ui.md).
 
 ## Known gap — no grid/tabular layout, and that is still the right call
 

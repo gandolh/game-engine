@@ -83,7 +83,7 @@ recommendation are on a new page, [mathquest-ui.md](../../wiki/mathquest-ui.md) 
   had none; it times refresh, layout, draw and mirror per frame
   ([browser numbers](../../verify/2026-10-28-mathquest-imgui/browser-profile.json)).
 - **Follow-up spec, for the owner**:
-  [retire the prototype](../2026-10-28-mathquest-retire-imgui-prototype.md) (or promote it).
+  [retire the prototype](2026-10-28-mathquest-retire-imgui-prototype.md) (or promote it).
 - **Gates** (`npm run gates`, load average 30 to 38): typecheck, build, smokes and pack-smoke
   passed; `@mathquest/client` 122/122. The one failure was the Hollow sim-core
   `mortality-emergence` timeout under load already on
