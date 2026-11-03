@@ -49,8 +49,10 @@ machine was busy), 1440×900:
 
 All four: `document.activeElement` is the frame after load. Fullscreen made the frame the fullscreen
 element from a real click (a script's `click()` is refused: fullscreen needs a user gesture). At
-412×915 (an Android phone) all four play pages show the warning page. The live games send no
-`X-Frame-Options` or CSP `frame-ancestors` (curl, 2026-11-03), so framing needs no header change.
+412×915 (an Android phone) all four play pages show the warning page. The live games sent no
+framing headers in the morning of 2026-11-03. Since vps-deploy's baseline headers went live the same day
+they send `X-Frame-Options: SAMEORIGIN` and `frame-ancestors 'self'` (curl), which allow the portal,
+because it frames them from the same origin.
 
 **Hollow's gap is not a finding yet.** The research's first pass saw the same shape (33 vs 17 ms),
 both on SwiftShader under load, and this repo has been misled by a SwiftShader frame rate before
