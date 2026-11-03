@@ -7,7 +7,7 @@ updated: 2026-11-03
 
 A page at `/games` listing this repo's four games as cards; a card opens that game's play page,
 which frames the game's own deployed path. Built 2026-11-03 from
-[the build spec](../todos/2026-11-03-games-portal.md); the owner's calls (two grills, 2026-10-28
+[the build spec](../todos/closed/2026-11-03-games-portal.md); the owner's calls (two grills, 2026-10-28
 and 2026-11-03) are listed there and in the closed
 [research spec](../todos/closed/2026-10-27-game-portal-research.md), which also holds the survey of
 Y8 and itch.io the layout follows (Miniclip no longer frames games).
@@ -60,14 +60,34 @@ its frame unless the owner sees the gap on a real GPU; then it opens on its own 
 
 ## Card art
 
-_Placeholders on each game's palette until the card art lands (next step of the spec)._
+Each card is a 640×480 scene composed by the game's own renderer, behind a DEV-only `?card` flag in
+the game's client:
+
+| Game | The scene | Where |
+|---|---|---|
+| Farm Valley | a small island at 3× (fields of mature crops, Pip's house, a well, a scarecrow, four farmers) baked from its atlas; no sim server | `games/farm/client/src/card.ts` |
+| Citadel | a cozy town at midday on the real terrain's core box (hall, houses, chapel, farm, mill, market, well) through `pushScene` | `games/citadel/client/src/render/card.ts` |
+| Hollow | seed 42 at 8× for 20 s, then only the 3D town (every overlay hidden), paused | `MountOptions.card` in `mount.ts` |
+| MateQuest | Făt-Frumos facing a zmeu on the battle backdrop: the combat screen's `drawBattle`, without its HUD | `games/mathquest/client/src/card.ts` |
+
+`npm run cards -w @game-engine/portal` ([cards.ts](../../portal/scripts/cards.ts)) starts any dev
+server that isn't up, waits for `window.__cardReady`, screenshots at 640×480 and maps every pixel
+to the nearest colour of the game's palette (Farm EDG32, Citadel and Hollow Apollo-46, MateQuest
+Resurrect-64), because the wash and Hollow's 3D shading are not on it. The portal's test fails a
+card with any colour off its palette. Retake when a game's sprites change; it needs `agent-browser`.
 
 ## Deploy
 
-_The portal and MateQuest stacks in vps-deploy are the spec's next step._
+vps-deploy has two static stacks on the game-engine checkout, modelled on Hollow's (its commit
+`83717f9`; the Caddyfile was regenerated with that repo's baseline headers in `bdbba39`):
+`mathquest` at `/mathquest/` (`MATHQUEST_BASE`), its first deploy, and `games-portal` at `/games/`
+(`PORTAL_BASE`), whose play pages come from the single-page fallback. The baseline
+`X-Frame-Options: SAMEORIGIN` and `frame-ancestors 'self'` allow the frames, which are same-origin.
+Neither is deployed.
 
 ## For the owner
 
 - Hollow framed against direct on a real GPU (the play page's frame, then `/hollow/` on its own).
 - A phone (Android): the grid in two columns and the warning page.
-- The deploy, once vps-deploy has the stacks.
+- Push game-engine and vps-deploy, then deploy `mathquest` and `games-portal` (`node cli.ts mathquest all`,
+  `node cli.ts games-portal all`), and the three deployed games for the patches and the upside-down fix.

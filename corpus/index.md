@@ -71,13 +71,14 @@ which is how a "WebGPU-only render path" line outlived the page that already sai
 
 ## Build programs
 
-**Open in the queue** (list [todos/](todos/) for the current set): [the games portal](todos/2026-11-03-games-portal.md),
-approved at the 2026-11-03 grill, and [retake the README's Farm and Citadel images](todos/2026-11-03-retake-readme-images-after-the-flip-fix.md)
-after the upside-down static-layer fix. Done 2026-11-03: [the engine patched static layer](todos/closed/2026-10-28-engine-patched-static-layer.md),
+**Open in the queue** (list [todos/](todos/) for the current set): [retake the README's Farm and Citadel images](todos/2026-11-03-retake-readme-images-after-the-flip-fix.md)
+after the upside-down static-layer fix. Done 2026-11-03, all approved at that day's grill:
+[the engine patched static layer](todos/closed/2026-10-28-engine-patched-static-layer.md),
 [Citadel's terrain onto patches](todos/closed/2026-10-28-citadel-window-onto-patches.md) (which closed
-[Citadel's boot bake over 4096](todos/closed/2026-10-28-citadel-boot-bake-over-4096.md)), and
-[the immediate layer into `@engine/ui`](todos/closed/2026-10-28-mathquest-retire-imgui-prototype.md). The
-[portal research](todos/closed/2026-10-27-game-portal-research.md) closed into the portal spec. The
+[Citadel's boot bake over 4096](todos/closed/2026-10-28-citadel-boot-bake-over-4096.md)),
+[the immediate layer into `@engine/ui`](todos/closed/2026-10-28-mathquest-retire-imgui-prototype.md), and
+[the games portal](todos/closed/2026-11-03-games-portal.md) (the
+[portal research](todos/closed/2026-10-27-game-portal-research.md) closed into it). The
 [immediate-mode](todos/closed/2026-10-27-mathquest-immediate-mode-research.md) and
 [tiled-textures](todos/closed/2026-10-27-tiled-textures-for-large-assets-research.md) research closed 2026-10-28. The three specs from 2026-10-09
 and the docs-site spec (2026-10-18, now on Docusaurus) closed on 2026-10-28. Everything else is closed. The Hollow

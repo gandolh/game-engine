@@ -1,8 +1,24 @@
 # The games portal at `/games`
 
+> **Done 2026-11-03.** Built as specified ([portal.md](../../wiki/portal.md) has the record). In order:
+> 1. The `portal/` workspace and its guards (`f933b327`).
+> 2. The frame check, with all four games playing in their frames: Farm's socket through the proxy, Citadel's Space, MateQuest's `1`,
+>    Hollow running. Fullscreen works from a real click, and a 412×915 viewport shows the warning page for
+>    all four.
+> 3. vps-deploy's `mathquest` and `games-portal` stacks (`83717f9` there).
+> 4. The card art (`b13129c1`): a DEV-only `?card` scene per game, captured and mapped onto its palette
+>    by `npm run cards`. MateQuest's battle backdrop became `drawBattle`, which `drawScene` now calls
+>    unchanged.
+>
+> Hollow framed ran 50 ms per frame against 33 ms opened directly, on SwiftShader under load 25, so
+> it stays framed until the owner measures it on a real GPU.
+>
+> Tests: portal 12, Farm 273, Citadel 589, MateQuest 109, Hollow 339, the guards 18. The
+> typecheck passes (22 tasks).
+
 status: todo
 created: 2026-11-03
-context: the [portal research](closed/2026-10-27-game-portal-research.md), closed into this
+context: the [portal research](2026-10-27-game-portal-research.md), closed into this
 spec at the 2026-11-03 grill. Its findings (the Y8 and itch.io pattern, and the first iframe pass)
 are in that file. The owner's calls from both grills are listed below and are not reopened here.
 

@@ -1,6 +1,6 @@
 ---
 summary: The current-state snapshot — where each game stands, current sim/determinism behaviour, which gates run, architecture milestones, and open gaps. Brief-by-brief history lives in log.md and the todos/briefs directories, not here.
-updated: 2026-10-07
+updated: 2026-11-03
 ---
 
 # Project Status
@@ -47,7 +47,11 @@ edit the matching line below.
   ([audit-54](../todos/closed/2026-09-18-audit-54-mathquest-grades-v-viii.md)): the repo used to
   advertise I–VIII, which was the curriculum the design was drawn from, not the build. Within I–IV it
   covers arithmetic and comparison; division, fractions, units and geometry are not implemented.
+  **Not deployed yet:** vps-deploy gained its `mathquest` stack on 2026-11-03.
   [mathquest-overview.md](mathquest-overview.md)
+- **The games portal** (built 2026-11-03, not deployed) — `/games`, a card per game played in a
+  same-origin frame, with a warning page under 1280×640 (all four games are computer-only).
+  [portal.md](portal.md)
 
 ## Current sim behaviour & determinism
 
@@ -118,6 +122,14 @@ Decision and its rationale: [decisions.md](decisions.md) → Renderer. Build rec
 migration exposed, and the reusable A/B probe technique: the 2026-08-18 entries in
 [log.md](../log.md) and [todos/closed/2026-08-18-webgl2-BUILD-STATE.md](../todos/closed/2026-08-18-webgl2-BUILD-STATE.md).
 
+**Since 2026-11-03:**
+- **Patches:** a static layer past 4096 px or the device limit is drawn as 2048 px patches. Citadel's
+  terrain always is, and it boots on 4096 px devices.
+- **The right way up:** every texture upload has `UNPACK_FLIP_Y_WEBGL` off. Until then every baked
+  static layer was drawn upside down under the sprites.
+- **Where it's recorded:** both calls are in [decisions.md](decisions.md) → Renderer, and the record is
+  [asset-pipeline.md](asset-pipeline.md) → *Patches as built*.
+
 ## Open gaps
 
 See [open-questions.md](open-questions.md) for the live list.
@@ -137,6 +149,20 @@ step, and it was not kept in step.
 ## Recent changes
 
 Newest first, one line each. Detail is in the [log.md](../log.md) entry for the same date.
+
+- **2026-11-03** — the four follow-up specs were grilled and built:
+  - the engine's patched static layer, which surfaced the old upside-down static layer;
+  - Citadel's terrain on patches, with the re-baking window deleted;
+  - `@engine/ui`'s optional immediate-mode layer, with MateQuest's `?imgui` gone;
+  - the games portal, with card art and vps-deploy stacks for it and MateQuest.
+
+  Nothing is pushed or deployed. The owner's steps:
+  - push this repo and vps-deploy;
+  - deploy `mathquest` and `games-portal`, then the three live games;
+  - measure Hollow framed on a real GPU;
+  - check the portal on an Android phone;
+  - retake the README's Farm and Citadel images
+    ([todo](../todos/2026-11-03-retake-readme-images-after-the-flip-fix.md)).
 
 - **2026-09-20** — a **visual** pass over the six fixes produced two more closed specs and one
   correction. **The font silently substituted `?` for glyphs it had not baked:** MateQuest's map-pan

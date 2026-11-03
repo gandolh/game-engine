@@ -2,7 +2,7 @@
 
 > **Closed 2026-11-03 into a build spec.** At the 2026-11-03 grill the owner chose to build the portal
 > instead of finishing this research. Steps 2 to 4 are now checks in
-> [the build spec](../2026-11-03-games-portal.md). The findings below (step 1, and step 2's first pass)
+> [the build spec](2026-11-03-games-portal.md). The findings below (step 1, and step 2's first pass)
 > stay as the record.
 
 > **Owner, 2026-11-03: build it.** The research closes into a build spec. Farm's WebSocket in the

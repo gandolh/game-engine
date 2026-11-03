@@ -4077,3 +4077,21 @@ decided on 2026-10-28 and 2026-11-03. `createImmediateUi` is now part of `@engin
 folder and `?imgui` are deleted, and `?profile` stays. The `combat-screen.ts` helpers that only the
 prototype used are private again. [engine-ui.md](wiki/engine-ui.md) has an *Immediate mode* section,
 and [mathquest-ui.md](wiki/mathquest-ui.md) says where the layer went.
+
+## [2026-11-03] close | The games portal at /games
+
+[The portal spec](todos/closed/2026-11-03-games-portal.md) is built, in four steps:
+1. The `portal/` workspace: a grid of four cards, a play page per game framing its own path with Fullscreen,
+   and the owner's warning page under 1280×640. It uses EDG32 with UNSCII headings, imports no game,
+   and is scanned by the guards.
+2. The frame check from one origin (`serve-all.mjs`): all four games play in their frames, Farm's
+   socket goes through the proxy, and the phone viewport shows the warning page.
+3. vps-deploy's `mathquest` and `games-portal` stacks.
+4. The card art: a DEV-only `?card` scene per game, captured and mapped onto its palette by
+   `npm run cards`.
+
+MateQuest's battle backdrop is now `drawBattle`, which `drawScene` calls unchanged.
+
+Hollow framed ran 50 ms per frame against 33 ms direct, on SwiftShader under load. It stays framed
+until the owner measures it on a real GPU. [routing.md](routing.md) now lists the portal as the second
+HTML/CSS surface. Record: [portal.md](wiki/portal.md).
