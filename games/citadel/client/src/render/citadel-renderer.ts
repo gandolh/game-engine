@@ -61,7 +61,6 @@ import { FRAME_DIAMOND, FRAME_ROAD, FRAME_BRIDGE, flameFrameAt } from "./sprites
 import { clusterBuildings, clusterBorderQuads } from "./clustering";
 import type { Cluster } from "./clustering";
 import { makeTerrainDecorate } from "./terrain-dither";
-import { RenderWindowController } from "./window-controller";
 import type { TileWindow } from "./render-window";
 import { createCitadelSpriteAtlas } from "./sprites/atlas";
 import { disconnectedBuildings } from "./road-feedback";
@@ -83,7 +82,6 @@ export * from "./clustering";
 export * from "./transform";
 export * from "./terrain-dither";
 export * from "./hillshade";
-export * from "./window-controller";
 export * from "./render-window";
 
 import type { TerrainGrid } from "@citadel/sim-core";
@@ -244,23 +242,26 @@ export interface CitadelRenderer {
   /** The iso projection for THIS world's size — pass it to every `push*` and to
    *  `screenToTile`/`fitCameraToCanvas`. There is no module-level projection. */
   iso: IsoProjection;
-  /** Drives the windowed static-layer bake (Citadel 21/22). Call `update(camera)`
-   *  each frame after fitting the camera; a no-op on small (solo) worlds. */
-  windowController: RenderWindowController;
+}
+
+export interface CitadelRendererOptions {
+  /** Behave as a device with this `MAX_TEXTURE_SIZE` (dev only; see `createRenderer`). */
+  textureLimit?: number;
 }
 
 /**
  * Create the citadel renderer: create the engine's WebGL2 renderer (the only
  * backend — no `backend` option to pass), register the generated quad atlas,
- * set the clear color, and bake the terrain backdrop. On the large MP world the
- * bake is render-windowed (only the camera window is textured, re-baked on pan
- * via the controller); on the small solo world it bakes whole-world once
- * (identical to before). Throws if a WebGL2 context is unavailable — no silent
- * fallback.
+ * set the clear color, and bake the terrain backdrop once. The iso world is
+ * 6144 px wide at 192×192 (8192 at 256×256), past one texture, so the engine draws
+ * it as patches, each baked from its own iso rect when the view first reaches it
+ * (corpus decisions.md → Renderer). Throws if a WebGL2 context is unavailable — no
+ * silent fallback.
  */
 export async function createCitadelRenderer(
   canvas: HTMLCanvasElement,
   terrain: TerrainGrid,
+  opts: CitadelRendererOptions = {},
 ): Promise<CitadelRenderer> {
   // Brief 110: the projection is derived from the terrain we were actually handed,
   // not from a compile-time constant. In MP that terrain came from the server.
@@ -274,6 +275,7 @@ export async function createCitadelRenderer(
 
   const renderer = await createRenderer(canvas, camera, {
     onBackend: (b) => console.info("[citadel render] backend:", b),
+    ...(opts.textureLimit !== undefined && opts.textureLimit > 0 ? { textureLimit: opts.textureLimit } : {}),
   });
 
   renderer.clearColor = EDG.black;
@@ -286,13 +288,11 @@ export async function createCitadelRenderer(
   const atlas = await createCitadelSpriteAtlas();
   renderer.addAtlas(atlas);
 
-  // Bake the terrain static layer. The controller decides whole-world (small
-  // map) vs render-windowed (large MP map); the initial bake uses the camera's
-  // boot framing (fully zoomed out → whole world either way).
-  const windowController = new RenderWindowController(renderer, iso, terrain);
-  windowController.bakeInitial(camera);
+  // The terrain backdrop, once: diamonds painted into iso world px. Nothing is
+  // drawn until the view reaches a patch, so this costs nothing at boot.
+  renderer.bakeStaticLayer([], iso.worldPxW, iso.worldPxH, makeTerrainDecorate(iso, terrain));
 
-  return { renderer, camera, iso, windowController };
+  return { renderer, camera, iso };
 }
 
 // ---------------------------------------------------------------------------

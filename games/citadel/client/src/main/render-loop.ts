@@ -41,7 +41,7 @@ import { MINIMAP_FACE } from "../ui/minimap";
 import { CITADEL_THEME } from "../ui/citadel-theme";
 import { VISUAL_DAY_TICKS } from "./constants";
 import { canvas } from "./dom";
-import { camera, renderer, windowController, iso } from "./renderer-state";
+import { camera, renderer, iso } from "./renderer-state";
 import { terrain } from "./terrain";
 import { placementState } from "./placement-wiring";
 import { renderToggles, particles, smoke, fire, appearAt, burningSince, villagerInterp, raiderInterp, weather, ambientCrowd } from "./fx";
@@ -127,9 +127,6 @@ let lastFrameMs = 0; // render clock (performance.now, MAIN-thread only — NOT 
  * (the `present`/`burningKeys` set and the add/delete diff come out identical).
  */
 let lastSyncedBuildings: readonly BuildingSnapshot[] | null = null;
-
-/** Count of windowed re-bakes since boot. Diagnostic only — read by the boot.ts dev hook. */
-export let windowBakes = 0;
 
 const buildBarInfoLabel: LabelNode = label("", { muted: true });
 
@@ -228,12 +225,6 @@ export function loop(): void {
   renderer.beginFrame();
   fitCameraToCanvas(camera, canvas.width, canvas.height, iso);
 
-  // Brief 21/22: re-bake the camera-windowed static layer when the window shifts
-  // (drained at a per-frame budget so a fast pan never triggers a synchronous
-  // re-bake). Live since brief 110 grew the solo world to 192×192 — below the
-  // windowing threshold this is a no-op and the whole world is baked once.
-  if (windowController.update(camera)) windowBakes++;
-
   // Brief 17 FX hooks: placement ease-in (building scale/alpha) + idle bob
   // (villager Y) + render-only position interpolation (villager/raider glide).
   // All pure; the appear map + render clock + interpolators feed them here.
@@ -245,12 +236,11 @@ export function loop(): void {
 
   // audit-13: the camera-visible tile window, used to cull off-screen
   // buildings out of pushScene entirely (no shadow/border/glow/sprite push).
-  // Reuses the SAME `visibleTileWindow` math (and `WINDOW_PAD` margin) the
-  // terrain static-layer bake already uses — a generous pad so a tall
+  // A generous pad (`WINDOW_PAD`) so a tall
   // building's sprite (rises up to ~3 tiles above its footprint in iso Y)
   // is already on-window before its origin tile crosses the visible edge, so
   // nothing visibly pops in/out while panning. `worldUnitsX/Y` already bake in
-  // zoom (see `RenderWindowController.currentWindow`'s comment), so zoom=1.
+  // zoom (`fitCameraToCanvas` divides by it), so zoom=1.
   const visibleWindow = visibleTileWindow(iso, camera.centerX, camera.centerY, camera.worldUnitsX, camera.worldUnitsY, 1, WINDOW_PAD);
 
   pushScene(

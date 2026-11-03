@@ -8,7 +8,7 @@ import type { GameMode } from "../ui/new-game-modal";
 import { SEED, TICKS_PER_DAY } from "./constants";
 import { canvas } from "./dom";
 import { terrain } from "./terrain";
-import { setRendererState, camera, iso, renderer, windowController } from "./renderer-state";
+import { setRendererState, camera, iso, renderer } from "./renderer-state";
 import { initResourceHud, initSiegeHud } from "./hud-panels";
 import { initInspectPanel } from "./inspect";
 import { initVillagerPanel, initBuildBar, updateModeLabel } from "./build-controls";
@@ -17,7 +17,7 @@ import { initMinimap } from "./minimap-wiring";
 import { initDebugOverlay } from "./debug-overlay-wiring";
 import { initNewGameModal, newGameMirror } from "./new-game";
 import { useServer, client, markOpeningFramed, currentBuildings, currentVillagers, latestSnapshot } from "./sim-client";
-import { loop, windowBakes } from "./render-loop";
+import { loop } from "./render-loop";
 import { tileToScreenCss } from "./screen-mapping";
 // Side-effect imports: these modules register DOM event listeners / construct singletons at
 // module load, in the same relative order the original single-file main.ts did (see the
@@ -46,17 +46,9 @@ if (import.meta.env.DEV) {
     // clicking a specific tile — not just the command channel. Mirrors the
     // renderer's world→screen transform.
     tileToScreenCss: (tx: number, ty: number) => tileToScreenCss(tx + 0.5, ty + 0.5),
-    // Brief 110: the windowed static-layer bake had never executed in production
-    // (`shouldWindow` was always false on the old 96×96 world), so its liveness is
-    // not something a unit test can assert. Expose enough for a harness to watch the
-    // IncrementalQueue actually drain as the camera pans, and to catch a window that
-    // stops tracking the camera.
-    windowState: () => ({
-      windowed: windowController.windowed,
-      pending: windowController.pending,
-      baked: windowController.bakedWindow,
-      bakes: windowBakes,
-    }),
+    // The terrain's static layer: one texture or patches, how many are live, and
+    // how many patch bakes have run (a pan inside live patches must not add any).
+    windowState: () => renderer.staticLayerInfo(),
     camera: () => ({ centerX: camera.centerX, centerY: camera.centerY, zoom: camera.zoom }),
     panTo: (tx: number, ty: number) => {
       const c = iso.tileCenterToIso(tx, ty);
@@ -105,7 +97,9 @@ async function boot(): Promise<void> {
   // surface stays blank". It now shows a message instead.
   let created: Awaited<ReturnType<typeof createCitadelRenderer>>;
   try {
-    created = await createCitadelRenderer(canvas, terrain);
+    // DEV only: `?textureLimit=<px>` behaves as a device with that MAX_TEXTURE_SIZE.
+    const textureLimit = import.meta.env.DEV ? Number(new URLSearchParams(location.search).get("textureLimit") ?? 0) : 0;
+    created = await createCitadelRenderer(canvas, terrain, textureLimit > 0 ? { textureLimit } : {});
   } catch (err) {
     console.error("[citadel render] WebGL2 unavailable:", err);
     showUnsupportedNotice(document.body, {

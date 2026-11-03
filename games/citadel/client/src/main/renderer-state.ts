@@ -1,5 +1,4 @@
 import type { Camera2D, RendererLike } from "@engine/core";
-import type { RenderWindowController } from "../render/citadel-renderer";
 import type { IsoProjection } from "../render/iso";
 
 // ---------------------------------------------------------------------------
@@ -7,7 +6,6 @@ import type { IsoProjection } from "../render/iso";
 // ---------------------------------------------------------------------------
 export let camera: Camera2D;
 export let renderer: RendererLike;
-export let windowController: RenderWindowController;
 /**
  * The iso projection for the world we ended up with (brief 110). Assigned in boot.ts
  * from the terrain the sim actually reports — locally generated in solo, sent by the
@@ -34,11 +32,9 @@ export function setRendererState(created: {
   renderer: RendererLike;
   camera: Camera2D;
   iso: IsoProjection;
-  windowController: RenderWindowController;
 }): void {
   renderer = created.renderer;
   camera = created.camera;
   iso = created.iso;
-  windowController = created.windowController;
   inputReady = true; // camera/renderer live → world input handlers may run
 }

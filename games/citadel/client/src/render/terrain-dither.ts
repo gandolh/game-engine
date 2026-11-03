@@ -10,16 +10,33 @@
  * the terrain grid and applies sub-tile dither clusters.
  */
 import { CITADEL_PAL as EDG } from "./citadel-palette";
-import type { Ctx2D } from "@engine/core";
+import type { Ctx2D, DecorateFn, StaticRegion } from "@engine/core";
 import { TerrainType, TILE_SIZE } from "@citadel/sim-core";
 import { fbm3, valueNoise21 } from "@engine/core/render";
 import type { TerrainGrid } from "@citadel/sim-core";
 import { TERRAIN_COLORS } from "./quads";
+import { visibleTileWindow } from "./render-window";
 import type { TileWindow } from "./render-window";
 import { ISO_HW, ISO_HH } from "./iso";
 import type { IsoProjection } from "./iso";
 import { landformHeight, hillshade, shadeBand } from "./hillshade";
 import type { HeightSampler } from "./hillshade";
+
+/**
+ * The tiles whose diamonds can reach an iso world-px rect: the tile bounds of its
+ * four corners, padded by one tile for the diamond's half-extent past its centre.
+ */
+export function regionTiles(iso: IsoProjection, region: StaticRegion): TileWindow {
+  return visibleTileWindow(
+    iso,
+    region.originX + region.width / 2,
+    region.originY + region.height / 2,
+    region.width,
+    region.height,
+    1,
+    1,
+  );
+}
 
 // ---------------------------------------------------------------------------
 // makeTerrainDecorate (static-layer bake callback)
@@ -27,30 +44,32 @@ import type { HeightSampler } from "./hillshade";
 
 /**
  * Build the decorate callback that paints the terrain grid into the baked
- * static layer (a texture on the GPU backend). Each cell is a
- * TILE_SIZE×TILE_SIZE EDG-colored rect plus sub-tile dither.
+ * static layer. Each cell is an iso diamond in its EDG colour plus sub-tile dither.
  *
- * Tiles are always drawn in WORLD coordinates (`tx * TILE_SIZE`). For a windowed
- * sub-region bake (Citadel 21), the engine translates the bake ctx by -origin so
- * the world-coord fills land on the smaller texture — and passing `window` here
- * restricts the loop to just those tiles so a re-bake costs window-many fills,
- * not whole-grid-many. Omitting `window` paints the entire grid (byte-identical
- * to the whole-world bake).
+ * Tiles are drawn in WORLD (iso px) coordinates; the engine translates the bake
+ * ctx so they land on whatever it is baking. When it bakes one patch it hands the
+ * patch's iso rect as `region`, and only the tiles whose diamonds can reach it are
+ * painted (`regionTiles`), in the same back-to-front order as a whole-world bake,
+ * so a diamond that straddles two patches paints the same pixels in both. With no
+ * `region` the entire grid is painted.
  */
-export function makeTerrainDecorate(
-  iso: IsoProjection,
-  grid: TerrainGrid,
-  window?: TileWindow,
-): (ctx: Ctx2D, wpx: number, hpx: number) => void {
-  const minTx = window ? Math.max(0, window.minTx) : 0;
-  const minTy = window ? Math.max(0, window.minTy) : 0;
-  const maxTx = window ? Math.min(grid.width - 1, window.maxTx) : grid.width - 1;
-  const maxTy = window ? Math.min(grid.height - 1, window.maxTy) : grid.height - 1;
+export function makeTerrainDecorate(iso: IsoProjection, grid: TerrainGrid): DecorateFn {
   // ONE memoized heightfield sampler for the whole bake — the hillshade below
   // probes each cell's four neighbours, so a shared cache means every cell's
   // height (a handful of fBm octaves) is computed once, not up to five times.
   const sampler = makeHeightSampler(grid);
-  return (ctx: Ctx2D): void => {
+  return (ctx: Ctx2D, _wpx: number, _hpx: number, region?: StaticRegion): void => {
+    const w = region ? regionTiles(iso, region) : { minTx: 0, minTy: 0, maxTx: grid.width - 1, maxTy: grid.height - 1 };
+    const minTx = Math.max(0, w.minTx);
+    const minTy = Math.max(0, w.minTy);
+    const maxTx = Math.min(grid.width - 1, w.maxTx);
+    const maxTy = Math.min(grid.height - 1, w.maxTy);
+    // The window is the tile-space box round a rotated rect, so it holds tiles whose
+    // diamonds never reach `region`; skipping those keeps the order and the pixels.
+    const rl = region ? region.originX : -Infinity;
+    const rt = region ? region.originY : -Infinity;
+    const rr = region ? region.originX + region.width : Infinity;
+    const rb = region ? region.originY + region.height : Infinity;
     // Paint each terrain cell as an ISO DIAMOND at its projected position, back
     // (top) to front (bottom) so a tiny diamond-edge overlap covers seams. The
     // bake canvas is the iso-world-px texture (origin 0,0), so tileToIso coords
@@ -68,6 +87,8 @@ export function makeTerrainDecorate(
     // stay even — the landform reads at a glance. The dither specks layer on top.
     for (let ty = minTy; ty <= maxTy; ty++) {
       for (let tx = minTx; tx <= maxTx; tx++) {
+        const c0 = iso.tileCenterToIso(tx, ty);
+        if (c0.x + ISO_HW <= rl || c0.x - ISO_HW >= rr || c0.y + ISO_HH <= rt || c0.y - ISO_HH >= rb) continue;
         const t = grid.cells[ty * grid.width + tx] as TerrainType;
         const [top, right, bottom, left] = iso.tileDiamond(tx, ty) as [
           { x: number; y: number }, { x: number; y: number }, { x: number; y: number }, { x: number; y: number },
@@ -87,7 +108,6 @@ export function makeTerrainDecorate(
         // Sub-tile dither: place the deterministic clusters around the diamond
         // centre (kept inside the diamond by scaling their tile-space offset to
         // the diamond's half extents).
-        const c0 = iso.tileCenterToIso(tx, ty);
         for (const c of ditherClusters(sampler, tx, ty, t)) {
           // Map the cluster's in-tile (x,y)∈[0,TILE_SIZE) to a diamond-local
           // offset: shrink toward centre so specks stay on the diamond face.

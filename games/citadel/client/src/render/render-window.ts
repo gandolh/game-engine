@@ -1,24 +1,21 @@
 /**
- * Citadel 21 — render-windowed sparse grid (large-map renderer).
+ * The camera's tile window: which tiles the view can see, in iso space, for
+ * culling what each frame pushes (buildings, villagers), plus the virtual-cell
+ * lookup ({@link getCellOr}) that keeps per-cell render objects off the grid.
  *
- * Lineage: tiny-world-builder's "intent-full / render-windowed" model — the
- * logical grid may be huge (256×256 for the MP world, brief 29), but only the
- * camera-centred window needs materialised render objects; off-window cells come
- * from a virtual default via {@link getCellOr} rather than preallocation, so
- * render-object memory stays flat as the logical grid grows.
- *
- * Windowing is **mandatory** on the MP world, not an optimisation: its iso extent
- * is 8192 × 4112 px ⇒ ~134.7 MB of RGBA static-layer texture, and 8192 sits right at
- * the WebGL2 `MAX_TEXTURE_SIZE` many drivers report (checked at the real per-driver
- * limit by `static-layer-pass.ts`, never hardcoded). A whole-world bake risks
- * failing to allocate. Small worlds (solo's 96×96 ⇒ 3072 × 1552) bake whole.
- *
- * This module is the PURE, testable core (window math + virtualisation); the
- * engine wiring lives in `window-controller.ts`.
+ * It no longer drives the terrain bake: the engine draws the static layer as
+ * patches and bakes each one from its own iso rect (see `terrain-dither.ts`'s
+ * `regionTiles`), so the re-baking terrain window that used to live beside this
+ * file is gone (corpus decisions.md → Renderer, 2026-11-03).
  *
  * Render-only; no determinism impact.
  */
 import type { IsoProjection } from "./iso";
+
+/** Tiles of margin round the camera view when culling what to push each frame, so
+ *  a tall building's sprite is already pushed before its origin tile reaches the
+ *  screen edge. */
+export const WINDOW_PAD = 8;
 
 export interface TileWindow {
   readonly minTx: number;

@@ -255,7 +255,7 @@ export async function runShowcase(
   canvas: HTMLCanvasElement,
   terrain: TerrainGrid,
 ): Promise<{ toggles: ShowcaseToggles; stop: () => void }> {
-  const { renderer, camera, iso, windowController } = await createCitadelRenderer(canvas, terrain);
+  const { renderer, camera, iso } = await createCitadelRenderer(canvas, terrain);
   const toggles: ShowcaseToggles = { ...DEFAULT_SHOWCASE_TOGGLES };
 
   // Hide the game's static HUD DOM (index.html ships it) — the showcase is a bare
@@ -305,7 +305,6 @@ export async function runShowcase(
     const zoomForH = camera.worldUnitsY / (bounds.height * MARGIN);
     camera.setZoom(Math.min(zoomForW, zoomForH));
     fitCameraToCanvas(camera, canvas.width, canvas.height, iso);
-    windowController.update(camera);
 
     // Isometry overlay: a flat ground diamond + a vertical ruler behind each
     // building so you can read base-square → narrowing-upward.
