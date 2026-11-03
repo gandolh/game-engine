@@ -1,6 +1,6 @@
 ---
 summary: Citadel's game-design decisions of record. #21-#26 (2026-07-10, second session) deprecate multiplayer, grow the solo world to 192x192, and reverse #15's PvP relocation — they supersede much of #11-#20 from the same day.
-updated: 2026-08-18
+updated: 2026-11-03
 ---
 
 # Citadel — Decisions of Record
@@ -147,6 +147,9 @@ size that crosses the `4096²` iso-pixel windowing threshold** (`6144×3088`, 76
 grown the map without triggering windowing; 256×256 sits exactly on WebGPU's default (historical)
 `maxTextureDimension2D` of 8192 px with zero margin. The full size table is in
 [brief 110](../todos/closed/110-citadel-client-world-size.md).
+*2026-11-03: the windowed bake is gone. The engine draws any static layer past 4096 px as patches,
+which is what fixed this world's boot on 4096 px devices ([decisions.md](decisions.md) → Renderer).
+The 192×192 size stands.*
 
 **Updated 2026-08-18 (WebGL2 migration):** the guard is now `assertTextureWithinLimits`, which reads `gl.getParameter(gl.MAX_TEXTURE_SIZE)` and names the actual limit it found. The WebGL2 limit is driver-dependent rather than a fixed spec default, so the number must never be hardcoded — see `engine/core/src/render/webgl2/static-layer-pass.ts`.
 

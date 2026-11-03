@@ -70,14 +70,13 @@ which is how a "WebGPU-only render path" line outlived the page that already sai
 
 ## Build programs
 
-**Open in the queue** (list [todos/](todos/) for the current set), all approved at the 2026-11-03 grill and
-built in this order: [the engine patched static layer](todos/closed/2026-10-28-engine-patched-static-layer.md) (done 2026-11-03),
-[Citadel's window onto patches](todos/2026-10-28-citadel-window-onto-patches.md) (which also closes
-[Citadel's boot bake over 4096](todos/2026-10-28-citadel-boot-bake-over-4096.md)),
-[the immediate layer into `@engine/ui`](todos/2026-10-28-mathquest-retire-imgui-prototype.md) and
-[the games portal](todos/2026-11-03-games-portal.md). The [portal research](todos/closed/2026-10-27-game-portal-research.md)
-closed into that last spec. Also open: [retake the README's Farm and Citadel images](todos/2026-11-03-retake-readme-images-after-the-flip-fix.md)
-after the upside-down static-layer fix. The
+**Open in the queue** (list [todos/](todos/) for the current set), all approved at the 2026-11-03 grill:
+[the immediate layer into `@engine/ui`](todos/2026-10-28-mathquest-retire-imgui-prototype.md), then
+[the games portal](todos/2026-11-03-games-portal.md); and [retake the README's Farm and Citadel images](todos/2026-11-03-retake-readme-images-after-the-flip-fix.md)
+after the upside-down static-layer fix. Done 2026-11-03: [the engine patched static layer](todos/closed/2026-10-28-engine-patched-static-layer.md),
+[Citadel's terrain onto patches](todos/closed/2026-10-28-citadel-window-onto-patches.md) (which closed
+[Citadel's boot bake over 4096](todos/closed/2026-10-28-citadel-boot-bake-over-4096.md)). The
+[portal research](todos/closed/2026-10-27-game-portal-research.md) closed into the portal spec. The
 [immediate-mode](todos/closed/2026-10-27-mathquest-immediate-mode-research.md) and
 [tiled-textures](todos/closed/2026-10-27-tiled-textures-for-large-assets-research.md) research closed 2026-10-28. The three specs from 2026-10-09
 and the docs-site spec (2026-10-18, now on Docusaurus) closed on 2026-10-28. Everything else is closed. The Hollow

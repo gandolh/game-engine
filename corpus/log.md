@@ -4054,3 +4054,16 @@ in the README's Farm image (2026-10-09), with houses in water. The flag is now o
 was checked right way up, at its own limit and on 2048 px patches. Both calls are in [decisions.md](wiki/decisions.md),
 and the record is [asset-pipeline.md](wiki/asset-pipeline.md) → *Patches as built*. Filed:
 [retake the README images](todos/2026-11-03-retake-readme-images-after-the-flip-fix.md).
+
+## [2026-11-03] close | Citadel's terrain on patches; the re-baking window removed
+
+[Citadel's terrain onto patches](todos/closed/2026-10-28-citadel-window-onto-patches.md) is built, and with it
+[the boot bake over 4096](todos/closed/2026-10-28-citadel-boot-bake-over-4096.md). The terrain bakes once. At
+192×192 the 6144 px iso world is 3×2 patches of 2048 px, and each patch paints only the diamonds that reach
+it, in the whole-world order. The window controller and its `IncrementalQueue` (briefs 21/22) are deleted,
+and `terrain-bake.test.ts` replaces their tests. At `?textureLimit=4096` (dev) Citadel boots, pans inside live
+patches without baking, frees and re-bakes at the far corners, and shows no seam.
+
+Found on the way: the client renders its own 192×192 terrain even under `?mp`, so the server's 256×256
+world is never drawn. Online play is deprecated (Citadel decision #21), so nothing was changed. The
+256×256 case is covered by the unit check only.

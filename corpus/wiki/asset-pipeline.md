@@ -134,9 +134,9 @@ patch-sized files, the loader uploads each as a patch. That is part of the engin
 **Recommendation**: move the static layer onto patches in the engine, sized from the device limit
 (2048 px, or the limit if smaller), baked per region and lazily, far ones freed. It fixes Citadel's
 boot today and lets Farm grow past 4096. Keep one texture when a bake fits. Follow-up specs, for the
-owner: [Citadel boot bake over 4096](../todos/2026-10-28-citadel-boot-bake-over-4096.md),
+owner: [Citadel boot bake over 4096](../todos/closed/2026-10-28-citadel-boot-bake-over-4096.md),
 [patched static layer in the engine](../todos/closed/2026-10-28-engine-patched-static-layer.md), then
-[Citadel's window onto patches](../todos/2026-10-28-citadel-window-onto-patches.md).
+[Citadel's window onto patches](../todos/closed/2026-10-28-citadel-window-onto-patches.md).
 
 ## Patches as built (2026-11-03)
 

@@ -1,5 +1,8 @@
 # Citadel: the boot bake is 6144 px wide and fails on a 4096 device
 
+> **Done 2026-11-03, through [the move onto patches](2026-10-28-citadel-window-onto-patches.md).** No
+> stopgap was written. Citadel boots at `?textureLimit=4096` (dev), drawn on 2048 px patches.
+
 > **Owner, 2026-11-03: fold this into the patches work.** No stopgap in `window-controller.ts`; the
 > boot cap is met by [moving Citadel's window onto patches](2026-10-28-citadel-window-onto-patches.md),
 > whose acceptance already boots at 4096. Close this spec when that one closes.
@@ -7,8 +10,8 @@
 status: todo (approved 2026-11-03)
 created: 2026-10-28
 context: found by the large-textures research
-([spec](closed/2026-10-27-tiled-textures-for-large-assets-research.md), findings on
-[asset-pipeline.md](../wiki/asset-pipeline.md) → *Large images and patches*).
+([spec](2026-10-27-tiled-textures-for-large-assets-research.md), findings on
+[asset-pipeline.md](../../wiki/asset-pipeline.md) → *Large images and patches*).
 
 ## What is wrong
 
@@ -22,11 +25,11 @@ and the owner's rule is that phones still run.
 ## What to do
 
 Make the window never ask for more than the device allows. In
-[`window-controller.ts`](../../games/citadel/client/src/render/window-controller.ts), cap the
+[`window-controller.ts`](../../../games/citadel/client/src/render/window-controller.ts), cap the
 window's iso region at `gl.getParameter(MAX_TEXTURE_SIZE)` (read through the renderer; never a
 hardcoded 4096 or 8192) around the camera centre, and let the camera's zoom-out stop where the view
 would need more. Either cap alone works; doing both keeps the view honest. If
-[the engine patch spec](closed/2026-10-28-engine-patched-static-layer.md) lands first, this becomes part of
+[the engine patch spec](2026-10-28-engine-patched-static-layer.md) lands first, this becomes part of
 [moving the window onto patches](2026-10-28-citadel-window-onto-patches.md) instead.
 
 ## Acceptance

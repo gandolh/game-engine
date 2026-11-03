@@ -1,6 +1,6 @@
 ---
-summary: Citadel's WebGL2 render path — sprite-batch quads, the tint-alpha trap that rendered every translucent ground quad opaque, baked terrain, iso projection, road/bridge networks, the 3D-mesh building pipeline, and the atlas/asset wiring.
-updated: 2026-08-23
+summary: Citadel's WebGL2 render path — sprite-batch quads, the tint-alpha trap that rendered every translucent ground quad opaque, baked terrain (on engine patches since 2026-11-03), iso projection, road/bridge networks, the 3D-mesh building pipeline, and the atlas/asset wiring.
+updated: 2026-11-03
 ---
 
 # Citadel — rendering & assets
@@ -90,8 +90,13 @@ scratch as **in-code 3D meshes**:
 ## Rendering & assets
 
 Citadel renders through the engine's single **WebGL2** backend (there is no other backend to fall back to, and none is needed — WebGL2 is ~98% supported). If it cannot start, boot shows a message rather than leaving a blank surface. Terrain is baked into
-the static layer (render-windowed on the large MP map — see the 2026-06-19 log entry);
-buildings / villagers / raiders are `sprite-batch` quads.
+the static layer once, as iso diamonds. At 192×192 the iso world is 6144 px wide, past one texture, so
+the engine draws it as 2048 px patches. Each patch bakes only the diamonds that reach its iso rect
+(`makeTerrainDecorate`'s `region`, `regionTiles`), in the whole-world order, so diamonds that cross a
+patch edge come out the same on both sides. Since 2026-11-03 this replaces the re-baking camera window of
+briefs 21/22 ([decisions.md](decisions.md) → Renderer). `__citadel.windowState()` in dev reports the
+layer's patches (`staticLayerInfo`), and `?textureLimit=4096` in dev behaves as a 4096 px device. Buildings,
+villagers and raiders are `sprite-batch` quads.
 
 **Sprites (2026-06-19).** Entities are real **pixel-art sprites**, not flat colored
 boxes. The art lives as ASCII `PixelRecipe`s under
