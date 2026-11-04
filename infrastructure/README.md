@@ -10,7 +10,7 @@ this repo carrying *two* deploy stories and shipping neither.
 
 | file | what it is |
 |---|---|
-| `Dockerfile` | two stages (`deps`, `prod`) building the Farm Valley **sim server** from source under `tsx`. Build context is the **repo root**, not this directory. |
+| `Dockerfile` | three stages (`deps`, `build`, `prod`): installs the workspace, bundles the Farm Valley **sim server** to one ES module with Vite, and runs it with `node` directly. Build context is the **repo root**, not this directory. |
 | `docker-compose.yml` | builds that image and publishes it on **loopback only** (`127.0.0.1:${PORT}`), `restart: unless-stopped`. |
 | `.env.example` | copy to `.env` — compose's `env_file:` requires it to exist even though every variable has a default. |
 
@@ -53,6 +53,12 @@ downstream can re-derive them:
   reachable from outside the host except through the proxy.
 - **Node `>=24`**, pinned in the root `package.json` `engines` field and matching `node:24-alpine`
   here. This is the pin backed by a real constraint; the others follow it.
+- **Start command: `node games/farm/server/dist/index.mjs`**, no npm and no tsx (since 2026-11-04,
+  the owner's call that the apps on the box run built JavaScript; before that the image ran the
+  source under tsx through `npm run server`). `npm run build -w @farm/server` makes the bundle
+  ([`vite.build.config.ts`](../games/farm/server/vite.build.config.ts)); `ws` is inlined, so the
+  runtime stage has no `node_modules`. The bundle must stay in `dist/`, at the same depth as `src/`:
+  the server finds the wasm relative to its own file.
 - **The wasm artifacts must be in the image.** The `prod` stage `RUN test -f
   engine/wasm-modules/dist/pathfinding.wasm || exit 1` makes this **self-enforcing** rather than
   asserted in a comment, because two committed files once disagreed about it and the runtime resolved
@@ -62,10 +68,11 @@ downstream can re-derive them:
 
 ## What is not verified from here
 
-**Nothing here has been built or run in the environment this file was written in — there is no Docker
-daemon in the dev sandbox.** The `Dockerfile` and compose file are reviewed-correct, not
-execution-verified. Run `docker compose -f infrastructure/docker-compose.yml build` somewhere that
-has a daemon before trusting a change to either.
+**The image was last built and run locally on 2026-11-04**: it started, a WebSocket client got a
+static layer and a snapshot stream to `gameOver`, and `docker top` showed `node` alone. Compose
+itself was not run then (the image was built with `docker build --target prod`). Run
+`docker compose -f infrastructure/docker-compose.yml build` somewhere that has a daemon before
+trusting a change to either file.
 
 And even then: **a green `docker compose build` proves the image builds. It does not prove the deploy
 works.** The

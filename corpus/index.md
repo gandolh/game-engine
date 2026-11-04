@@ -74,7 +74,9 @@ which is how a "WebGPU-only render path" line outlived the page that already sai
 ## Build programs
 
 **Open in the queue** (list [briefs/todo/](briefs/todo/) for the current set): brief 01, [retake the README's Farm and Citadel images](briefs/todo/01-retake-readme-images-after-the-flip-fix.md)
-after the upside-down static-layer fix. Done 2026-11-03, all approved at that day's grill:
+after the upside-down static-layer fix. Done 2026-11-04: brief 02,
+[the Farm Valley server runs built JavaScript](briefs/done/02-the-farm-server-runs-built-javascript.md)
+(a Vite bundle started by `node`). Done 2026-11-03, all approved at that day's grill:
 [the engine patched static layer](todos/closed/2026-10-28-engine-patched-static-layer.md),
 [Citadel's terrain onto patches](todos/closed/2026-10-28-citadel-window-onto-patches.md) (which closed
 [Citadel's boot bake over 4096](todos/closed/2026-10-28-citadel-boot-bake-over-4096.md)),

@@ -112,7 +112,13 @@ describe("the wasm the sim server reads survives the build context (audit-40)", 
   });
 
   it("every OTHER dist/ is still excluded — the negation is scoped, not a blanket un-ignore", () => {
-    for (const d of ["engine/core/dist/index.js", "engine/ui/dist/index.js", "docs/dist/index.html"]) {
+    for (const d of [
+      "engine/core/dist/index.js",
+      "engine/ui/dist/index.js",
+      "docs/dist/index.html",
+      // A local server bundle must not leak into the context; the image builds its own.
+      "games/farm/server/dist/index.mjs",
+    ]) {
       expect(isExcluded(d), d).toBe(true);
     }
   });
@@ -124,12 +130,39 @@ describe("the Dockerfile's claim is enforced, not merely asserted", () => {
     expect(DOCKERFILE).toMatch(/RUN test -f engine\/wasm-modules\/dist\/pathfinding\.wasm/);
   });
 
-  it("the check runs in the stage that actually ships the source", () => {
+  it("the check runs in the stage that actually ships the artifacts", () => {
     const prod = DOCKERFILE.slice(DOCKERFILE.indexOf("AS prod"));
-    expect(prod).toContain("RUN test -f engine/wasm-modules/dist/pathfinding.wasm");
-    // ...and after the COPY that would bring it in, or it would pass vacuously.
-    expect(prod.indexOf("COPY engine ./engine")).toBeLessThan(
-      prod.indexOf("RUN test -f engine/wasm-modules/dist/pathfinding.wasm"),
+    const copy = prod.indexOf("COPY engine/wasm-modules/dist ./engine/wasm-modules/dist");
+    const check = prod.indexOf("RUN test -f engine/wasm-modules/dist/pathfinding.wasm");
+    // ...and after the COPY that brings them in, or it would pass vacuously. Both must be found:
+    // an indexOf of -1 is "less than" anything.
+    expect(copy).toBeGreaterThanOrEqual(0);
+    expect(check).toBeGreaterThan(copy);
+  });
+});
+
+describe("the runtime stage runs built JavaScript with node, nothing else", () => {
+  const prod = DOCKERFILE.slice(DOCKERFILE.indexOf("AS prod"));
+  /** The prod stage's instructions, comments and blanks stripped. */
+  const instructions = prod
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l !== "" && !l.startsWith("#"));
+
+  it("starts node directly on the bundle", () => {
+    expect(instructions).toContain('CMD ["node", "games/farm/server/dist/index.mjs"]');
+  });
+
+  it("ships neither npm scripts nor tsx", () => {
+    for (const line of instructions) {
+      expect(line, line).not.toMatch(/\bnpm\b|\btsx\b|node_modules/);
+    }
+  });
+
+  it("the bundle sits at the same depth as src/, so the server's relative wasm path still resolves", () => {
+    // index.ts reads `../../../../engine/wasm-modules/dist/pathfinding.wasm` from its own directory.
+    expect(instructions).toContain(
+      "COPY --from=build /app/games/farm/server/dist ./games/farm/server/dist",
     );
   });
 });

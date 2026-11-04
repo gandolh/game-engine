@@ -7,12 +7,25 @@
 # install bails. The source is small; node_modules is not, and it is built here
 # rather than shipped.
 #
-# Like just-a-bot, this runs from SOURCE under `tsx` (a devDependency), so the
-# runtime stage keeps dev dependencies. The committed wasm artifacts the sim
-# reads (pathfinding.wasm and friends) ride along with the source — which
-# required un-ignoring them in .dockerignore, whose `**/dist` rule had been
-# stripping them (audit-40). That claim is now CHECKED in the build below
-# rather than asserted here: a comment cannot fail.
+# The server runs as BUILT JavaScript, started by `node` directly: no npm, no
+# tsx and no node_modules in the runtime stage. The `build` stage bundles
+# @farm/server and the workspace packages it imports (raw .ts, which Node
+# cannot load) into one ES module with Vite — games/farm/server/vite.build.config.ts
+# says why a bundler rather than tsc. The bundle lands in dist/, at the same
+# depth as src/, because the server finds pathfinding.wasm relative to its own
+# file (`../../../../engine/wasm-modules/dist/`).
+#
+# Until 2026-11-04 this image ran from SOURCE under tsx, started through
+# `npm run server`, and kept every dev dependency at runtime. The owner decided
+# that day that the apps on the box run built JavaScript: the box's RAM is
+# shared by every app in the estate, and the two npm wrappers, the tsx loader
+# and its esbuild service were resident for nothing.
+#
+# The committed wasm artifacts the sim reads (pathfinding.wasm and friends)
+# come from the build context, which required un-ignoring them in
+# .dockerignore, whose `**/dist` rule had been stripping them (audit-40). That
+# claim is CHECKED in the prod stage below rather than asserted here: a comment
+# cannot fail.
 #
 # Only the SIM runs here. The three static clients built from this same
 # checkout — farm-valley, citadel, hollow — and the docs site are built on the
@@ -31,15 +44,17 @@ COPY --parents tools/*/package.json ./
 COPY docs/package.json ./docs/
 RUN npm ci
 
+FROM deps AS build
+COPY tsconfig.base.json ./
+COPY engine ./engine
+COPY games ./games
+RUN npm run build -w @farm/server
+
 FROM node:24-alpine AS prod
 LABEL org.opencontainers.image.title="Farm Valley sim server"
 WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
-COPY package.json tsconfig.base.json ./
-COPY engine ./engine
-COPY games ./games
-COPY tools ./tools
-COPY docs/package.json ./docs/
+COPY --from=build /app/games/farm/server/dist ./games/farm/server/dist
+COPY engine/wasm-modules/dist ./engine/wasm-modules/dist
 # audit-40: make the wasm contract SELF-ENFORCING. Two committed files used to disagree about
 # whether the artifacts reach the image, and the runtime resolved the disagreement by warning and
 # carrying on. Fail the BUILD instead — it costs nothing and it cannot drift out of date.
@@ -50,4 +65,5 @@ RUN test -f engine/wasm-modules/dist/pathfinding.wasm \
 ENV NODE_ENV=production \
     PORT=8787
 EXPOSE 8787
-CMD ["npm", "run", "server"]
+# node is PID 1 here; the server handles SIGTERM itself, so `docker stop` still shuts it down cleanly.
+CMD ["node", "games/farm/server/dist/index.mjs"]

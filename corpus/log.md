@@ -4110,3 +4110,18 @@ promoted in an estate-wide grill with the owner; the todo is deleted. [CLAUDE.md
 From the owner's memory review of the VPS (vps-deploy's `memory-on-the-box` research): the
 farm-valley-sim container starts through two `npm` processes and tsx. The owner decided the apps on
 the box run built JavaScript and start with `node` directly.
+
+## [2026-11-04] close | Brief 02: the Farm Valley server runs built JavaScript, started by node
+
+[Brief 02](briefs/done/02-the-farm-server-runs-built-javascript.md) is built. `npm run build -w
+@farm/server` bundles the server, the workspace packages it imports and `ws` into one ES module with
+Vite (`vite.build.config.ts`). It uses Vite rather than `tsc` because the packages export raw `.ts`
+with extensionless imports. The image's new `build` stage runs it, and the `prod` stage is
+`node:24-alpine` with the bundle and the wasm, started by `CMD ["node",
+"games/farm/server/dist/index.mjs"]`. Locally, idle memory fell from 188 to 27 MiB, the process tree
+from five processes to one `node`, and the image from 720 to 171 MB. The built server's snapshot
+stream was byte-identical to the tsx container's for the same seed. The revisit is recorded in the
+Dockerfile header, [`infrastructure/README.md`](../infrastructure/README.md),
+[decisions.md](wiki/decisions.md) (Prod hosting), [status.md](wiki/status.md) and
+[architecture.md](wiki/architecture.md). Dev stays on tsx. vps-deploy needs no change; the deploy
+is the owner's step.

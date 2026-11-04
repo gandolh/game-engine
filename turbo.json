@@ -123,6 +123,8 @@
     // build exists in @farm/client, @tool/atlas-builder, @engine/wasm-modules, AND
     // @engine/core / @engine/ui (audit-30: the latter two build a real dist/ for
     // `npm pack`/`npm publish`, via prepack -> build -> pack-swap.mjs --to-dist).
+    // @farm/server's build bundles the sim server for its container
+    // (infrastructure/Dockerfile runs it; it writes only its own dist/).
     // Two of the first three write CROSS-PACKAGE outputs (atlas-builder ->
     // client/public/atlas, wasm-modules -> client/public/wasm) that an in-package
     // `outputs` glob cannot capture, so caching would risk serving an artifact
