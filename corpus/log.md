@@ -4104,3 +4104,9 @@ after the upside-down fix is now
 [briefs/todo/01-retake-readme-images-after-the-flip-fix.md](briefs/todo/01-retake-readme-images-after-the-flip-fix.md),
 promoted in an estate-wide grill with the owner; the todo is deleted. [CLAUDE.md](CLAUDE.md) and
 [index.md](index.md) say where new specs go; `todos/closed/` stays the archive of everything before.
+
+## [2026-11-04] todo | Brief 02: the Farm Valley server runs built JavaScript, started by node
+
+From the owner's memory review of the VPS (vps-deploy's `memory-on-the-box` research): the
+farm-valley-sim container starts through two `npm` processes and tsx. The owner decided the apps on
+the box run built JavaScript and start with `node` directly.
