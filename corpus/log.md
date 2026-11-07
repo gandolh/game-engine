@@ -4101,7 +4101,7 @@ HTML/CSS surface. Record: [portal.md](wiki/portal.md).
 brief-board reads each project's `corpus/briefs/`, so this corpus has one again: `briefs/todo/`,
 `done/` and `superseded/`, numbered from 01. The todo to retake the README's Farm and Citadel images
 after the upside-down fix is now
-[briefs/todo/01-retake-readme-images-after-the-flip-fix.md](briefs/todo/01-retake-readme-images-after-the-flip-fix.md),
+[briefs/todo/01-retake-readme-images-after-the-flip-fix.md](briefs/done/01-retake-readme-images-after-the-flip-fix.md),
 promoted in an estate-wide grill with the owner; the todo is deleted. [CLAUDE.md](CLAUDE.md) and
 [index.md](index.md) say where new specs go; `todos/closed/` stays the archive of everything before.
 
@@ -4125,3 +4125,14 @@ Dockerfile header, [`infrastructure/README.md`](../infrastructure/README.md),
 [decisions.md](wiki/decisions.md) (Prod hosting), [status.md](wiki/status.md) and
 [architecture.md](wiki/architecture.md). Dev stays on tsx. vps-deploy needs no change; the deploy
 is the owner's step.
+
+## [2026-11-07] close | Brief 01: the README's Farm and Citadel images retaken after the flip fix
+
+[Brief 01](briefs/done/01-retake-readme-images-after-the-flip-fix.md) is done, at the owner's
+request. `four-games.webp` and `farm-farmers-panel.webp` come from a local production build of
+`main` served with `serve-all`: Farm's houses stand on land and its bridges join banks, and
+Citadel's terrain agrees with its minimap. All four grid tiles were retaken from that build.
+`docs/images/shots.md` dates the two rows 2026-11-07 and records the local build, Farm's capture
+tick and Citadel's layout in tiles. Found, not changed: the first day now reads "Day 0", where the
+2026-10-09 capture read "Day 1", so the README's alt text "midday on day 1" fits the old label.
+Commit `8d555bf`.

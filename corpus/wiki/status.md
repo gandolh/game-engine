@@ -1,6 +1,6 @@
 ---
 summary: The current-state snapshot — where each game stands, current sim/determinism behaviour, which gates run, architecture milestones, and open gaps. Brief-by-brief history lives in log.md and the todos/briefs directories, not here.
-updated: 2026-11-04
+updated: 2026-11-07
 ---
 
 # Project Status
@@ -160,9 +160,8 @@ Newest first, one line each. Detail is in the [log.md](../log.md) entry for the 
   - push this repo and vps-deploy;
   - deploy `mathquest` and `games-portal`, then the three live games;
   - measure Hollow framed on a real GPU;
-  - check the portal on an Android phone;
-  - pick when to run brief 01, which retakes the README's Farm and Citadel images
-    ([brief](../briefs/todo/01-retake-readme-images-after-the-flip-fix.md)).
+  - check the portal on an Android phone.
+  The README's Farm and Citadel images were retaken on 2026-11-07 ([brief 01](../briefs/done/01-retake-readme-images-after-the-flip-fix.md)).
 
 - **2026-09-20** — a **visual** pass over the six fixes produced two more closed specs and one
   correction. **The font silently substituted `?` for glyphs it had not baked:** MateQuest's map-pan
