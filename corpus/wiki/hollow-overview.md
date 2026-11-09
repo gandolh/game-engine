@@ -1,6 +1,6 @@
 ---
 summary: What Hollow is (generational social-emergence sim on the shared engine) — M1 headless sim (exit-bar PASSED), M2 3D layer (engine **WebGL2** renderer + gene-driven cozy town), M3 research surfaces (observe module + chronicle/dashboard + persona authoring + shocks/replay), M4 hollow-12 governance + antagonism arcs, M5 hollow-14 Daily Life (leader-assigned jobs + diurnal routine + one central hearth + rare/private interaction), M6 hollow-15 Mortality & Care (3-day starvation death + persistent corpses + graveyard/grave-digger burial + rot→disease + medic), plus load-bearing decisions + known traits.
-updated: 2026-10-07
+updated: 2026-11-09
 ---
 
 # Hollow — overview
@@ -25,10 +25,6 @@ The per-brief record is in [log.md](../log.md) and the closed `2026-07-17-hollow
 - **`@hollow/client`** — browser client. **M2 landed** the living 3D town: it consumes the
   engine WebGL2 renderer, reads the Worker snapshot stream, and draws the cozy scene
   (`src/render3d/` + `src/main.ts`, worker `src/worker/`). `npm run hollow`.
-- **`games/hollow/os-app/`** — not a package: Hollow's ImbatranimOS module, **built and committed**
-  with its `imbatranim.json`, for ImbatranimOS's install-from-URL (sandboxed, nothing built on
-  install). Refresh with `npm run build:os-app -w @hollow/client`; see its
-  [README](../../games/hollow/os-app/README.md).
 - **`@tool/hollow-sim`** — the headless research CLI (hollow-07): drives `bootstrapHollowSim` on the
   main thread, samples metrics, captures the event chronicle, exports for offline study. Since M3 it
   consumes the shared `@hollow/sim-core/observe` serializers (one source of truth with the client) and

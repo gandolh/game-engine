@@ -30,7 +30,7 @@ Notes per game:
 
 - **Farm Valley.** Click Start or press Enter on the home screen; the seed field sets the run. WASD or the arrow keys move Pip, E acts, Space recentres on Pip, and Tab opens the leaderboard. The sim always runs in the server, so the client shows nothing useful without it.
 - **Citadel.** Solo play runs in a Web Worker and needs no server. `?cozy` or `?challenge` in the URL skips the ruleset picker. `?mp` drives the sim through the server instead, but multiplayer is deprecated; read [citadel-mp-deprecated.md](../corpus/wiki/citadel-mp-deprecated.md) before touching it.
-- **Hollow.** The founding screen sets the seed, the founders and the resource density. Hollow also builds as an ImbatranimOS app: `npm run build:os -w @hollow/client` writes `dist/os/hollow.mjs`, and `npm run build:os-app -w @hollow/client` refreshes the committed copy in [games/hollow/os-app](../games/hollow/os-app/README.md).
+- **Hollow.** The founding screen sets the seed, the founders and the resource density. Hollow also builds as an ImbatranimOS app: `npm run build:os -w @hollow/client` writes `dist/os/hollow.mjs`, which ImbatranimOS's marketplace catalog builds and installs.
 - **MateQuest.** The UI starts in Romanian; the RO | EN switch is in the map's bottom-right corner. Switching language restarts the run, by design.
 
 ### On other ports
@@ -118,7 +118,7 @@ engine/
 games/
   farm/           sim-core · client · server · atlas-recipes
   citadel/        sim-core · client · server
-  hollow/         sim-core · client · os-app (built ImbatranimOS app)
+  hollow/         sim-core · client
   mathquest/      sim-core · client
 tools/
   run-sim         headless deterministic Farm sim (no browser, no server)

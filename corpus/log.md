@@ -4136,3 +4136,14 @@ Citadel's terrain agrees with its minimap. All four grid tiles were retaken from
 tick and Citadel's layout in tiles. Found, not changed: the first day now reads "Day 0", where the
 2026-10-09 capture read "Day 1", so the README's alt text "midday on day 1" fits the old label.
 Commit `8d555bf`.
+
+## [2026-11-09] remove | Hollow's prebuilt ImbatranimOS copy is gone
+
+ImbatranimOS retired its prebuilt, sandboxed install-from-URL path (its brief 82): a version 1
+`imbatranim.json` is now refused at the check. `games/hollow/os-app/` was the only such manifest in
+the owner's repos and a second way in beside the catalog, which builds Hollow natively from
+`npm run build:os -w @hollow/client` at a pinned commit. Deleted: `games/hollow/os-app/` (the
+manifest, its README and the committed `dist/`), `scripts/sync-os-app.mjs`, the `build:os-app`
+script and the `.gitignore` exception for that `dist/`. [status.md](wiki/status.md),
+[hollow-overview.md](wiki/hollow-overview.md), `docs/games.md` and `docs/getting-started.md` no
+longer point at it. `build:os` is unchanged.

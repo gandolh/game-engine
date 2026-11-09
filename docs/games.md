@@ -45,7 +45,7 @@ A town that runs across generations. You choose the founders' archetypes, tune t
 
 It doubles as a research tool. The page has a live chronicle you can filter by event type, metric charts (population, births and deaths, communities, trust and wealth), buttons that apply shocks such as famine, plague or fire, and exports of the metrics, the events and the family tree. An optional hook lets a language model influence some decisions; it is off by default and changes nothing when off.
 
-Hollow also builds as an app for ImbatranimOS; see [games/hollow/os-app](../games/hollow/os-app/README.md). More: [the docs site's Hollow page](docs/games/hollow.mdx).
+Hollow also builds as an app for ImbatranimOS (`npm run build:os -w @hollow/client`), which installs it from its marketplace catalog. More: [the docs site's Hollow page](docs/games/hollow.mdx).
 
 ## MateQuest
 
