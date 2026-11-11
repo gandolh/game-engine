@@ -1,4 +1,4 @@
-import { type PixelRecipe } from "../../types";
+import type { PixelRecipe } from "../../types";
 
 // Spring blossom: the rounded green canopy dressed with small clustered blossoms
 // (salmon petals kissed with a white highlight) concentrated on the sunlit NW

@@ -1,4 +1,4 @@
-import { type PixelRecipe } from "../../types";
+import type { PixelRecipe } from "../../types";
 
 // A plump burlap grain sack cinched at the neck with a cord, bulging body shaded
 // NW->SE (cream sunlit shoulder -> tan -> clay pool on the SE), a folded rim.

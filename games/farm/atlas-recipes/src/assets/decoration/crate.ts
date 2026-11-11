@@ -1,4 +1,4 @@
-import { type PixelRecipe } from "../../types";
+import type { PixelRecipe } from "../../types";
 
 // A wooden shipping crate: woodDark plank frame around a lit wood face with a
 // diagonal corner brace, a highlight plank on the sunlit NW edge and a woodDark

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { createGlContext, GlContext } from "./gl-context";
+import { createGlContext, type GlContext } from "./gl-context";
 import { WeatherPass } from "./weather-pass";
 import type { ViewUniform } from "../view-uniform";
 import { EDG } from "../palette";

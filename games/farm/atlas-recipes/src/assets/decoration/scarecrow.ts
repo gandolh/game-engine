@@ -1,4 +1,4 @@
-import { type PixelRecipe } from "../../types";
+import type { PixelRecipe } from "../../types";
 
 // A scarecrow on a cross frame: a straw sun-hat (gold brim, yellow crown), a
 // burlap head, and a red tunic shaded NW->SE (red lit face, crimson shadow) with

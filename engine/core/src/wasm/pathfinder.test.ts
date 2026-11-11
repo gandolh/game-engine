@@ -2,7 +2,7 @@ import { describe, expect, it, beforeAll } from "vitest";
 import { readFile } from "node:fs/promises";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createPathfinderFromBytes, Pathfinder } from "./pathfinder";
+import { createPathfinderFromBytes, type Pathfinder } from "./pathfinder";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const wasmPath = resolve(__dirname, "../../../wasm-modules/dist/pathfinding.wasm");

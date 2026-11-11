@@ -1,4 +1,4 @@
-import { type PixelRecipe } from "../../types";
+import type { PixelRecipe } from "../../types";
 
 // A rounded shrub with volume: bright-green highlight on the NW crown ramping
 // through greenMid to greenDark with a teal shadow pocket on the SE underside —

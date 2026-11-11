@@ -10,7 +10,7 @@ import { leaderboard } from "../sim-bootstrap";
 import { seasonForDay } from "../protocols";
 import { summarizeRun } from "../run-recap";
 
-import { buildSprites, buildPlayerHotbar, buildPlayerInventory, SnapshotSpriteState } from "./sprites";
+import { buildSprites, buildPlayerHotbar, buildPlayerInventory, type SnapshotSpriteState } from "./sprites";
 import { buildMeets, buildEvents } from "./events";
 import { buildObserverSnapshot, countEntities } from "./observer";
 import {

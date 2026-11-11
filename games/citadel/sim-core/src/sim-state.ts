@@ -17,7 +17,7 @@
  * iterate `state.players` in stable id order (determinism).
  */
 import type { World } from "@engine/core";
-import { OccupancyGrid } from "@engine/core";
+import type { OccupancyGrid } from "@engine/core";
 import type { GoodType, BuildingRuntimeState, BuildingEntity } from "./entities/building";
 import { getProductionDef } from "./entities/building";
 import type { VillagerEntity } from "./entities/villager";

@@ -1,4 +1,4 @@
-import { type PixelRecipe } from "../../../types";
+import type { PixelRecipe } from "../../../types";
 
 const recipe: PixelRecipe = {
   name: "crop/radish/seed",

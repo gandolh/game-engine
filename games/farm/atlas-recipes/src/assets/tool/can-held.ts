@@ -1,4 +1,4 @@
-import { type PixelRecipe } from "../../types";
+import type { PixelRecipe } from "../../types";
 
 // Upright, at-rest watering can for the CARRIED-tool overlay (brief 89 Phase A). The hotbar
 // icon `tool/can` is drawn mid-pour (angled spout + water drops), which reads wrong when simply

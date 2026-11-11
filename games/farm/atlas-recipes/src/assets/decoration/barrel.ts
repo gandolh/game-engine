@@ -1,4 +1,4 @@
-import { type PixelRecipe } from "../../types";
+import type { PixelRecipe } from "../../types";
 
 // A coopered barrel with a cylindrical read: vertical staves lit on the NW side
 // (wood) rolling to woodDark/bark on the SE, three silver-highlit iron hoops, and

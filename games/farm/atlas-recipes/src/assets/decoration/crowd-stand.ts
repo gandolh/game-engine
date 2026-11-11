@@ -1,4 +1,4 @@
-import { type PixelRecipe } from "../../types";
+import type { PixelRecipe } from "../../types";
 
 // A small grandstand of cheering spectators, 1×1 tile (16×16), bottom-anchored.
 // Tiered structure-blue bleachers (S/s) packed with a colourful crowd of heads

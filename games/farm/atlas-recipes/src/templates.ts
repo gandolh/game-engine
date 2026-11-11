@@ -1,4 +1,4 @@
-import { type PixelRecipe } from "./types";
+import type { PixelRecipe } from "./types";
 
 export const ACTION_TEMPLATES: Record<string, readonly string[]> = {
   work: [

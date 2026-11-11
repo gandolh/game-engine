@@ -1,4 +1,4 @@
-import { type PixelRecipe } from "../../types";
+import type { PixelRecipe } from "../../types";
 
 // Autumn canopy: same rounded volume as the summer tree, warm ramp — yellow
 // highlight on the NW shoulder through gold and orange to a deep crimson pocket

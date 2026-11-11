@@ -7,7 +7,7 @@
  * a distinct, legible hue from HOLLOW_PAL (palette purity — no raw hex
  * anywhere in this module or its callers).
  */
-import { HOLLOW_PAL } from "../render/hollow-palette";
+import type { HOLLOW_PAL } from "../render/hollow-palette";
 
 /** Fixed, ordered — index `i` is community-color slot `i`. Do not reorder
  *  (that would silently reassign every existing community's territory

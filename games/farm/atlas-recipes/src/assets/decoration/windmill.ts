@@ -1,4 +1,4 @@
-import { type PixelRecipe } from "../../types";
+import type { PixelRecipe } from "../../types";
 
 // A proper farm windmill: four lattice sails radiating from a gold hub form a bold
 // X silhouette up top, over a tapered timber tower (lit wood on the NW face,

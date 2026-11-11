@@ -14,7 +14,7 @@
  * this file used to export — those were derived from the compile-time 96×96 and
  * silently mis-framed the 256×256 MP world. Use `iso.worldPxW` / `iso.worldPxH`.
  */
-import { Camera2D, MIN_ZOOM, MAX_ZOOM } from "@engine/core";
+import { type Camera2D, MIN_ZOOM, MAX_ZOOM } from "@engine/core";
 import { effectiveDpr } from "@engine/core/render";
 import type { IsoProjection } from "./iso";
 

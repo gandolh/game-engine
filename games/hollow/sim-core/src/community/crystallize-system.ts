@@ -46,7 +46,7 @@ import type { HollowEntity } from "../components";
 import { addGoods } from "../components";
 import { ONT_COMMUNITY } from "../protocols";
 import type { Community, CommunityTile } from "./community";
-import { CommunityRegistry } from "./registry";
+import type { CommunityRegistry } from "./registry";
 import { connectedComponents, density, distributeEvenly, mutualTrust } from "./trust";
 import {
   COMMUNITY_CHECK_INTERVAL_TICKS,

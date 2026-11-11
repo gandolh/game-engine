@@ -1,4 +1,4 @@
-import { type PixelRecipe } from "../../types";
+import type { PixelRecipe } from "../../types";
 
 // A folded paper flour sack: creased fold at the top, rectangular body shaded from
 // a cream sunlit left face to a tan SE side, with a small gold miller's mark.

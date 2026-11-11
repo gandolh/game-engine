@@ -1,4 +1,4 @@
-import { type PixelRecipe } from "../../types";
+import type { PixelRecipe } from "../../types";
 
 // A rounded granite boulder. NW sun: a bright silver cap top-left ramps through
 // steel -> slate -> navy to an ink shadow pooled lower-right, with a soft cluster

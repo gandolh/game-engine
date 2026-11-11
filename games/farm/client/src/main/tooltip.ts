@@ -1,4 +1,4 @@
-import { Camera2D } from "@engine/core";
+import type { Camera2D } from "@engine/core";
 import { TILE } from "./config";
 import { mousePos } from "./camera";
 import { screenToWorld } from "./screen-to-tile";

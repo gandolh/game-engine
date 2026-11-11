@@ -1,4 +1,4 @@
-import { type PixelRecipe } from "../../types";
+import type { PixelRecipe } from "../../types";
 
 // A balanced cairn: three rounded stones stacked, each NW-lit (silver cap top-left,
 // steel/slate body, navy->ink shadow lower-right) so the pile reads as stacked

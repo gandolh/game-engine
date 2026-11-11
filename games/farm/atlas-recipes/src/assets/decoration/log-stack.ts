@@ -1,4 +1,4 @@
-import { type PixelRecipe } from "../../types";
+import type { PixelRecipe } from "../../types";
 
 // A stacked woodpile seen end-on: five cut logs (three on the bottom row, two
 // nested above) each showing a bark ring (bark), a lit wood face and a darker

@@ -1,4 +1,4 @@
-import { type PixelRecipe } from "../../types";
+import type { PixelRecipe } from "../../types";
 
 // A planter box: timber frame (lit wood / woodDark shade) holding dark soil, with
 // two tidy rows of green stems topped by clustered blossoms (salmon, yellow, gold,

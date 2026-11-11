@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { buildBridgeGraph, isConnected, BRIDGE_WIDTH, type RoadRect } from "./bridge-graph";
 import { placeIslands, type RegionSpec, type PlacedIsland } from "./island-placement";
 import { createRng } from "@engine/core";
-import { type RegionId } from "./regions";
+import type { RegionId } from "./regions";
 
 function buildSpecs(): RegionSpec[] {
   const specs: RegionSpec[] = [];

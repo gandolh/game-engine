@@ -1,4 +1,4 @@
-import { type PixelRecipe } from "../../types";
+import type { PixelRecipe } from "../../types";
 
 // Bare winter tree: a solid tapering trunk that forks into branches, each limb
 // lit on its NW edge (wood) and shadowed on the SE (bark), with a few pale snow

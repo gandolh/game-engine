@@ -1,4 +1,4 @@
-import { Keyboard, ParticleSystem, Profiler, RainField, expSmooth } from "@engine/core";
+import { type Keyboard, type ParticleSystem, Profiler, type RainField, expSmooth } from "@engine/core";
 import { EDG } from "@engine/core";
 import type { RendererLike } from "@engine/core";
 import type { UIHost } from "../ui/canvas/ui-host";

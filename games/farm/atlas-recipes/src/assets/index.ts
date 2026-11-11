@@ -1,4 +1,4 @@
-import { type PixelRecipe } from "../types";
+import type { PixelRecipe } from "../types";
 
 import r0 from "./tile/shore";
 import r1 from "./tile/wall";

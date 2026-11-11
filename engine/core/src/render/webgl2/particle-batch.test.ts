@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { createGlContext, GlContext } from "./gl-context";
+import { createGlContext, type GlContext } from "./gl-context";
 import { ParticleBatch } from "./particle-batch";
 import type { ViewUniform } from "../view-uniform";
 import type { ParticleSystem, GpuParticleView } from "../particles";

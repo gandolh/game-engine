@@ -1,4 +1,4 @@
-import { type PixelRecipe } from "../../types";
+import type { PixelRecipe } from "../../types";
 
 // A bound straw bale: rounded rectangle with a sunlit top ridge (yellow), a gold
 // body shading to tan on the SE underside, horizontal straw striations, and two

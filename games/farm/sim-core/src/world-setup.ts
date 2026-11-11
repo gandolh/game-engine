@@ -1,4 +1,4 @@
-import { World, createRng } from "@engine/core";
+import { type World, createRng } from "@engine/core";
 import type { GameEntity, CropKind, Tool, Inventory } from "./components";
 import { zeroFish, HEALTH_MAX } from "./components";
 import { defaultItemSlots } from "./systems/player-control/items";

@@ -12,7 +12,7 @@ import { fileURLToPath } from "node:url";
  */
 export const RECIPES_SRC_DIR: string = dirname(fileURLToPath(import.meta.url));
 
-import { type PixelRecipe } from "./types";
+import type { PixelRecipe } from "./types";
 import { BASE_RECIPES } from "./assets/index";
 import {
   ACTION_TEMPLATES,

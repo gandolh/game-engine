@@ -1,4 +1,4 @@
-import { type PixelRecipe } from "../../types";
+import type { PixelRecipe } from "../../types";
 
 // Rounded broadleaf canopy with real volume: a bright-green highlight cluster on
 // the NW (sunlit) shoulder ramps through greenMid to greenDark and a teal

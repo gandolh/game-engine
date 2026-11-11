@@ -1,4 +1,4 @@
-import { Camera2D, MIN_ZOOM, MAX_ZOOM, expSmooth } from "@engine/core";
+import { type Camera2D, MIN_ZOOM, MAX_ZOOM, expSmooth } from "@engine/core";
 import { WORLD_WIDTH, WORLD_HEIGHT } from "@farm/sim-core/world/regions";
 import { TILE, DEFAULT_ZOOM } from "./config";
 import type { SnapshotSprite } from "@farm/sim-core/snapshot";

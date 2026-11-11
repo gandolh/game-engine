@@ -1,4 +1,4 @@
-import { ParticleSystem, EDG } from "@engine/core";
+import { type ParticleSystem, EDG } from "@engine/core";
 import { TILE } from "./config";
 import {
   focusedFarmerId,

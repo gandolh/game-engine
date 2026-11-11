@@ -1,4 +1,4 @@
-import { type PixelRecipe } from "../../types";
+import type { PixelRecipe } from "../../types";
 
 // A decorative picket fence: pointed timber pickets (lit wood face, woodDark
 // shade) joined by two rails, dressed with a garland of small blossoms along the

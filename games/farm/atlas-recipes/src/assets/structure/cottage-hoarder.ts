@@ -1,4 +1,4 @@
-import { type PixelRecipe } from "../../types";
+import type { PixelRecipe } from "../../types";
 
 // Cozy timber cottage. Shingled gable roof (per-personality hue) with a leaded
 // gable window; NW sun so the roof's left edge and the wall's left face are lit
