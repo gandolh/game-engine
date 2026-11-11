@@ -163,10 +163,7 @@ const ENGINE_DETERMINISM_ROOTS = ["sim", "ecs", "runtime"].map((name) => ({
   dir: join(HERE, name),
 }));
 
-const DETERMINISM_ROOTS: Array<{ game: string | null; dir: string }> = [
-  ...SIM_CORE_ROOTS,
-  ...ENGINE_DETERMINISM_ROOTS,
-];
+const DETERMINISM_ROOTS: Array<{ game: string | null; dir: string }> = [...SIM_CORE_ROOTS, ...ENGINE_DETERMINISM_ROOTS];
 
 const TEST_FILE_RE = /\.test\.ts$/;
 const TS_EXT_RE = /\.ts$/;

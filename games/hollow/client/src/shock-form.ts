@@ -47,7 +47,12 @@ export function defaultShockFormState(kind: ShockKind = "famine"): ShockFormStat
 export function buildShock(form: ShockFormState): Shock {
   switch (form.kind) {
     case "famine":
-      return { kind: "famine", resourceKind: form.resourceKind, factor: form.factor, durationTicks: form.durationTicks };
+      return {
+        kind: "famine",
+        resourceKind: form.resourceKind,
+        factor: form.factor,
+        durationTicks: form.durationTicks,
+      };
     case "boom":
       return { kind: "boom", resourceKind: form.resourceKind, factor: form.factor, durationTicks: form.durationTicks };
     case "disaster":

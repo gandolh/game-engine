@@ -57,12 +57,7 @@
  */
 import { needFraction } from "@engine/core/agent";
 import type { HollowEntity } from "../components";
-import {
-  NEED_FOOD,
-  NEED_REST,
-  SEEK_THRESHOLD_FRACTION,
-  REST_SEEK_THRESHOLD_FRACTION,
-} from "../economy";
+import { NEED_FOOD, NEED_REST, SEEK_THRESHOLD_FRACTION, REST_SEEK_THRESHOLD_FRACTION } from "../economy";
 import { INDUSTRIOUSNESS_REST_INFLUENCE } from "../family/constants";
 import { SOCIAL_COOLDOWN_TICKS } from "../social/deliberation-constants";
 import { dayPhase, HEARTH_TILE, GRAVEYARD_TILE } from "../world";
@@ -161,7 +156,11 @@ function tryQueueSocialAction(
  * nothing at all (arrived, idling — no verb fired, and GATHER/SLEEP never
  * fall back to `work`).
  */
-function applyGatherOrSleepRoutine(agent: HollowEntity, ctx: HollowDeliberationContext, phase: "gather" | "sleep"): true {
+function applyGatherOrSleepRoutine(
+  agent: HollowEntity,
+  ctx: HollowDeliberationContext,
+  phase: "gather" | "sleep",
+): true {
   const pos = agent.agent!;
   const intentions = agent.intentions!;
   const target = phase === "gather" ? HEARTH_TILE : homeAnchor(agent, ctx);
@@ -285,7 +284,11 @@ function applyGraveDiggerRoutine(agent: HollowEntity, ctx: HollowDeliberationCon
 
   if (pos.carryingCorpseId != null) {
     if (pos.gx !== GRAVEYARD_TILE.gx || pos.gy !== GRAVEYARD_TILE.gy) {
-      intentions.queue.push({ kind: "goto", data: { gx: GRAVEYARD_TILE.gx, gy: GRAVEYARD_TILE.gy }, priority: ROUTINE_GOTO_PRIORITY });
+      intentions.queue.push({
+        kind: "goto",
+        data: { gx: GRAVEYARD_TILE.gx, gy: GRAVEYARD_TILE.gy },
+        priority: ROUTINE_GOTO_PRIORITY,
+      });
     } else {
       intentions.queue.push({ kind: "bury_corpse", data: {}, priority: CARE_ACT_PRIORITY });
     }

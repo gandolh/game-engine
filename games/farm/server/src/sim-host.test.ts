@@ -15,10 +15,7 @@ const WASM_PATH = resolve(here, "../../../../engine/wasm-modules/dist/pathfindin
 
 function loadWasmBytes(): ArrayBuffer {
   const buf = readFileSync(WASM_PATH);
-  return buf.buffer.slice(
-    buf.byteOffset,
-    buf.byteOffset + buf.byteLength,
-  ) as ArrayBuffer;
+  return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer;
 }
 
 async function runHostToCompletion(
@@ -34,7 +31,6 @@ async function runHostToCompletion(
     (out as unknown as { push: (m: SimOutbound) => number }).push = (m) => {
       const n = orig(m);
       if (m.type === "snapshot" && m.snapshot.gameOver) {
-
         setTimeout(resolveDone, 0);
       }
       return n;
@@ -73,30 +69,22 @@ function faultSystemAt(tick: number): System {
 }
 
 function snapshotsOf(msgs: SimOutbound[]) {
-  return msgs.filter(
-    (m): m is Extract<SimOutbound, { type: "snapshot" }> => m.type === "snapshot",
-  );
+  return msgs.filter((m): m is Extract<SimOutbound, { type: "snapshot" }> => m.type === "snapshot");
 }
 
 function faultsOf(msgs: SimOutbound[]) {
-  return msgs.filter(
-    (m): m is Extract<SimOutbound, { type: "fault" }> => m.type === "fault",
-  );
+  return msgs.filter((m): m is Extract<SimOutbound, { type: "fault" }> => m.type === "fault");
 }
 
 describe("SimHost message stream", () => {
   it("emits a static-layer first, then a monotonic snapshot stream ending in gameOver", async () => {
-    const pf = (await createPathfinderFromBytes(
-      wasmBytes,
-    )) as unknown as PathfinderLike;
+    const pf = (await createPathfinderFromBytes(wasmBytes)) as unknown as PathfinderLike;
     const msgs = await runHostToCompletion(0xc0ffee, 20, 1, pf);
 
     expect(msgs[0]?.type).toBe("static-layer");
     const snaps = msgs.filter((m) => m.type === "snapshot");
     expect(snaps.length).toBeGreaterThan(0);
-    const ticks = snaps.map((m) =>
-      m.type === "snapshot" ? m.snapshot.tick : -1,
-    );
+    const ticks = snaps.map((m) => (m.type === "snapshot" ? m.snapshot.tick : -1));
     for (let i = 1; i < ticks.length; i++) {
       expect(ticks[i]!).toBeGreaterThan(ticks[i - 1]!);
     }
@@ -108,20 +96,14 @@ describe("SimHost message stream", () => {
 describe("transport transparency", () => {
   for (const seed of [0xc0ffee, 1, 42]) {
     it(`two host runs are byte-identical for seed 0x${seed.toString(16)}`, async () => {
-      const pfA = (await createPathfinderFromBytes(
-        wasmBytes,
-      )) as unknown as PathfinderLike;
-      const pfB = (await createPathfinderFromBytes(
-        wasmBytes,
-      )) as unknown as PathfinderLike;
+      const pfA = (await createPathfinderFromBytes(wasmBytes)) as unknown as PathfinderLike;
+      const pfB = (await createPathfinderFromBytes(wasmBytes)) as unknown as PathfinderLike;
 
       const a = await runHostToCompletion(seed, 20, 3, pfA);
       const b = await runHostToCompletion(seed, 20, 3, pfB);
 
       const snapsOf = (msgs: SimOutbound[]) =>
-        msgs
-          .filter((m) => m.type === "snapshot")
-          .map((m) => (m.type === "snapshot" ? JSON.stringify(m.snapshot) : ""));
+        msgs.filter((m) => m.type === "snapshot").map((m) => (m.type === "snapshot" ? JSON.stringify(m.snapshot) : ""));
       const sa = snapsOf(a);
       const sb = snapsOf(b);
       expect(sa.length).toBe(sb.length);
@@ -132,19 +114,12 @@ describe("transport transparency", () => {
 
 describe("WS round-trip (real socket)", () => {
   it("streams init → static-layer → snapshots → gameOver over a socket; pause stops advance", async () => {
-    const pf = (await createPathfinderFromBytes(
-      wasmBytes,
-    )) as unknown as PathfinderLike;
+    const pf = (await createPathfinderFromBytes(wasmBytes)) as unknown as PathfinderLike;
 
     const wss = new WebSocketServer({ port: 0 });
     wss.on("connection", (ws) => {
-      const host = new SimHost(
-        (m) => ws.readyState === ws.OPEN && ws.send(JSON.stringify(m)),
-        { pathfinder: pf },
-      );
-      ws.on("message", (d) =>
-        host.handleInbound(JSON.parse(d.toString()) as SimInbound),
-      );
+      const host = new SimHost((m) => ws.readyState === ws.OPEN && ws.send(JSON.stringify(m)), { pathfinder: pf });
+      ws.on("message", (d) => host.handleInbound(JSON.parse(d.toString()) as SimInbound));
       ws.on("close", () => host.stop());
     });
     await new Promise((r) => wss.once("listening", r));
@@ -215,9 +190,7 @@ describe("swap-slots index validation", () => {
 describe("hostile-input clamps", () => {
   it("a speed multiplier of 1e9 is clamped to 8 ticks per interval, not run unbounded", async () => {
     vi.useFakeTimers();
-    const pf = (await createPathfinderFromBytes(
-      wasmBytes,
-    )) as unknown as PathfinderLike;
+    const pf = (await createPathfinderFromBytes(wasmBytes)) as unknown as PathfinderLike;
     const msgs: SimOutbound[] = [];
     const host = new SimHost((m) => msgs.push(m), { pathfinder: pf });
 
@@ -244,9 +217,7 @@ describe("hostile-input clamps", () => {
 
   it("a speed multiplier of 0 falls back to 1 tick per interval", async () => {
     vi.useFakeTimers();
-    const pf = (await createPathfinderFromBytes(
-      wasmBytes,
-    )) as unknown as PathfinderLike;
+    const pf = (await createPathfinderFromBytes(wasmBytes)) as unknown as PathfinderLike;
     const msgs: SimOutbound[] = [];
     const host = new SimHost((m) => msgs.push(m), { pathfinder: pf });
 
@@ -272,9 +243,7 @@ describe("hostile-input clamps", () => {
   });
 
   it("a tickRateHz of 0 is clamped up to 1 Hz (1000ms period), not down to a near-0ms CPU-hog interval", async () => {
-    const pf = (await createPathfinderFromBytes(
-      wasmBytes,
-    )) as unknown as PathfinderLike;
+    const pf = (await createPathfinderFromBytes(wasmBytes)) as unknown as PathfinderLike;
     const host = new SimHost(() => {}, { pathfinder: pf });
     const setIntervalSpy = vi.spyOn(global, "setInterval");
 
@@ -296,9 +265,7 @@ describe("hostile-input clamps", () => {
   });
 
   it("a tickRateHz of 1000 is clamped down to 60 Hz", async () => {
-    const pf = (await createPathfinderFromBytes(
-      wasmBytes,
-    )) as unknown as PathfinderLike;
+    const pf = (await createPathfinderFromBytes(wasmBytes)) as unknown as PathfinderLike;
     const host = new SimHost(() => {}, { pathfinder: pf });
     const setIntervalSpy = vi.spyOn(global, "setInterval");
 
@@ -323,9 +290,7 @@ describe("hostile-input clamps", () => {
 describe("tick-fault policy (audit-17)", () => {
   it("halts the run and tells the client on a mid-tick fault — the corrupted tick's snapshot is never sent, and no tick after it runs", async () => {
     vi.useFakeTimers();
-    const pf = (await createPathfinderFromBytes(
-      wasmBytes,
-    )) as unknown as PathfinderLike;
+    const pf = (await createPathfinderFromBytes(wasmBytes)) as unknown as PathfinderLike;
     const msgs: SimOutbound[] = [];
     let scheduler: Scheduler | null = null;
     const host = new SimHost((m) => msgs.push(m), {
@@ -377,9 +342,7 @@ describe("tick-fault policy (audit-17)", () => {
 
   it("a throw on the tick that would have set gameOver still halts the run via the fault path, not the normal gameOver branch", async () => {
     vi.useFakeTimers();
-    const pf = (await createPathfinderFromBytes(
-      wasmBytes,
-    )) as unknown as PathfinderLike;
+    const pf = (await createPathfinderFromBytes(wasmBytes)) as unknown as PathfinderLike;
     const msgs: SimOutbound[] = [];
 
     // ticksPerDay=20, maxDays=1 → day flips to 1 (gameOver = day >= maxDays)

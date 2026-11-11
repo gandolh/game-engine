@@ -66,15 +66,15 @@ describe("visibleTileWindow — ISO space, not axis-aligned (brief 110 / finding
     // The invariant that actually matters: nothing visible may be left unbaked.
     // Sweep the viewport and assert each tile the camera can see is in the window.
     const { cx, cy } = centredOn(160, 96); // deliberately off the iso origin
-    const viewW = 640, viewH = 480;
+    const viewW = 640,
+      viewH = 480;
     const w = visibleTileWindow(mp, cx, cy, viewW, viewH, 1, 0);
 
     for (let ty = 0; ty < 256; ty++) {
       for (let tx = 0; tx < 256; tx++) {
         const c = mp.tileCenterToIso(tx, ty);
         const insideView =
-          c.x >= cx - viewW / 2 && c.x <= cx + viewW / 2 &&
-          c.y >= cy - viewH / 2 && c.y <= cy + viewH / 2;
+          c.x >= cx - viewW / 2 && c.x <= cx + viewW / 2 && c.y >= cy - viewH / 2 && c.y <= cy + viewH / 2;
         if (insideView) expect(windowContains(w, tx, ty)).toBe(true);
       }
     }
@@ -85,7 +85,8 @@ describe("visibleTileWindow — ISO space, not axis-aligned (brief 110 / finding
     // space the viewport's preimage is a rotated square, so that skews further from
     // the origin — which is why it only ever bit on the large MP world.
     const { cx, cy } = centredOn(200, 40); // far from origin, strongly skewed
-    const viewW = 640, viewH = 480;
+    const viewW = 640,
+      viewH = 480;
     const w = visibleTileWindow(mp, cx, cy, viewW, viewH, 1, 0);
 
     // Reproduce the old maths: treat iso px as if they were tile·TILE_SIZE px.
@@ -104,8 +105,7 @@ describe("visibleTileWindow — ISO space, not axis-aligned (brief 110 / finding
       for (let tx = 0; tx < 256; tx++) {
         const c = mp.tileCenterToIso(tx, ty);
         const onScreen =
-          c.x >= cx - viewW / 2 && c.x <= cx + viewW / 2 &&
-          c.y >= cy - viewH / 2 && c.y <= cy + viewH / 2;
+          c.x >= cx - viewW / 2 && c.x <= cx + viewW / 2 && c.y >= cy - viewH / 2 && c.y <= cy + viewH / 2;
         if (onScreen && !oldContains(tx, ty)) missed++;
       }
     }

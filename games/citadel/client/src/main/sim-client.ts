@@ -38,7 +38,7 @@ export let paused = false;
 export let speed = 1; // current sim-speed multiplier (1/2/4); drives the HUD speed-button highlight
 export let isHost = true; // solo is trivially host; MP: only the room host may pause/resume/change speed
 export let day = 1;
-export let tick = 0;            // render-side mirror of snap.tick (for the day/night wash)
+export let tick = 0; // render-side mirror of snap.tick (for the day/night wash)
 export let season = "spring";
 export let tier = "Hamlet"; // Phase 5: settlement tier (current; displayed in HUD)
 export let peakTier = "Hamlet"; // highest tier ever reached; gates build/upgrade buttons
@@ -118,7 +118,7 @@ export let currentRaiders: readonly RaiderSnapshot[] = [];
 // Render-only entity position interpolation bookkeeping — read by render-loop.ts's loop() to
 // compute the inter-snapshot glide fraction. Only mutated inside the onSnapshot handler below;
 // exported read-only.
-export let lastSnapshotMs = 0;   // render clock when the latest snapshot arrived
+export let lastSnapshotMs = 0; // render clock when the latest snapshot arrived
 export let snapshotIntervalMs = 0; // measured ms between the last two snapshot arrivals
 // Citadel 97/13: the sim tick of the last snapshot actually fed into interpolation
 // (null = none yet). Guards against pause/resume/speed-change correction snapshots,
@@ -136,8 +136,8 @@ client.onSnapshot((snap) => {
   isHost = snap.isHost;
   day = snap.day + 1;
   season = snap.season;
-  tier = snap.tier;  // Phase 5
-  peakTier = snap.peakTier;  // gates build/upgrade buttons (never demotes)
+  tier = snap.tier; // Phase 5
+  peakTier = snap.peakTier; // gates build/upgrade buttons (never demotes)
   // The build bar's tier-lock/affordability + active-tool states re-bind each frame in the
   // render loop (buildBar.refresh reads peakTier/stockpiles/placementState) — no call here.
   population = snap.population;

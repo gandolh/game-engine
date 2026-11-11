@@ -63,10 +63,12 @@ export interface StubRationalizerOptions {
  * — i.e. it agrees with the substrate, always.
  */
 export function createStubRationalizer(opts: StubRationalizerOptions = {}): Rationalizer {
-  const respond = opts.respond ?? ((request: RationalizerRequest) => ({
-    choiceIndex: request.bdiChoiceIndex,
-    rationale: stubRationale(request),
-  }));
+  const respond =
+    opts.respond ??
+    ((request: RationalizerRequest) => ({
+      choiceIndex: request.bdiChoiceIndex,
+      rationale: stubRationale(request),
+    }));
   let mailbox: RationalizerResult[] = [];
 
   return {
@@ -74,9 +76,7 @@ export function createStubRationalizer(opts: StubRationalizerOptions = {}): Rati
     submit(request: RationalizerRequest): void {
       const failure = opts.failWith?.(request) ?? null;
       mailbox.push(
-        failure !== null
-          ? { request, response: null, error: failure }
-          : { request, response: respond(request) },
+        failure !== null ? { request, response: null, error: failure } : { request, response: respond(request) },
       );
     },
     poll(): readonly RationalizerResult[] {

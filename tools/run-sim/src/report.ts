@@ -1,10 +1,5 @@
-
 import { writeFileSync } from "node:fs";
-import {
-  capReportEvents,
-  type RunReport,
-  type RunReportEvent,
-} from "@engine/core/sim";
+import { capReportEvents, type RunReport, type RunReportEvent } from "@engine/core/sim";
 import type { bootstrapSim } from "@farm/sim-core/sim-bootstrap";
 import type { DaySnapshot, FarmerSummary, RunResult } from "./run-core";
 

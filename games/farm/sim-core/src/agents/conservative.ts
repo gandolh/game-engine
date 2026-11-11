@@ -1,13 +1,38 @@
 import type { GameEntity, CropKind } from "../components";
 import { recordReason, resetDecisionTrace } from "../components";
 import { registerPersonality } from "./registry";
-import {
-  registerPeerTradeHooks,
-} from "./peer-trade-registry";
+import { registerPeerTradeHooks } from "./peer-trade-registry";
 import { makeRespondPeerOffer, makeInitiatePeerTrade } from "./peer-trade-policy";
 import { deliberateBean } from "./bean-valuation";
 import { nonFarmFocus, gatherBias, TEMPERAMENT } from "./skill-valuation";
-import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberatePlantNearby, deliberateBuildPen, deliberateBuyAnimal, deliberateTendPens, deliberateSellProducts, deliberatePlantOrchard, deliberateHarvestFruit, deliberateSellFruit, deliberateBuildGreenhouse, deliberateGreenhousePlant, deliberateTavernGather, deliberateFestivalGather, FESTIVAL_FRONT_PRIORITY, deliberateHarborContract, deliberateSkilledNonFarm } from "./watering";
+import {
+  deliberateWatering,
+  deliberateRefillCan,
+  deliberateTill,
+  deliberateBuyTool,
+  deliberateResourceGather,
+  deliberateDecoration,
+  deliberateUpgrade,
+  deliberateResourceZoneVisit,
+  deliberateEarlyVillageVisit,
+  deliberateSleep,
+  deliberatePeriodicMarketVisit,
+  deliberatePlantNearby,
+  deliberateBuildPen,
+  deliberateBuyAnimal,
+  deliberateTendPens,
+  deliberateSellProducts,
+  deliberatePlantOrchard,
+  deliberateHarvestFruit,
+  deliberateSellFruit,
+  deliberateBuildGreenhouse,
+  deliberateGreenhousePlant,
+  deliberateTavernGather,
+  deliberateFestivalGather,
+  FESTIVAL_FRONT_PRIORITY,
+  deliberateHarborContract,
+  deliberateSkilledNonFarm,
+} from "./watering";
 import type { HarborContract } from "../protocols/harbor";
 import type { PlotWaterSense } from "../systems/farming/plot-sense";
 import type { TileFeature, FarmDecoration } from "../components";
@@ -22,10 +47,13 @@ function pickConservativeCrop(
 ): { crop: CropKind; cost: number } {
   const season = seasonForDay(day);
   const inSeasonCheap: CropKind[] =
-    season === "spring" ? ["carrot", "radish", "wheat"] :
-    season === "summer" ? ["tomato", "corn"] :
-    season === "autumn" ? ["pumpkin", "grape"] :
-    ["winter-squash"];
+    season === "spring"
+      ? ["carrot", "radish", "wheat"]
+      : season === "summer"
+        ? ["tomato", "corn"]
+        : season === "autumn"
+          ? ["pumpkin", "grape"]
+          : ["winter-squash"];
   if (seeds !== undefined) {
     for (const crop of inSeasonCheap) {
       if (seeds[crop] >= 1) return { crop, cost: 0 };
@@ -67,9 +95,7 @@ export function deliberateConservative(farmer: GameEntity): void {
 
   const plotsOwned = (farmer.beliefs.data.plotWater as PlotWaterSense | undefined)?.planted ?? 0;
   if (plotsOwned < 6 && gold >= reserve + seedCost) {
-    const occupied = new Set<string>(
-      ((farmer.beliefs.data.occupiedTiles as string[] | undefined) ?? [])
-    );
+    const occupied = new Set<string>((farmer.beliefs.data.occupiedTiles as string[] | undefined) ?? []);
     deliberateBuyTool(farmer, "hoe", 1);
     deliberateTill(farmer, occupied, 1, 2);
   }
@@ -136,7 +162,7 @@ export function deliberateConservative(farmer: GameEntity): void {
   deliberatePeriodicMarketVisit(farmer, 3, 6);
 
   const surplusGold = gold >= reserve + 50;
-  const plotsUrgent = (sense?.maxDrySoFar ?? 0) >= 2; 
+  const plotsUrgent = (sense?.maxDrySoFar ?? 0) >= 2;
   const apHeadroom = (farmer.ap?.current ?? 0) >= 20;
   const quietInvestDay = surplusGold && !plotsUrgent && apHeadroom;
 
@@ -197,7 +223,7 @@ export function deliberateConservative(farmer: GameEntity): void {
 
 registerPersonality("conservative", deliberateConservative);
 
-const CONS_PEER_BUY_CEILING = 1.0; 
+const CONS_PEER_BUY_CEILING = 1.0;
 const CONS_PEER_SELL_FLOOR = 0.9;
 const CONS_BUFFER_SEEDS = 1;
 
@@ -210,7 +236,7 @@ export const respondToPeerOfferConservative = makeRespondPeerOffer({
 
 export const respondCropOfferConservative = makeRespondPeerOffer({
   commodity: "crop",
-  buyCeiling: 0.9, 
+  buyCeiling: 0.9,
   sellFloor: 0.9,
   bufferSeeds: 0,
   reserveDefault: 30,

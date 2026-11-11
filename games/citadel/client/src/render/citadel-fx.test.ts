@@ -45,9 +45,22 @@ import { buildingQuad } from "./citadel-renderer";
 
 function building(over: Partial<BuildingSnapshot> & Pick<BuildingSnapshot, "type" | "x" | "y">): BuildingSnapshot {
   return {
-    w: 1, h: 1, connected: true, outputBuffer: 0, workerCount: 0, occupancy: 0, ownerId: 0,
-    onFire: false, burning: false, level: 1,
-    lacksFaith: true, lacksSafety: true, lacksGoods: true, mood: 40, wellServed: false, ...over,
+    w: 1,
+    h: 1,
+    connected: true,
+    outputBuffer: 0,
+    workerCount: 0,
+    occupancy: 0,
+    ownerId: 0,
+    onFire: false,
+    burning: false,
+    level: 1,
+    lacksFaith: true,
+    lacksSafety: true,
+    lacksGoods: true,
+    mood: 40,
+    wellServed: false,
+    ...over,
   };
 }
 
@@ -192,7 +205,7 @@ describe("gaitOffset", () => {
     for (let id = 0; id < 30; id++) {
       for (let t = 0; t < 6; t += 0.07) {
         const o = gaitOffset(t, id, true);
-        expect(o).toBeGreaterThanOrEqual(0);                 // never sinks below ground
+        expect(o).toBeGreaterThanOrEqual(0); // never sinks below ground
         expect(o).toBeLessThanOrEqual(WALK_AMPLITUDE_PX + 1e-9);
         if (o > 0.5) sawPositive = true;
       }
@@ -210,11 +223,7 @@ describe("gaitOffset", () => {
 // ---------------------------------------------------------------------------
 
 describe("nearestVillager", () => {
-  const vs = [
-    villager({ id: 10, x: 5, y: 5 }),
-    villager({ id: 11, x: 8, y: 8 }),
-    villager({ id: 12, x: 5.4, y: 5.2 }),
-  ];
+  const vs = [villager({ id: 10, x: 5, y: 5 }), villager({ id: 11, x: 8, y: 8 }), villager({ id: 12, x: 5.4, y: 5.2 })];
 
   it("picks the nearest villager within the radius", () => {
     // Tile (5,5): id 10 is exact (d=0), id 12 is ~0.45 away — 10 wins.

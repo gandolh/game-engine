@@ -37,10 +37,7 @@ export function makeLightOverlay(
       const r = glow.radiusPx;
       if (
         view &&
-        (glow.cx + r < view.left ||
-          glow.cx - r > view.right ||
-          glow.cy + r < view.top ||
-          glow.cy - r > view.bottom)
+        (glow.cx + r < view.left || glow.cx - r > view.right || glow.cy + r < view.top || glow.cy - r > view.bottom)
       ) {
         continue;
       }

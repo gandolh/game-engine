@@ -1,12 +1,7 @@
 import type { Intention, MessageBus } from "@engine/core";
 import type { GameEntity, CropKind } from "../../../components";
 import { TOOL_PRICE } from "../../../components";
-import {
-  PRODUCT_SELL_PRICE,
-  FRUIT_SELL_PRICE,
-  QUALITY_MULTIPLIER,
-  debitCrop,
-} from "../../../economy";
+import { PRODUCT_SELL_PRICE, FRUIT_SELL_PRICE, QUALITY_MULTIPLIER, debitCrop } from "../../../economy";
 import { CROP_SELL_PRICE as SELL_PRICE } from "../../../economy";
 import {
   PERFORMATIVE,
@@ -16,12 +11,7 @@ import {
   type BuyRequestBody,
   type CancelOfferBody,
 } from "../../../protocols";
-import {
-  ONT_SHOP,
-  type ShopSellBody,
-  type AuctionBidBody,
-  type ResaleBeanBody,
-} from "../../../protocols/shop";
+import { ONT_SHOP, type ShopSellBody, type AuctionBidBody, type ResaleBeanBody } from "../../../protocols/shop";
 import { MILL_PRICE, MILL_BATCH } from "../constants";
 import type { ActingFarmer } from "../types";
 
@@ -70,10 +60,7 @@ export function handleBuySeed(
   );
 }
 
-export function handleSellShopkeeper(
-  farmer: ActingFarmer,
-  intent: Intention,
-): void {
+export function handleSellShopkeeper(farmer: ActingFarmer, intent: Intention): void {
   if (farmer.farmer?.currentRegion !== "village") return;
   const crop = intent.data.crop as CropKind;
   const qty = (intent.data.quantity as number) ?? 0;
@@ -90,7 +77,11 @@ export function handleSellShopkeeper(
     // that same gold, silver, normal order — so the price computed here
     // matches exactly what gets debited.
     let remaining = available;
-    for (const [tier, mult] of [["gold", QUALITY_MULTIPLIER.gold], ["silver", QUALITY_MULTIPLIER.silver], ["normal", QUALITY_MULTIPLIER.normal]] as const) {
+    for (const [tier, mult] of [
+      ["gold", QUALITY_MULTIPLIER.gold],
+      ["silver", QUALITY_MULTIPLIER.silver],
+      ["normal", QUALITY_MULTIPLIER.normal],
+    ] as const) {
       if (remaining <= 0) break;
       const take = Math.min(remaining, q[tier]);
       if (take > 0) {
@@ -255,10 +246,7 @@ export function handleResaleBean(
   );
 }
 
-export function handleBuyTool(
-  farmer: ActingFarmer,
-  intent: Intention,
-): void {
+export function handleBuyTool(farmer: ActingFarmer, intent: Intention): void {
   if (farmer.farmer?.currentRegion !== "village") return;
   const toolKind = intent.data.toolKind as import("../../../components").ToolKind;
   const tier: import("../../../components").ToolTier = "wooden";
@@ -269,10 +257,7 @@ export function handleBuyTool(
   farmer.inventory.tools.push({ kind: toolKind, tier, durability: 100 });
 }
 
-export function handleProcessCrop(
-  farmer: ActingFarmer,
-  intent: Intention,
-): void {
+export function handleProcessCrop(farmer: ActingFarmer, intent: Intention): void {
   if (farmer.farmer?.currentRegion !== "mill") return;
   const crop = intent.data.crop as CropKind;
   if (!(crop in MILL_PRICE)) return;
@@ -281,34 +266,30 @@ export function handleProcessCrop(
   farmer.inventory.gold += MILL_PRICE[crop] * taken;
 }
 
-export function handleSellProduct(
-  farmer: ActingFarmer,
-  intent: Intention,
-): void {
+export function handleSellProduct(farmer: ActingFarmer, intent: Intention): void {
   if (farmer.farmer?.currentRegion !== "village") return;
   const productKind = intent.data.kind as import("../../../components").ProductKind;
   const q = farmer.inventory.products?.[productKind];
   if (!q) return;
   const base = PRODUCT_SELL_PRICE[productKind];
-  const total = q.normal * base * QUALITY_MULTIPLIER.normal
-    + q.silver * base * QUALITY_MULTIPLIER.silver
-    + q.gold   * base * QUALITY_MULTIPLIER.gold;
+  const total =
+    q.normal * base * QUALITY_MULTIPLIER.normal +
+    q.silver * base * QUALITY_MULTIPLIER.silver +
+    q.gold * base * QUALITY_MULTIPLIER.gold;
   farmer.inventory.gold += Math.round(total);
   farmer.inventory.products![productKind] = { normal: 0, silver: 0, gold: 0 };
 }
 
-export function handleSellFruit(
-  farmer: ActingFarmer,
-  intent: Intention,
-): void {
+export function handleSellFruit(farmer: ActingFarmer, intent: Intention): void {
   if (farmer.farmer?.currentRegion !== "village") return;
   const fruitKind = intent.data.kind as import("../../../components").FruitKind;
   const q = farmer.inventory.fruit?.[fruitKind];
   if (!q) return;
   const base = FRUIT_SELL_PRICE[fruitKind];
-  const total = q.normal * base * QUALITY_MULTIPLIER.normal
-    + q.silver * base * QUALITY_MULTIPLIER.silver
-    + q.gold   * base * QUALITY_MULTIPLIER.gold;
+  const total =
+    q.normal * base * QUALITY_MULTIPLIER.normal +
+    q.silver * base * QUALITY_MULTIPLIER.silver +
+    q.gold * base * QUALITY_MULTIPLIER.gold;
   farmer.inventory.gold += Math.round(total);
   farmer.inventory.fruit![fruitKind] = { normal: 0, silver: 0, gold: 0 };
 }

@@ -33,10 +33,21 @@ function spawnWorkerAt(state: SimState, workX: number, workY: number): number {
   const p = state.players[0]!;
   const id = state.nextVillagerId++;
   const v: VillagerComponent = {
-    id, ownerId: p.id,
-    homeX: workX, homeY: workY, workX, workY, storeX: workX, storeY: workY,
-    fsm: "work", pathX: [], pathY: [], pathStep: 0,
-    carryGood: null, carryAmount: 0, ticksAtWork: 0,
+    id,
+    ownerId: p.id,
+    homeX: workX,
+    homeY: workY,
+    workX,
+    workY,
+    storeX: workX,
+    storeY: workY,
+    fsm: "work",
+    pathX: [],
+    pathY: [],
+    pathStep: 0,
+    carryGood: null,
+    carryAmount: 0,
+    ticksAtWork: 0,
   };
   state.villagerWorld.spawn({ villager: v });
   p.population++;
@@ -55,13 +66,19 @@ describe("removeOneVillager — preferRedundant drops a glutted-producer worker,
     const p = state.players[0]!;
     // A farm whose output (grain) is GLUTTED, and a bakery whose output (bread) is SCARCE.
     const farm = state.buildingWorld.spawn({ building: { type: "farm", x: 30, y: 30, w: 3, h: 3, ownerId: p.id } });
-    state.buildingState.set(farm.id!, { outputBuffer: 0, workerCount: 1, connected: true, productionTick: -1000, level: 1 });
+    state.buildingState.set(farm.id!, {
+      outputBuffer: 0,
+      workerCount: 1,
+      connected: true,
+      productionTick: -1000,
+      level: 1,
+    });
     spawnProducer(state, "bakery", 40, 40);
     p.stockpiles.grain = 500; // glutted  (threshold at pop 2 = 8×2 = 16)
-    p.stockpiles.bread = 0;   // scarce
+    p.stockpiles.bread = 0; // scarce
     // The farm worker is OLDER; the bakery worker is the NEWEST (highest id) — exactly the
     // arrival the old "drop the newest" rule would have culled.
-    const farmWorker = spawnWorkerAt(state, 31, 31);         // inside the farm footprint
+    const farmWorker = spawnWorkerAt(state, 31, 31); // inside the farm footprint
     const newestBakeryWorker = spawnWorkerAt(state, 41, 41); // inside the bakery footprint
     return { state, p, farmWorker, newestBakeryWorker };
   }
@@ -70,8 +87,8 @@ describe("removeOneVillager — preferRedundant drops a glutted-producer worker,
     const { state, p, farmWorker, newestBakeryWorker } = setup();
     expect(removeOneVillager(state, p, { preferRedundant: true })).toBe(true);
     const remaining = idsOf(state, p);
-    expect(remaining).not.toContain(farmWorker);       // the redundant one left
-    expect(remaining).toContain(newestBakeryWorker);   // the bread arrival survived
+    expect(remaining).not.toContain(farmWorker); // the redundant one left
+    expect(remaining).toContain(newestBakeryWorker); // the bread arrival survived
     expect(p.population).toBe(1);
   });
 
@@ -79,7 +96,7 @@ describe("removeOneVillager — preferRedundant drops a glutted-producer worker,
     const { state, p, farmWorker, newestBakeryWorker } = setup();
     expect(removeOneVillager(state, p)).toBe(true);
     const remaining = idsOf(state, p);
-    expect(remaining).toContain(farmWorker);           // the older worker stayed
+    expect(remaining).toContain(farmWorker); // the older worker stayed
     expect(remaining).not.toContain(newestBakeryWorker); // the newest was culled
   });
 
@@ -106,12 +123,18 @@ describe("VillagerSystem — the glut-skip steers a new worker to the scarce bot
     const p = state.players[0]!;
     const mk = (type: string, x: number, y: number, w: number, h: number, workers: number): number => {
       const e = state.buildingWorld.spawn({ building: { type, x, y, w, h, ownerId: p.id } });
-      state.buildingState.set(e.id!, { outputBuffer: 0, workerCount: workers, connected: true, productionTick: -1000, level: 1 });
+      state.buildingState.set(e.id!, {
+        outputBuffer: 0,
+        workerCount: workers,
+        connected: true,
+        productionTick: -1000,
+        level: 1,
+      });
       return e.id!;
     };
-    mk("farm", 20, 20, 3, 3, 1);            // first farm — staffs the "farm" type
-    const farm2 = mk("farm", 26, 20, 3, 3, 0);   // open second farm (grain producer)
-    mk("bakery", 20, 26, 2, 2, 1);          // first bakery — staffs the "bakery" type
+    mk("farm", 20, 20, 3, 3, 1); // first farm — staffs the "farm" type
+    const farm2 = mk("farm", 26, 20, 3, 3, 0); // open second farm (grain producer)
+    mk("bakery", 20, 26, 2, 2, 1); // first bakery — staffs the "bakery" type
     const bakery2 = mk("bakery", 26, 26, 2, 2, 0); // open second bakery (bread bottleneck)
     p.stockpiles.grain = grain;
     p.stockpiles.bread = 0;
@@ -119,9 +142,21 @@ describe("VillagerSystem — the glut-skip steers a new worker to the scarce bot
     // One idle villager, homed next to the second farm (so distance can't explain the choice).
     state.villagerWorld.spawn({
       villager: {
-        id: state.nextVillagerId++, ownerId: p.id,
-        homeX: 27, homeY: 21, workX: 27, workY: 21, storeX: 27, storeY: 21,
-        fsm: "idle", pathX: [], pathY: [], pathStep: 0, carryGood: null, carryAmount: 0, ticksAtWork: 0,
+        id: state.nextVillagerId++,
+        ownerId: p.id,
+        homeX: 27,
+        homeY: 21,
+        workX: 27,
+        workY: 21,
+        storeX: 27,
+        storeY: 21,
+        fsm: "idle",
+        pathX: [],
+        pathY: [],
+        pathStep: 0,
+        carryGood: null,
+        carryAmount: 0,
+        ticksAtWork: 0,
       },
     });
     new VillagerSystem(state).run({ tick: 0 });

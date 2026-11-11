@@ -52,10 +52,7 @@ function initial(name: string): string {
   return name.length > 0 ? name.charAt(0).toUpperCase() : "?";
 }
 
-function computeSignature(
-  farmers: RelationshipMatrixData["farmers"],
-  trust: RelationshipMatrixData["trust"],
-): string {
+function computeSignature(farmers: RelationshipMatrixData["farmers"], trust: RelationshipMatrixData["trust"]): string {
   let s = `${farmers.length}:`;
   for (const f of farmers) s += `${f.id}${initial(f.name)}${f.personality[0] ?? ""};`;
   s += "|";
@@ -92,10 +89,7 @@ export interface RelationshipMatrix {
 export function createRelationshipMatrix(prefs: PanelPrefs<PanelId>): RelationshipMatrix {
   const toggleBtn = button("Relations", { onActivate: () => doToggle() });
   const title = label("Relationships", { color: EDG.white });
-  const caption = label(
-    "Who trusts whom - each row toward each column.",
-    { color: EDG.steel },
-  );
+  const caption = label("Who trusts whom - each row toward each column.", { color: EDG.steel });
   const legend = box({ direction: "row", gap: 10, align: "center" }, [
     label("ally", { color: EDG.green }),
     label("neutral", { color: EDG.steel }),
@@ -109,9 +103,7 @@ export function createRelationshipMatrix(prefs: PanelPrefs<PanelId>): Relationsh
   let structureDirty = false;
 
   function restructure(): void {
-    root.children = prefs.isOpen("relations")
-      ? [toggleBtn, title, caption, legend, gridBox]
-      : [toggleBtn];
+    root.children = prefs.isOpen("relations") ? [toggleBtn, title, caption, legend, gridBox] : [toggleBtn];
   }
 
   function doToggle(): void {

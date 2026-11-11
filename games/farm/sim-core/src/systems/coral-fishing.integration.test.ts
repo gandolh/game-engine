@@ -21,7 +21,6 @@ const disembarked = new Set<number>();
 const stillAboardAtEnd = new Set<number>();
 
 describe("coral fishing (live sim)", () => {
-
   beforeAll(() => {
     const sim = bootstrapSim({
       seed: 0xc0ffee,
@@ -66,8 +65,8 @@ describe("coral fishing (live sim)", () => {
   it("completes the round trip: a farmer that went aboard returns on foot", () => {
     expect(everAboard.size).toBeGreaterThan(0);
 
-    const completedTrips = [...everAboard].filter(id => !stillAboardAtEnd.has(id));
-    expect(completedTrips.length).toBeGreaterThan(0); 
+    const completedTrips = [...everAboard].filter((id) => !stillAboardAtEnd.has(id));
+    expect(completedTrips.length).toBeGreaterThan(0);
     for (const id of completedTrips) expect(disembarked.has(id)).toBe(true);
   });
 });

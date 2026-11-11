@@ -2,9 +2,7 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   resolve: {
-    alias: {
-
-    },
+    alias: {},
   },
   test: {
     environment: "node",

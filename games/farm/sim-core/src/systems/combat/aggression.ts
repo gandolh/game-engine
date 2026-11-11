@@ -1,5 +1,3 @@
-
-
 import type { SimContext, System, World } from "@engine/core";
 import type { GameEntity } from "../../components";
 import { RIVAL_CUTOFF } from "../rivalry";
@@ -15,15 +13,17 @@ export class AggressionSystem implements System {
   ) {}
 
   run(ctx: SimContext): void {
-
     const byRegion = new Map<string, GameEntity[]>();
     for (const f of this.world.query("farmer", "trust")) {
-      if (f.id === undefined || f.player) continue; 
-      if (f.farmer?.chaseTarget) continue;           
+      if (f.id === undefined || f.player) continue;
+      if (f.farmer?.chaseTarget) continue;
       const region = f.farmer?.currentRegion;
       if (!region) continue;
       let list = byRegion.get(region);
-      if (!list) { list = []; byRegion.set(region, list); }
+      if (!list) {
+        list = [];
+        byRegion.set(region, list);
+      }
       list.push(f);
     }
 

@@ -81,7 +81,6 @@ export function pushWorldDecor(
   });
 
   for (let r = 0; r < WATERFALL_FALL_ROWS; r++) {
-
     const frame = sampleCycle(WATERFALL_FALL_CLIP, nowMs, (3 - (r % 3)) % 3);
     renderer.push({
       x: WATERFALL_TILE.x * TILE + TILE / 2,
@@ -99,19 +98,24 @@ export function pushWorldDecor(
   {
     const wfX = WATERFALL_TILE.x * TILE + TILE / 2;
     const wfFootY = (WATERFALL_TILE.y + WATERFALL_FALL_ROWS + 1) * TILE;
-    const wfInView =
-      wfX >= viewLeft && wfX <= viewRight && wfFootY >= viewTop && wfFootY <= viewBottom;
+    const wfInView = wfX >= viewLeft && wfX <= viewRight && wfFootY >= viewTop && wfFootY <= viewBottom;
     if (wfInView) {
       if (Math.random() < 0.5) {
         particles.emit({
           x: wfX + (Math.random() - 0.5) * TILE * 0.8,
           y: wfFootY,
-          count: 1, shape: "circle",
-          color: EDG.white, color2: EDG.skyBlue,
-          speedMin: 10, speedMax: 26,
-          angleMin: -Math.PI * 0.85, angleMax: -Math.PI * 0.15,
-          lifetimeMin: 0.3, lifetimeMax: 0.6,
-          sizeMin: 0.5, sizeMax: 1.1,
+          count: 1,
+          shape: "circle",
+          color: EDG.white,
+          color2: EDG.skyBlue,
+          speedMin: 10,
+          speedMax: 26,
+          angleMin: -Math.PI * 0.85,
+          angleMax: -Math.PI * 0.15,
+          lifetimeMin: 0.3,
+          lifetimeMax: 0.6,
+          sizeMin: 0.5,
+          sizeMax: 1.1,
           gravity: 90,
         });
       }
@@ -119,12 +123,18 @@ export function pushWorldDecor(
         particles.emit({
           x: wfX + (Math.random() - 0.5) * TILE,
           y: wfFootY - TILE * 0.3,
-          count: 1, shape: "circle",
-          color: EDG.white, color2: EDG.silver,
-          speedMin: 4, speedMax: 10,
-          angleMin: -Math.PI * 0.6, angleMax: -Math.PI * 0.4,
-          lifetimeMin: 0.8, lifetimeMax: 1.4,
-          sizeMin: 1, sizeMax: 2,
+          count: 1,
+          shape: "circle",
+          color: EDG.white,
+          color2: EDG.silver,
+          speedMin: 4,
+          speedMax: 10,
+          angleMin: -Math.PI * 0.6,
+          angleMax: -Math.PI * 0.4,
+          lifetimeMin: 0.8,
+          lifetimeMax: 1.4,
+          sizeMin: 1,
+          sizeMax: 2,
           gravity: -6,
         });
       }
@@ -160,17 +170,24 @@ export function pushWorldDecor(
   {
     const vX = VOLCANO_CRATER_TILE.x * TILE + TILE / 2;
     const vY = VOLCANO_CRATER_TILE.y * TILE + TILE / 2;
-    const inView = vX >= viewLeft - TILE && vX <= viewRight + TILE && vY >= viewTop - TILE * 4 && vY <= viewBottom + TILE;
+    const inView =
+      vX >= viewLeft - TILE && vX <= viewRight + TILE && vY >= viewTop - TILE * 4 && vY <= viewBottom + TILE;
     if (inView && Math.random() < 0.6) {
       particles.emit({
         x: vX + (Math.random() - 0.5) * TILE * 0.7,
         y: vY,
-        count: 1, shape: "circle",
-        color: EDG.steel, color2: EDG.slate,
-        speedMin: 6, speedMax: 16,
-        angleMin: -Math.PI * 0.62, angleMax: -Math.PI * 0.38,
-        lifetimeMin: 1.6, lifetimeMax: 2.8,
-        sizeMin: 1.2, sizeMax: 2.6,
+        count: 1,
+        shape: "circle",
+        color: EDG.steel,
+        color2: EDG.slate,
+        speedMin: 6,
+        speedMax: 16,
+        angleMin: -Math.PI * 0.62,
+        angleMax: -Math.PI * 0.38,
+        lifetimeMin: 1.6,
+        lifetimeMax: 2.8,
+        sizeMin: 1.2,
+        sizeMax: 2.6,
         gravity: -10,
       });
     }
@@ -181,10 +198,7 @@ export function pushWorldDecor(
  * Occasional pollen drift off mature crop sprites in the latest snapshot — a low-rate, low-chance
  * cosmetic emitter (unchanged 0.15 outer / 0.05 per-sprite gate from the original inline block).
  */
-export function spawnCropPollenParticles(
-  particles: ParticleSystem,
-  snap: RenderSnapshot | null,
-): void {
+export function spawnCropPollenParticles(particles: ParticleSystem, snap: RenderSnapshot | null): void {
   if (Math.random() >= 0.15) return;
   if (!snap) return;
   for (const s of snap.sprites) {
@@ -194,11 +208,16 @@ export function spawnCropPollenParticles(
         y: s.y - 4,
         count: 1,
         shape: "circle",
-        color: EDG.green, color2: EDG.green,
-        speedMin: 3, speedMax: 8,
-        angleMin: -Math.PI * 0.8, angleMax: -Math.PI * 0.2,
-        lifetimeMin: 0.8, lifetimeMax: 1.4,
-        sizeMin: 1, sizeMax: 2,
+        color: EDG.green,
+        color2: EDG.green,
+        speedMin: 3,
+        speedMax: 8,
+        angleMin: -Math.PI * 0.8,
+        angleMax: -Math.PI * 0.2,
+        lifetimeMin: 0.8,
+        lifetimeMax: 1.4,
+        sizeMin: 1,
+        sizeMax: 2,
         gravity: -5,
       });
     }

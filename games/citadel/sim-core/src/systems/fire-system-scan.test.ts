@@ -23,7 +23,10 @@ const TICKS_PER_DAY = 20;
 
 function findClear(
   terrain: { width: number; height: number; cells: Uint8Array },
-  w: number, h: number, sx: number, sy: number,
+  w: number,
+  h: number,
+  sx: number,
+  sy: number,
 ): { x: number; y: number } {
   for (let r = 0; r < 60; r++) {
     for (let dy = -r; dy <= r; dy++) {
@@ -33,7 +36,10 @@ function findClear(
         let ok = true;
         for (let yy = 0; yy < h && ok; yy++)
           for (let xx = 0; xx < w; xx++)
-            if (!isWalkable(terrain, x + xx, y + yy)) { ok = false; break; }
+            if (!isWalkable(terrain, x + xx, y + yy)) {
+              ok = false;
+              break;
+            }
         if (ok) return { x, y };
       }
     }
@@ -81,7 +87,9 @@ function instrumentBuildingQuery(sim: CitadelSimResult): { count: () => number; 
   };
   return {
     count: () => visits,
-    stop: () => { target[Symbol.iterator] = original; },
+    stop: () => {
+      target[Symbol.iterator] = original;
+    },
   };
 }
 
@@ -146,7 +154,7 @@ describe("FireSystem — per-tick building-scan volume", () => {
     // eslint-disable-next-line no-console
     console.log(
       `[audit-15] B=${B}, no-fire baseline visits=${baseline}, 8-fire visits=${withFires}, ` +
-      `delta attributable to 8 burning buildings=${delta} (=${(delta / B).toFixed(2)} x B)`,
+        `delta attributable to 8 burning buildings=${delta} (=${(delta / B).toFixed(2)} x B)`,
     );
 
     // Old code: _hasWellNear alone did one full O(B) scan PER burning

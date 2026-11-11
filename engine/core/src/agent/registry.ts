@@ -44,9 +44,6 @@ export function createRegistry<V>(label = "Entry"): Registry<V> {
 /** A registry of per-kind deliberator functions (the FSM deliberate case). */
 export type PersonalityRegistry<E, Ctx = DeliberationContext> = Registry<Deliberator<E, Ctx>>;
 
-export function createPersonalityRegistry<E, Ctx = DeliberationContext>(): PersonalityRegistry<
-  E,
-  Ctx
-> {
+export function createPersonalityRegistry<E, Ctx = DeliberationContext>(): PersonalityRegistry<E, Ctx> {
   return createRegistry<Deliberator<E, Ctx>>("Personality");
 }

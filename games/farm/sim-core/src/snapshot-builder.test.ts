@@ -19,7 +19,7 @@ import type { GameEntity } from "./components";
 
 const SEED = 0xc0ffee;
 const TICKS_PER_DAY = 20;
-const MAX_DAYS = 10; 
+const MAX_DAYS = 10;
 
 function bootAndTick(ticks: number) {
   const sim = bootstrapSim({
@@ -41,15 +41,7 @@ function bootAndTick(ticks: number) {
 describe("buildRenderSnapshot", () => {
   it("returns a snapshot with sprites at tick 5", () => {
     const sim = bootAndTick(5);
-    const snap = buildRenderSnapshot(
-      sim.world,
-      sim.dayClock,
-      sim.meetIndicators,
-      sim.eventFeed,
-      5,
-      MAX_DAYS,
-      null,
-    );
+    const snap = buildRenderSnapshot(sim.world, sim.dayClock, sim.meetIndicators, sim.eventFeed, 5, MAX_DAYS, null);
 
     expect(snap.tick).toBe(5);
     expect(snap.sprites.length).toBeGreaterThan(0);
@@ -60,15 +52,7 @@ describe("buildRenderSnapshot", () => {
 
   it("observer has one entry per farmer (4 AI + player + procedural band)", () => {
     const sim = bootAndTick(5);
-    const snap = buildRenderSnapshot(
-      sim.world,
-      sim.dayClock,
-      sim.meetIndicators,
-      sim.eventFeed,
-      5,
-      MAX_DAYS,
-      null,
-    );
+    const snap = buildRenderSnapshot(sim.world, sim.dayClock, sim.meetIndicators, sim.eventFeed, 5, MAX_DAYS, null);
 
     expect(snap.observer.farmers).toHaveLength(sim.farmers.length);
 
@@ -78,15 +62,7 @@ describe("buildRenderSnapshot", () => {
 
   it("leaderboard has one row per farmer with correct structure", () => {
     const sim = bootAndTick(5);
-    const snap = buildRenderSnapshot(
-      sim.world,
-      sim.dayClock,
-      sim.meetIndicators,
-      sim.eventFeed,
-      5,
-      MAX_DAYS,
-      null,
-    );
+    const snap = buildRenderSnapshot(sim.world, sim.dayClock, sim.meetIndicators, sim.eventFeed, 5, MAX_DAYS, null);
 
     expect(snap.leaderboard).toHaveLength(sim.farmers.length);
     for (const row of snap.leaderboard) {
@@ -104,45 +80,21 @@ describe("buildRenderSnapshot", () => {
 
   it("slate is an array (may be empty early in the sim)", () => {
     const sim = bootAndTick(5);
-    const snap = buildRenderSnapshot(
-      sim.world,
-      sim.dayClock,
-      sim.meetIndicators,
-      sim.eventFeed,
-      5,
-      MAX_DAYS,
-      null,
-    );
+    const snap = buildRenderSnapshot(sim.world, sim.dayClock, sim.meetIndicators, sim.eventFeed, 5, MAX_DAYS, null);
 
     expect(Array.isArray(snap.slate)).toBe(true);
   });
 
   it("entityCount is sane (> 0)", () => {
     const sim = bootAndTick(5);
-    const snap = buildRenderSnapshot(
-      sim.world,
-      sim.dayClock,
-      sim.meetIndicators,
-      sim.eventFeed,
-      5,
-      MAX_DAYS,
-      null,
-    );
+    const snap = buildRenderSnapshot(sim.world, sim.dayClock, sim.meetIndicators, sim.eventFeed, 5, MAX_DAYS, null);
 
     expect(snap.entityCount).toBeGreaterThan(0);
   });
 
   it("sprite positions are in pixel space (multiples of 8 or 8+n*16)", () => {
     const sim = bootAndTick(1);
-    const snap = buildRenderSnapshot(
-      sim.world,
-      sim.dayClock,
-      sim.meetIndicators,
-      sim.eventFeed,
-      1,
-      MAX_DAYS,
-      null,
-    );
+    const snap = buildRenderSnapshot(sim.world, sim.dayClock, sim.meetIndicators, sim.eventFeed, 1, MAX_DAYS, null);
 
     for (const s of snap.sprites) {
       expect(s.x).toBeGreaterThanOrEqual(0);
@@ -152,15 +104,7 @@ describe("buildRenderSnapshot", () => {
 
   it("farmer sprites have interpolate=true; crops have interpolate=false", () => {
     const sim = bootAndTick(5);
-    const snap = buildRenderSnapshot(
-      sim.world,
-      sim.dayClock,
-      sim.meetIndicators,
-      sim.eventFeed,
-      5,
-      MAX_DAYS,
-      null,
-    );
+    const snap = buildRenderSnapshot(sim.world, sim.dayClock, sim.meetIndicators, sim.eventFeed, 5, MAX_DAYS, null);
 
     const farmerSprites = snap.sprites.filter((s) => s.frame.startsWith("farmer/"));
     const cropSprites = snap.sprites.filter((s) => s.frame.startsWith("crop/"));
@@ -177,15 +121,7 @@ describe("buildRenderSnapshot", () => {
 
   it("work-NPC sprites have interpolate=true (brief 82 — they tile-step like farmers)", () => {
     const sim = bootAndTick(5);
-    const snap = buildRenderSnapshot(
-      sim.world,
-      sim.dayClock,
-      sim.meetIndicators,
-      sim.eventFeed,
-      5,
-      MAX_DAYS,
-      null,
-    );
+    const snap = buildRenderSnapshot(sim.world, sim.dayClock, sim.meetIndicators, sim.eventFeed, 5, MAX_DAYS, null);
 
     const npcIds = new Set<number>();
     for (const e of sim.world.query("workNpc")) {
@@ -209,21 +145,12 @@ describe("buildRenderSnapshot", () => {
       targetName: "Cora",
       plotsWiped: 3,
     };
-    const snap = buildRenderSnapshot(
-      sim.world,
-      sim.dayClock,
-      sim.meetIndicators,
-      sim.eventFeed,
-      5,
-      MAX_DAYS,
-      shock,
-    );
+    const snap = buildRenderSnapshot(sim.world, sim.dayClock, sim.meetIndicators, sim.eventFeed, 5, MAX_DAYS, shock);
 
     expect(snap.shock).toEqual(shock);
   });
 
   it("gameOver=true and finalSummary present when day >= maxDays", () => {
-
     const sim = bootAndTick(MAX_DAYS * TICKS_PER_DAY + 1);
     const snap = buildRenderSnapshot(
       sim.world,
@@ -338,17 +265,28 @@ describe("countEntities", () => {
 describe("INTENTION_KIND_TO_GLYPH", () => {
   it("maps every documented intention kind to an indicator/* frame", () => {
     const documented = [
-      "plant", "water", "harvest", "sell", "buy", "travel",
-      "sleep", "fish", "bid", "meet", "refill", "chop", "mine",
-      "work", "idle",
+      "plant",
+      "water",
+      "harvest",
+      "sell",
+      "buy",
+      "travel",
+      "sleep",
+      "fish",
+      "bid",
+      "meet",
+      "refill",
+      "chop",
+      "mine",
+      "work",
+      "idle",
     ] as const;
     for (const kind of documented) {
       const glyph = INTENTION_KIND_TO_GLYPH[kind];
       expect(glyph, `${kind} should map to a glyph`).toBeDefined();
-      expect(
-        glyph!.startsWith("indicator/intention-"),
-        `${kind} glyph should start with indicator/intention-`,
-      ).toBe(true);
+      expect(glyph!.startsWith("indicator/intention-"), `${kind} glyph should start with indicator/intention-`).toBe(
+        true,
+      );
     }
   });
 
@@ -421,43 +359,21 @@ describe("shouldStopSkip", () => {
 
 describe("AI farmer sprites carry a bubble field", () => {
   it("AI farmer sprites have a bubble field (string or null) after a tick", () => {
-
     const sim = bootAndTick(5);
-    const snap = buildRenderSnapshot(
-      sim.world,
-      sim.dayClock,
-      sim.meetIndicators,
-      sim.eventFeed,
-      5,
-      MAX_DAYS,
-      null,
-    );
+    const snap = buildRenderSnapshot(sim.world, sim.dayClock, sim.meetIndicators, sim.eventFeed, 5, MAX_DAYS, null);
 
-    const aiFarmerSprites = snap.sprites.filter(
-      (s) => s.interpolate && s.id !== null,
-    );
+    const aiFarmerSprites = snap.sprites.filter((s) => s.interpolate && s.id !== null);
     expect(aiFarmerSprites.length).toBeGreaterThan(0);
     for (const s of aiFarmerSprites) {
-
       expect(s.bubble === null || typeof s.bubble === "string").toBe(true);
     }
   });
 
   it("non-farmer sprites have no bubble (undefined or null, both falsy)", () => {
     const sim = bootAndTick(5);
-    const snap = buildRenderSnapshot(
-      sim.world,
-      sim.dayClock,
-      sim.meetIndicators,
-      sim.eventFeed,
-      5,
-      MAX_DAYS,
-      null,
-    );
+    const snap = buildRenderSnapshot(sim.world, sim.dayClock, sim.meetIndicators, sim.eventFeed, 5, MAX_DAYS, null);
 
-    const cropSprites = snap.sprites.filter(
-      (s) => s.frame.startsWith("crop/"),
-    );
+    const cropSprites = snap.sprites.filter((s) => s.frame.startsWith("crop/"));
     for (const s of cropSprites) {
       expect(s.bubble).toBeFalsy();
     }
@@ -465,33 +381,18 @@ describe("AI farmer sprites carry a bubble field", () => {
 });
 
 import { DRY_DEATH_GRACE_DAYS } from "./systems/farming/crop-growth";
-import {
-  UNTINTED_RGBA,
-  EXHAUSTED_AP_FRACTION,
-  cropCue,
-  farmerCue,
-} from "./snapshot-builder/indicators";
+import { UNTINTED_RGBA, EXHAUSTED_AP_FRACTION, cropCue, farmerCue } from "./snapshot-builder/indicators";
 import type { CropKind } from "./components";
 import { TILE } from "@engine/core/render";
 
 function snapAt(sim: ReturnType<typeof bootstrapSim>, tick: number) {
-  return buildRenderSnapshot(
-    sim.world,
-    sim.dayClock,
-    sim.meetIndicators,
-    sim.eventFeed,
-    tick,
-    MAX_DAYS,
-    null,
-  );
+  return buildRenderSnapshot(sim.world, sim.dayClock, sim.meetIndicators, sim.eventFeed, tick, MAX_DAYS, null);
 }
 
 function cropSpriteAt(snap: ReturnType<typeof snapAt>, tileX: number, tileY: number) {
   const x = tileX * TILE + TILE / 2;
   const y = tileY * TILE + TILE / 2;
-  return snap.sprites.find(
-    (s) => s.id === null && s.frame.startsWith("crop/") && s.x === x && s.y === y,
-  );
+  return snap.sprites.find((s) => s.id === null && s.frame.startsWith("crop/") && s.x === x && s.y === y);
 }
 
 function plantFirstPlot(
@@ -536,7 +437,7 @@ describe("visual state indicators — crops", () => {
     const s = cropSpriteAt(snap, tileX, tileY);
     expect(s).toBeDefined();
     expect(s!.tintRgba).not.toBe(UNTINTED_RGBA);
-    expect(s!.alpha).toBe(1); 
+    expect(s!.alpha).toBe(1);
     expect(s!.description).toContain("thirsty");
     expect(s!.description).not.toContain("dying");
   });
@@ -645,7 +546,7 @@ describe("visual state indicators — farmers", () => {
     const f = firstFarmer(sim);
     f.ap!.unrested = false;
     f.ap!.max = 100;
-    f.ap!.current = Math.floor(100 * EXHAUSTED_AP_FRACTION) - 1; 
+    f.ap!.current = Math.floor(100 * EXHAUSTED_AP_FRACTION) - 1;
     if (f.inventory!.wateringCan) f.inventory!.wateringCan.charges = f.inventory!.wateringCan.maxCharges;
     const snap = snapAt(sim, 5);
     const s = farmerSprite(snap, f.id!);
@@ -672,9 +573,9 @@ describe("visual state indicators — farmers", () => {
   it("broken tool takes precedence over exhausted", () => {
     const sim = bootAndTick(5);
     const f = firstFarmer(sim);
-    f.ap!.unrested = true; 
+    f.ap!.unrested = true;
     if (!f.inventory!.wateringCan) f.inventory!.wateringCan = { charges: 0, maxCharges: 10 };
-    else f.inventory!.wateringCan.charges = 0; 
+    else f.inventory!.wateringCan.charges = 0;
     const snap = snapAt(sim, 5);
     const s = farmerSprite(snap, f.id!);
     expect(s!.description).toContain("tool broken");
@@ -686,7 +587,7 @@ describe("visual state indicators — farmers", () => {
     const f = firstFarmer(sim);
     f.ap!.unrested = false;
     f.ap!.max = 100;
-    f.ap!.current = 100; 
+    f.ap!.current = 100;
     if (f.inventory!.wateringCan) f.inventory!.wateringCan.charges = f.inventory!.wateringCan.maxCharges;
     if (f.inventory!.tools) for (const t of f.inventory!.tools) t.durability = Math.max(t.durability, 10);
     const cue = farmerCue(f, sim.dayClock.day);

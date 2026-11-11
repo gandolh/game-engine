@@ -1,4 +1,3 @@
-
 import { EDG, rgbOf } from "@engine/core/render";
 import type { GameEntity, PlotState } from "../components";
 import { DRY_DEATH_GRACE_DAYS } from "../systems/farming/crop-growth";
@@ -23,8 +22,8 @@ function tintFrom(edgHex: string, alpha: number): number {
   return ((r << 24) | (g << 16) | (b << 8) | a) >>> 0;
 }
 
-const THIRSTY_TINT = tintFrom(EDG.steel, 1);    
-const DYING_TINT = tintFrom(EDG.slate, 0.6);    
+const THIRSTY_TINT = tintFrom(EDG.steel, 1);
+const DYING_TINT = tintFrom(EDG.slate, 0.6);
 
 export function cropCue(state: Extract<PlotState, { kind: "planted" }>): StateCue {
   const drySoFar = state.daysSinceWater ?? 0;
@@ -37,8 +36,8 @@ export function cropCue(state: Extract<PlotState, { kind: "planted" }>): StateCu
   return HEALTHY;
 }
 
-const BROKEN_TINT = tintFrom(EDG.red, 1);         
-const EXHAUSTED_TINT = tintFrom(EDG.steel, 0.8);  
+const BROKEN_TINT = tintFrom(EDG.red, 1);
+const EXHAUSTED_TINT = tintFrom(EDG.steel, 0.8);
 
 function hasBrokenTool(inv: NonNullable<GameEntity["inventory"]>): boolean {
   if (inv.wateringCan !== undefined && inv.wateringCan.charges === 0) return true;

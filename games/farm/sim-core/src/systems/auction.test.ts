@@ -41,12 +41,12 @@ describe("AuctionSystem — Vickrey", () => {
     sys.submitBid({ auctionId: "v1", bidderId: 102, amount: 90 }, 2);
     sys.submitBid({ auctionId: "v1", bidderId: 103, amount: 70 }, 3);
 
-    sys.run({ tick: 5 }); 
+    sys.run({ tick: 5 });
 
     const res = findResult(bus, "v1");
     expect(res).toBeDefined();
     expect(res!.winnerId).toBe(102);
-    expect(res!.paidPrice).toBe(70); 
+    expect(res!.paidPrice).toBe(70);
     expect(res!.participants.sort()).toEqual([101, 102, 103]);
   });
 
@@ -106,7 +106,7 @@ describe("AuctionSystem — Vickrey", () => {
     sys.run({ tick: 9 });
 
     const res = findResult(bus, "v-rev")!;
-    expect(res.winnerId).toBe(7);   // 3's stale 300 must not still be in the ladder
+    expect(res.winnerId).toBe(7); // 3's stale 300 must not still be in the ladder
     expect(res.paidPrice).toBe(50); // second price = 3's CURRENT bid
   });
 
@@ -228,7 +228,7 @@ describe("AuctionSystem — Vickrey", () => {
 
     const res = findResult(bus, "v4b");
     expect(res).toBeDefined();
-    expect(res!.winnerId).toBe(501); 
+    expect(res!.winnerId).toBe(501);
   });
 
   it("top bid below reserve → no winner", () => {
@@ -259,7 +259,7 @@ describe("AuctionSystem — Vickrey", () => {
     };
     sys.openAuction(cfp);
     sys.submitBid({ auctionId: "v6", bidderId: 1, amount: 50 }, 1);
-    sys.run({ tick: 5 }); 
+    sys.run({ tick: 5 });
 
     const res = findResult(bus, "v6");
     expect(res).toBeUndefined();
@@ -288,7 +288,7 @@ describe("AuctionSystem — Vickrey", () => {
     };
     sys.openAuction(cfp);
     sys.submitBid({ auctionId: "v8", bidderId: 1, amount: 50 }, 1);
-    sys.openAuction(cfp); 
+    sys.openAuction(cfp);
     sys.run({ tick: 3 });
     const res = findResult(bus, "v8");
     expect(res!.winnerId).toBe(1);
@@ -343,7 +343,7 @@ describe("AuctionSystem — Dutch", () => {
       closesAtTick: 20,
     };
     sys.openAuction(cfp);
-    sys.run({ tick: 0 }); 
+    sys.run({ tick: 0 });
 
     expect(sys.submitBid({ auctionId: "d2", bidderId: 9, amount: 50 }, 1)).toBe(false);
 
@@ -422,7 +422,7 @@ describe("AuctionSystem — FPSB", () => {
     const res = findResult(bus, "f1");
     expect(res).toBeDefined();
     expect(res!.winnerId).toBe(102);
-    expect(res!.paidPrice).toBe(90); 
+    expect(res!.paidPrice).toBe(90);
     expect(res!.participants.sort()).toEqual([101, 102, 103]);
   });
 
@@ -461,8 +461,8 @@ describe("AuctionSystem — FPSB", () => {
 
     const res = findResult(bus, "f3");
     expect(res).toBeDefined();
-    expect(res!.winnerId).toBe(301); 
-    expect(res!.paidPrice).toBe(50); 
+    expect(res!.winnerId).toBe(301);
+    expect(res!.paidPrice).toBe(50);
   });
 
   it("a re-bid replaces the bidder's previous bid here too (audit-38)", () => {
@@ -484,7 +484,7 @@ describe("AuctionSystem — FPSB", () => {
     sys.run({ tick: 9 });
 
     const res = findResult(bus, "f-dup")!;
-    expect(res.winnerId).toBe(7);    // 3's stale 300 is gone from the ladder
+    expect(res.winnerId).toBe(7); // 3's stale 300 is gone from the ladder
     expect(res.paidPrice).toBe(200); // FPSB: the winner pays their own bid
     expect(res.participants).toEqual([3, 7]); // first-bid order, one entry each
   });
@@ -532,7 +532,7 @@ describe("AuctionSystem — English", () => {
       closesAtTick: 50,
     };
     sys.openAuction(cfp);
-    sys.run({ tick: 0 }); 
+    sys.run({ tick: 0 });
 
     expect(sys.submitBid({ auctionId: "e1", bidderId: 7, amount: 30 }, 1)).toBe(true);
 
@@ -544,8 +544,8 @@ describe("AuctionSystem — English", () => {
 
     const res = findResult(bus, "e1");
     expect(res).toBeDefined();
-    expect(res!.winnerId).toBe(8); 
-    expect(res!.paidPrice).toBe(40); 
+    expect(res!.winnerId).toBe(8);
+    expect(res!.paidPrice).toBe(40);
     expect(res!.participants.sort()).toEqual([7, 8]);
   });
 

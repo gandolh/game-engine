@@ -267,5 +267,4 @@ describe("createRightColumn", () => {
     const wealthSection = inner.children.find((c) => (c.children as UINode[]).includes(extras.wealthToggle.root))!;
     expect(wealthSection.children).toContain(extras.wealthGraph.root);
   });
-
 });

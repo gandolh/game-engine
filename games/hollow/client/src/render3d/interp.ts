@@ -27,11 +27,7 @@
  * implementation over 1402 checks across 200 irregularly-spaced snapshots (including
  * agent spawn/despawn and pre-first-snapshot states): zero mismatches.
  */
-import {
-  lerpEntityPositions,
-  SnapshotInterpBuffer,
-  type InterpPosition,
-} from "@engine/core/render";
+import { lerpEntityPositions, SnapshotInterpBuffer, type InterpPosition } from "@engine/core/render";
 import type { HollowAgentSnapshot, HollowSnapshot } from "@hollow/sim-core/sim-bootstrap";
 
 /** Minimal shape {@link lerpAgentPositions} needs from a snapshot agent —

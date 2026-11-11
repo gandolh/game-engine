@@ -1,4 +1,3 @@
-
 import { bootstrapSim, leaderboard } from "@farm/sim-core/sim-bootstrap";
 import { JsPathfinder } from "@farm/sim-core/world/js-pathfinder";
 import { skillLevel } from "@farm/sim-core/systems/skills";
@@ -52,11 +51,15 @@ for (let tick = 0; tick < totalTicks; tick++) {
     const key = `${p.plot.tileX},${p.plot.tileY}`;
     if (!ghPlantedSeen.has(key)) {
       ghPlantedSeen.add(key);
-      console.log(`[day ${day}] greenhouse plot (${key}) planted with ${s.crop} (cropSeason=${CROP_SEASON[s.crop]}, season=${season})`);
+      console.log(
+        `[day ${day}] greenhouse plot (${key}) planted with ${s.crop} (cropSeason=${CROP_SEASON[s.crop]}, season=${season})`,
+      );
     }
     if (!outOfSeasonGreenhouseGrowth && CROP_SEASON[s.crop] !== season && s.daysGrowing > 0) {
       outOfSeasonGreenhouseGrowth = true;
-      console.log(`[day ${day}] OUT-OF-SEASON ${s.crop} growing in greenhouse (season=${season}, daysGrowing=${s.daysGrowing.toFixed(2)})`);
+      console.log(
+        `[day ${day}] OUT-OF-SEASON ${s.crop} growing in greenhouse (season=${season}, daysGrowing=${s.daysGrowing.toFixed(2)})`,
+      );
     }
   }
 }
@@ -83,11 +86,15 @@ for (const f of world.query("farmer")) {
 
 console.log("\n=== DAY-100 STANDINGS ===");
 for (const row of leaderboard(world)) {
-  console.log(`  ${row.name.padEnd(8)} ${row.personality.padEnd(12)} total=${Math.round(row.totalValue)} gold=${row.gold} unsold=${Math.round(row.unsoldValue)}`);
+  console.log(
+    `  ${row.name.padEnd(8)} ${row.personality.padEnd(12)} total=${Math.round(row.totalValue)} gold=${row.gold} unsold=${Math.round(row.unsoldValue)}`,
+  );
 }
 
 console.log("\n=== ACCEPTANCE ===");
-console.log(`  greenhouses built: ${greenhouseBuiltCount} (${[...greenhouseBuiltBy].join(", ") || "none"}), first on day ${firstGreenhouseDay}`);
+console.log(
+  `  greenhouses built: ${greenhouseBuiltCount} (${[...greenhouseBuiltBy].join(", ") || "none"}), first on day ${firstGreenhouseDay}`,
+);
 console.log(`  out-of-season growth in greenhouse: ${outOfSeasonGreenhouseGrowth}`);
 console.log(`  skills rose over the run: ${anySkillRose}`);
 const pass = greenhouseBuiltCount >= 1 && anySkillRose;

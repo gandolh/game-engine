@@ -1,4 +1,3 @@
-
 import { describe, it, expect } from "vitest";
 import type { GameEntity } from "../../components";
 import { PORTS } from "../../world/ports";
@@ -21,7 +20,7 @@ function makeFarmer(x: number, y: number, day: number, over: Partial<GameEntity>
 
 describe("deliberatePortHop", () => {
   const start = PORTS[0]!;
-  const target = PORTS[1]!; 
+  const target = PORTS[1]!;
 
   it("on foot away from a port on a trip day → walks to the nearest port dock", () => {
     const f = makeFarmer(start.dock.x + 5, start.dock.y + 5, PERIOD);
@@ -38,7 +37,6 @@ describe("deliberatePortHop", () => {
   });
 
   it("aboard with no existing same-day trip on record → returns to shore instead of inventing one (item 26)", () => {
-
     const f = makeFarmer(start.dock.x, start.dock.y, PERIOD, {
       farmer: { name: "Hopper", currentRegion: "fishing-isle", homeRegion: "fishing-isle", aboard: true },
     } as Partial<GameEntity>);
@@ -59,7 +57,6 @@ describe("deliberatePortHop", () => {
   });
 
   it("aboard, at the target dock → disembarks", () => {
-
     const f = makeFarmer(target.dock.x, target.dock.y, PERIOD, {
       farmer: { name: "Hopper", currentRegion: target.isle, homeRegion: "fishing-isle", aboard: true },
       beliefs: { data: { currentDay: PERIOD, portHopDay: PERIOD, portHopTarget: target.id }, revision: 0 },
@@ -69,7 +66,7 @@ describe("deliberatePortHop", () => {
   });
 
   it("does not start a hop off the period cadence", () => {
-    const f = makeFarmer(start.dock.x, start.dock.y, PERIOD + 1); 
+    const f = makeFarmer(start.dock.x, start.dock.y, PERIOD + 1);
     deliberatePortHop(f, PERIOD, 6, 140);
     expect(f.intentions!.queue.length).toBe(0);
   });

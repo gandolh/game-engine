@@ -10,13 +10,13 @@ export interface CameraConfig {
 }
 
 export class Camera2D {
-  private readonly baseUnitsX: number; 
+  private readonly baseUnitsX: number;
   private readonly baseUnitsY: number;
   worldUnitsX: number;
   worldUnitsY: number;
   centerX: number;
   centerY: number;
-  zoom: number = 1; 
+  zoom: number = 1;
 
   constructor(cfg: CameraConfig) {
     this.baseUnitsX = cfg.worldUnitsX;
@@ -37,7 +37,6 @@ export class Camera2D {
     this.worldUnitsX = this.baseUnitsX / this.zoom;
     this.worldUnitsY = this.baseUnitsY / this.zoom;
   }
-
 }
 
 export function expSmooth(current: number, target: number, k: number, dtSec: number): number {

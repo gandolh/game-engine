@@ -42,12 +42,7 @@ describe("createLeaderboard — data binding", () => {
 
   it("colour-codes rank 1/2/3 as gold/silver/clay, others steel", () => {
     const lb = createLeaderboard();
-    lb.refresh([
-      row({ rank: 1, id: 1 }),
-      row({ rank: 2, id: 2 }),
-      row({ rank: 3, id: 3 }),
-      row({ rank: 4, id: 4 }),
-    ]);
+    lb.refresh([row({ rank: 1, id: 1 }), row({ rank: 2, id: 2 }), row({ rank: 3, id: 3 }), row({ rank: 4, id: 4 })]);
     const ranks = labels(lb.root).filter((l) => /^#\d$/.test(l.text));
     expect(ranks.find((l) => l.text === "#1")?.color).toBe(EDG.gold);
     expect(ranks.find((l) => l.text === "#2")?.color).toBe(EDG.silver);

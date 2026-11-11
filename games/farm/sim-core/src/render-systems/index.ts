@@ -41,10 +41,7 @@ export {
 } from "./geometry";
 export type { ShoreTile, CoralTile } from "./geometry";
 
-export {
-  iterStaticSprites,
-  buildStaticLayerSprites,
-} from "./static-layer";
+export { iterStaticSprites, buildStaticLayerSprites } from "./static-layer";
 
 export { pushSnapshotSprites } from "./snapshot-sprites";
 

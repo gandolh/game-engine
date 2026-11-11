@@ -37,12 +37,18 @@ const CITADEL_DEFAULTS: Record<"status", boolean> = { status: true };
 function fakeStorage(seed: Record<string, string> = {}): Storage {
   const m = new Map(Object.entries(seed));
   return {
-    get length() { return m.size; },
+    get length() {
+      return m.size;
+    },
     clear: () => m.clear(),
     getItem: (k: string) => m.get(k) ?? null,
     key: (i: number) => [...m.keys()][i] ?? null,
-    removeItem: (k: string) => { m.delete(k); },
-    setItem: (k: string, v: string) => { m.set(k, v); },
+    removeItem: (k: string) => {
+      m.delete(k);
+    },
+    setItem: (k: string, v: string) => {
+      m.set(k, v);
+    },
   } as Storage;
 }
 

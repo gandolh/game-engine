@@ -33,7 +33,8 @@ describe("LivestockSystem", () => {
         count: 3,
         care: 0.8,
         fedToday: true,
-        tileX: 5, tileY: 5,
+        tileX: 5,
+        tileY: 5,
         regionId: "farm-cora",
         ownerId: farmer.id,
       },
@@ -60,7 +61,8 @@ describe("LivestockSystem", () => {
         count: 2,
         care: 0.8,
         fedToday: false,
-        tileX: 6, tileY: 6,
+        tileX: 6,
+        tileY: 6,
         regionId: "farm-cora",
         ownerId: farmer.id,
       },
@@ -72,7 +74,7 @@ describe("LivestockSystem", () => {
     const milk = totalProductCount(farmer.inventory, "milk");
     expect(milk).toBe(0);
 
-    const careDecay = careBefore - penEntity.pen!.care; 
+    const careDecay = careBefore - penEntity.pen!.care;
     expect(careDecay).toBeGreaterThan(0.05);
   });
 
@@ -85,9 +87,15 @@ describe("LivestockSystem", () => {
       if (farmer.id === undefined) return -1;
       world.spawn({
         pen: {
-          kind: "coop", animal: "chicken", count: 1, care: 0.9,
-          fedToday: true, tileX: 5, tileY: 5,
-          regionId: "farm-cora", ownerId: farmer.id,
+          kind: "coop",
+          animal: "chicken",
+          count: 1,
+          care: 0.9,
+          fedToday: true,
+          tileX: 5,
+          tileY: 5,
+          regionId: "farm-cora",
+          ownerId: farmer.id,
         },
       });
       runDays(sim, 2);
@@ -109,18 +117,24 @@ describe("LivestockSystem", () => {
 
     world.spawn({
       pen: {
-        kind: "coop", animal: "chicken", count: 2,
-        care: 0.5, fedToday: false, tileX: 5, tileY: 5,
-        regionId: "farm-cora", ownerId: farmer.id,
+        kind: "coop",
+        animal: "chicken",
+        count: 2,
+        care: 0.5,
+        fedToday: false,
+        tileX: 5,
+        tileY: 5,
+        regionId: "farm-cora",
+        ownerId: farmer.id,
       },
     });
 
     runDays(sim, 1);
 
     const board = leaderboard(world);
-    const entry = board.find(e => e.id === farmer.id);
+    const entry = board.find((e) => e.id === farmer.id);
     expect(entry).toBeDefined();
-    expect(entry!.assetValue).toBeGreaterThanOrEqual(30); 
+    expect(entry!.assetValue).toBeGreaterThanOrEqual(30);
     expect(entry!.totalValue).toBeGreaterThan(entry!.gold);
   });
 
@@ -136,9 +150,15 @@ describe("LivestockSystem", () => {
     const ranchDef = getRegion(ranch!);
     const penEntity = world.spawn({
       pen: {
-        kind: "coop", animal: "chicken", count: 1, care: 0.8,
-        fedToday: false, tileX: ranchDef.center.x, tileY: ranchDef.center.y,
-        regionId: ranch!, ownerId: farmer.id,
+        kind: "coop",
+        animal: "chicken",
+        count: 1,
+        care: 0.8,
+        fedToday: false,
+        tileX: ranchDef.center.x,
+        tileY: ranchDef.center.y,
+        regionId: ranch!,
+        ownerId: farmer.id,
       },
     });
     const intent: Intention = { kind: "tend", data: { penKind: "coop" }, priority: 5 };
@@ -151,9 +171,7 @@ describe("LivestockSystem", () => {
     farmer.beliefs!.data["hasPen_coop"] = true;
     farmer.beliefs!.data["coopFedToday"] = false;
     deliberateTendPens(farmer, 5);
-    const travel = farmer.intentions!.queue.find(
-      i => i.kind === "travel" && i.data.targetRegionId === ranch,
-    );
+    const travel = farmer.intentions!.queue.find((i) => i.kind === "travel" && i.data.targetRegionId === ranch);
     expect(travel, "should queue a travel to the ranch when away").toBeDefined();
 
     farmer.farmer!.currentRegion = ranch!;

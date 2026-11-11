@@ -5,12 +5,7 @@ import { FestivalSystem } from "./system";
 import { spawnWeatherStation } from "../../agents/weather-station";
 import { ZERO_CROPS } from "../../economy";
 import { ONT_SIMULATION, PERFORMATIVE } from "../../protocols";
-import {
-  ONT_FESTIVAL,
-  festivalForDay,
-  isFestivalLastDay,
-  type FestivalResultBody,
-} from "../../protocols/festival";
+import { ONT_FESTIVAL, festivalForDay, isFestivalLastDay, type FestivalResultBody } from "../../protocols/festival";
 
 const TICKS_PER_DAY = 10;
 
@@ -22,12 +17,7 @@ function firstFestivalDay(): { day: number; crop: CropKind } {
   throw new Error("no festival day found");
 }
 
-function spawnFarmerWithCrop(
-  world: World<GameEntity>,
-  name: string,
-  crop: CropKind,
-  qty: number,
-): GameEntity {
+function spawnFarmerWithCrop(world: World<GameEntity>, name: string, crop: CropKind, qty: number): GameEntity {
   return world.spawn({
     farmer: { name, currentRegion: "village" as const },
     inventory: { gold: 0, crops: { ...ZERO_CROPS, [crop]: qty }, seeds: { ...ZERO_CROPS } },

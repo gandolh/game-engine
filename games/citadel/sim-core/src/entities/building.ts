@@ -136,20 +136,20 @@ const BUILDING_DEFS: Readonly<Record<string, BuildingDef>> = {
   // Auto-substituted for `road` when the target tile is Water (see placeOne).
   bridge: { w: 1, h: 1 },
   // Phase 3: service buildings
-  chapel:      { w: 2, h: 2 },
-  market:      { w: 2, h: 2 },
-  watchpost:   { w: 2, h: 2 },
+  chapel: { w: 2, h: 2 },
+  market: { w: 2, h: 2 },
+  watchpost: { w: 2, h: 2 },
   tradingpost: { w: 3, h: 2 },
   // Phase 4: refining + siege
-  quarry:   { w: 2, h: 2 }, // terrain-locked on Stone terrain
-  sawmill:  { w: 2, h: 2 }, // wood → planks
-  smith:    { w: 2, h: 2 }, // stone → tools
-  mine:     { w: 2, h: 2 }, // produces stone (same terrain req as quarry)
-  wall:     { w: 1, h: 1 }, // impassable, drag-paint
-  gate:     { w: 1, h: 1 }, // passable to villagers (NOT wall-blocked)
-  tower:    { w: 2, h: 2 }, // defensive strength contributor
+  quarry: { w: 2, h: 2 }, // terrain-locked on Stone terrain
+  sawmill: { w: 2, h: 2 }, // wood → planks
+  smith: { w: 2, h: 2 }, // stone → tools
+  mine: { w: 2, h: 2 }, // produces stone (same terrain req as quarry)
+  wall: { w: 1, h: 1 }, // impassable, drag-paint
+  gate: { w: 1, h: 1 }, // passable to villagers (NOT wall-blocked)
+  tower: { w: 2, h: 2 }, // defensive strength contributor
   garrison: { w: 3, h: 2 }, // houses soldiers, worker/pop sink
-  keep:     { w: 3, h: 3 }, // the heart; if sacked → game-over
+  keep: { w: 3, h: 3 }, // the heart; if sacked → game-over
   // Citadel 29 (MP): each player's match-start anchor; sacked → elimination.
   "town-hall": { w: 3, h: 3 },
   // Cozy-pivot Phase G: civic gathering place — projects a festival (mood) footprint.
@@ -157,8 +157,8 @@ const BUILDING_DEFS: Readonly<Record<string, BuildingDef>> = {
   // the same neighbourhood grid without needing a big clearing.
   "public-square": { w: 2, h: 2 },
   // Phase 4.5: hazard mitigation
-  well:    { w: 1, h: 1 }, // reduces fire ignition chance nearby
-  healer:  { w: 2, h: 2 }, // reduces disease onset and mortality
+  well: { w: 1, h: 1 }, // reduces fire ignition chance nearby
+  healer: { w: 2, h: 2 }, // reduces disease onset and mortality
 };
 
 /** Service radius for buildings that provide needs coverage (in tiles, Manhattan). */
@@ -200,13 +200,7 @@ export const SERVICE_RECTS: Readonly<Record<string, { w: number; h: number }>> =
  * coverage. Half-open even-span anchoring: for an even `w`, columns run
  * `cx - floor(w/2) … cx + ceil(w/2) - 1` (same for rows with `h`).
  */
-export function coversRect(
-  type: string,
-  cx: number,
-  cy: number,
-  px: number,
-  py: number,
-): boolean {
+export function coversRect(type: string, cx: number, cy: number, px: number, py: number): boolean {
   const rect = SERVICE_RECTS[type];
   if (rect === undefined) return false;
   const x0 = cx - Math.floor(rect.w / 2);
@@ -574,30 +568,30 @@ export function upgradeCost(_type: string, toLevel: number): Partial<Record<Good
  * enables it (with a starting `startingStock` wood grant); headless/tests default off.
  */
 export const BUILD_COST: Readonly<Record<string, Partial<Record<GoodType, number>>>> = {
-  woodcutter:  { wood: 2 },
-  farm:        { wood: 3 },
-  house:       { wood: 4 },
-  well:        { wood: 4 },
-  storehouse:  { wood: 5 },
-  mill:        { wood: 6 },
-  bakery:      { wood: 6 },
-  market:      { wood: 6 },
-  watchpost:   { wood: 6 },
-  sawmill:     { wood: 6 },
-  quarry:      { wood: 6 },
-  chapel:      { wood: 8 },
+  woodcutter: { wood: 2 },
+  farm: { wood: 3 },
+  house: { wood: 4 },
+  well: { wood: 4 },
+  storehouse: { wood: 5 },
+  mill: { wood: 6 },
+  bakery: { wood: 6 },
+  market: { wood: 6 },
+  watchpost: { wood: 6 },
+  sawmill: { wood: 6 },
+  quarry: { wood: 6 },
+  chapel: { wood: 8 },
   tradingpost: { wood: 8 },
-  healer:      { wood: 8 },
-  mine:        { wood: 8 },
+  healer: { wood: 8 },
+  mine: { wood: 8 },
   // Cozy-pivot Phase G: civic gathering place — no goods/worker production, so
   // it's priced like the other pure-service buildings (chapel/tradingpost/healer),
   // not a late-tier refiner.
   "public-square": { wood: 8 },
-  smith:       { wood: 8, stone: 2 },
+  smith: { wood: 8, stone: 2 },
   "town-hall": { wood: 12 },
-  tower:       { wood: 8, stone: 4 },
-  garrison:    { wood: 10, stone: 6 },
-  keep:        { wood: 12, stone: 8 },
+  tower: { wood: 8, stone: 4 },
+  garrison: { wood: 10, stone: 6 },
+  keep: { wood: 12, stone: 8 },
 };
 
 /** Material cost to place `type` (empty = free). See {@link BUILD_COST}. */

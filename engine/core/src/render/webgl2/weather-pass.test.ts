@@ -18,15 +18,26 @@ interface Call {
 
 function makeFakeGl(): WebGL2RenderingContext & { calls: Call[] } {
   const calls: Call[] = [];
-  const record = (fn: string) => (...args: unknown[]) => {
-    calls.push({ fn, args });
-  };
+  const record =
+    (fn: string) =>
+    (...args: unknown[]) => {
+      calls.push({ fn, args });
+    };
 
   const gl = {
     calls,
-    ARRAY_BUFFER: 1, DYNAMIC_DRAW: 2, FLOAT: 3, TRIANGLES: 4,
-    VERTEX_SHADER: 5, FRAGMENT_SHADER: 6, COMPILE_STATUS: 7, LINK_STATUS: 8,
-    BLEND: 9, FUNC_ADD: 10, ONE: 11, ONE_MINUS_SRC_ALPHA: 12,
+    ARRAY_BUFFER: 1,
+    DYNAMIC_DRAW: 2,
+    FLOAT: 3,
+    TRIANGLES: 4,
+    VERTEX_SHADER: 5,
+    FRAGMENT_SHADER: 6,
+    COMPILE_STATUS: 7,
+    LINK_STATUS: 8,
+    BLEND: 9,
+    FUNC_ADD: 10,
+    ONE: 11,
+    ONE_MINUS_SRC_ALPHA: 12,
 
     createShader: vi.fn(() => ({ __kind: "shader" })),
     shaderSource: vi.fn(record("shaderSource")),
@@ -135,7 +146,7 @@ describe("WeatherPass program/VAO hoist (WebGL2 analogue of the WebGPU bind-grou
     const { ctx, gl } = makeCtx();
     new WeatherPass(ctx);
     expect(gl.calls.filter((c) => c.fn === "linkProgram")).toHaveLength(1);
-    expect((gl.createVertexArray as ReturnType<typeof vi.fn>)).toHaveBeenCalledTimes(2);
+    expect(gl.createVertexArray as ReturnType<typeof vi.fn>).toHaveBeenCalledTimes(2);
 
     const pass = new WeatherPass(ctx);
     const weather = makeRainWeather();
@@ -146,7 +157,7 @@ describe("WeatherPass program/VAO hoist (WebGL2 analogue of the WebGPU bind-grou
     // Two WeatherPass instances → two links/VAO pairs total; no extra ones from
     // the three draw() calls on the second instance.
     expect(gl.calls.filter((c) => c.fn === "linkProgram")).toHaveLength(2);
-    expect((gl.createVertexArray as ReturnType<typeof vi.fn>)).toHaveBeenCalledTimes(4);
+    expect(gl.createVertexArray as ReturnType<typeof vi.fn>).toHaveBeenCalledTimes(4);
     expect(gl.calls.filter((c) => c.fn === "drawArraysInstanced")).toHaveLength(3);
   });
 });
@@ -157,7 +168,9 @@ describe("WeatherPass — rain", () => {
     const pass = new WeatherPass(ctx);
     pass.draw(ctx, VIEW, makeRainWeather());
 
-    const isSnowCalls = gl.calls.filter((c) => c.fn === "uniform1f" && (c.args[0] as { __uniform: string }).__uniform === "u_isSnow");
+    const isSnowCalls = gl.calls.filter(
+      (c) => c.fn === "uniform1f" && (c.args[0] as { __uniform: string }).__uniform === "u_isSnow",
+    );
     expect(isSnowCalls).toHaveLength(1);
     expect(isSnowCalls[0]?.args[1]).toBe(0.0);
 
@@ -173,7 +186,9 @@ describe("WeatherPass — snow", () => {
     const pass = new WeatherPass(ctx);
     pass.draw(ctx, VIEW, makeSnowWeather());
 
-    const isSnowCalls = gl.calls.filter((c) => c.fn === "uniform1f" && (c.args[0] as { __uniform: string }).__uniform === "u_isSnow");
+    const isSnowCalls = gl.calls.filter(
+      (c) => c.fn === "uniform1f" && (c.args[0] as { __uniform: string }).__uniform === "u_isSnow",
+    );
     expect(isSnowCalls).toHaveLength(1);
     expect(isSnowCalls[0]?.args[1]).toBe(1.0);
 

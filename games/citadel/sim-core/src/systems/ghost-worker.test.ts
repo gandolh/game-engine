@@ -72,7 +72,19 @@ function villagersAt(sim: CitadelSimResult, b: { x: number; y: number; w: number
 function findStaffedWoodenProducer(
   sim: CitadelSimResult,
 ): { entity: BuildingEntity; rs: BuildingRuntimeState; id: number } | null {
-  const wooden = new Set(["house", "farm", "mill", "bakery", "woodcutter", "storehouse", "chapel", "market", "watchpost", "tradingpost", "garrison"]);
+  const wooden = new Set([
+    "house",
+    "farm",
+    "mill",
+    "bakery",
+    "woodcutter",
+    "storehouse",
+    "chapel",
+    "market",
+    "watchpost",
+    "tradingpost",
+    "garrison",
+  ]);
   for (const e of sim.state.buildingWorld.query("building")) {
     const id = e.id;
     if (id === undefined) continue;
@@ -103,7 +115,12 @@ describe("ghost-worker — demolish releases the assigned villager", () => {
     const target = findStaffedWoodenProducer(sim);
     expect(target).not.toBeNull();
     const targetType = target!.entity.building.type;
-    const b = { x: target!.entity.building.x, y: target!.entity.building.y, w: target!.entity.building.w, h: target!.entity.building.h };
+    const b = {
+      x: target!.entity.building.x,
+      y: target!.entity.building.y,
+      w: target!.entity.building.w,
+      h: target!.entity.building.h,
+    };
     const workersBefore = villagersAt(sim, b);
     expect(workersBefore.length).toBe(1);
     const popBefore = localPlayer(sim.state).population;
@@ -150,7 +167,12 @@ describe("ghost-worker — fire smoulder keeps the same worker", () => {
 
     const target = findStaffedWoodenProducer(sim);
     expect(target).not.toBeNull();
-    const b = { x: target!.entity.building.x, y: target!.entity.building.y, w: target!.entity.building.w, h: target!.entity.building.h };
+    const b = {
+      x: target!.entity.building.x,
+      y: target!.entity.building.y,
+      w: target!.entity.building.w,
+      h: target!.entity.building.h,
+    };
     const workerBefore = villagersAt(sim, b);
     expect(workerBefore.length).toBe(1);
     const workerId = workerBefore[0]!;
@@ -225,7 +247,12 @@ describe("ghost-worker — sharp-mode fire destruction releases workers", () => 
 
     const target = findStaffedWoodenProducer(sim);
     expect(target).not.toBeNull();
-    const b = { x: target!.entity.building.x, y: target!.entity.building.y, w: target!.entity.building.w, h: target!.entity.building.h };
+    const b = {
+      x: target!.entity.building.x,
+      y: target!.entity.building.y,
+      w: target!.entity.building.w,
+      h: target!.entity.building.h,
+    };
     const workerBefore = villagersAt(sim, b);
     expect(workerBefore.length).toBe(1);
     const workerId = workerBefore[0]!;
@@ -238,7 +265,10 @@ describe("ghost-worker — sharp-mode fire destruction releases workers", () => 
     for (let guard = 0; guard < 10 * TICKS_PER_DAY; guard++) {
       sim.scheduler.tick({ tick });
       tick++;
-      if (!sim.state.buildingState.has(target!.id)) { destroyed = true; break; }
+      if (!sim.state.buildingState.has(target!.id)) {
+        destroyed = true;
+        break;
+      }
     }
 
     expect(destroyed).toBe(true);

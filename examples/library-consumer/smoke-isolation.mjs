@@ -11,11 +11,7 @@ const localNodeModules = resolve(here, "node_modules") + sep;
 // The monorepo root is three levels up from examples/library-consumer.
 const monorepoEngineDir = resolve(here, "..", "..", "engine") + sep;
 
-const specifiers = [
-  "@engine/core/ecs",
-  "@engine/ui/widget",
-  "@engine/wasm-modules/pathfinding.wasm",
-];
+const specifiers = ["@engine/core/ecs", "@engine/ui/widget", "@engine/wasm-modules/pathfinding.wasm"];
 
 for (const spec of specifiers) {
   // import.meta.resolve is synchronous (unflagged) on Node >=20.6 / >=21 — this repo targets

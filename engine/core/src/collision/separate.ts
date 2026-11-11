@@ -21,14 +21,7 @@ export interface AABB {
 
 /** Exact circle/circle overlap test: true if two circles (center + radius)
  *  intersect or touch. */
-export function circlesOverlap(
-  ax: number,
-  ay: number,
-  ar: number,
-  bx: number,
-  by: number,
-  br: number,
-): boolean {
+export function circlesOverlap(ax: number, ay: number, ar: number, bx: number, by: number, br: number): boolean {
   const dx = bx - ax;
   const dy = by - ay;
   const r = ar + br;

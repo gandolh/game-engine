@@ -1,4 +1,3 @@
-
 import { loadWasmModule, fetchWasmModule } from "./loader";
 import type { LoadedWasm } from "./loader";
 import { WasmHeap } from "./memory";
@@ -7,13 +6,7 @@ interface NoiseExports extends WebAssembly.Exports {
   memory: WebAssembly.Memory;
   alloc(size: number): number;
   free(ptr: number): void;
-  fillNoise(
-    outPtr: number,
-    cols: number,
-    rows: number,
-    seed: number,
-    amplitudeX1000: number,
-  ): void;
+  fillNoise(outPtr: number, cols: number, rows: number, seed: number, amplitudeX1000: number): void;
 }
 
 export class NoiseGenerator {
@@ -32,23 +25,15 @@ export class NoiseGenerator {
     const count = cols * rows;
     const outPtr = this.heap.alloc(count * 4);
     try {
-      this.exports.fillNoise(
-        outPtr,
-        cols,
-        rows,
-        seed >>> 0,
-        Math.round(amplitude * 1000),
-      );
-      return new Float32Array(this.heap.f32(outPtr, count)); 
+      this.exports.fillNoise(outPtr, cols, rows, seed >>> 0, Math.round(amplitude * 1000));
+      return new Float32Array(this.heap.f32(outPtr, count));
     } finally {
       this.heap.free(outPtr);
     }
   }
 }
 
-export async function createNoiseGeneratorFromBytes(
-  bytes: BufferSource,
-): Promise<NoiseGenerator> {
+export async function createNoiseGeneratorFromBytes(bytes: BufferSource): Promise<NoiseGenerator> {
   const loaded = await loadWasmModule<NoiseExports>({ bytes });
   return new NoiseGenerator(loaded);
 }

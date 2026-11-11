@@ -22,42 +22,54 @@ export const settingsModal = new SettingsModal({
       label: "Day/night wash",
       keywords: "wash daynight tint colour color seasonal atmosphere lighting",
       get: () => renderToggles.wash,
-      set: (v) => { renderToggles.wash = v; },
+      set: (v) => {
+        renderToggles.wash = v;
+      },
     },
     {
       id: "lightPool",
       label: "Night light pool",
       keywords: "light pool glow lamp night windows warm atmosphere",
       get: () => renderToggles.lightPool,
-      set: (v) => { renderToggles.lightPool = v; },
+      set: (v) => {
+        renderToggles.lightPool = v;
+      },
     },
     {
       id: "clouds",
       label: "Cloud shadows / haze",
       keywords: "cloud shadow fog haze mist overcast fbm atmosphere weather sky",
       get: () => renderToggles.clouds,
-      set: (v) => { renderToggles.clouds = v; },
+      set: (v) => {
+        renderToggles.clouds = v;
+      },
     },
     {
       id: "weather",
       label: "Weather effects",
       keywords: "weather rain snow particles storm fx atmosphere",
       get: () => renderToggles.weather,
-      set: (v) => { renderToggles.weather = v; },
+      set: (v) => {
+        renderToggles.weather = v;
+      },
     },
     {
       id: "ambientCrowd",
       label: "Ambient crowd",
       keywords: "crowd pedestrians villagers people ambient bustle atmosphere",
       get: () => renderToggles.ambientCrowd,
-      set: (v) => { renderToggles.ambientCrowd = v; },
+      set: (v) => {
+        renderToggles.ambientCrowd = v;
+      },
     },
     {
       id: "smoke",
       label: "Chimney smoke",
       keywords: "smoke chimney bakery smith woodcutter particles atmosphere",
       get: () => renderToggles.smoke,
-      set: (v) => { renderToggles.smoke = v; },
+      set: (v) => {
+        renderToggles.smoke = v;
+      },
     },
   ],
   setSpeed: (n) => client.setSpeed(n),
@@ -66,12 +78,16 @@ export const settingsModal = new SettingsModal({
   // module load — BEFORE boot runs — so guard against the undefined camera. Falls back to 1×
   // until the camera exists; the modal resyncs from live state on every show() anyway.
   getZoom: () => (camera as Camera2D | undefined)?.zoom ?? 1,
-  setZoom: (z) => { (camera as Camera2D | undefined)?.setZoom(clampZoom(z)); },
+  setZoom: (z) => {
+    (camera as Camera2D | undefined)?.setZoom(clampZoom(z));
+  },
   minZoom: MIN_ZOOM,
   maxZoom: MAX_ZOOM,
   audioMuted: {
     get: () => citadelAudio.muted,
-    set: (v) => { citadelAudio.muted = v; },
+    set: (v) => {
+      citadelAudio.muted = v;
+    },
   },
 });
 

@@ -113,7 +113,11 @@ export function withAptitudeValue(row: ArchetypeRowState, skill: AptitudeSkill, 
   return { ...row, aptitude: { ...row.aptitude, [skill]: value } };
 }
 
-export function withAppearanceNumber(row: ArchetypeRowState, key: "height" | "build", value: number): ArchetypeRowState {
+export function withAppearanceNumber(
+  row: ArchetypeRowState,
+  key: "height" | "build",
+  value: number,
+): ArchetypeRowState {
   return { ...row, appearance: { ...row.appearance, [key]: value } };
 }
 

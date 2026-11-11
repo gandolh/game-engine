@@ -1,5 +1,3 @@
-
-
 import type { GameEntity, CropKind } from "../components";
 import type { InitiatePeerTradeFn, RespondPeerOfferFn } from "./peer-trade-registry";
 import { SEED_COST, CROP_SELL_PRICE } from "../economy";
@@ -16,7 +14,6 @@ function held(farmer: GameEntity, commodity: TradeCommodity, crop: CropKind): nu
 }
 
 export interface RespondPeerOfferCfg {
-
   buyCeiling: number;
 
   sellFloor: number;
@@ -33,12 +30,10 @@ export function makeRespondPeerOffer(cfg: RespondPeerOfferCfg): RespondPeerOffer
   const commodity: TradeCommodity = cfg.commodity ?? "seed";
   return (farmer, offer, _sender, _ctx) => {
     if (!farmer.inventory) return { decision: "decline", reason: "no-inventory" };
-    const reserve =
-      (farmer.desires?.data["minGoldReserve"] as number | undefined) ?? reserveDefault;
+    const reserve = (farmer.desires?.data["minGoldReserve"] as number | undefined) ?? reserveDefault;
     const ref = priceRef(commodity, offer.crop);
 
     if (offer.direction === "sell") {
-
       if (offer.unitPrice > ref * buyCeiling) {
         return { decision: "decline", reason: "price-too-high" };
       }
@@ -92,8 +87,7 @@ export function makeInitiatePeerTrade(cfg: InitiatePeerTradeCfg): InitiatePeerTr
     const discountMult = stance === "sell-surplus" ? friendSellMultiplier(farmer, meet.peerId) : 1;
     const unitPrice = priceRef(commodity, crop) * priceMult * discountMult;
     const have = held(farmer, commodity, crop);
-    const day =
-      (farmer.beliefs?.data["currentDay"] as number | undefined) ?? ctx.tick;
+    const day = (farmer.beliefs?.data["currentDay"] as number | undefined) ?? ctx.tick;
     const offerId = `peer-${farmer.id}-${meet.peerId}-${ctx.tick}-${day}-${crop}-${commodity}-${stance}`;
 
     if (stance === "sell-surplus") {
@@ -103,8 +97,7 @@ export function makeInitiatePeerTrade(cfg: InitiatePeerTradeCfg): InitiatePeerTr
     }
 
     if (have >= threshold) return null;
-    const reserve =
-      (farmer.desires?.data["minGoldReserve"] as number | undefined) ?? reserveDefault;
+    const reserve = (farmer.desires?.data["minGoldReserve"] as number | undefined) ?? reserveDefault;
     if (farmer.inventory.gold - unitPrice * quantity < reserve) return null;
     return { offerId, crop, quantity, unitPrice, direction: "buy" };
   };

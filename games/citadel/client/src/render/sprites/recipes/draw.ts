@@ -302,7 +302,8 @@ export function awningStripes(g: Grid, a: string, b: string): void {
     }
     // scalloped lower fringe
   }
-  for (let x = 0; x < g.w; x++) if (g.get(x, roofH - 1) !== ".") g.set(x, roofH - 1, Math.floor(x / 3) % 2 === 0 ? b : a);
+  for (let x = 0; x < g.w; x++)
+    if (g.get(x, roofH - 1) !== ".") g.set(x, roofH - 1, Math.floor(x / 3) % 2 === 0 ? b : a);
 }
 
 /** A hanging banner pennant from `x,y` (garrison/keep/town-hall). */

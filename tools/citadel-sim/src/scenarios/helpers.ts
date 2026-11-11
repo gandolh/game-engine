@@ -3,7 +3,13 @@ import { isWalkable, TerrainType } from "@citadel/sim-core";
 import type { TerrainGrid } from "@citadel/sim-core";
 
 /** Find a clear w×h region of buildable tiles near (preferX, preferY). */
-export function findClear(terrain: TerrainGrid, w: number, h: number, sx: number, sy: number): { x: number; y: number } {
+export function findClear(
+  terrain: TerrainGrid,
+  w: number,
+  h: number,
+  sx: number,
+  sy: number,
+): { x: number; y: number } {
   for (let r = 0; r < 40; r++) {
     for (let dy = -r; dy <= r; dy++) {
       for (let dx = -r; dx <= r; dx++) {
@@ -12,7 +18,10 @@ export function findClear(terrain: TerrainGrid, w: number, h: number, sx: number
         let ok = true;
         for (let yy = 0; yy < h && ok; yy++)
           for (let xx = 0; xx < w; xx++)
-            if (!isWalkable(terrain, x + xx, y + yy)) { ok = false; break; }
+            if (!isWalkable(terrain, x + xx, y + yy)) {
+              ok = false;
+              break;
+            }
         if (ok) return { x, y };
       }
     }
@@ -63,7 +72,12 @@ export function findConnectedStone(
     const idx = queue[qi]!;
     const x = idx % W;
     const y = (idx - x) / W;
-    for (const delta of [[-1,0],[1,0],[0,-1],[0,1]] as const) {
+    for (const delta of [
+      [-1, 0],
+      [1, 0],
+      [0, -1],
+      [0, 1],
+    ] as const) {
       const nx = x + delta[0];
       const ny = y + delta[1];
       if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
@@ -117,7 +131,13 @@ export function findConnectedStone(
 export function link(tiles: Array<{ x: number; y: number }>, ax: number, ay: number, bx: number, by: number): void {
   let x = ax;
   let y = ay;
-  while (x !== bx) { tiles.push({ x, y }); x += x < bx ? 1 : -1; }
-  while (y !== by) { tiles.push({ x, y }); y += y < by ? 1 : -1; }
+  while (x !== bx) {
+    tiles.push({ x, y });
+    x += x < bx ? 1 : -1;
+  }
+  while (y !== by) {
+    tiles.push({ x, y });
+    y += y < by ? 1 : -1;
+  }
   tiles.push({ x: bx, y: by });
 }

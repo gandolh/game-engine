@@ -97,14 +97,7 @@ export function createWorldClock(): WorldClock {
   const dot1 = label("-", { color: EDG.slate });
   const dot2 = label("-", { color: EDG.slate });
 
-  const row = box({ direction: "row", gap: 8, align: "center" }, [
-    seasonLbl,
-    dot1,
-    dayLbl,
-    dot2,
-    timeLbl,
-    phaseLbl,
-  ]);
+  const row = box({ direction: "row", gap: 8, align: "center" }, [seasonLbl, dot1, dayLbl, dot2, timeLbl, phaseLbl]);
   const root = panel({ direction: "row", align: "center" }, [row]);
 
   let changed = false;

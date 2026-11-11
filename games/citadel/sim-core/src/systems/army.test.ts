@@ -19,7 +19,11 @@ function placeTownHall(sim: CitadelSimResult, ownerId: number, x: number, y: num
   const e = sim.world.spawn({ building: { type: "town-hall", x, y, w: 3, h: 3, ownerId } });
   if (e.id !== undefined) {
     sim.state.buildingState.set(e.id, {
-      outputBuffer: 0, workerCount: 0, connected: false, productionTick: 0, level: 1,
+      outputBuffer: 0,
+      workerCount: 0,
+      connected: false,
+      productionTick: 0,
+      level: 1,
     });
   }
   const p = sim.state.players.find((q) => q.id === ownerId)!;
@@ -37,8 +41,12 @@ function boot() {
   // + the `launchAttack` handler are frozen. These tests are what proves the math is
   // *frozen and intact*, not quietly broken — they must opt in, not inherit.
   const sim = bootstrapSim({
-    seed: 1, ticksPerDay: TPD, worldWidth: 96, worldHeight: 96,
-    cozyThreats: false, enableArmy: true,
+    seed: 1,
+    ticksPerDay: TPD,
+    worldWidth: 96,
+    worldHeight: 96,
+    cozyThreats: false,
+    enableArmy: true,
   });
   sim.state.players.push(makePlayerState(1));
   return sim;
@@ -59,9 +67,9 @@ describe("Citadel 32 — PvP armies", () => {
     for (let t = 0; t < 400; t++) sim.scheduler.tick({ tick: t });
 
     expect(p1.keepSacked).toBe(true);
-    expect(p1.gameOver).toBe(true);        // eliminated
+    expect(p1.gameOver).toBe(true); // eliminated
     expect(sim.state.armies.length).toBe(0); // army resolved + removed
-    expect(p0.stockpiles.tools).toBe(50);   // 50 tools spent
+    expect(p0.stockpiles.tools).toBe(50); // 50 tools spent
   });
 
   it("a weak army is repelled by a town hall's defense (no elimination)", () => {
@@ -76,7 +84,7 @@ describe("Citadel 32 — PvP armies", () => {
     sim.commands.enqueue({ type: "launchAttack", payload: { targetX: 40, targetY: 40, strength: 4 } });
     for (let t = 0; t < 400; t++) sim.scheduler.tick({ tick: t });
 
-    expect(p1.gameOver).toBe(false);       // survived
+    expect(p1.gameOver).toBe(false); // survived
     expect(p1.keepSacked).toBe(false);
     expect(sim.state.armies.length).toBe(0); // army resolved (repelled) + removed
   });
@@ -110,7 +118,10 @@ describe("Citadel — armies are frozen by default (decision #23)", () => {
   /** Same two-player setup as `boot()`, but at the DEFAULT (frozen) enableArmy. */
   function bootFrozen() {
     const sim = bootstrapSim({
-      seed: 1, ticksPerDay: TPD, worldWidth: 96, worldHeight: 96,
+      seed: 1,
+      ticksPerDay: TPD,
+      worldWidth: 96,
+      worldHeight: 96,
       cozyThreats: false, // isolate from the PvE raid, as boot() does
     });
     sim.state.players.push(makePlayerState(1));
@@ -161,7 +172,11 @@ describe("Citadel — armies are frozen by default (decision #23)", () => {
   it("freezing ArmySystem is byte-identical in a one-player sim", () => {
     const run = (enableArmy: boolean) => {
       const sim = bootstrapSim({
-        seed: 0xc0ffee, ticksPerDay: TPD, worldWidth: 96, worldHeight: 96, enableArmy,
+        seed: 0xc0ffee,
+        ticksPerDay: TPD,
+        worldWidth: 96,
+        worldHeight: 96,
+        enableArmy,
       });
       for (let t = 0; t < TPD * 20; t++) sim.scheduler.tick({ tick: t });
       const p = sim.state.players[0]!;
@@ -186,8 +201,12 @@ describe("Citadel — armies are frozen by default (decision #23)", () => {
 describe("enableArmy — save/load round-trip", () => {
   it("enableArmy:true survives save/load: the reloaded sim still resolves an attack (not silently frozen)", () => {
     const sim = bootstrapSim({
-      seed: 1, ticksPerDay: TPD, worldWidth: 96, worldHeight: 96,
-      cozyThreats: false, enableArmy: true,
+      seed: 1,
+      ticksPerDay: TPD,
+      worldWidth: 96,
+      worldHeight: 96,
+      cozyThreats: false,
+      enableArmy: true,
     });
     const save = sim.serializeSave(0);
     expect(save.enableArmy).toBe(true);
@@ -227,7 +246,11 @@ describe("enableArmy — save/load round-trip", () => {
 
   it("enableArmy omitted (default false) survives save/load: the reloaded sim still rejects launchAttack", () => {
     const sim = bootstrapSim({
-      seed: 1, ticksPerDay: TPD, worldWidth: 96, worldHeight: 96, cozyThreats: false,
+      seed: 1,
+      ticksPerDay: TPD,
+      worldWidth: 96,
+      worldHeight: 96,
+      cozyThreats: false,
     });
     const save = sim.serializeSave(0);
     expect(save.enableArmy).toBe(false);

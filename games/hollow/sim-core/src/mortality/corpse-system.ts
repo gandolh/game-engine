@@ -36,12 +36,7 @@ import { PERFORMATIVE } from "@engine/core/agent";
 import type { HollowEntity } from "../components";
 import { makeDisease } from "../components";
 import { ONT_MORTALITY, type InfectedBody } from "../protocols";
-import {
-  CORPSE_ROT_DELAY_DAYS,
-  DISEASE_SPREAD_RADIUS,
-  DISEASE_INFECT_PROB_PER_TICK,
-  daysToTicks,
-} from "./constants";
+import { CORPSE_ROT_DELAY_DAYS, DISEASE_SPREAD_RADIUS, DISEASE_INFECT_PROB_PER_TICK, daysToTicks } from "./constants";
 
 export interface CorpseSystemOptions {
   ticksPerDay: number;
@@ -139,9 +134,6 @@ export class HollowCorpseSystem implements System {
   }
 
   private emit(ontology: string, body: Record<string, unknown>, tick: number): void {
-    this.bus.send(
-      { performative: PERFORMATIVE.INFORM, ontology, sender: "world", recipient: "broadcast", body },
-      tick,
-    );
+    this.bus.send({ performative: PERFORMATIVE.INFORM, ontology, sender: "world", recipient: "broadcast", body }, tick);
   }
 }

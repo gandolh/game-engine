@@ -9,7 +9,13 @@ import { describe, it, expect } from "vitest";
 import { World, MessageBus, createRng, type SimContext, type Intention } from "@engine/core";
 import { makeNeed } from "@engine/core/agent";
 import type { HollowEntity, Genome } from "../components";
-import { NEED_WEALTH, GOOD_FOOD, GOOD_MATERIALS, MATERIAL_HARVEST_PER_TICK, WEALTH_PER_MATERIAL_UNIT } from "../economy";
+import {
+  NEED_WEALTH,
+  GOOD_FOOD,
+  GOOD_MATERIALS,
+  MATERIAL_HARVEST_PER_TICK,
+  WEALTH_PER_MATERIAL_UNIT,
+} from "../economy";
 import { CommunityRegistry } from "../community";
 import { ResourceWorld } from "../world";
 import { ONT_SOCIAL, type GiftBody, type TradeBody } from "../protocols";
@@ -111,7 +117,10 @@ function makeHarness(opts?: {
 describe("HollowSocialActSystem", () => {
   it("gift: actor loses goods, target gains exactly them, target's trust-toward-actor increases", () => {
     const h = makeHarness();
-    const actor = h.spawn({ goods: { [GOOD_FOOD]: 10 }, intention: { kind: "gift", data: { targetId: 0, good: GOOD_FOOD, amount: 4 }, priority: 1 } });
+    const actor = h.spawn({
+      goods: { [GOOD_FOOD]: 10 },
+      intention: { kind: "gift", data: { targetId: 0, good: GOOD_FOOD, amount: 4 }, priority: 1 },
+    });
     const target = h.spawn({});
     actor.intentions!.queue[0]!.data.targetId = target.id;
 
@@ -128,14 +137,20 @@ describe("HollowSocialActSystem", () => {
 
   it("gift: clamps to what the actor actually has, and self-target is a silent no-op", () => {
     const h = makeHarness();
-    const actor = h.spawn({ goods: { [GOOD_FOOD]: 3 }, intention: { kind: "gift", data: { targetId: -1, good: GOOD_FOOD, amount: 10 }, priority: 1 } });
+    const actor = h.spawn({
+      goods: { [GOOD_FOOD]: 3 },
+      intention: { kind: "gift", data: { targetId: -1, good: GOOD_FOOD, amount: 10 }, priority: 1 },
+    });
     const target = h.spawn({});
     actor.intentions!.queue[0]!.data.targetId = target.id;
     h.step();
     expect(actor.inventory!.goods[GOOD_FOOD]).toBe(0);
     expect(target.inventory!.goods[GOOD_FOOD]).toBe(3);
 
-    const selfActor = h.spawn({ goods: { [GOOD_FOOD]: 5 }, intention: { kind: "gift", data: { good: GOOD_FOOD, amount: 5 }, priority: 1 } });
+    const selfActor = h.spawn({
+      goods: { [GOOD_FOOD]: 5 },
+      intention: { kind: "gift", data: { good: GOOD_FOOD, amount: 5 }, priority: 1 },
+    });
     selfActor.intentions!.queue[0]!.data.targetId = selfActor.id;
     h.step();
     expect(selfActor.inventory!.goods[GOOD_FOOD]).toBe(5); // untouched
@@ -145,14 +160,21 @@ describe("HollowSocialActSystem", () => {
     const communities = new CommunityRegistry();
     const community = communities.form([1], [], 0);
     const h = makeHarness({ communities });
-    const actor = h.spawn({ goods: { [GOOD_MATERIALS]: 20 }, communityId: community.id, intention: { kind: "share", data: { good: GOOD_MATERIALS, amount: 8 }, priority: 1 } });
+    const actor = h.spawn({
+      goods: { [GOOD_MATERIALS]: 20 },
+      communityId: community.id,
+      intention: { kind: "share", data: { good: GOOD_MATERIALS, amount: 8 }, priority: 1 },
+    });
 
     h.step();
 
     expect(actor.inventory!.goods[GOOD_MATERIALS]).toBe(12);
     expect(communities.get(community.id)!.stockpile[GOOD_MATERIALS]).toBe(8);
 
-    const unaffiliated = h.spawn({ goods: { [GOOD_MATERIALS]: 5 }, intention: { kind: "share", data: { good: GOOD_MATERIALS, amount: 5 }, priority: 1 } });
+    const unaffiliated = h.spawn({
+      goods: { [GOOD_MATERIALS]: 5 },
+      intention: { kind: "share", data: { good: GOOD_MATERIALS, amount: 5 }, priority: 1 },
+    });
     h.step();
     expect(unaffiliated.inventory!.goods[GOOD_MATERIALS]).toBe(5); // untouched -- no community to share into
   });
@@ -169,20 +191,30 @@ describe("HollowSocialActSystem", () => {
     const node = resources.nodes[0]!;
     const h = makeHarness({ resources });
     const target = h.spawn({});
-    const actor = h.spawn({ gx: node.gx, gy: node.gy, intention: { kind: "help_labor", data: { targetId: 0 }, priority: 1 } });
+    const actor = h.spawn({
+      gx: node.gx,
+      gy: node.gy,
+      intention: { kind: "help_labor", data: { targetId: 0 }, priority: 1 },
+    });
     actor.intentions!.queue[0]!.data.targetId = target.id;
 
     h.step();
 
     expect(actor.inventory!.goods[GOOD_MATERIALS] ?? 0).toBe(0);
     expect(target.inventory!.goods[GOOD_MATERIALS]).toBe(MATERIAL_HARVEST_PER_TICK);
-    expect(target.needs!.byKind[NEED_WEALTH]!.value).toBeCloseTo(MATERIAL_HARVEST_PER_TICK * WEALTH_PER_MATERIAL_UNIT, 6);
+    expect(target.needs!.byKind[NEED_WEALTH]!.value).toBeCloseTo(
+      MATERIAL_HARVEST_PER_TICK * WEALTH_PER_MATERIAL_UNIT,
+      6,
+    );
     expect(target.relationships!.byId.get(actor.id)).toBeGreaterThan(0.5);
   });
 
   it("teach: target skill rises toward the actor's but is capped at the target's own aptitude; a teacher below the learner is a no-op", () => {
     const h = makeHarness();
-    const teacher = h.spawn({ skillMaterial: 0.9, intention: { kind: "teach", data: { targetId: 0, skill: "material" }, priority: 1 } });
+    const teacher = h.spawn({
+      skillMaterial: 0.9,
+      intention: { kind: "teach", data: { targetId: 0, skill: "material" }, priority: 1 },
+    });
     const learner = h.spawn({ skillMaterial: 0.1 });
     learner.genome = flatGenome(0.3); // low aptitude cap
     teacher.intentions!.queue[0]!.data.targetId = learner.id;
@@ -200,7 +232,10 @@ describe("HollowSocialActSystem", () => {
     expect(learner.skills!.byKind["material"]!).toBeLessThanOrEqual(0.3);
 
     // A teacher who is NOT better than the learner is a no-op.
-    const equalSkillTeacher = h.spawn({ skillMaterial: 0.3, intention: { kind: "teach", data: { targetId: 0, skill: "material" }, priority: 1 } });
+    const equalSkillTeacher = h.spawn({
+      skillMaterial: 0.3,
+      intention: { kind: "teach", data: { targetId: 0, skill: "material" }, priority: 1 },
+    });
     const stableLearner = h.spawn({ skillMaterial: 0.3 });
     equalSkillTeacher.intentions!.queue[0]!.data.targetId = stableLearner.id;
     h.step(100);
@@ -211,7 +246,11 @@ describe("HollowSocialActSystem", () => {
     const h = makeHarness();
     const actor = h.spawn({
       goods: { [GOOD_FOOD]: 10 },
-      intention: { kind: "trade", data: { targetId: 0, offerGood: GOOD_FOOD, offerAmount: 5, wantGood: GOOD_MATERIALS, wantAmount: 3 }, priority: 1 },
+      intention: {
+        kind: "trade",
+        data: { targetId: 0, offerGood: GOOD_FOOD, offerAmount: 5, wantGood: GOOD_MATERIALS, wantAmount: 3 },
+        priority: 1,
+      },
     });
     const target = h.spawn({ goods: { [GOOD_MATERIALS]: 8 } });
     actor.intentions!.queue[0]!.data.targetId = target.id;
@@ -234,20 +273,28 @@ describe("HollowSocialActSystem", () => {
     // A target that lacks the wanted goods -- rejected, no swap.
     const actor2 = h.spawn({
       goods: { [GOOD_FOOD]: 10 },
-      intention: { kind: "trade", data: { targetId: 0, offerGood: GOOD_FOOD, offerAmount: 5, wantGood: GOOD_MATERIALS, wantAmount: 3 }, priority: 1 },
+      intention: {
+        kind: "trade",
+        data: { targetId: 0, offerGood: GOOD_FOOD, offerAmount: 5, wantGood: GOOD_MATERIALS, wantAmount: 3 },
+        priority: 1,
+      },
     });
     const target2 = h.spawn({}); // no materials at all
     actor2.intentions!.queue[0]!.data.targetId = target2.id;
     h.step(2);
     expect(actor2.inventory!.goods[GOOD_FOOD]).toBe(10); // unchanged
     expect(target2.inventory!.goods[GOOD_MATERIALS] ?? 0).toBe(0);
-    const rejections = h.events.filter((e) => e.ontology === ONT_SOCIAL.TRADE && (e.body as unknown as TradeBody).accepted === false);
+    const rejections = h.events.filter(
+      (e) => e.ontology === ONT_SOCIAL.TRADE && (e.body as unknown as TradeBody).accepted === false,
+    );
     expect(rejections.length).toBeGreaterThan(0);
   });
 
   it("steal: forced-detected moves goods AND collapses the target's trust-toward-actor; forced-undetected moves goods with no trust change", () => {
     const detected = makeHarness({ stealDetectionProb: 1 });
-    const thief = detected.spawn({ intention: { kind: "steal", data: { targetId: 0, good: GOOD_FOOD, amount: 6 }, priority: 1 } });
+    const thief = detected.spawn({
+      intention: { kind: "steal", data: { targetId: 0, good: GOOD_FOOD, amount: 6 }, priority: 1 },
+    });
     const victim = detected.spawn({ goods: { [GOOD_FOOD]: 10 } });
     thief.intentions!.queue[0]!.data.targetId = victim.id;
     detected.step();
@@ -257,7 +304,9 @@ describe("HollowSocialActSystem", () => {
     expect(detected.events.some((e) => e.ontology === ONT_SOCIAL.STEAL_DETECTED)).toBe(true);
 
     const undetected = makeHarness({ stealDetectionProb: 0 });
-    const thief2 = undetected.spawn({ intention: { kind: "steal", data: { targetId: 0, good: GOOD_FOOD, amount: 6 }, priority: 1 } });
+    const thief2 = undetected.spawn({
+      intention: { kind: "steal", data: { targetId: 0, good: GOOD_FOOD, amount: 6 }, priority: 1 },
+    });
     const victim2 = undetected.spawn({ goods: { [GOOD_FOOD]: 10 } });
     thief2.intentions!.queue[0]!.data.targetId = victim2.id;
     undetected.step();

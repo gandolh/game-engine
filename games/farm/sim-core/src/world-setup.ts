@@ -8,13 +8,20 @@ import { bakeBdiJitter } from "./agents/bdi-jitter";
 import { bankHarvest, CROP_SELL_PRICE } from "./economy";
 
 const ZERO_CROPS: Record<CropKind, number> = {
-  radish: 0, wheat: 0, carrot: 0, tomato: 0, corn: 0, pumpkin: 0, grape: 0, "winter-squash": 0,
+  radish: 0,
+  wheat: 0,
+  carrot: 0,
+  tomato: 0,
+  corn: 0,
+  pumpkin: 0,
+  grape: 0,
+  "winter-squash": 0,
 };
 
 const STARTING_TOOLS: Tool[] = [
-  { kind: "hoe",         tier: "wooden", durability: 100 },
-  { kind: "axe",         tier: "wooden", durability: 100 },
-  { kind: "pickaxe",     tier: "wooden", durability: 100 },
+  { kind: "hoe", tier: "wooden", durability: 100 },
+  { kind: "axe", tier: "wooden", durability: 100 },
+  { kind: "pickaxe", tier: "wooden", durability: 100 },
   { kind: "fishing-rod", tier: "wooden", durability: Infinity },
 ];
 
@@ -60,7 +67,7 @@ export function setupFarmer(world: World<GameEntity>, spec: FarmerSpec, seed: nu
     crops: { ...ZERO_CROPS },
     seeds: { ...ZERO_CROPS, ...spec.startSeeds },
     fish: zeroFish(),
-    tools: STARTING_TOOLS.map(t => ({ ...t })),
+    tools: STARTING_TOOLS.map((t) => ({ ...t })),
     wateringCan: { charges: 10, maxCharges: 10 },
   };
   seedStartingCropSurplus(inventory, spec, seed);
@@ -83,7 +90,7 @@ export function setupFarmer(world: World<GameEntity>, spec: FarmerSpec, seed: nu
     farmer: { name: spec.name, currentRegion: initialRegion, homeRegion: initialRegion },
     inventory,
     resources: { wood: 0, stone: 0, ironOre: 0, geodes: 0 },
-      ap: { current: 100, max: 100, penaltyPending: false, penaltyCapacity: 50, away: false }, 
+    ap: { current: 100, max: 100, penaltyPending: false, penaltyCapacity: 50, away: false },
     health: { current: HEALTH_MAX, max: HEALTH_MAX },
     ...(spec.player
       ? {
@@ -103,9 +110,6 @@ export function setupFarmer(world: World<GameEntity>, spec: FarmerSpec, seed: nu
   return farmer;
 }
 
-export function setupWorldRegions(
-  world: World<GameEntity>,
-  farmers: GameEntity[],
-): ReturnType<typeof setupRegions> {
+export function setupWorldRegions(world: World<GameEntity>, farmers: GameEntity[]): ReturnType<typeof setupRegions> {
   return setupRegions(world, farmers);
 }

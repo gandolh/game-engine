@@ -74,13 +74,7 @@ export function layoutTextQuads(
  * `opts.maxWidth` if given. Returns the resolved layout (line breaks + block size) so the
  * caller can position adjacent UI. The surface's `begin()` must already be open.
  */
-export function drawText(
-  surface: UISurface,
-  text: string,
-  x: number,
-  y: number,
-  opts: DrawTextOptions,
-): TextLayout {
+export function drawText(surface: UISurface, text: string, x: number, y: number, opts: DrawTextOptions): TextLayout {
   const { quads, layout } = layoutTextQuads(text, x, y, opts);
   for (const q of quads) surface.push(q);
   return layout;

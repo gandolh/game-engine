@@ -3,13 +3,7 @@ import { World, MessageBus, createRng } from "@engine/core";
 import type { GameEntity } from "../../components";
 import { spawnWeatherStation } from "../../agents/weather-station";
 import { WeatherSystem } from "./weather";
-import {
-  ONT_SIMULATION,
-  ONT_WEATHER,
-  PERFORMATIVE,
-  seasonForDay,
-  SEASON_LENGTH,
-} from "../../protocols";
+import { ONT_SIMULATION, ONT_WEATHER, PERFORMATIVE, seasonForDay, SEASON_LENGTH } from "../../protocols";
 import type { WeatherCondition } from "../../protocols";
 
 function makeWorld(): World<GameEntity> {
@@ -84,7 +78,10 @@ describe("WeatherSystem", () => {
 
     const stations = world.query("weatherStation", "inbox");
     let station: GameEntity | null = null;
-    for (const s of stations) { station = s; break; }
+    for (const s of stations) {
+      station = s;
+      break;
+    }
     expect(station).not.toBeNull();
     expect(["sunny", "normal", "rainy", "storm"]).toContain(station!.weatherStation!.current);
     expect(station!.weatherStation!.multiplier).toBeGreaterThan(0);
@@ -92,7 +89,6 @@ describe("WeatherSystem", () => {
   });
 
   it("writes weather into all farmers' beliefs", () => {
-
     world.spawn({
       farmer: { name: "Alice", currentRegion: "farm-cora" as const },
       beliefs: { data: {}, revision: 0 },
@@ -120,7 +116,7 @@ describe("WeatherSystem", () => {
     sendDayStart(world, 1);
     system.run(makeContext(10));
     bus.flush();
-    bus.drain(); 
+    bus.drain();
 
     sendDayStart(world, 1);
     system.run(makeContext(11));
@@ -165,7 +161,7 @@ describe("WeatherSystem", () => {
   });
 
   it("stamps the current season onto the station and the now broadcast", () => {
-    sendDayStart(world, 30); 
+    sendDayStart(world, 30);
     system.run(makeContext(10));
     bus.flush();
 
@@ -224,7 +220,6 @@ describe("seasonForDay schedule", () => {
 });
 
 describe("season biases the weather distribution", () => {
-
   function tallySeason(firstDay: number): Record<WeatherCondition, number> {
     const w = new World<GameEntity>();
     const b = new MessageBus();
@@ -259,8 +254,8 @@ describe("season biases the weather distribution", () => {
   }
 
   it("summer is sunnier and stormier than winter; winter is rainier", () => {
-    const summer = tallySeason(26); 
-    const winter = tallySeason(76); 
+    const summer = tallySeason(26);
+    const winter = tallySeason(76);
 
     expect(summer.sunny).toBeGreaterThan(winter.sunny);
     expect(winter.rainy).toBeGreaterThan(summer.rainy);
@@ -269,7 +264,7 @@ describe("season biases the weather distribution", () => {
   });
 
   it("spring sees more rain than summer", () => {
-    const spring = tallySeason(1); 
+    const spring = tallySeason(1);
     const summer = tallySeason(26);
     expect(spring.rainy).toBeGreaterThan(summer.rainy);
   });

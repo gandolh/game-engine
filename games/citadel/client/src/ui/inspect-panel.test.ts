@@ -53,10 +53,24 @@ function find(root: UINode, prefix: string): LabelNode | undefined {
 
 function mkBuilding(overrides: Partial<BuildingSnapshot> = {}): BuildingSnapshot {
   return {
-    type: "bakery", x: 10, y: 12, w: 2, h: 2,
-    connected: true, outputBuffer: 0, workerCount: 1, occupancy: 1,
-    ownerId: 0, onFire: false, burning: false, level: 1,
-    lacksFaith: true, lacksSafety: true, lacksGoods: true, mood: 40, wellServed: false,
+    type: "bakery",
+    x: 10,
+    y: 12,
+    w: 2,
+    h: 2,
+    connected: true,
+    outputBuffer: 0,
+    workerCount: 1,
+    occupancy: 1,
+    ownerId: 0,
+    onFire: false,
+    burning: false,
+    level: 1,
+    lacksFaith: true,
+    lacksSafety: true,
+    lacksGoods: true,
+    mood: 40,
+    wellServed: false,
     ...overrides,
   };
 }
@@ -169,15 +183,18 @@ describe("createInspectPanel — trade offers (Phase G, cozy decision #8)", () =
     panel.refresh(baseState({ type: "tradingpost", traderPresent: true, traderOffers: offers }));
     expect(find(panel.root, "Trade:")).toBeDefined();
     const offerBtns = buttons(panel.root).filter((b) => b.label.includes("→"));
-    expect(offerBtns.map((b) => b.label)).toEqual([
-      "5 wood → 1 tools",
-      "8 grain → 3 bread",
-    ]);
+    expect(offerBtns.map((b) => b.label)).toEqual(["5 wood → 1 tools", "8 grain → 3 bread"]);
   });
 
   it("activating an offer button sends its CONTENT, not its position (brief 97/21)", () => {
     let traded: { give: string; giveQty: number; receive: string; receiveQty: number } | undefined;
-    const panel = createInspectPanel({ close: () => {}, upgrade: () => {}, trade: (o) => { traded = o; } });
+    const panel = createInspectPanel({
+      close: () => {},
+      upgrade: () => {},
+      trade: (o) => {
+        traded = o;
+      },
+    });
     panel.refresh(baseState({ type: "tradingpost", traderPresent: true, traderOffers: offers }));
     const offerBtns = buttons(panel.root).filter((b) => b.label.includes("→"));
     offerBtns[1]?.onActivate?.();
@@ -186,7 +203,13 @@ describe("createInspectPanel — trade offers (Phase G, cozy decision #8)", () =
 
   it("activating an offer button reads the CURRENT offer at click time, not the one bound when the button was created (re-roll race)", () => {
     const traded: { give: string; giveQty: number; receive: string; receiveQty: number }[] = [];
-    const panel = createInspectPanel({ close: () => {}, upgrade: () => {}, trade: (o) => { traded.push(o); } });
+    const panel = createInspectPanel({
+      close: () => {},
+      upgrade: () => {},
+      trade: (o) => {
+        traded.push(o);
+      },
+    });
     panel.refresh(baseState({ type: "tradingpost", traderPresent: true, traderOffers: offers }));
     // The menu re-rolls (a later refresh with different content at the SAME slot 0).
     const rerolled: BarterOffer[] = [{ give: "stone", giveQty: 4, receive: "planks", receiveQty: 2 }];
@@ -218,7 +241,13 @@ describe("createInspectPanel — close affordance", () => {
     // The label is "X", not "✕": the in-canvas bitmap font covers printable ASCII (0x20–0x7e)
     // only, so a non-ASCII glyph renders as the '?' fallback. Assert the drawable label.
     let closed = 0;
-    const panel = createInspectPanel({ close: () => { closed += 1; }, upgrade: () => {}, trade: () => {} });
+    const panel = createInspectPanel({
+      close: () => {
+        closed += 1;
+      },
+      upgrade: () => {},
+      trade: () => {},
+    });
     const closeBtn = buttons(panel.root).find((b) => b.label === "X");
     expect(closeBtn).toBeDefined();
     closeBtn?.onActivate?.();
@@ -268,7 +297,13 @@ describe("createInspectPanel — upgrade footer (Chunk 3)", () => {
 
   it("enables + activates the upgrade command path when affordable and below max", () => {
     let upgraded = 0;
-    const panel = createInspectPanel({ close: () => {}, upgrade: () => { upgraded += 1; }, trade: () => {} });
+    const panel = createInspectPanel({
+      close: () => {},
+      upgrade: () => {
+        upgraded += 1;
+      },
+      trade: () => {},
+    });
     panel.refresh(baseState({ level: 2, stockpiles: { planks: 10, stone: 10, tools: 10 } }));
     // L2→L3 = 8 planks, 6 stone, 2 tools — affordable here.
     expect(find(panel.root, "Cost:")?.text).toBe("Cost: 8 planks, 6 stone, 2 tools");
@@ -333,11 +368,11 @@ describe("createInspectPanel — upgrade tier gate (FIX 4)", () => {
 describe("createInspectPanel — markOpened forces a layout pass (FIX 2)", () => {
   it("reports content-changed on the refresh after markOpened, even with identical state", () => {
     const panel = createInspectPanel({ close: () => {}, upgrade: () => {}, trade: () => {} });
-    expect(panel.refresh(baseState())).toBe(true);  // first frame
+    expect(panel.refresh(baseState())).toBe(true); // first frame
     expect(panel.refresh(baseState())).toBe(false); // identical → no change
     // Simulate a closed→open transition on the SAME building with no state change.
     panel.markOpened();
-    expect(panel.refresh(baseState())).toBe(true);  // forced layout/mirror reconcile
+    expect(panel.refresh(baseState())).toBe(true); // forced layout/mirror reconcile
     expect(panel.refresh(baseState())).toBe(false); // back to gated after the open
   });
 });

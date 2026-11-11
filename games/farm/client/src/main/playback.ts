@@ -66,7 +66,6 @@ export function registerHotkeys(handlers: PlaybackHandlers): void {
 
     if (_client !== null && !_client.owner) return;
     switch (e.key) {
-
       case "p":
       case "P":
         e.preventDefault();

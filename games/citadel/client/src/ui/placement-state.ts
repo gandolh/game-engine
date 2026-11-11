@@ -337,10 +337,7 @@ export class PlacementStateManager {
   }
 
   /** Build a road-passability predicate from the current snapshot. */
-  private _blockedForRoad(
-    terrain: TerrainGrid,
-    buildings: readonly BuildingSnapshot[],
-  ): TileBlockedFn {
+  private _blockedForRoad(terrain: TerrainGrid, buildings: readonly BuildingSnapshot[]): TileBlockedFn {
     // Footprints a road may NOT cross. Roads/bridges/gates are re-stampable, so
     // they stay passable (chaining a new road through them is harmless).
     const occupied = new Set<number>();
@@ -405,8 +402,7 @@ export class PlacementStateManager {
       if (b.type === "gate") continue;
       occ.apply({ x: b.x, y: b.y, w: b.w, h: b.h });
     }
-    const buildable = (tx: number, ty: number): boolean =>
-      isWalkable(terrain, tx, ty);
+    const buildable = (tx: number, ty: number): boolean => isWalkable(terrain, tx, ty);
     const fp = {
       x: this._cursorTileX,
       y: this._cursorTileY,

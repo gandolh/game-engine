@@ -98,10 +98,7 @@ function resolve(run: RunView, order: readonly number[]): MirrorNode[] {
  * `onChoose` receives a node id and must do exactly what a canvas click on that node does — the
  * mirror is a parallel ACCESS PATH to the same action, never a second implementation of it.
  */
-export function createMapMirror(
-  mount: HTMLElement,
-  onChoose: (nodeId: number) => void,
-): MapMirror {
+export function createMapMirror(mount: HTMLElement, onChoose: (nodeId: number) => void): MapMirror {
   const doc = mount.ownerDocument;
   const region = doc.createElement("section");
   for (const [k, v] of Object.entries(SR_ONLY)) {
@@ -126,7 +123,10 @@ export function createMapMirror(
     const nodes = resolve(run, order);
     const key = [
       strings.mapMirrorLabel,
-      run.level, run.warriorHp, run.warriorMaxHp, run.visitedIds.length,
+      run.level,
+      run.warriorHp,
+      run.warriorMaxHp,
+      run.visitedIds.length,
       ...nodes.map((n) => `${String(n.id)}:${n.type}:${String(n.grade)}:${String(n.zoneIndex)}`),
     ].join("|");
     if (key === renderedKey) return;
@@ -134,12 +134,7 @@ export function createMapMirror(
 
     region.setAttribute("aria-label", strings.mapMirrorLabel);
     heading.textContent = strings.mapMirrorLabel;
-    status.textContent = strings.mapMirrorStatus(
-      run.level,
-      run.warriorHp,
-      run.warriorMaxHp,
-      run.visitedIds.length,
-    );
+    status.textContent = strings.mapMirrorStatus(run.level, run.warriorHp, run.warriorMaxHp, run.visitedIds.length);
     instructions.textContent = strings.mapMirrorInstructions(nodes.length);
 
     list.textContent = "";
@@ -163,7 +158,9 @@ export function createMapMirror(
         n.type,
         n.grade,
       );
-      btn.addEventListener("click", () => { onChoose(n.id); });
+      btn.addEventListener("click", () => {
+        onChoose(n.id);
+      });
       li.appendChild(btn);
       list.appendChild(li);
     });

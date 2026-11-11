@@ -82,7 +82,10 @@ export class CitadelBot {
           let ok = true;
           for (let yy = 0; yy < h && ok; yy++)
             for (let xx = 0; xx < w; xx++)
-              if (t.cells[(y + yy) * t.width + (x + xx)] !== TerrainType.Grass) { ok = false; break; }
+              if (t.cells[(y + yy) * t.width + (x + xx)] !== TerrainType.Grass) {
+                ok = false;
+                break;
+              }
           if (ok) return { x, y };
         }
       }

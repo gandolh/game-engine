@@ -5,7 +5,17 @@ export type { SettlementTier } from "./systems/tiers";
 // `findCoreBox` (+ its dims) is the guaranteed-buildable core the terrain generator repairs into
 // every map and `seedFoundingTown` anchors on. Brief 103: the Challenge ruleset has NO seeded town,
 // so the client uses it to open the camera on land the player can actually found on.
-export { generateTerrain, isWalkable, findCoreBox, TerrainType, WORLD_WIDTH, WORLD_HEIGHT, TILE_SIZE, CORE_BOX_W, CORE_BOX_H } from "./world/terrain";
+export {
+  generateTerrain,
+  isWalkable,
+  findCoreBox,
+  TerrainType,
+  WORLD_WIDTH,
+  WORLD_HEIGHT,
+  TILE_SIZE,
+  CORE_BOX_W,
+  CORE_BOX_H,
+} from "./world/terrain";
 export type { TerrainGrid } from "./world/terrain";
 export { DayClockSystem } from "./systems/day-clock";
 export type {

@@ -34,20 +34,14 @@ describe("computeCliffs", () => {
 
   it("all cliff tiles are non-walkable (ocean only)", () => {
     for (const c of CLIFFS) {
-      expect(
-        isWalkable(c.tx, c.ty),
-        `cliff at (${c.tx},${c.ty}) must be ocean (non-walkable)`,
-      ).toBe(false);
+      expect(isWalkable(c.tx, c.ty), `cliff at (${c.tx},${c.ty}) must be ocean (non-walkable)`).toBe(false);
     }
   });
 
   it("no cliff tile overlaps a bridge span (BRIDGE_SET)", () => {
     for (const c of CLIFFS) {
       const key = c.ty * WORLD_WIDTH + c.tx;
-      expect(
-        BRIDGE_SET.has(key),
-        `cliff at (${c.tx},${c.ty}) must not overlap a bridge tile`,
-      ).toBe(false);
+      expect(BRIDGE_SET.has(key), `cliff at (${c.tx},${c.ty}) must not overlap a bridge tile`).toBe(false);
     }
   });
 
@@ -76,33 +70,29 @@ describe("computeCliffs", () => {
       "tile/cliff-face-right",
     ]);
     for (const c of CLIFFS) {
-      expect(
-        validFrames.has(c.frame),
-        `unexpected cliff frame "${c.frame}" at (${c.tx},${c.ty})`,
-      ).toBe(true);
+      expect(validFrames.has(c.frame), `unexpected cliff frame "${c.frame}" at (${c.tx},${c.ty})`).toBe(true);
     }
   });
 
   it("COASTLINE_BUBBLE_TILES has no cliff tile members (foam suppressed on cliffs)", () => {
-    const bubbleKeys = new Set(
-      COASTLINE_BUBBLE_TILES.map((b) => b.ty * WORLD_WIDTH + b.tx),
-    );
+    const bubbleKeys = new Set(COASTLINE_BUBBLE_TILES.map((b) => b.ty * WORLD_WIDTH + b.tx));
     for (const c of CLIFFS) {
       const key = c.ty * WORLD_WIDTH + c.tx;
-      expect(
-        bubbleKeys.has(key),
-        `bubble tile at (${c.tx},${c.ty}) should have been suppressed by cliff filter`,
-      ).toBe(false);
+      expect(bubbleKeys.has(key), `bubble tile at (${c.tx},${c.ty}) should have been suppressed by cliff filter`).toBe(
+        false,
+      );
     }
   });
 });
 
 describe("oceanDepthAt (coastal shallow-water bands)", () => {
   it("land tiles read 0 (untinted)", () => {
-
     const b = COASTLINE_BUBBLE_TILES[0]!;
     const landNbr = [
-      [b.tx, b.ty - 1], [b.tx, b.ty + 1], [b.tx - 1, b.ty], [b.tx + 1, b.ty],
+      [b.tx, b.ty - 1],
+      [b.tx, b.ty + 1],
+      [b.tx - 1, b.ty],
+      [b.tx + 1, b.ty],
     ].find(([x, y]) => isWalkable(x!, y!));
     expect(landNbr, "expected a land neighbour").toBeDefined();
     expect(oceanDepthAt(landNbr![0]!, landNbr![1]!)).toBe(0);
@@ -110,10 +100,7 @@ describe("oceanDepthAt (coastal shallow-water bands)", () => {
 
   it("ocean tiles touching land read depth 1", () => {
     for (const b of COASTLINE_BUBBLE_TILES.slice(0, 50)) {
-      expect(
-        oceanDepthAt(b.tx, b.ty),
-        `coast-adjacent ocean (${b.tx},${b.ty}) should be depth 1`,
-      ).toBe(1);
+      expect(oceanDepthAt(b.tx, b.ty), `coast-adjacent ocean (${b.tx},${b.ty}) should be depth 1`).toBe(1);
     }
   });
 
@@ -133,7 +120,10 @@ describe("oceanDepthAt (coastal shallow-water bands)", () => {
     let sawMax = false;
     for (let ty = 0; ty < WORLD_HEIGHT && !sawMax; ty++) {
       for (let tx = 0; tx < WORLD_WIDTH; tx++) {
-        if (oceanDepthAt(tx, ty) === COAST_DEPTH_MAX) { sawMax = true; break; }
+        if (oceanDepthAt(tx, ty) === COAST_DEPTH_MAX) {
+          sawMax = true;
+          break;
+        }
       }
     }
     expect(sawMax).toBe(true);
@@ -142,10 +132,12 @@ describe("oceanDepthAt (coastal shallow-water bands)", () => {
 
 describe("oceanGradientAt (wide shore-proximity gradient, brief 13 follow-up)", () => {
   it("land tiles return 0", () => {
-
     const b = COASTLINE_BUBBLE_TILES[0]!;
     const landNbr = [
-      [b.tx, b.ty - 1], [b.tx, b.ty + 1], [b.tx - 1, b.ty], [b.tx + 1, b.ty],
+      [b.tx, b.ty - 1],
+      [b.tx, b.ty + 1],
+      [b.tx - 1, b.ty],
+      [b.tx + 1, b.ty],
     ].find(([x, y]) => isWalkable(x!, y!));
     expect(landNbr, "expected a land neighbour").toBeDefined();
     expect(oceanGradientAt(landNbr![0]!, landNbr![1]!)).toBe(0);
@@ -158,10 +150,7 @@ describe("oceanGradientAt (wide shore-proximity gradient, brief 13 follow-up)", 
 
   it("shore-adjacent ocean tiles return 1.0 (maximum proximity)", () => {
     for (const b of COASTLINE_BUBBLE_TILES.slice(0, 50)) {
-      expect(
-        oceanGradientAt(b.tx, b.ty),
-        `coast-adjacent ocean (${b.tx},${b.ty}) should be 1.0`,
-      ).toBe(1.0);
+      expect(oceanGradientAt(b.tx, b.ty), `coast-adjacent ocean (${b.tx},${b.ty}) should be 1.0`).toBe(1.0);
     }
   });
 
@@ -197,15 +186,13 @@ describe("oceanGradientAt (wide shore-proximity gradient, brief 13 follow-up)", 
     // If we walked the full depth without hitting other land, the far tile must
     // have fallen off to (near) open ocean — strictly dimmer than the coast.
     if (steps >= GRADIENT_DEPTH_MAX) {
-      expect(
-        last,
-        `gradient ${steps} tiles offshore (${start} -> ${last}) should fall off`,
-      ).toBeLessThanOrEqual(start + 1e-9);
+      expect(last, `gradient ${steps} tiles offshore (${start} -> ${last}) should fall off`).toBeLessThanOrEqual(
+        start + 1e-9,
+      );
     }
   });
 
   it("tiles far from any land return 0 (open ocean)", () => {
-
     let foundDeep = false;
     for (let ty = 0; ty < WORLD_HEIGHT && !foundDeep; ty++) {
       for (let tx = 0; tx < WORLD_WIDTH; tx++) {
@@ -220,7 +207,6 @@ describe("oceanGradientAt (wide shore-proximity gradient, brief 13 follow-up)", 
 });
 
 describe("BIG_STRUCTURES are anchored on their island (not floating at stale coords)", () => {
-
   it("every baked structure's base footprint touches a region (on land)", () => {
     for (const s of BIG_STRUCTURES) {
       const wTiles = Math.max(1, Math.round(s.wPx / 16));

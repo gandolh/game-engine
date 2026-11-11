@@ -17,14 +17,10 @@ import type { FsmState } from "../ecs/components";
 import type { DeliberationContext, PersonalityRegistry } from "./registry";
 
 /** The fsm state-string union of an agent entity (a game's fsm state type). */
-type FsmStateOf<E extends EngineEntity> =
-  NonNullable<E["fsm"]> extends FsmState<infer S> ? S : string;
+type FsmStateOf<E extends EngineEntity> = NonNullable<E["fsm"]> extends FsmState<infer S> ? S : string;
 
 /** An agent that has passed the full-BDI query filter. */
-type DeliberativeAgent<E extends EngineEntity> = With<
-  E,
-  "fsm" | "personality" | "intentions" | "beliefs" | "desires"
->;
+type DeliberativeAgent<E extends EngineEntity> = With<E, "fsm" | "personality" | "intentions" | "beliefs" | "desires">;
 
 export interface DeliberateSystemOptions<E extends EngineEntity, Ctx = DeliberationContext> {
   /** Where `personality.kind` deliberators are looked up. */
@@ -46,8 +42,7 @@ export function createDeliberateSystem<E extends EngineEntity, Ctx = Deliberatio
   opts: DeliberateSystemOptions<E, Ctx>,
 ): System {
   const { registry, perceiveState, actState, shouldSkip } = opts;
-  const makeContext =
-    opts.makeContext ?? ((ctx: SimContext): Ctx => ({ tick: ctx.tick }) as unknown as Ctx);
+  const makeContext = opts.makeContext ?? ((ctx: SimContext): Ctx => ({ tick: ctx.tick }) as unknown as Ctx);
   const name = opts.name ?? "DeliberateSystem";
 
   return {

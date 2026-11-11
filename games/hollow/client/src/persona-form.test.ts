@@ -144,14 +144,20 @@ describe("randomizeUnlocked", () => {
     let calls = 0;
     const seq = [0.1, 0.9, 0.3, 0.7, 0.2, 0.4, 0.6, 0.8, 0.0, 0.5, 1, 0, 0.15];
     const rand = () => seq[calls++ % seq.length]!;
-    const a = randomizeUnlocked(row, (() => {
-      let i = 0;
-      return () => seq[i++ % seq.length]!;
-    })());
-    const b = randomizeUnlocked(row, (() => {
-      let i = 0;
-      return () => seq[i++ % seq.length]!;
-    })());
+    const a = randomizeUnlocked(
+      row,
+      (() => {
+        let i = 0;
+        return () => seq[i++ % seq.length]!;
+      })(),
+    );
+    const b = randomizeUnlocked(
+      row,
+      (() => {
+        let i = 0;
+        return () => seq[i++ % seq.length]!;
+      })(),
+    );
     expect(a).toEqual(b);
     void rand;
   });

@@ -18,10 +18,24 @@ import {
 /** Minimal building-snapshot factory for the geometry tests. */
 function b(type: string, x: number, y: number, w = 1, h = 1): BuildingSnapshot {
   return {
-    type, x, y, w, h,
-    connected: true, outputBuffer: 0, workerCount: 0, occupancy: 0, ownerId: 0,
-    onFire: false, burning: false, level: 1,
-    lacksFaith: true, lacksSafety: true, lacksGoods: true, mood: 40, wellServed: false,
+    type,
+    x,
+    y,
+    w,
+    h,
+    connected: true,
+    outputBuffer: 0,
+    workerCount: 0,
+    occupancy: 0,
+    ownerId: 0,
+    onFire: false,
+    burning: false,
+    level: 1,
+    lacksFaith: true,
+    lacksSafety: true,
+    lacksGoods: true,
+    mood: 40,
+    wellServed: false,
   };
 }
 
@@ -136,9 +150,9 @@ describe("serviceCatchment (shape dispatch)", () => {
 describe("housesInRadius", () => {
   it("counts only houses within the Manhattan radius (house centre)", () => {
     const buildings = [
-      b("house", 10, 10),       // dist 0
-      b("house", 13, 10),       // dist 3
-      b("house", 18, 10),       // dist 8 — just out at r=7
+      b("house", 10, 10), // dist 0
+      b("house", 13, 10), // dist 3
+      b("house", 18, 10), // dist 8 — just out at r=7
       b("chapel", 10, 10, 2, 2), // not a house
     ];
     expect(housesInRadius(buildings, 10, 10, 7)).toBe(2);
@@ -200,7 +214,10 @@ describe("uncoveredHouseTiles", () => {
   });
 
   it("is deterministic and ignores non-house buildings", () => {
-    const buildings = [{ ...b("house", 1, 1), lacksFaith: true, lacksSafety: false, lacksGoods: false }, b("chapel", 1, 1, 2, 2)];
+    const buildings = [
+      { ...b("house", 1, 1), lacksFaith: true, lacksSafety: false, lacksGoods: false },
+      b("chapel", 1, 1, 2, 2),
+    ];
     const first = uncoveredHouseTiles(buildings);
     const second = uncoveredHouseTiles(buildings);
     expect(first).toEqual(second);

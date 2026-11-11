@@ -43,9 +43,13 @@ export function renderWeather(
   let intensity = 0;
   let color: string = EDG.skyBlue;
   if (isWet && isWinter) {
-    kind = "snow"; intensity = isStorm ? 1.0 : 0.6; color = EDG.white;
+    kind = "snow";
+    intensity = isStorm ? 1.0 : 0.6;
+    color = EDG.white;
   } else if (isWet) {
-    kind = "rain"; intensity = isStorm ? 1.3 : 0.8; color = EDG.skyBlue;
+    kind = "rain";
+    intensity = isStorm ? 1.3 : 0.8;
+    color = EDG.skyBlue;
   }
   rain.setConfig({ kind, intensity, color, alpha: kind === "snow" ? 0.85 : 0.5 });
   rain.update(dt, view, spawnRainSplash);

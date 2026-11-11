@@ -1,11 +1,4 @@
-
-
-import {
-  bootstrapSim,
-  leaderboard,
-  type FarmerSummary,
-  type PathfinderLike,
-} from "@farm/sim-core/sim-bootstrap";
+import { bootstrapSim, leaderboard, type FarmerSummary, type PathfinderLike } from "@farm/sim-core/sim-bootstrap";
 
 export type { FarmerSummary, PathfinderLike };
 
@@ -46,9 +39,10 @@ function currentWeather(world: ReturnType<typeof bootstrapSim>["world"]): string
   return "normal";
 }
 
-export function summarize(
-  world: ReturnType<typeof bootstrapSim>["world"],
-): { weather: string; summaries: FarmerSummary[] } {
+export function summarize(world: ReturnType<typeof bootstrapSim>["world"]): {
+  weather: string;
+  summaries: FarmerSummary[];
+} {
   return { weather: currentWeather(world), summaries: leaderboard(world) };
 }
 
@@ -99,12 +93,7 @@ const SENTINEL_NAN = "__NaN";
 const SENTINEL_POS_INF = "__Inf";
 const SENTINEL_NEG_INF = "__-Inf";
 const SENTINEL_NEG_ZERO = "__-0";
-const SENTINELS: ReadonlySet<string> = new Set([
-  SENTINEL_NAN,
-  SENTINEL_POS_INF,
-  SENTINEL_NEG_INF,
-  SENTINEL_NEG_ZERO,
-]);
+const SENTINELS: ReadonlySet<string> = new Set([SENTINEL_NAN, SENTINEL_POS_INF, SENTINEL_NEG_INF, SENTINEL_NEG_ZERO]);
 
 function escapeSentinelString(value: string): string {
   return SENTINELS.has(value) ? `__esc${value}` : value;

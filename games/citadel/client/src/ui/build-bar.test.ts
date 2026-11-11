@@ -55,7 +55,7 @@ describe("createBuildBar — tree + wiring", () => {
   it("a build button calls selectBuild(type); a tool button calls setTool(mode)", () => {
     const { bar, builds, tools } = makeBar();
     byLabel(bar.root, "House").onActivate?.();
-    byLabel(bar.root, "Hall").onActivate?.();   // town-hall
+    byLabel(bar.root, "Hall").onActivate?.(); // town-hall
     byLabel(bar.root, "Road").onActivate?.();
     byLabel(bar.root, "Cancel").onActivate?.(); // → "none"
     expect(builds).toEqual(["house", "town-hall"]);
@@ -85,7 +85,7 @@ describe("createBuildBar — per-frame state", () => {
   it("disables tier-locked builds until the tier is reached", () => {
     const { bar } = makeBar();
     bar.refresh(state({ peakTier: "Hamlet" }));
-    expect(byLabel(bar.root, "Keep").state).toBe("disabled");   // keep needs Town
+    expect(byLabel(bar.root, "Keep").state).toBe("disabled"); // keep needs Town
     bar.refresh(state({ peakTier: "Town" }));
     expect(byLabel(bar.root, "Keep").state).not.toBe("disabled");
   });
@@ -93,7 +93,7 @@ describe("createBuildBar — per-frame state", () => {
   it("disables unaffordable builds when build costs are on, re-enables as the stockpile grows", () => {
     const { bar } = makeBar();
     bar.refresh(state({ chargeBuildCost: true, stockpiles: { wood: 0 } }));
-    expect(byLabel(bar.root, "House").state).toBe("disabled");  // house costs 4 wood
+    expect(byLabel(bar.root, "House").state).toBe("disabled"); // house costs 4 wood
     bar.refresh(state({ chargeBuildCost: true, stockpiles: { wood: 40 } }));
     expect(byLabel(bar.root, "House").state).toBe("normal");
   });
@@ -102,7 +102,7 @@ describe("createBuildBar — per-frame state", () => {
     const { bar } = makeBar();
     expect(bar.refresh(state({ mode: "place", selectedType: "farm" }))).toBe(true);
     expect(bar.refresh(state({ mode: "place", selectedType: "farm" }))).toBe(false); // no change
-    expect(bar.refresh(state({ mode: "place", selectedType: "mill" }))).toBe(true);  // moved
+    expect(bar.refresh(state({ mode: "place", selectedType: "mill" }))).toBe(true); // moved
   });
 });
 

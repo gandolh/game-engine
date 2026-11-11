@@ -124,9 +124,7 @@ export function buildOrganicMaskAttempt(
         }
         // Two-rule CA: born from ocean at >= BORN, survive as land at >= SURVIVE.
         next[idx(tx, ty)] =
-          buf[idx(tx, ty)] === 1
-            ? land >= SURVIVE_THRESHOLD ? 1 : 0
-            : land >= BORN_THRESHOLD ? 1 : 0;
+          buf[idx(tx, ty)] === 1 ? (land >= SURVIVE_THRESHOLD ? 1 : 0) : land >= BORN_THRESHOLD ? 1 : 0;
       }
     }
     // Re-apply protected tiles.
@@ -156,7 +154,10 @@ export function buildOrganicMaskAttempt(
     const cy = Math.floor(ci / w) + minY;
     // 4-neighbours
     const neighbours: [number, number][] = [
-      [cx - 1, cy], [cx + 1, cy], [cx, cy - 1], [cx, cy + 1],
+      [cx - 1, cy],
+      [cx + 1, cy],
+      [cx, cy - 1],
+      [cx, cy + 1],
     ];
     for (const [nx, ny] of neighbours) {
       if (nx < minX || nx > maxX || ny < minY || ny > maxY) continue;

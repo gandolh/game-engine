@@ -9,13 +9,7 @@
  */
 import { describe, it, expect } from "vitest";
 import { WORLD_WIDTH, WORLD_HEIGHT } from "@citadel/sim-core";
-import {
-  ISO_TILE_W,
-  ISO_TILE_H,
-  ISO_ORIGIN_Y,
-  makeIso,
-  isoDepth,
-} from "./iso";
+import { ISO_TILE_W, ISO_TILE_H, ISO_ORIGIN_Y, makeIso, isoDepth } from "./iso";
 
 /** The solo world's projection — what every test below used implicitly before. */
 const iso = makeIso(WORLD_WIDTH, WORLD_HEIGHT);
@@ -51,7 +45,12 @@ describe("tileToIso forward projection", () => {
   });
 
   it("keeps every grid corner within the non-negative iso world bounds", () => {
-    for (const [tx, ty] of [[0, 0], [WORLD_WIDTH - 1, 0], [0, WORLD_HEIGHT - 1], [WORLD_WIDTH - 1, WORLD_HEIGHT - 1]] as const) {
+    for (const [tx, ty] of [
+      [0, 0],
+      [WORLD_WIDTH - 1, 0],
+      [0, WORLD_HEIGHT - 1],
+      [WORLD_WIDTH - 1, WORLD_HEIGHT - 1],
+    ] as const) {
       const p = iso.tileToIso(tx, ty);
       expect(p.x).toBeGreaterThanOrEqual(0);
       expect(p.x).toBeLessThanOrEqual(iso.worldPxW);
@@ -85,7 +84,8 @@ describe("isoToTile inverse — round-trip identity (the placement-critical path
 
   it("points just inside a diamond's four edges resolve to that diamond", () => {
     // Sample near (but inside) each corner of a mid-grid tile's diamond.
-    const tx = 10, ty = 12;
+    const tx = 10,
+      ty = 12;
     const c = iso.tileCenterToIso(tx, ty);
     const eps = 1.5;
     const probes = [
@@ -104,7 +104,10 @@ describe("isoToTile inverse — round-trip identity (the placement-critical path
 describe("tileDiamond", () => {
   it("returns top/right/bottom/left corners around the tile centre", () => {
     const [top, right, bottom, left] = iso.tileDiamond(4, 4) as [
-      { x: number; y: number }, { x: number; y: number }, { x: number; y: number }, { x: number; y: number },
+      { x: number; y: number },
+      { x: number; y: number },
+      { x: number; y: number },
+      { x: number; y: number },
     ];
     const c = iso.tileCenterToIso(4, 4);
     expect(top).toEqual({ x: c.x, y: c.y - ISO_TILE_H / 2 });
@@ -153,7 +156,13 @@ describe("makeIso — one projection per world size (brief 110)", () => {
   });
 
   it("round-trips every corner of the 256×256 MP world", () => {
-    for (const [tx, ty] of [[0, 0], [MP - 1, 0], [0, MP - 1], [MP - 1, MP - 1], [128, 128]] as const) {
+    for (const [tx, ty] of [
+      [0, 0],
+      [MP - 1, 0],
+      [0, MP - 1],
+      [MP - 1, MP - 1],
+      [128, 128],
+    ] as const) {
       const c = mp.tileCenterToIso(tx, ty);
       expect(mp.isoToTile(c.x, c.y)).toEqual({ tx, ty });
       // …and stays inside its own non-negative extents.

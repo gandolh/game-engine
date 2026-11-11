@@ -16,12 +16,18 @@ import type { Mesh, Tri, Vec3 } from "./types";
 // Vector + transform helpers
 // ---------------------------------------------------------------------------
 
-export function add(a: Vec3, b: Vec3): Vec3 { return [a[0] + b[0], a[1] + b[1], a[2] + b[2]]; }
-export function sub(a: Vec3, b: Vec3): Vec3 { return [a[0] - b[0], a[1] - b[1], a[2] - b[2]]; }
+export function add(a: Vec3, b: Vec3): Vec3 {
+  return [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
+}
+export function sub(a: Vec3, b: Vec3): Vec3 {
+  return [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+}
 export function cross(a: Vec3, b: Vec3): Vec3 {
   return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 }
-export function dot(a: Vec3, b: Vec3): number { return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; }
+export function dot(a: Vec3, b: Vec3): number {
+  return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+}
 export function normalize(a: Vec3): Vec3 {
   const m = Math.hypot(a[0], a[1], a[2]);
   return m === 0 ? [0, 0, 0] : [a[0] / m, a[1] / m, a[2] / m];
@@ -40,7 +46,8 @@ export function scale(m: Mesh, s: Vec3 | number): Mesh {
 
 /** Rotate about the +z axis (through the origin) by `rad`. New mesh. */
 export function rotateZ(m: Mesh, rad: number): Mesh {
-  const c = Math.cos(rad), s = Math.sin(rad);
+  const c = Math.cos(rad),
+    s = Math.sin(rad);
   return {
     positions: m.positions.map((p) => [p[0] * c - p[1] * s, p[0] * s + p[1] * c, p[2]] as Vec3),
     tris: m.tris,
@@ -49,7 +56,8 @@ export function rotateZ(m: Mesh, rad: number): Mesh {
 
 /** Rotate about the +x axis (through the origin) by `rad`. New mesh (winding preserved). */
 export function rotateX(m: Mesh, rad: number): Mesh {
-  const c = Math.cos(rad), s = Math.sin(rad);
+  const c = Math.cos(rad),
+    s = Math.sin(rad);
   return {
     positions: m.positions.map((p) => [p[0], p[1] * c - p[2] * s, p[1] * s + p[2] * c] as Vec3),
     tris: m.tris,
@@ -58,7 +66,8 @@ export function rotateX(m: Mesh, rad: number): Mesh {
 
 /** Rotate about the +y axis (through the origin) by `rad`. New mesh (winding preserved). */
 export function rotateY(m: Mesh, rad: number): Mesh {
-  const c = Math.cos(rad), s = Math.sin(rad);
+  const c = Math.cos(rad),
+    s = Math.sin(rad);
   return {
     positions: m.positions.map((p) => [p[0] * c + p[2] * s, p[1], -p[0] * s + p[2] * c] as Vec3),
     tris: m.tris,
@@ -81,8 +90,12 @@ export function merge(...meshes: readonly Mesh[]): Mesh {
  *  returns degenerate zero bounds `{min:[0,0,0], max:[0,0,0]}`. */
 export function boundsOf(mesh: Mesh): { min: Vec3; max: Vec3 } {
   if (mesh.positions.length === 0) return { min: [0, 0, 0], max: [0, 0, 0] };
-  let minX = Infinity, minY = Infinity, minZ = Infinity;
-  let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+  let minX = Infinity,
+    minY = Infinity,
+    minZ = Infinity;
+  let maxX = -Infinity,
+    maxY = -Infinity,
+    maxZ = -Infinity;
   for (const [x, y, z] of mesh.positions) {
     if (x < minX) minX = x;
     if (y < minY) minY = y;
@@ -100,7 +113,13 @@ export function boundsOf(mesh: Mesh): { min: Vec3; max: Vec3 } {
 
 /** A single quad `a→b→c→d` (CCW from outside) as two triangles. */
 export function quad(a: Vec3, b: Vec3, c: Vec3, d: Vec3, material: string): Mesh {
-  return { positions: [a, b, c, d], tris: [{ a: 0, b: 1, c: 2, material }, { a: 0, b: 2, c: 3, material }] };
+  return {
+    positions: [a, b, c, d],
+    tris: [
+      { a: 0, b: 1, c: 2, material },
+      { a: 0, b: 2, c: 3, material },
+    ],
+  };
 }
 
 /**
@@ -110,11 +129,18 @@ export function quad(a: Vec3, b: Vec3, c: Vec3, d: Vec3, material: string): Mesh
 export function box(size: Vec3, material: string): Mesh {
   const [w, d, h] = size;
   const p: Vec3[] = [
-    [0, 0, 0], [w, 0, 0], [w, d, 0], [0, d, 0], // 0..3 bottom
-    [0, 0, h], [w, 0, h], [w, d, h], [0, d, h], // 4..7 top
+    [0, 0, 0],
+    [w, 0, 0],
+    [w, d, 0],
+    [0, d, 0], // 0..3 bottom
+    [0, 0, h],
+    [w, 0, h],
+    [w, d, h],
+    [0, d, h], // 4..7 top
   ];
   const f = (a: number, b: number, c: number, dd: number): Tri[] => [
-    { a, b, c, material }, { a, b: c, c: dd, material },
+    { a, b, c, material },
+    { a, b: c, c: dd, material },
   ];
   const tris: Tri[] = [
     ...f(4, 5, 6, 7), // top   (+z)
@@ -150,7 +176,10 @@ export function cylinder(radius: number, height: number, segs: number, material:
   const tris: Tri[] = [];
   for (let i = 0; i < segs; i++) {
     const j = (i + 1) % segs;
-    const b0 = i, b1 = j, t0 = segs + i, t1 = segs + j;
+    const b0 = i,
+      b1 = j,
+      t0 = segs + i,
+      t1 = segs + j;
     // Side quad, outward CCW (b0 → b1 → t1 → t0).
     tris.push({ a: b0, b: b1, c: t1, material });
     tris.push({ a: b0, b: t1, c: t0, material });
@@ -188,7 +217,10 @@ export function cone(radius: number, height: number, segs: number, material: str
 export function pyramid(base: readonly [number, number], h: number, material: string): Mesh {
   const [w, d] = base;
   const positions: Vec3[] = [
-    [0, 0, 0], [w, 0, 0], [w, d, 0], [0, d, 0], // base 0..3 (CCW from below)
+    [0, 0, 0],
+    [w, 0, 0],
+    [w, d, 0],
+    [0, d, 0], // base 0..3 (CCW from below)
     [w / 2, d / 2, h], // apex 4
   ];
   const tris: Tri[] = [
@@ -196,7 +228,8 @@ export function pyramid(base: readonly [number, number], h: number, material: st
     { a: 3, b: 0, c: 4, material }, // -x side
     { a: 2, b: 3, c: 4, material }, // +y side
     { a: 0, b: 1, c: 4, material }, // -y side
-    { a: 0, b: 3, c: 2, material }, { a: 0, b: 2, c: 1, material }, // base (-z)
+    { a: 0, b: 3, c: 2, material },
+    { a: 0, b: 2, c: 1, material }, // base (-z)
   ];
   return { positions, tris };
 }
@@ -212,29 +245,43 @@ export function gable(size: Vec3, ridge: "x" | "y", material: string): Mesh {
   if (ridge === "x") {
     const ym = d / 2;
     const positions: Vec3[] = [
-      [0, 0, 0], [w, 0, 0], [w, d, 0], [0, d, 0], // eaves 0..3
-      [0, ym, h], [w, ym, h], // ridge 4,5
+      [0, 0, 0],
+      [w, 0, 0],
+      [w, d, 0],
+      [0, d, 0], // eaves 0..3
+      [0, ym, h],
+      [w, ym, h], // ridge 4,5
     ];
     const tris: Tri[] = [
-      { a: 3, b: 4, c: 5, material }, { a: 3, b: 5, c: 2, material }, // south slope (+y,+z)
-      { a: 1, b: 5, c: 4, material }, { a: 1, b: 4, c: 0, material }, // north slope (-y,+z)
+      { a: 3, b: 4, c: 5, material },
+      { a: 3, b: 5, c: 2, material }, // south slope (+y,+z)
+      { a: 1, b: 5, c: 4, material },
+      { a: 1, b: 4, c: 0, material }, // north slope (-y,+z)
       { a: 1, b: 2, c: 5, material }, // east gable end (+x)
       { a: 0, b: 4, c: 3, material }, // west gable end (-x)
-      { a: 0, b: 3, c: 2, material }, { a: 0, b: 2, c: 1, material }, // bottom (-z)
+      { a: 0, b: 3, c: 2, material },
+      { a: 0, b: 2, c: 1, material }, // bottom (-z)
     ];
     return { positions, tris };
   }
   const xm = w / 2;
   const positions: Vec3[] = [
-    [0, 0, 0], [w, 0, 0], [w, d, 0], [0, d, 0], // eaves 0..3
-    [xm, 0, h], [xm, d, h], // ridge 4,5
+    [0, 0, 0],
+    [w, 0, 0],
+    [w, d, 0],
+    [0, d, 0], // eaves 0..3
+    [xm, 0, h],
+    [xm, d, h], // ridge 4,5
   ];
   const tris: Tri[] = [
-    { a: 1, b: 2, c: 5, material }, { a: 1, b: 5, c: 4, material }, // east slope (+x,+z)
-    { a: 0, b: 4, c: 5, material }, { a: 0, b: 5, c: 3, material }, // west slope (-x,+z)
+    { a: 1, b: 2, c: 5, material },
+    { a: 1, b: 5, c: 4, material }, // east slope (+x,+z)
+    { a: 0, b: 4, c: 5, material },
+    { a: 0, b: 5, c: 3, material }, // west slope (-x,+z)
     { a: 2, b: 3, c: 5, material }, // south gable end (+y)
     { a: 0, b: 1, c: 4, material }, // north gable end (-y)
-    { a: 0, b: 3, c: 2, material }, { a: 0, b: 2, c: 1, material }, // bottom (-z)
+    { a: 0, b: 3, c: 2, material },
+    { a: 0, b: 2, c: 1, material }, // bottom (-z)
   ];
   return { positions, tris };
 }

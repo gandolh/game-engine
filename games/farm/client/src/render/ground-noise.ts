@@ -1,5 +1,3 @@
-
-
 import { EDG } from "@engine/core/render";
 
 // `hash2`, `valueNoise2d` and `fbm` moved to `@engine/core/render` (audit-61). `hash2` was
@@ -24,15 +22,11 @@ const WARP_SEED_X = 0x1b873593;
 const WARP_SEED_Y = 0xcc9e2d51;
 const WARP_OFFSET = 5.2;
 
-export function domainWarp(
-  x: number,
-  y: number,
-  seed: number,
-): readonly [number, number] {
+export function domainWarp(x: number, y: number, seed: number): readonly [number, number] {
   const s = seed >>> 0;
   const dx =
     (fbm(
-      x * WARP_FREQUENCY * 8, 
+      x * WARP_FREQUENCY * 8,
       y * WARP_FREQUENCY * 8,
       (s ^ WARP_SEED_X) >>> 0,
       FBM_OCTAVES,
@@ -64,19 +58,8 @@ export function tileBrightness(
   amplitude: number = GROUND_NOISE_AMPLITUDE,
 ): number {
   const s = seed >>> 0;
-  const [wx, wy] = domainWarp(
-    (tileX | 0) * FBM_BASE_FREQUENCY,
-    (tileY | 0) * FBM_BASE_FREQUENCY,
-    s,
-  );
-  const n = fbm(
-    wx,
-    wy,
-    s,
-    FBM_OCTAVES,
-    FBM_LACUNARITY,
-    FBM_GAIN,
-  ); 
+  const [wx, wy] = domainWarp((tileX | 0) * FBM_BASE_FREQUENCY, (tileY | 0) * FBM_BASE_FREQUENCY, s);
+  const n = fbm(wx, wy, s, FBM_OCTAVES, FBM_LACUNARITY, FBM_GAIN);
   return 1 + (n * 2 - 1) * amplitude;
 }
 
@@ -97,9 +80,10 @@ export function makeGroundNoiseDecorator(
     for (let ty = ty0; ty < ty1; ty++) {
       for (let tx = tx0; tx < tx1; tx++) {
         const idx = ty * cols + tx;
-        const b = (wasmBrightness && idx < wasmBrightness.length)
-          ? wasmBrightness[idx]!
-          : tileBrightness(tx, ty, seed, amplitude);
+        const b =
+          wasmBrightness && idx < wasmBrightness.length
+            ? wasmBrightness[idx]!
+            : tileBrightness(tx, ty, seed, amplitude);
         if (b === 1) continue;
         const strength = Math.abs(b - 1) / amplitude;
         ctx.globalAlpha = strength * amplitude;

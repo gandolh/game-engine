@@ -19,8 +19,11 @@ export class PlotSenseSystem implements System {
   constructor(private readonly world: World<GameEntity>) {}
 
   run(_ctx: SimContext): void {
-    const byOwnerPlanted = new Map<number, Array<{ tileX: number; tileY: number; state: Extract<PlotState, { kind: "planted" }> }>>();
-    const byOwnerEmpty   = new Map<number, Array<{ tileX: number; tileY: number }>>();
+    const byOwnerPlanted = new Map<
+      number,
+      Array<{ tileX: number; tileY: number; state: Extract<PlotState, { kind: "planted" }> }>
+    >();
+    const byOwnerEmpty = new Map<number, Array<{ tileX: number; tileY: number }>>();
 
     const byOwnerGreenhouseEmpty = new Map<number, Array<{ tileX: number; tileY: number }>>();
     const allTilesByOwner = new Map<number, string[]>();
@@ -66,12 +69,33 @@ export class PlotSenseSystem implements System {
       decorationsAll.push(e.farmDecoration);
     }
 
-    const pensByOwner = new Map<number, { hasCoop: boolean; hasBarn: boolean; coopFed: boolean; barnFed: boolean; animalCounts: Partial<Record<AnimalKind, number>> }>();
+    const pensByOwner = new Map<
+      number,
+      {
+        hasCoop: boolean;
+        hasBarn: boolean;
+        coopFed: boolean;
+        barnFed: boolean;
+        animalCounts: Partial<Record<AnimalKind, number>>;
+      }
+    >();
     for (const p of this.world.query("pen")) {
       const oid = p.pen.ownerId;
-      const entry = pensByOwner.get(oid) ?? { hasCoop: false, hasBarn: false, coopFed: false, barnFed: false, animalCounts: {} };
-      if (p.pen.kind === "coop") { entry.hasCoop = true; entry.coopFed = p.pen.fedToday; }
-      if (p.pen.kind === "barn") { entry.hasBarn = true; entry.barnFed = p.pen.fedToday; }
+      const entry = pensByOwner.get(oid) ?? {
+        hasCoop: false,
+        hasBarn: false,
+        coopFed: false,
+        barnFed: false,
+        animalCounts: {},
+      };
+      if (p.pen.kind === "coop") {
+        entry.hasCoop = true;
+        entry.coopFed = p.pen.fedToday;
+      }
+      if (p.pen.kind === "barn") {
+        entry.hasBarn = true;
+        entry.barnFed = p.pen.fedToday;
+      }
       entry.animalCounts[p.pen.animal] = (entry.animalCounts[p.pen.animal] ?? 0) + p.pen.count;
       pensByOwner.set(oid, entry);
     }
@@ -81,7 +105,10 @@ export class PlotSenseSystem implements System {
       greenhouseOwners.add(g.greenhouse.ownerId);
     }
 
-    const orchardsByOwner = new Map<number, { count: number; readyTrees: Array<{ tileX: number; tileY: number; kind: string }> }>();
+    const orchardsByOwner = new Map<
+      number,
+      { count: number; readyTrees: Array<{ tileX: number; tileY: number; kind: string }> }
+    >();
     for (const t of this.world.query("orchardTree")) {
       const oid = t.orchardTree.ownerId;
       const entry = orchardsByOwner.get(oid) ?? { count: 0, readyTrees: [] };
@@ -107,18 +134,26 @@ export class PlotSenseSystem implements System {
         const dry = p.state.daysSinceWater ?? 0;
         if (dry > maxDry) maxDry = dry;
       }
-      dueTiles.sort((a, b) => a.tileY !== b.tileY ? a.tileY - b.tileY : a.tileX - b.tileX);
+      dueTiles.sort((a, b) => (a.tileY !== b.tileY ? a.tileY - b.tileY : a.tileX - b.tileX));
 
       const emptyTiles = (byOwnerEmpty.get(farmer.id) ?? [])
         .slice()
-        .sort((a, b) => a.tileY !== b.tileY ? a.tileY - b.tileY : a.tileX - b.tileX);
+        .sort((a, b) => (a.tileY !== b.tileY ? a.tileY - b.tileY : a.tileX - b.tileX));
 
       const homeRegion = farmer.farmer.homeRegion;
       const fountainTile = homeRegion ? fountainTilesByRegion.get(homeRegion) : undefined;
 
-      const sense: PlotWaterSense = fountainTile !== undefined
-        ? { planted: plantedPlots.length, due, maxDrySoFar: maxDry, duePlots: dueTiles, emptyPlots: emptyTiles, fountainTile }
-        : { planted: plantedPlots.length, due, maxDrySoFar: maxDry, duePlots: dueTiles, emptyPlots: emptyTiles };
+      const sense: PlotWaterSense =
+        fountainTile !== undefined
+          ? {
+              planted: plantedPlots.length,
+              due,
+              maxDrySoFar: maxDry,
+              duePlots: dueTiles,
+              emptyPlots: emptyTiles,
+              fountainTile,
+            }
+          : { planted: plantedPlots.length, due, maxDrySoFar: maxDry, duePlots: dueTiles, emptyPlots: emptyTiles };
       farmer.beliefs.data.plotWater = sense;
 
       const tiles = allTilesByOwner.get(farmer.id) ?? [];
@@ -136,8 +171,8 @@ export class PlotSenseSystem implements System {
       farmer.beliefs.data["coopFedToday"] = penState?.coopFed ?? false;
       farmer.beliefs.data["barnFedToday"] = penState?.barnFed ?? false;
       farmer.beliefs.data["penCount_chicken"] = penState?.animalCounts["chicken"] ?? 0;
-      farmer.beliefs.data["penCount_cow"]     = penState?.animalCounts["cow"] ?? 0;
-      farmer.beliefs.data["penCount_sheep"]   = penState?.animalCounts["sheep"] ?? 0;
+      farmer.beliefs.data["penCount_cow"] = penState?.animalCounts["cow"] ?? 0;
+      farmer.beliefs.data["penCount_sheep"] = penState?.animalCounts["sheep"] ?? 0;
 
       const orchState = orchardsByOwner.get(farmer.id);
       farmer.beliefs.data["orchardCount"] = orchState?.count ?? 0;
@@ -146,7 +181,7 @@ export class PlotSenseSystem implements System {
       farmer.beliefs.data["hasGreenhouse"] = greenhouseOwners.has(farmer.id);
       farmer.beliefs.data["greenhouseEmptyPlots"] = (byOwnerGreenhouseEmpty.get(farmer.id) ?? [])
         .slice()
-        .sort((a, b) => a.tileY !== b.tileY ? a.tileY - b.tileY : a.tileX - b.tileX);
+        .sort((a, b) => (a.tileY !== b.tileY ? a.tileY - b.tileY : a.tileX - b.tileX));
 
       farmer.beliefs.revision += 1;
     }

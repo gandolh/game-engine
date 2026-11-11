@@ -115,10 +115,7 @@ export const DEFAULT_THEME: Theme = {
  * {@link DEFAULT_THEME}). Nested colour bags (`buttonBg`/`buttonText`) merge one level deep,
  * so you can override a single state (e.g. just `buttonBg.hover`). Pure — never mutates.
  */
-export function makeTheme(
-  overrides: DeepPartial<Theme> = {},
-  base: Theme = DEFAULT_THEME,
-): Theme {
+export function makeTheme(overrides: DeepPartial<Theme> = {}, base: Theme = DEFAULT_THEME): Theme {
   return {
     ...base,
     ...stripUndefined(overrides),

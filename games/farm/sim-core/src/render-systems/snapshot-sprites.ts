@@ -3,24 +3,20 @@ import type { Season } from "../protocols/weather";
 import { frameToAtlasId, resolveFrameAndBob } from "./frames";
 import { TILE } from "@engine/core/render";
 
-function foliageSway(
-  frame: string,
-  wx: number,
-  wy: number,
-): { swayAmp: number; swayPhase: number } | undefined {
+function foliageSway(frame: string, wx: number, wy: number): { swayAmp: number; swayPhase: number } | undefined {
   const tx = Math.floor(wx / TILE);
   const ty = Math.floor(wy / TILE);
 
-  const hash = ((Math.imul(tx, 2654435761) ^ Math.imul(ty, 2246822519)) >>> 0);
+  const hash = (Math.imul(tx, 2654435761) ^ Math.imul(ty, 2246822519)) >>> 0;
   const phase = (hash / 0x100000000) * (Math.PI * 2);
 
   if (frame.startsWith("crop/")) {
     return { swayAmp: 0.5, swayPhase: phase };
   }
   if (
-    frame.startsWith("structure/tree") ||      
-    frame.startsWith("structure/fruit-tree") || 
-    frame.startsWith("structure/bush") ||       
+    frame.startsWith("structure/tree") ||
+    frame.startsWith("structure/fruit-tree") ||
+    frame.startsWith("structure/bush") ||
     frame === "decoration/bush"
   ) {
     return { swayAmp: 1.0, swayPhase: phase };
@@ -45,7 +41,6 @@ export function pushSnapshotSprites(
 
     const zPx = s.z ? s.z * TILE : 0;
     if (s.id !== null) {
-
       const HEIGHT_FADE_PX = TILE * 3;
       const t = zPx > 0 ? Math.max(0, 1 - zPx / HEIGHT_FADE_PX) : 1;
       if (t > 0) {
@@ -72,12 +67,7 @@ export function pushSnapshotSprites(
       tintRgba: s.tintRgba ?? 0xffffffff,
     });
 
-    if (
-      s.bubble !== null &&
-      s.bubble !== undefined &&
-      s.id !== null &&
-      !meetFarmerIds.has(s.id)
-    ) {
+    if (s.bubble !== null && s.bubble !== undefined && s.id !== null && !meetFarmerIds.has(s.id)) {
       renderer.push({
         x: s.x,
         y: s.y - TILE,
@@ -86,15 +76,15 @@ export function pushSnapshotSprites(
         frame: s.bubble,
         atlasId: "items-ui",
         rotation: 0,
-        layer: 89, 
+        layer: 89,
         alpha: 1,
       });
     }
 
     if (s.healthFrac !== undefined && s.id !== null) {
-      const BAR_W = TILE * 0.875;        
-      const BAR_H = TILE * 0.1875;       
-      const barY = s.y - TILE * 0.75;    
+      const BAR_W = TILE * 0.875;
+      const BAR_H = TILE * 0.1875;
+      const barY = s.y - TILE * 0.75;
       renderer.push({
         x: s.x,
         y: barY,
@@ -103,7 +93,7 @@ export function pushSnapshotSprites(
         frame: "indicator/hpbar-bg",
         atlasId: "items-ui",
         rotation: 0,
-        layer: 88, 
+        layer: 88,
         alpha: 1,
       });
       const frac = s.healthFrac;

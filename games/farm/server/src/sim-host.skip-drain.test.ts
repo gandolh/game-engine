@@ -66,10 +66,16 @@ function makeHarness(): Harness {
 
   return {
     host,
-    fire: () => { (host as unknown as { onInterval: () => void }).onInterval(); },
+    fire: () => {
+      (host as unknown as { onInterval: () => void }).onInterval();
+    },
     ticks: () => ticks,
-    setTickCost: (ms) => { tickCost = ms; },
-    emitHighlight: () => { pendingHighlight = true; },
+    setTickCost: (ms) => {
+      tickCost = ms;
+    },
+    emitHighlight: () => {
+      pendingHighlight = true;
+    },
   };
 }
 
@@ -191,15 +197,19 @@ describe("THE SHARED-SERVER SYMPTOM: one run skipping must not freeze another (a
       const b = makeHarness();
 
       // Real interval wiring for B; A is fired by the same scheduler.
-      setInterval(() => { a.fire(); }, 10);
-      setInterval(() => { b.fire(); }, 10);
+      setInterval(() => {
+        a.fire();
+      }, 10);
+      setInterval(() => {
+        b.fire();
+      }, 10);
 
       requestSkip(a);
       vi.advanceTimersByTime(100); // 10 fires each
 
-      expect(a.ticks()).toBeGreaterThan(0);     // A is making progress on its skip...
+      expect(a.ticks()).toBeGreaterThan(0); // A is making progress on its skip...
       expect(a.host.skipTicksPending()).toBeGreaterThan(0); // ...and has not finished it
-      expect(b.ticks()).toBe(10);               // ...while B ticked once per fire throughout
+      expect(b.ticks()).toBe(10); // ...while B ticked once per fire throughout
 
       vi.clearAllTimers();
     } finally {

@@ -252,10 +252,7 @@ export function createObserverPanel(actions: ObserverPanelActions): ObserverPane
       visible.push(child as ButtonNode);
     }
 
-    if (
-      visibleRows.children.length !== visible.length ||
-      visibleRows.children.some((c, i) => c !== visible[i])
-    ) {
+    if (visibleRows.children.length !== visible.length || visibleRows.children.some((c, i) => c !== visible[i])) {
       changed = true;
     }
     visibleRows.children = visible;
@@ -266,20 +263,12 @@ export function createObserverPanel(actions: ObserverPanelActions): ObserverPane
 
     const seasonLabel = capitalize(snapshot.season);
     setText(headerLbl, seasonLabel.length > 0 ? `Day ${snapshot.day} — ${seasonLabel}` : `Day ${snapshot.day}`);
-    setText(
-      weatherLbl,
-      `Weather: ${snapshot.weather.condition} (x${snapshot.weather.multiplier.toFixed(2)})`,
-    );
+    setText(weatherLbl, `Weather: ${snapshot.weather.condition} (x${snapshot.weather.multiplier.toFixed(2)})`);
     // One forecast entry per line (indented under a "Forecast:" heading). Was a single comma-joined
     // line that, at ~46 chars, alone pinned the whole column ~414px wide; wrapping it keeps the
     // column width driven only by the (bounded) farmer rows.
-    const forecastEntries = snapshot.forecast.map(
-      (f) => `  ${f.condition} ~${Math.round(f.confidence * 100)}%`,
-    );
-    setText(
-      forecastLbl,
-      forecastEntries.length > 0 ? `Forecast:\n${forecastEntries.join("\n")}` : "Forecast: -",
-    );
+    const forecastEntries = snapshot.forecast.map((f) => `  ${f.condition} ~${Math.round(f.confidence * 100)}%`);
+    setText(forecastLbl, forecastEntries.length > 0 ? `Forecast:\n${forecastEntries.join("\n")}` : "Forecast: -");
 
     const focused = focusedId !== null ? snapshot.farmers.find((f) => f.id === focusedId) : undefined;
     if (focusedId !== null && focused === undefined) {
@@ -326,10 +315,7 @@ export function createObserverPanel(actions: ObserverPanelActions): ObserverPane
 
     // Rebuild the scroll content children in id-sort order (cheap — farmer count is small/fixed).
     const nextChildren = sorted.map((f) => rowCache.get(f.id)!);
-    if (
-      vp.children.length !== nextChildren.length ||
-      vp.children.some((c, i) => c !== nextChildren[i])
-    ) {
+    if (vp.children.length !== nextChildren.length || vp.children.some((c, i) => c !== nextChildren[i])) {
       vp.children = nextChildren;
       changed = true;
     }

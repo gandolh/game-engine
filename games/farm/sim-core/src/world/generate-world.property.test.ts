@@ -20,7 +20,10 @@ function gap(a: RegionDef["bounds"], b: RegionDef["bounds"]): number {
 /** BFS over land+road tiles from the village center; returns reachable mask. */
 function reachableFromVillage(w: ReturnType<typeof generateWorld>): Uint8Array {
   const walk = new Uint8Array(WORLD_WIDTH * WORLD_HEIGHT);
-  for (const r of w.regions) forEachLandTile(r, (x, y) => { walk[y * WORLD_WIDTH + x] = 1; });
+  for (const r of w.regions)
+    forEachLandTile(r, (x, y) => {
+      walk[y * WORLD_WIDTH + x] = 1;
+    });
   for (const road of w.roads) {
     for (let y = road.minY; y <= road.maxY; y++) {
       for (let x = road.minX; x <= road.maxX; x++) {
@@ -38,10 +41,18 @@ function reachableFromVillage(w: ReturnType<typeof generateWorld>): Uint8Array {
     const k = q[head++]!;
     const x = k % WORLD_WIDTH;
     const y = (k - x) / WORLD_WIDTH;
-    for (const [nx, ny] of [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]] as const) {
+    for (const [nx, ny] of [
+      [x + 1, y],
+      [x - 1, y],
+      [x, y + 1],
+      [x, y - 1],
+    ] as const) {
       if (nx < 0 || ny < 0 || nx >= WORLD_WIDTH || ny >= WORLD_HEIGHT) continue;
       const nk = ny * WORLD_WIDTH + nx;
-      if (walk[nk] === 1 && seen[nk] === 0) { seen[nk] = 1; q.push(nk); }
+      if (walk[nk] === 1 && seen[nk] === 0) {
+        seen[nk] = 1;
+        q.push(nk);
+      }
     }
   }
   return seen;
@@ -73,10 +84,7 @@ describe("generateWorld — multi-seed properties", () => {
       const w = generateWorld(seed);
       const seen = reachableFromVillage(w);
       for (const r of w.regions) {
-        expect(
-          seen[r.center.y * WORLD_WIDTH + r.center.x],
-          `seed ${seed}: ${r.id} center unreachable`,
-        ).toBe(1);
+        expect(seen[r.center.y * WORLD_WIDTH + r.center.x], `seed ${seed}: ${r.id} center unreachable`).toBe(1);
       }
     }
   });
@@ -86,10 +94,7 @@ describe("generateWorld — multi-seed properties", () => {
       const { regions } = generateWorld(seed);
       for (const r of regions) {
         for (const core of forcedCoreTiles(r)) {
-          expect(
-            regionMaskAt(r, core.x, core.y),
-            `seed ${seed}: ${r.id} core (${core.x},${core.y})`,
-          ).toBe(true);
+          expect(regionMaskAt(r, core.x, core.y), `seed ${seed}: ${r.id} core (${core.x},${core.y})`).toBe(true);
         }
       }
     }
@@ -108,9 +113,19 @@ describe("generateWorld — multi-seed properties", () => {
 
   it("the expected roster of regions exists for every seed", () => {
     const required: RegionId[] = [
-      "village", "blacksmith", "carpentry", "mill", "harbor",
-      "fishing-isle", "fishing-isle-2", "casino", "volcano",
-      "farm-pip", "farm-cora", "farm-0", "ranch-0",
+      "village",
+      "blacksmith",
+      "carpentry",
+      "mill",
+      "harbor",
+      "fishing-isle",
+      "fishing-isle-2",
+      "casino",
+      "volcano",
+      "farm-pip",
+      "farm-cora",
+      "farm-0",
+      "ranch-0",
     ];
     for (const seed of SEEDS) {
       const ids = new Set(generateWorld(seed).regions.map((r) => r.id));
@@ -122,7 +137,10 @@ describe("generateWorld — multi-seed properties", () => {
     for (const seed of SEEDS) {
       const { regions } = generateWorld(seed);
       let land = 0;
-      for (const r of regions) forEachLandTile(r, () => { land++; });
+      for (const r of regions)
+        forEachLandTile(r, () => {
+          land++;
+        });
       const cov = land / (WORLD_WIDTH * WORLD_HEIGHT);
       // Carve shaves a little off the rect coverage, so allow a touch under 0.55.
       expect(cov, `seed ${seed} coverage ${(cov * 100).toFixed(1)}%`).toBeGreaterThan(0.45);

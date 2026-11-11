@@ -55,7 +55,6 @@ describe("deliberateHoarder", () => {
   });
 
   it("falls back to seed on hand when no preferred crop can be bought (day 60, gold barely above reserve)", () => {
-
     const f = makeFarmer({ seeds: { pumpkin: 1 }, plotId: 0, day: 60, gold: 82, reserve: 80 });
     deliberateHoarder(f, { tick: 1200 });
     const plant = f.intentions!.queue.find((i) => i.kind === "plant");
@@ -64,7 +63,6 @@ describe("deliberateHoarder", () => {
   });
 
   it("falls back to radish only when no high-tier crop is affordable", () => {
-
     const f = makeFarmer({ gold: 85, reserve: 80, seeds: {}, plotId: 0 });
     deliberateHoarder(f, { tick: 0 });
     const buy = f.intentions!.queue.find((i) => i.kind === "buy-seed");
@@ -121,9 +119,7 @@ describe("deliberateHoarder", () => {
     deliberateHoarder(f, { tick: 0 });
     const queue = f.intentions!.queue;
     const buyIdx = queue.findIndex((i) => i.kind === "buy-from-wall");
-    const travelIdx = queue.findIndex(
-      (i) => i.kind === "travel" && i.data["targetRegionId"] === "village",
-    );
+    const travelIdx = queue.findIndex((i) => i.kind === "travel" && i.data["targetRegionId"] === "village");
     expect(buyIdx).toBeGreaterThan(-1);
     expect(travelIdx).toBeGreaterThan(-1);
     expect(travelIdx).toBeLessThan(buyIdx);

@@ -82,12 +82,12 @@ const TRICKLE_STARVE_GRACE_DAYS = 6;
  * and never reaches here.
  */
 export function shouldTrickleImmigrant(args: {
-  hasCapacity: boolean;          // population < popCap
-  unstaffedBuildings: number;    // connected producers with zero workers
-  fed: boolean;                  // foodSurplus >= 0 (not in deficit today)
-  surplusEligible: boolean;      // the normal post-founding arrival branch's condition
+  hasCapacity: boolean; // population < popCap
+  unstaffedBuildings: number; // connected producers with zero workers
+  fed: boolean; // foodSurplus >= 0 (not in deficit today)
+  surplusEligible: boolean; // the normal post-founding arrival branch's condition
   daysSinceStarveDepart: number; // +Infinity if a hunger departure never happened
-  daysSinceLastTrickle: number;  // +Infinity if the trickle has never fired
+  daysSinceLastTrickle: number; // +Infinity if the trickle has never fired
 }): boolean {
   return (
     args.hasCapacity &&
@@ -116,7 +116,7 @@ export class ImmigrationSystem implements System {
 
   private lastDay = -1;
   private readonly hadPopulation = new Set<number>(); // player ids that have had >0 pop
-  private readonly tithedOnce = new Set<number>();     // player ids that fired the tithe event
+  private readonly tithedOnce = new Set<number>(); // player ids that fired the tithe event
   // Per-player founding anchor: the day this player FIRST had a connected,
   // unstaffed production building (i.e. the first day there was anything to
   // found). The founding window is measured from here, NOT from the first
@@ -129,12 +129,15 @@ export class ImmigrationSystem implements System {
   // Wave 3.5 — the immigration trickle floor's two per-player day-count clocks. Both
   // are pure bookkeeping (no RNG); the trickle decision is a day-count comparison, so
   // replays stay byte-identical and a town that never trickles is untouched.
-  private readonly lastTrickleDay = new Map<number, number>();       // last day a settler trickled in
-  private readonly lastStarveDepartDay = new Map<number, number>();  // last day a villager left from hunger
+  private readonly lastTrickleDay = new Map<number, number>(); // last day a settler trickled in
+  private readonly lastStarveDepartDay = new Map<number, number>(); // last day a villager left from hunger
   private readonly rng: Rng;
   private readonly cozy: boolean;
 
-  constructor(private readonly state: SimState, opts: { cozy?: boolean } = {}) {
+  constructor(
+    private readonly state: SimState,
+    opts: { cozy?: boolean } = {},
+  ) {
     this.rng = state.rng.fork("immigration");
     this.cozy = opts.cozy ?? true;
   }
@@ -223,9 +226,7 @@ export class ImmigrationSystem implements System {
     // auto-engages only in Challenge mode AND only while in bread deficit
     // (breadNow < consumption), i.e. it is a reactive rationing order, not a
     // permanent cut. Cozy never cuts (byte-identical by construction).
-    const actualConsumption = (!this.cozy && breadNow < consumption)
-      ? Math.floor(consumption * 0.75)
-      : consumption;
+    const actualConsumption = !this.cozy && breadNow < consumption ? Math.floor(consumption * 0.75) : consumption;
     let afterConsumption = breadNow - actualConsumption;
 
     // Citadel 09 — TITHE starvation cushion.
@@ -297,10 +298,7 @@ export class ImmigrationSystem implements System {
     // founding window endlessly refilled buildings that starvation had emptied.
     const bootstrapping = p.population === 0;
     const needsFounder =
-      foundingWindow &&
-      unstaffedBuildings > 0 &&
-      p.population < p.popCap &&
-      (bootstrapping || p.stockpiles.bread > 0);
+      foundingWindow && unstaffedBuildings > 0 && p.population < p.popCap && (bootstrapping || p.stockpiles.bread > 0);
 
     // Post-founding immigration: a town that isn't in deficit and either grew
     // its bread today OR has a healthy buffer banked (≥1 day of food) should
@@ -356,9 +354,12 @@ export class ImmigrationSystem implements System {
           // them once food flows), so the toast reads as a nudge to shore up
           // the food chain — never "starved (pop 0)" as a loss (decisions
           // #3/#5/#9). Sharp wording kept verbatim under cozy=false.
-          pushEvent(state, this.cozy
-            ? `Day ${state.day}: a villager left to find food (pop ${p.population}) — the larder is bare.`
-            : `Day ${state.day}: a villager starved (pop ${p.population}).`);
+          pushEvent(
+            state,
+            this.cozy
+              ? `Day ${state.day}: a villager left to find food (pop ${p.population}) — the larder is bare.`
+              : `Day ${state.day}: a villager starved (pop ${p.population}).`,
+          );
         }
         p.hungerDays = 0;
       }

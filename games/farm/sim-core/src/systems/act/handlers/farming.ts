@@ -7,12 +7,7 @@ import { isWithinReach } from "../../proximity";
 import { REGIONS } from "../../../world/regions";
 import type { ActingFarmer } from "../types";
 
-export function handlePlant(
-  farmer: ActingFarmer,
-  intent: Intention,
-  ownedPlots: GameEntity[],
-  day: number,
-): void {
+export function handlePlant(farmer: ActingFarmer, intent: Intention, ownedPlots: GameEntity[], day: number): void {
   const crop = intent.data.crop as CropKind;
   const tileX = intent.data.tileX as number | undefined;
   const tileY = intent.data.tileY as number | undefined;
@@ -34,17 +29,13 @@ export function handlePlant(
       readyAtDay: day + GROWTH_DAYS[crop],
       weatherSum: 0,
       daysSinceWater: 0,
-      wateredToday: true, 
+      wateredToday: true,
     } satisfies PlotState;
     grantSkillXp(farmer, "farming", 1);
   }
 }
 
-export function handleWater(
-  farmer: ActingFarmer,
-  intent: Intention,
-  ownedPlots: GameEntity[],
-): void {
+export function handleWater(farmer: ActingFarmer, intent: Intention, ownedPlots: GameEntity[]): void {
   const can = farmer.inventory.wateringCan;
   if (can && can.charges <= 0) return;
 
@@ -55,9 +46,11 @@ export function handleWater(
   if (tileX !== undefined && tileY !== undefined) {
     if (!isWithinReach(farmer.transform, tileX, tileY)) return;
     target = ownedPlots.find(
-      (p) => p.plot!.tileX === tileX && p.plot!.tileY === tileY &&
-             p.plot!.state.kind === "planted" &&
-             (p.plot!.state as Extract<PlotState, { kind: "planted" }>).wateredToday !== true,
+      (p) =>
+        p.plot!.tileX === tileX &&
+        p.plot!.tileY === tileY &&
+        p.plot!.state.kind === "planted" &&
+        (p.plot!.state as Extract<PlotState, { kind: "planted" }>).wateredToday !== true,
     );
   } else {
     target = ownedPlots
@@ -86,7 +79,7 @@ export function handleTill(
   world: World<GameEntity>,
 ): void {
   if (farmer.id === undefined) return;
-  const hoe = (farmer.inventory.tools ?? []).find(t => t.kind === "hoe" && t.durability > 0);
+  const hoe = (farmer.inventory.tools ?? []).find((t) => t.kind === "hoe" && t.durability > 0);
   if (!hoe) return;
   const tileX = intent.data.tileX as number;
   const tileY = intent.data.tileY as number;
@@ -98,7 +91,8 @@ export function handleTill(
     transform: { x: tileX, y: tileY, prevX: tileX, prevY: tileY, rotation: 0 },
     plot: {
       ownerId: farmer.id,
-      regionId: farmer.farmer?.currentRegion ?? (intent.data.regionId as string) as import("../../../world/regions").RegionId,
+      regionId:
+        farmer.farmer?.currentRegion ?? (intent.data.regionId as string as import("../../../world/regions").RegionId),
       tileX,
       tileY,
       state: { kind: "empty" },

@@ -39,7 +39,7 @@ const SKIP_DIRS = new Set(["node_modules", "dist", "build", ".git"]);
 // palette at all. Citadel's style.css happened to use valid Apollo swatches; that was luck, not
 // enforcement.
 const SOURCE_EXT = /\.(ts|js|mjs|cjs|html|css)$/;
-const SKIP_FILE = /\.(test|spec)\.(ts|js)$/; 
+const SKIP_FILE = /\.(test|spec)\.(ts|js)$/;
 
 const ALLOWLIST_FILES: Record<string, string> = {};
 
@@ -156,7 +156,13 @@ describe("no source file uses an off-palette color literal", () => {
     const usesApollo = scope === "citadel" || scope === "hollow";
     const usesResurrect = scope === "mathquest";
     const allowed =
-      scope === "paletteSource" ? ALL_NAMED_SWATCHES : usesApollo ? APOLLO_SET : usesResurrect ? RESURRECT64_SET : EDG32_SET;
+      scope === "paletteSource"
+        ? ALL_NAMED_SWATCHES
+        : usesApollo
+          ? APOLLO_SET
+          : usesResurrect
+            ? RESURRECT64_SET
+            : EDG32_SET;
     const palName =
       scope === "citadel"
         ? "Apollo (Citadel)"
@@ -175,9 +181,7 @@ describe("no source file uses an off-palette color literal", () => {
       for (const m of matches) {
         if (!allowed.has(normalizeHex(m))) {
           const nearest = usesApollo ? nearestApollo(m) : usesResurrect ? nearestResurrect64(m) : nearestEdg32(m);
-          violations.push(
-            `${rel}:${i + 1}  ${m.toLowerCase()}  →  expected ${palName}, nearest ${nearest}`,
-          );
+          violations.push(`${rel}:${i + 1}  ${m.toLowerCase()}  →  expected ${palName}, nearest ${nearest}`);
         }
       }
     });
@@ -252,12 +256,12 @@ describe("no source file uses an off-palette color literal", () => {
     let count = 0;
     while ((m = rowRe.exec(text))) {
       const [, r, g, b, a] = m.map(Number);
-      if (a === 0) continue; 
+      if (a === 0) continue;
       count++;
       const hex = toHex(r!, g!, b!);
       if (!EDG32_SET.has(hex)) bad.push(`${hex} (rgb ${r},${g},${b}) → nearest ${nearestEdg32(hex)}`);
     }
-    expect(count).toBeGreaterThan(10); 
+    expect(count).toBeGreaterThan(10);
     expect(bad, bad.length ? `Off-palette SWATCH colors:\n  ${bad.join("\n  ")}` : "").toEqual([]);
   });
 

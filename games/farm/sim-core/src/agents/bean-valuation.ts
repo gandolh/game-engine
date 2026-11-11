@@ -5,20 +5,14 @@ import type { AuctionCfpBody } from "../protocols/shop";
 export const RESALE_MULTIPLIER = 3;
 
 export interface BeanBidParams {
-
   valueFactor: number;
 }
 
-export function expectedBeanBid(
-  farmer: GameEntity,
-  cfp: AuctionCfpBody,
-  params: BeanBidParams,
-): number | null {
+export function expectedBeanBid(farmer: GameEntity, cfp: AuctionCfpBody, params: BeanBidParams): number | null {
   const inv = farmer.inventory;
   if (!inv) return null;
   const reserve = cfp.reservePrice;
-  const minGoldReserve =
-    (farmer.desires?.data.minGoldReserve as number | undefined) ?? 0;
+  const minGoldReserve = (farmer.desires?.data.minGoldReserve as number | undefined) ?? 0;
 
   const affordable = inv.gold - minGoldReserve;
   if (affordable < reserve) return null;
@@ -29,20 +23,14 @@ export function expectedBeanBid(
   return bid >= reserve ? bid : null;
 }
 
-export function deliberateBean(
-  farmer: GameEntity,
-  valueFactor: number,
-  options: { resell?: boolean } = {},
-): void {
+export function deliberateBean(farmer: GameEntity, valueFactor: number, options: { resell?: boolean } = {}): void {
   const resell = options.resell ?? true;
 
-  const factor =
-    (farmer.desires?.data.beanValueFactor as number | undefined) ?? valueFactor;
+  const factor = (farmer.desires?.data.beanValueFactor as number | undefined) ?? valueFactor;
   const open = farmer.beliefs?.data.openAuction as AuctionCfpBody | undefined;
   if (open) {
     const bid = expectedBeanBid(farmer, open, { valueFactor: factor });
     if (bid !== null) {
-
       farmer.intentions!.queue.push({
         kind: "auction-entry",
         data: { auctionId: open.auctionId },

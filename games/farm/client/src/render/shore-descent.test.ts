@@ -1,5 +1,3 @@
-
-
 import { describe, it, expect } from "vitest";
 import { EDG } from "@engine/core";
 import { makeShoreDescentDecorator } from "./shore-descent";
@@ -12,7 +10,15 @@ function makeRecordingCtx() {
     globalAlpha: 1,
     fillStyle: "" as string,
     fillRect(x: number, y: number, w: number, h: number) {
-      calls.push({ x, y, w, h, color: String(this.fillStyle), alpha: this.globalAlpha, op: this.globalCompositeOperation });
+      calls.push({
+        x,
+        y,
+        w,
+        h,
+        color: String(this.fillStyle),
+        alpha: this.globalAlpha,
+        op: this.globalCompositeOperation,
+      });
     },
   };
   return { ctx: ctx as unknown as CanvasRenderingContext2D, calls };
@@ -36,13 +42,13 @@ describe("makeShoreDescentDecorator (brief 83.2)", () => {
     for (const c of calls) expect(c.w).toBe(TILE);
     const topBand = calls.find((c) => c.y === 0)!;
     const lowest = calls.reduce((a, b) => (b.y > a.y ? b : a));
-    expect(topBand.alpha).toBeGreaterThan(lowest.alpha); 
+    expect(topBand.alpha).toBeGreaterThan(lowest.alpha);
   });
 
   it("ocean-right (rotation π/2): bands hug the RIGHT edge as vertical strips", () => {
     const { ctx, calls } = makeRecordingCtx();
     makeShoreDescentDecorator(TILE, [{ tx: 0, ty: 0, rotation: Math.PI / 2 }])(ctx, TILE, TILE);
-    for (const c of calls) expect(c.h).toBe(TILE); 
+    for (const c of calls) expect(c.h).toBe(TILE);
     const rightmost = calls.reduce((a, b) => (b.x > a.x ? b : a));
 
     expect(rightmost.x + rightmost.w).toBe(TILE);

@@ -52,12 +52,7 @@ export function createLoadingScreen(): LoadingScreen {
   const progressLbl = label("", { color: EDG.tan });
   const dotsLbl = label("* * *", { color: EDG.tan, muted: true });
 
-  const column = box({ direction: "column", gap: 12, align: "center" }, [
-    titleLbl,
-    seedLbl,
-    progressLbl,
-    dotsLbl,
-  ]);
+  const column = box({ direction: "column", gap: 12, align: "center" }, [titleLbl, seedLbl, progressLbl, dotsLbl]);
   const root = panel({ direction: "column", align: "center", padding: 24 }, [column]);
 
   let changed = false;

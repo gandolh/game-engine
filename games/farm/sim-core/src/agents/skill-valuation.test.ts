@@ -51,18 +51,12 @@ describe("baseline + marginals", () => {
 
   it("every line's marginal RISES with xp in that line (the flywheel)", () => {
     const novice = stub({});
-    expect(fishingMarginalValue(stub({ skills: { fishing: HIGH_XP } }))).toBeGreaterThan(
-      fishingMarginalValue(novice),
-    );
-    expect(miningMarginalValue(stub({ skills: { mining: HIGH_XP } }))).toBeGreaterThan(
-      miningMarginalValue(novice),
-    );
+    expect(fishingMarginalValue(stub({ skills: { fishing: HIGH_XP } }))).toBeGreaterThan(fishingMarginalValue(novice));
+    expect(miningMarginalValue(stub({ skills: { mining: HIGH_XP } }))).toBeGreaterThan(miningMarginalValue(novice));
     expect(foragingMarginalValue(stub({ skills: { foraging: HIGH_XP } }))).toBeGreaterThan(
       foragingMarginalValue(novice),
     );
-    expect(farmingMarginalValue(stub({ skills: { farming: HIGH_XP } }))).toBeGreaterThan(
-      farmingMarginalValue(novice),
-    );
+    expect(farmingMarginalValue(stub({ skills: { farming: HIGH_XP } }))).toBeGreaterThan(farmingMarginalValue(novice));
   });
 
   it("mining stays a support line: below the farmer's own farming marginal at equal tiers", () => {
@@ -104,16 +98,14 @@ describe("temperament + focus", () => {
   it("commit rises with skill tier for the same farmer/temperament", () => {
     const feats = Array.from({ length: ENDOWMENT_THRESHOLD }, () => ({ kind: "stone" }));
     const low = nonFarmFocus(stub({ features: feats }), TEMPERAMENT.opportunist!);
-    const high = nonFarmFocus(
-      stub({ features: feats, skills: { mining: HIGH_XP } }),
-      TEMPERAMENT.opportunist!,
-    );
+    const high = nonFarmFocus(stub({ features: feats, skills: { mining: HIGH_XP } }), TEMPERAMENT.opportunist!);
     expect(high).not.toBeNull();
     if (low !== null) expect(high!.commit).toBeGreaterThan(low.commit);
   });
 
   it("a stronger diversifier commits at least as hard as a weaker one", () => {
-    const farmer = () => stub({ features: [{ kind: "stone" }, { kind: "stone" }, { kind: "stone" }], skills: { mining: HIGH_XP } });
+    const farmer = () =>
+      stub({ features: [{ kind: "stone" }, { kind: "stone" }, { kind: "stone" }], skills: { mining: HIGH_XP } });
     const cons = nonFarmFocus(farmer(), TEMPERAMENT.conservative!);
     const opp = nonFarmFocus(farmer(), TEMPERAMENT.opportunist!);
     expect(opp).not.toBeNull();

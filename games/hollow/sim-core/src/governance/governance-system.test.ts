@@ -52,11 +52,7 @@ function makeGenome(overrides: Partial<Record<string, number>> = {}): Genome {
   };
 }
 
-function spawnAgent(
-  world: World<HollowEntity>,
-  genome: Genome,
-  opts: { goods?: Record<string, number> } = {},
-): Agent {
+function spawnAgent(world: World<HollowEntity>, genome: Genome, opts: { goods?: Record<string, number> } = {}): Agent {
   const e = world.spawn({
     agent: { gx: 0, gy: 0, moveTarget: null },
     needs: { byKind: { [NEED_BELONGING]: makeNeed({ value: 50, decayPerTick: 0 }) } },
@@ -151,7 +147,11 @@ describe("HollowGovernanceSystem — standing + leader (sub-pass a)", () => {
     const community = h.registry.form([a.id, b.id, c.id], [], 0);
     h.step();
     const standing = h.registry.get(community.id)!.standing;
-    expect(Object.keys(standing).map(Number).sort((x, y) => x - y)).toEqual([a.id, b.id, c.id]);
+    expect(
+      Object.keys(standing)
+        .map(Number)
+        .sort((x, y) => x - y),
+    ).toEqual([a.id, b.id, c.id]);
   });
 });
 

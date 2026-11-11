@@ -23,7 +23,10 @@ function rectsOverlap(a: RoadRect, b: RoadRect): boolean {
 const SEEDS = Array.from({ length: 30 }, (_, i) => 0x2000 + i * 0x9e37);
 const specs = buildSpecs();
 
-function placeAndBridge(seed: number, delta: number): { islands: PlacedIsland[]; result: ReturnType<typeof buildBridgeGraph> } {
+function placeAndBridge(
+  seed: number,
+  delta: number,
+): { islands: PlacedIsland[]; result: ReturnType<typeof buildBridgeGraph> } {
   const islands = placeIslands(seed, specs).islands;
   const result = buildBridgeGraph(islands, createRng(seed).fork("bridges"), delta);
   return { islands, result };

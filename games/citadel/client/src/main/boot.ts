@@ -98,12 +98,16 @@ async function boot(): Promise<void> {
   let created: Awaited<ReturnType<typeof createCitadelRenderer>>;
   try {
     // DEV only: `?textureLimit=<px>` behaves as a device with that MAX_TEXTURE_SIZE.
-    const textureLimit = import.meta.env.DEV ? Number(new URLSearchParams(location.search).get("textureLimit") ?? 0) : 0;
+    const textureLimit = import.meta.env.DEV
+      ? Number(new URLSearchParams(location.search).get("textureLimit") ?? 0)
+      : 0;
     created = await createCitadelRenderer(canvas, terrain, textureLimit > 0 ? { textureLimit } : {});
   } catch (err) {
     console.error("[citadel render] WebGL2 unavailable:", err);
     showUnsupportedNotice(document.body, {
-      text: EDG.cream, background: EDG.ink, border: EDG.rust,
+      text: EDG.cream,
+      background: EDG.ink,
+      border: EDG.rust,
     });
     throw err;
   }

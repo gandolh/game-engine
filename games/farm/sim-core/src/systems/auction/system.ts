@@ -1,11 +1,6 @@
 import type { SimContext, System, MessageBus, World, Rng, AgentMessage } from "@engine/core";
 import type { GameEntity } from "../../components";
-import {
-  ONT_SHOP,
-  type AuctionCfpBody,
-  type AuctionBidBody,
-  type AuctionResultBody,
-} from "../../protocols/shop";
+import { ONT_SHOP, type AuctionCfpBody, type AuctionBidBody, type AuctionResultBody } from "../../protocols/shop";
 import { PERFORMATIVE } from "../../protocols/performatives";
 import { firstEntity, findById } from "../entity-helpers";
 import {
@@ -38,7 +33,7 @@ export class AuctionSystem implements System {
     dutchDefaults: DutchAuctionOptions = {},
     englishDefaults: EnglishAuctionOptions = {},
   ) {
-    this._rng = rng.fork("auction"); 
+    this._rng = rng.fork("auction");
     void this._rng;
     this.dutchDefaults = {
       startPrice: dutchDefaults.startPrice ?? 200,
@@ -81,7 +76,7 @@ export class AuctionSystem implements System {
           if (auction.winner !== null) {
             this.resolveDutch(auction, ctx);
           } else if (ctx.tick >= auction.cfp.closesAtTick) {
-            this.resolveDutch(auction, ctx); 
+            this.resolveDutch(auction, ctx);
           }
           break;
         }
@@ -96,11 +91,7 @@ export class AuctionSystem implements System {
     }
   }
 
-  openAuction(
-    cfp: AuctionCfpBody,
-    dutch?: DutchAuctionOptions,
-    english?: EnglishAuctionOptions,
-  ): void {
+  openAuction(cfp: AuctionCfpBody, dutch?: DutchAuctionOptions, english?: EnglishAuctionOptions): void {
     if (this.auctions.has(cfp.auctionId)) return;
     switch (cfp.type) {
       case "vickrey": {
@@ -226,10 +217,7 @@ export class AuctionSystem implements System {
     if (!body.auctionId || typeof body.amount !== "number") return;
     if (msg.sender === "world") return;
     const bidderId = body.bidderId ?? msg.sender;
-    this.submitBid(
-      { auctionId: body.auctionId, bidderId, amount: body.amount },
-      ctx.tick,
-    );
+    this.submitBid({ auctionId: body.auctionId, bidderId, amount: body.amount }, ctx.tick);
   }
 
   // Settlement solvency. The shopkeeper credits the named winner and, when the
@@ -265,21 +253,29 @@ export class AuctionSystem implements System {
       const next = sorted[i + 1];
       const paid = next ? Math.max(next.amount, a.cfp.reservePrice) : a.cfp.reservePrice;
       if (!this.canAfford(cand.bidderId, paid)) continue;
-      this.broadcastResult(a.cfp.auctionId, {
-        auctionId: a.cfp.auctionId,
-        winnerId: cand.bidderId,
-        paidPrice: paid,
-        participants,
-      }, ctx.tick);
+      this.broadcastResult(
+        a.cfp.auctionId,
+        {
+          auctionId: a.cfp.auctionId,
+          winnerId: cand.bidderId,
+          paidPrice: paid,
+          participants,
+        },
+        ctx.tick,
+      );
       return;
     }
 
-    this.broadcastResult(a.cfp.auctionId, {
-      auctionId: a.cfp.auctionId,
-      winnerId: null,
-      paidPrice: a.cfp.reservePrice,
-      participants,
-    }, ctx.tick);
+    this.broadcastResult(
+      a.cfp.auctionId,
+      {
+        auctionId: a.cfp.auctionId,
+        winnerId: null,
+        paidPrice: a.cfp.reservePrice,
+        participants,
+      },
+      ctx.tick,
+    );
   }
 
   private resolveFpsb(a: FpsbState, ctx: SimContext): void {
@@ -294,21 +290,29 @@ export class AuctionSystem implements System {
       const cand = sorted[i]!;
       if (cand.amount < a.cfp.reservePrice) break; // sorted desc → nothing below clears reserve
       if (!this.canAfford(cand.bidderId, cand.amount)) continue;
-      this.broadcastResult(a.cfp.auctionId, {
-        auctionId: a.cfp.auctionId,
-        winnerId: cand.bidderId,
-        paidPrice: cand.amount,
-        participants,
-      }, ctx.tick);
+      this.broadcastResult(
+        a.cfp.auctionId,
+        {
+          auctionId: a.cfp.auctionId,
+          winnerId: cand.bidderId,
+          paidPrice: cand.amount,
+          participants,
+        },
+        ctx.tick,
+      );
       return;
     }
 
-    this.broadcastResult(a.cfp.auctionId, {
-      auctionId: a.cfp.auctionId,
-      winnerId: null,
-      paidPrice: a.cfp.reservePrice,
-      participants,
-    }, ctx.tick);
+    this.broadcastResult(
+      a.cfp.auctionId,
+      {
+        auctionId: a.cfp.auctionId,
+        winnerId: null,
+        paidPrice: a.cfp.reservePrice,
+        participants,
+      },
+      ctx.tick,
+    );
   }
 
   private resolveDutch(a: DutchState, ctx: SimContext): void {
@@ -318,20 +322,28 @@ export class AuctionSystem implements System {
     // runner-up to fall back to — so a provably-insolvent winner voids the sale
     // (no winner) rather than looping settlement forever.
     if (a.winner === null || !this.canAfford(a.winner.bidderId, a.winner.paidPrice)) {
-      this.broadcastResult(a.cfp.auctionId, {
-        auctionId: a.cfp.auctionId,
-        winnerId: null,
-        paidPrice: a.cfp.reservePrice,
-        participants,
-      }, ctx.tick);
+      this.broadcastResult(
+        a.cfp.auctionId,
+        {
+          auctionId: a.cfp.auctionId,
+          winnerId: null,
+          paidPrice: a.cfp.reservePrice,
+          participants,
+        },
+        ctx.tick,
+      );
       return;
     }
-    this.broadcastResult(a.cfp.auctionId, {
-      auctionId: a.cfp.auctionId,
-      winnerId: a.winner.bidderId,
-      paidPrice: a.winner.paidPrice,
-      participants,
-    }, ctx.tick);
+    this.broadcastResult(
+      a.cfp.auctionId,
+      {
+        auctionId: a.cfp.auctionId,
+        winnerId: a.winner.bidderId,
+        paidPrice: a.winner.paidPrice,
+        participants,
+      },
+      ctx.tick,
+    );
   }
 
   private englishShouldClose(a: EnglishState, tick: number): boolean {
@@ -346,20 +358,28 @@ export class AuctionSystem implements System {
     // Only the current leader is retained (no ranked runner-up), so a
     // provably-insolvent leader voids the sale rather than looping settlement.
     if (a.leader === null || !this.canAfford(a.leader.bidderId, a.leader.paidPrice)) {
-      this.broadcastResult(a.cfp.auctionId, {
-        auctionId: a.cfp.auctionId,
-        winnerId: null,
-        paidPrice: a.cfp.reservePrice,
-        participants,
-      }, ctx.tick);
+      this.broadcastResult(
+        a.cfp.auctionId,
+        {
+          auctionId: a.cfp.auctionId,
+          winnerId: null,
+          paidPrice: a.cfp.reservePrice,
+          participants,
+        },
+        ctx.tick,
+      );
       return;
     }
-    this.broadcastResult(a.cfp.auctionId, {
-      auctionId: a.cfp.auctionId,
-      winnerId: a.leader.bidderId,
-      paidPrice: a.leader.paidPrice,
-      participants,
-    }, ctx.tick);
+    this.broadcastResult(
+      a.cfp.auctionId,
+      {
+        auctionId: a.cfp.auctionId,
+        winnerId: a.leader.bidderId,
+        paidPrice: a.leader.paidPrice,
+        participants,
+      },
+      ctx.tick,
+    );
   }
 
   private broadcastResult(_id: string, body: AuctionResultBody, tick: number): void {
@@ -374,5 +394,4 @@ export class AuctionSystem implements System {
       tick,
     );
   }
-
 }

@@ -27,9 +27,9 @@ import type { CitadelCommand } from "./snapshot/index";
 
 /** Phase 4.5: per-building fire hazard state. */
 export interface BuildingFireState {
-  burning: boolean;        // currently on fire
-  burnTicksLeft: number;   // ticks until destroyed (0 if not burning)
-  destroyed: boolean;      // has been burned down already
+  burning: boolean; // currently on fire
+  burnTicksLeft: number; // ticks until destroyed (0 if not burning)
+  destroyed: boolean; // has been burned down already
 }
 
 export interface BarterOffer {
@@ -99,13 +99,13 @@ export interface RaiderState {
  */
 export interface ArmyState {
   id: number;
-  attackerId: number;       // player who launched the army
-  targetPlayerId: number;   // owner of the targeted building
-  targetX: number;          // targeted building's origin tile
+  attackerId: number; // player who launched the army
+  targetPlayerId: number; // owner of the targeted building
+  targetX: number; // targeted building's origin tile
   targetY: number;
-  x: number;                // current position (float)
+  x: number; // current position (float)
   y: number;
-  tileX: number;            // integer tile
+  tileX: number; // integer tile
   tileY: number;
   path: Array<{ x: number; y: number }>;
   pathStep: number;
@@ -144,10 +144,10 @@ export interface PlayerState {
   lastDayBreadStart: number;
 
   // Phase 3: happiness + needs
-  happiness: number;          // 0..100
-  faithCoverage: number;      // 0..1 fraction of houses in faith range
-  safetyCoverage: number;     // 0..1 fraction of houses in safety range
-  goodsCoverage: number;      // 0..1 fraction of houses in goods range
+  happiness: number; // 0..100
+  faithCoverage: number; // 0..1 fraction of houses in faith range
+  safetyCoverage: number; // 0..1 fraction of houses in safety range
+  goodsCoverage: number; // 0..1 fraction of houses in goods range
 
   /**
    * Decrees. Cozy-pivot Phase G RETIRED the `setDecree` player lever — nothing
@@ -167,21 +167,21 @@ export interface PlayerState {
   readonly traderOffers: BarterOffer[];
 
   // Phase 4: siege state
-  readonly wallTiles: Set<number>;    // tile indices that are walls (impassable to raiders)
-  readonly gateTiles: Set<number>;    // tile indices that are gates (passable)
-  threatLevel: number;                // 0..100, escalates over time
-  nextRaidTick: number;               // tick when next raid spawns (-1 = unscheduled)
-  scoutWarned: boolean;               // true once the scout has warned of the pending raid
-  raidCount: number;                  // total raids spawned so far
-  defensiveStrength: number;          // computed each tick: walls + towers + garrison
-  readonly raiders: RaiderState[];    // active raider entities targeting this player
+  readonly wallTiles: Set<number>; // tile indices that are walls (impassable to raiders)
+  readonly gateTiles: Set<number>; // tile indices that are gates (passable)
+  threatLevel: number; // 0..100, escalates over time
+  nextRaidTick: number; // tick when next raid spawns (-1 = unscheduled)
+  scoutWarned: boolean; // true once the scout has warned of the pending raid
+  raidCount: number; // total raids spawned so far
+  defensiveStrength: number; // computed each tick: walls + towers + garrison
+  readonly raiders: RaiderState[]; // active raider entities targeting this player
   keepPosition: { x: number; y: number } | null; // where the keep / town-hall is
-  keepSacked: boolean;                // true if keep was destroyed
+  keepSacked: boolean; // true if keep was destroyed
 
   // Phase 4.5: hazard state
   readonly fireState: Map<number, BuildingFireState>; // keyed by building ECS id
-  sickVillagers: number;    // count of sick villagers
-  outbreakActive: boolean;  // true if disease spreading
+  sickVillagers: number; // count of sick villagers
+  outbreakActive: boolean; // true if disease spreading
 
   // Phase 5: settlement tier
   tier: SettlementTier;

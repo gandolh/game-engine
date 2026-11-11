@@ -1,13 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { World, type EngineEntity } from "../ecs";
-import {
-  makeNeed,
-  decayNeed,
-  replenishNeed,
-  needFraction,
-  needIsDepleted,
-  type Needs,
-} from "./needs";
+import { makeNeed, decayNeed, replenishNeed, needFraction, needIsDepleted, type Needs } from "./needs";
 import { createNeedsDecaySystem } from "./needs-decay-system";
 
 describe("needs primitives", () => {
@@ -47,7 +40,9 @@ describe("createNeedsDecaySystem", () => {
   it("decays every need on every agent once per tick", () => {
     const world = new World<NeedAgent>();
     const a = world.spawn({
-      needs: { byKind: { food: makeNeed({ value: 10, decayPerTick: 3 }), rest: makeNeed({ value: 8, decayPerTick: 1 }) } },
+      needs: {
+        byKind: { food: makeNeed({ value: 10, decayPerTick: 3 }), rest: makeNeed({ value: 8, decayPerTick: 1 }) },
+      },
     });
     const b = world.spawn({ needs: { byKind: { food: makeNeed({ value: 1, decayPerTick: 5 }) } } });
     world.spawn({}); // no needs component — untouched

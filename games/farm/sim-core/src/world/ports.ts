@@ -51,14 +51,15 @@ function portForIsle(id: Port["id"], isle: RegionId): Port {
   let bestOpen = -1;
   for (const s of sides) {
     const o = oceanOnSide(b, s);
-    if (o > bestOpen) { bestOpen = o; best = s; }
+    if (o > bestOpen) {
+      bestOpen = o;
+      best = s;
+    }
   }
   const midX = Math.floor((b.minX + b.maxX) / 2);
   const midY = Math.floor((b.minY + b.maxY) / 2);
   const outward: Vec =
-    best === "N" ? { x: 0, y: -1 } :
-    best === "S" ? { x: 0, y: 1 } :
-    best === "E" ? { x: 1, y: 0 } : { x: -1, y: 0 };
+    best === "N" ? { x: 0, y: -1 } : best === "S" ? { x: 0, y: 1 } : best === "E" ? { x: 1, y: 0 } : { x: -1, y: 0 };
 
   // Scan the chosen side for a dock: an island LAND edge tile whose seaward
   // neighbour is OPEN OCEAN. Prefer the candidate nearest the side midpoint
@@ -81,7 +82,10 @@ function portForIsle(id: Port["id"], isle: RegionId): Port {
   for (const e of edgeTiles) {
     const onLand = regionAt(e.x, e.y) === isle;
     // Seaward neighbour must be OPEN OCEAN — not land and not a bridge/road deck.
-    if (onLand && isOpenOcean(e.x + outward.x, e.y + outward.y)) { dock = e; break; }
+    if (onLand && isOpenOcean(e.x + outward.x, e.y + outward.y)) {
+      dock = e;
+      break;
+    }
   }
 
   const lane: Vec[] = [];

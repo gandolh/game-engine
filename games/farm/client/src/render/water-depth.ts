@@ -1,5 +1,3 @@
-
-
 import { EDG } from "@engine/core";
 import { oceanDepthAt, COAST_DEPTH_MAX } from "@farm/sim-core/render-systems";
 // audit-61: was a byte-identical private copy of ground-noise.ts's hash2, in the same package.
@@ -10,11 +8,11 @@ import type { TileRegionPx } from "./tile-span";
 type AnyCtx2D = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 
 const SPECKLE: ReadonlyArray<{ density: number; alpha: number; colors: readonly string[] } | null> = [
-  null, 
-  { density: 0.30, alpha: 0.26, colors: [EDG.cyan, EDG.skyBlue] },
+  null,
+  { density: 0.3, alpha: 0.26, colors: [EDG.cyan, EDG.skyBlue] },
   { density: 0.16, alpha: 0.18, colors: [EDG.skyBlue, EDG.blue] },
-  null, 
-  null, 
+  null,
+  null,
 ];
 
 const SPECKLE_PX = 2;
@@ -25,7 +23,7 @@ export function makeWaterDepthDecorator(
   tilePx: number,
   seed: number,
 ): (ctx: AnyCtx2D, widthPx: number, heightPx: number, region?: TileRegionPx) => void {
-  const sub = Math.max(1, Math.floor(tilePx / SPECKLE_PX)); 
+  const sub = Math.max(1, Math.floor(tilePx / SPECKLE_PX));
   return (ctx, widthPx, heightPx, region) => {
     const cols = Math.ceil(widthPx / tilePx);
     const rows = Math.ceil(heightPx / tilePx);

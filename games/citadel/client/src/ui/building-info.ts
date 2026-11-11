@@ -43,31 +43,31 @@ export const TICKS_PER_DAY = BASELINE_TICKS_PER_DAY;
 
 /** Player-facing one-line description for every building type in PRODUCTION_DEFS. */
 export const BUILDING_DESCRIPTIONS: Readonly<Record<string, string>> = {
-  house:       "Houses up to 6 villagers. Upgrade to hold more people.",
-  farm:        "Grows grain each cycle. Yield varies by season — reduced (never zero) in winter.",
-  mill:        "Grinds grain into flour. Needs a worker and a road.",
-  bakery:      "Bakes flour into bread. Needs a worker and a road.",
-  woodcutter:  "Chops wood from forest terrain. Needs 2 workers and a road.",
-  storehouse:  "Stores all goods. Extend your supply limit here.",
-  road:        "Connects buildings so workers and haulers can move goods.",
-  bridge:      "Road segment spanning water. Auto-placed when a road crosses a river.",
-  chapel:      "Boosts villager morale nearby. Needs a worker to run services.",
-  market:      "Improves commerce and happiness in its coverage area. Needs a worker.",
-  watchpost:   "Extends visibility and improves safety in the surrounding area.",
+  house: "Houses up to 6 villagers. Upgrade to hold more people.",
+  farm: "Grows grain each cycle. Yield varies by season — reduced (never zero) in winter.",
+  mill: "Grinds grain into flour. Needs a worker and a road.",
+  bakery: "Bakes flour into bread. Needs a worker and a road.",
+  woodcutter: "Chops wood from forest terrain. Needs 2 workers and a road.",
+  storehouse: "Stores all goods. Extend your supply limit here.",
+  road: "Connects buildings so workers and haulers can move goods.",
+  bridge: "Road segment spanning water. Auto-placed when a road crosses a river.",
+  chapel: "Boosts villager morale nearby. Needs a worker to run services.",
+  market: "Improves commerce and happiness in its coverage area. Needs a worker.",
+  watchpost: "Extends visibility and improves safety in the surrounding area.",
   tradingpost: "Enables trade with passing caravans. Needs a worker.",
-  quarry:      "Extracts stone from stone terrain. Needs 2 workers and a road.",
-  sawmill:     "Converts wood into planks. Needs a worker and a road.",
-  smith:       "Forges stone into tools. Needs a worker and a road.",
-  mine:        "Mines raw stone from stone terrain. Needs 2 workers and a road.",
-  wall:        "Impassable barrier. Drag-paint a perimeter to keep raiders out.",
-  gate:        "Gap in a wall that villagers can pass through. Raiders can breach it.",
-  tower:       "Adds 5 defense strength to your settlement. Upgrades add +2 each.",
-  garrison:    "Houses soldiers and adds 10 defense strength. Needs 4 workers.",
-  keep:        "Your citadel's heart. If sacked the game ends. Adds 8 defense strength.",
+  quarry: "Extracts stone from stone terrain. Needs 2 workers and a road.",
+  sawmill: "Converts wood into planks. Needs a worker and a road.",
+  smith: "Forges stone into tools. Needs a worker and a road.",
+  mine: "Mines raw stone from stone terrain. Needs 2 workers and a road.",
+  wall: "Impassable barrier. Drag-paint a perimeter to keep raiders out.",
+  gate: "Gap in a wall that villagers can pass through. Raiders can breach it.",
+  tower: "Adds 5 defense strength to your settlement. Upgrades add +2 each.",
+  garrison: "Houses soldiers and adds 10 defense strength. Needs 4 workers.",
+  keep: "Your citadel's heart. If sacked the game ends. Adds 8 defense strength.",
   "town-hall": "Each player's match anchor in multiplayer. Sacking it ends that player's run.",
   "public-square": "Civic gathering place. Lifts mood for nearby homes with no worker or upkeep.",
-  well:        "Reduces fire ignition in a nearby rectangle. Covered homes also fall sick less often. No worker needed.",
-  healer:      "Homes in reach see fewer outbreaks, and the sick recover sooner. Needs a worker.",
+  well: "Reduces fire ignition in a nearby rectangle. Covered homes also fall sick less often. No worker needed.",
+  healer: "Homes in reach see fewer outbreaks, and the sick recover sooner. Needs a worker.",
 };
 
 // ---------------------------------------------------------------------------
@@ -101,11 +101,7 @@ export interface ProductionDetails {
  *
  * Derives everything from `PRODUCTION_DEFS` — no hardcoded numbers.
  */
-export function getProductionDetails(
-  type: string,
-  level: number,
-  season?: Season,
-): ProductionDetails | undefined {
+export function getProductionDetails(type: string, level: number, season?: Season): ProductionDetails | undefined {
   const def: BuildingProductionDef | undefined = PRODUCTION_DEFS[type];
   if (def === undefined) return undefined;
   if (def.outputGood === undefined) return undefined;
@@ -114,8 +110,7 @@ export function getProductionDetails(
   const baseOutputPerCycle = effectiveOutputPerCycle(def, level);
 
   // Farms apply the seasonal grain multiplier; output is floored again after multiplying.
-  const seasonMult =
-    type === "farm" && season !== undefined ? grainMultiplier(season) : 1.0;
+  const seasonMult = type === "farm" && season !== undefined ? grainMultiplier(season) : 1.0;
   const effectiveOutputPerDay = Math.floor(baseOutputPerCycle * seasonMult) * cyclesPerDay;
 
   // Input does NOT scale with level: the sim (production.ts) draws raw
@@ -151,23 +146,16 @@ export function getProductionDetails(
  *
  * Returns `undefined` for buildings with no goods output (services, infrastructure).
  */
-export function productionRatePerDay(
-  type: string,
-  level: number,
-  season?: Season,
-): string | undefined {
+export function productionRatePerDay(type: string, level: number, season?: Season): string | undefined {
   const details = getProductionDetails(type, level, season);
   if (details === undefined) return undefined;
 
   const { inputGood, inputPerDay, outputGood, outputPerDay } = details;
   const outputPart = `${outputPerDay} ${outputGood}/day`;
-  const inputPart = inputGood !== undefined && inputPerDay > 0
-    ? `${inputPerDay} ${inputGood} → `
-    : "";
+  const inputPart = inputGood !== undefined && inputPerDay > 0 ? `${inputPerDay} ${inputGood} → ` : "";
 
   // Annotate when a farm's output is reduced due to winter (floored ×0.5, never zero).
-  const suffix =
-    type === "farm" && season === "winter" ? " (winter)" : "";
+  const suffix = type === "farm" && season === "winter" ? " (winter)" : "";
 
   return `${inputPart}${outputPart}${suffix}`;
 }
@@ -248,4 +236,3 @@ export function isProductionThrottled(
   if (live.outputBuffer >= cap) return true;
   return false;
 }
-

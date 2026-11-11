@@ -1,5 +1,3 @@
-
-
 export const ONT_COMBAT = {
   CHALLENGE: "combat.challenge",
   ACCEPT: "combat.accept",
@@ -27,9 +25,9 @@ export interface CombatDeclineBody {
 
 export interface CombatResultBody {
   context: CombatContext;
-  winnerId: number | null; 
+  winnerId: number | null;
   loserId: number | null;
   koed: boolean;
   fledId: number | null;
-  looted: number; 
+  looted: number;
 }

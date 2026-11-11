@@ -9,7 +9,11 @@ import { pixelHeading } from "./pixel-text";
 const BASE = import.meta.env.BASE_URL;
 const app = document.getElementById("app");
 
-function el<K extends keyof HTMLElementTagNameMap>(tag: K, props: Partial<HTMLElementTagNameMap[K]> = {}, ...kids: Node[]): HTMLElementTagNameMap[K] {
+function el<K extends keyof HTMLElementTagNameMap>(
+  tag: K,
+  props: Partial<HTMLElementTagNameMap[K]> = {},
+  ...kids: Node[]
+): HTMLElementTagNameMap[K] {
   const node = Object.assign(document.createElement(tag), props);
   node.append(...kids);
   return node;
@@ -78,7 +82,12 @@ function playPage(game: Game): Node[] {
   });
   return [
     bar(backLink(), heading("h1", game.title, 2, EDG.cream), el("span", { className: "spacer" }), full),
-    el("main", {}, el("div", { className: "frame-wrap" }, frame), el("section", { className: "about" }, el("p", { textContent: game.description }))),
+    el(
+      "main",
+      {},
+      el("div", { className: "frame-wrap" }, frame),
+      el("section", { className: "about" }, el("p", { textContent: game.description })),
+    ),
   ];
 }
 
@@ -86,7 +95,12 @@ function missingPage(): Node[] {
   document.title = "Not found — Games";
   return [
     bar(backLink()),
-    el("main", { className: "notice" }, heading("h1", "Not found", 3, EDG.cream), el("p", {}, el("a", { href: BASE, textContent: "See all games" }))),
+    el(
+      "main",
+      { className: "notice" },
+      heading("h1", "Not found", 3, EDG.cream),
+      el("p", {}, el("a", { href: BASE, textContent: "See all games" })),
+    ),
   ];
 }
 

@@ -1,4 +1,3 @@
-
 import { describe, it, expect, beforeEach } from "vitest";
 import { JsPathfinder } from "./js-pathfinder";
 import { buildBoatGrid, CORAL_REEFS } from "./coral";

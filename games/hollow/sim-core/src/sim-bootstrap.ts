@@ -573,7 +573,6 @@ export interface HollowCommunitySnapshot {
   // worker boundary every tick for nobody is the cost this brief was measuring. The live registry
   // remains the source of truth; if a per-tick renderer ever wants it, add it back WITH that
   // renderer, not ahead of one.
-
 }
 
 /** Data-only snapshot for a headless observer (no render state — see CLAUDE.md's sim↔render boundary). */
@@ -904,11 +903,20 @@ export function bootstrapHollowSim(opts: HollowSimOptions): BootedHollowSim {
     // SAME "ACT" stage (see social/act-system.ts's header for why it's a
     // separate class rather than more `case`s on HollowActSystem).
     .add(
-      new HollowSocialActSystem(world, resources, communities, bus, stealDetectionRng, attackRng, sabotageDetectionRng, {
-        stealDetectionProb: opts.stealDetectionProb ?? STEAL_DETECTION_PROB,
-        attackLethalityProb: opts.attackLethalityProb ?? ATTACK_LETHALITY_PROB,
-        sabotageDetectionProb: opts.sabotageDetectionProb ?? SABOTAGE_DETECTION_PROB,
-      }),
+      new HollowSocialActSystem(
+        world,
+        resources,
+        communities,
+        bus,
+        stealDetectionRng,
+        attackRng,
+        sabotageDetectionRng,
+        {
+          stealDetectionProb: opts.stealDetectionProb ?? STEAL_DETECTION_PROB,
+          attackLethalityProb: opts.attackLethalityProb ?? ATTACK_LETHALITY_PROB,
+          sabotageDetectionProb: opts.sabotageDetectionProb ?? SABOTAGE_DETECTION_PROB,
+        },
+      ),
     )
     // hollow-15's care verbs (collect_corpse/bury_corpse/treat) — a sibling of
     // HollowActSystem/HollowSocialActSystem in the SAME "ACT" stage, right
@@ -964,8 +972,7 @@ export function bootstrapHollowSim(opts: HollowSimOptions): BootedHollowSim {
         trustThreshold: opts.communityTrustThreshold ?? COMMUNITY_TRUST_THRESHOLD,
         joinTrustThreshold: opts.communityJoinTrustThreshold ?? COMMUNITY_JOIN_TRUST_THRESHOLD,
         leaveTrustThreshold: opts.communityLeaveTrustThreshold ?? COMMUNITY_LEAVE_TRUST_THRESHOLD,
-        mergeCrossTrustThreshold:
-          opts.communityMergeCrossTrustThreshold ?? COMMUNITY_MERGE_CROSS_TRUST_THRESHOLD,
+        mergeCrossTrustThreshold: opts.communityMergeCrossTrustThreshold ?? COMMUNITY_MERGE_CROSS_TRUST_THRESHOLD,
         mergeTerritoryRadius: opts.communityMergeTerritoryRadius ?? COMMUNITY_MERGE_TERRITORY_RADIUS,
       }),
     )
@@ -1025,8 +1032,7 @@ export function bootstrapHollowSim(opts: HollowSimOptions): BootedHollowSim {
         // huge raw default) is retained in family/constants.ts for any test
         // that still imports it, but is no longer the bootstrap default.
         starvationDeathTicks:
-          opts.starvationDeathTicks ??
-          daysToTicks(opts.starvationDeathDays ?? STARVATION_DEATH_DAYS, opts.ticksPerDay),
+          opts.starvationDeathTicks ?? daysToTicks(opts.starvationDeathDays ?? STARVATION_DEATH_DAYS, opts.ticksPerDay),
       }),
     )
     // CORPSE (chunk hollow-15) — corpse rot + disease spread + carried-corpse
@@ -1097,7 +1103,17 @@ export function bootstrapHollowSim(opts: HollowSimOptions): BootedHollowSim {
       // value from this SAME closure-local variable `tick()` increments and
       // the `tickCount` getter above reads — see that getter's doc and
       // snapshot-builder.ts's header for the single-source contract (audit-04).
-      return buildSnapshot(world, resources, communities, households, bornCount, diedCount, buriedCount, socialCounts, tickCount);
+      return buildSnapshot(
+        world,
+        resources,
+        communities,
+        households,
+        bornCount,
+        diedCount,
+        buriedCount,
+        socialCounts,
+        tickCount,
+      );
     },
   };
 }

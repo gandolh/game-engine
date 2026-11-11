@@ -14,7 +14,8 @@ let ownerFlag: boolean;
 
 function makeHotbar_(overrides: Partial<HotbarActions> = {}): Hotbar {
   lastCanvas = document.createElement("canvas");
-  lastCanvas.getBoundingClientRect = () => ({ left: 0, top: 0, width: 800, height: 600, right: 800, bottom: 600, x: 0, y: 0, toJSON() {} }) as DOMRect;
+  lastCanvas.getBoundingClientRect = () =>
+    ({ left: 0, top: 0, width: 800, height: 600, right: 800, bottom: 600, x: 0, y: 0, toJSON() {} }) as DOMRect;
   const h = createHotbar({
     canvas: lastCanvas,
     swapSlots: (from, to) => swaps.push([from, to]),

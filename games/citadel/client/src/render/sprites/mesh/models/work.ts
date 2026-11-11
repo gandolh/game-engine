@@ -9,7 +9,8 @@ function log(len: number, r: number): Mesh {
 
 /** A small stacked log pile at `at` (front prop shared by woodcutter + sawmill). */
 function logPile(at: Vec3): Mesh {
-  const l = 0.7, r = 0.1;
+  const l = 0.7,
+    r = 0.1;
   return merge(
     translate(log(l, r), [at[0], at[1], at[2] + r]),
     translate(log(l, r), [at[0], at[1] + 0.22, at[2] + r]),
@@ -33,7 +34,10 @@ export function bakery(): MeshModel {
   const winS = windowPane("y", 1.75, 0.35, 0.65, 0.3, 0.55, "window");
   const winE = windowPane("x", 1.65, 0.5, 0.75, 0.3, 0.55, "window");
   return {
-    name: "bld/bakery", footprintW: 2, footprintD: 2, heightTiles: 1,
+    name: "bld/bakery",
+    footprintW: 2,
+    footprintD: 2,
+    heightTiles: 1,
     mesh: merge(body, roof, drum, dome, chimney, winS, winE),
   };
 }
@@ -44,7 +48,13 @@ export function woodcutter(): MeshModel {
   const roof = translate(gable([1.2, 1.2, 0.5], "x", "darkwood"), [0.25, 0.25, 0.78]);
   const pile = logPile([1.35, 1.15, 0]);
   const block = translate(cylinder(0.16, 0.3, 10, "timber"), [0.55, 1.55, 0]);
-  return { name: "bld/woodcutter", footprintW: 2, footprintD: 2, heightTiles: 1, mesh: merge(cabin, roof, pile, block) };
+  return {
+    name: "bld/woodcutter",
+    footprintW: 2,
+    footprintD: 2,
+    heightTiles: 1,
+    mesh: merge(cabin, roof, pile, block),
+  };
 }
 
 /** Timber shed + a round WATER WHEEL disc on the east side + a log pile. */
@@ -58,7 +68,13 @@ export function sawmill(): MeshModel {
   const spokeV = translate(box([0.14, 0.08, 1.02], "darkwood"), [1.48, 0.96, 0.13]);
   const spokeH = translate(box([0.14, 1.02, 0.08], "darkwood"), [1.48, 0.49, 0.6]);
   const pile = logPile([0.35, 1.55, 0]);
-  return { name: "bld/sawmill", footprintW: 2, footprintD: 2, heightTiles: 1, mesh: merge(shed, roof, wheel, spokeV, spokeH, hub, pile) };
+  return {
+    name: "bld/sawmill",
+    footprintW: 2,
+    footprintD: 2,
+    heightTiles: 1,
+    mesh: merge(shed, roof, wheel, spokeV, spokeH, hub, pile),
+  };
 }
 
 /**
@@ -88,7 +104,10 @@ export function smith(): MeshModel {
   // set one small window into its +x face (clear of the hood/chimney above).
   const win = windowPane("x", 1.75, 0.25, 0.5, 0.4, 0.75, "window");
   return {
-    name: "bld/smith", footprintW: 2, footprintD: 2, heightTiles: 1,
+    name: "bld/smith",
+    footprintW: 2,
+    footprintD: 2,
+    heightTiles: 1,
     mesh: merge(backWall, hearth, ember, hood, chimney, postL, postR, roof, anvilPost, anvilTop, win),
   };
 }

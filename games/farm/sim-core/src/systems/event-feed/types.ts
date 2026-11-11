@@ -1,11 +1,10 @@
-
 export interface EventEntry {
   tick: number;
   day: number;
   text: string;
-  key: string; 
-  drama: number; 
-  farmerId?: number | null; 
+  key: string;
+  drama: number;
+  farmerId?: number | null;
 }
 
 export interface TradeCompletedBody {

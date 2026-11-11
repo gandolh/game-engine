@@ -38,12 +38,7 @@ export function setupMarketShopFeature(
   const marketWall = spawnMarketWall(world);
   const shopkeeper = spawnShopkeeper(world);
 
-  const marketSystem = new MarketSystem(
-    bus,
-    world,
-    rng,
-    ticksPerDay !== undefined ? { ticksPerDay } : {},
-  );
+  const marketSystem = new MarketSystem(bus, world, rng, ticksPerDay !== undefined ? { ticksPerDay } : {});
   const wallTradeSystem = new WallTradeSystem(world, bus, marketSystem);
   const auctionSystem = new AuctionSystem(bus, world, rng);
 
@@ -51,9 +46,7 @@ export function setupMarketShopFeature(
     bus,
     world,
     auctionSystem,
-    ticksPerDay !== undefined
-      ? { auctionDurationTicks: Math.round(ticksPerDay * 1.5) }
-      : {},
+    ticksPerDay !== undefined ? { auctionDurationTicks: Math.round(ticksPerDay * 1.5) } : {},
   );
 
   return { marketWall, shopkeeper, marketSystem, wallTradeSystem, shopkeeperSystem, auctionSystem };

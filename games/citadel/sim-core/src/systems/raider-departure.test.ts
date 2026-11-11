@@ -38,7 +38,10 @@ function findClear(terrain: TerrainGrid, w: number, h: number, sx: number, sy: n
         let ok = true;
         for (let yy = 0; yy < h && ok; yy++) {
           for (let xx = 0; xx < w; xx++) {
-            if (!isWalkable(terrain, x + xx, y + yy)) { ok = false; break; }
+            if (!isWalkable(terrain, x + xx, y + yy)) {
+              ok = false;
+              break;
+            }
           }
         }
         if (ok) return { x, y };
@@ -212,7 +215,13 @@ describe("cozy raid departure — no garrison interception while leaving", () =>
 
 describe("cozy raid departure — sharp path (cozyThreats:false) unaffected", () => {
   it("a sharp-path raider still resolves and is spliced the same tick (no leaving field set)", () => {
-    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, worldWidth: WORLD, worldHeight: WORLD, cozyThreats: false });
+    const sim = bootstrapSim({
+      seed: SEED,
+      ticksPerDay: TICKS_PER_DAY,
+      worldWidth: WORLD,
+      worldHeight: WORLD,
+      cozyThreats: false,
+    });
     const lp = localPlayer(sim.state);
     lp.tier = "Town";
     const g = findClear(sim.terrain, 3, 3, Math.floor(WORLD / 2), Math.floor(WORLD / 2));
@@ -221,13 +230,25 @@ describe("cozy raid departure — sharp path (cozyThreats:false) unaffected", ()
     expect(lp.keepPosition).not.toBeNull();
 
     const spawn = findClear(sim.terrain, 1, 1, lp.keepPosition!.x - 10, lp.keepPosition!.y);
-    const path = computeRaiderPath(spawn.x, spawn.y, lp.keepPosition!.x, lp.keepPosition!.y, sim.state, lp, sim.terrain);
+    const path = computeRaiderPath(
+      spawn.x,
+      spawn.y,
+      lp.keepPosition!.x,
+      lp.keepPosition!.y,
+      sim.state,
+      lp,
+      sim.terrain,
+    );
     expect(path).not.toBeNull();
     const last = path![path!.length - 1]!;
     const raider: RaiderState = {
       id: 1,
-      x: last.x, y: last.y, tileX: last.x, tileY: last.y,
-      path: path!, pathStep: path!.length,
+      x: last.x,
+      y: last.y,
+      tileX: last.x,
+      tileY: last.y,
+      path: path!,
+      pathStep: path!.length,
       strength: 5, // weak, undefended keep — deterministic sack/damage, not repel
       resolved: false,
     };

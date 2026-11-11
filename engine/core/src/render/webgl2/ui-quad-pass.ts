@@ -151,11 +151,22 @@ export class UiQuadPass {
   // staging Float32Array, so one object serves every quad and the hot loop
   // allocates nothing.
   private readonly _inst: GlSpriteInstance = {
-    x: 0, y: 0, w: 0, h: 0,
-    u0: 0, v0: 0, u1: 0, v1: 0,
-    rotation: 0, flipX: 0,
-    r: 1, g: 1, b: 1, a: 1,
-    swayPhase: 0, swayAmp: 0,
+    x: 0,
+    y: 0,
+    w: 0,
+    h: 0,
+    u0: 0,
+    v0: 0,
+    u1: 0,
+    v1: 0,
+    rotation: 0,
+    flipX: 0,
+    r: 1,
+    g: 1,
+    b: 1,
+    a: 1,
+    swayPhase: 0,
+    swayAmp: 0,
   };
 
   /** Number of draw groups the last `pack()` produced (the `drawArraysInstanced` count). */
@@ -239,7 +250,10 @@ export class UiQuadPass {
         texture = store.texture(quad.atlasId);
       } else if (quad.color !== undefined) {
         // Solid-colour quad: a 1x1 white texel, tinted. See GlAtlasStore#whiteTexture.
-        inst.u0 = 0; inst.v0 = 0; inst.u1 = 1; inst.v1 = 1;
+        inst.u0 = 0;
+        inst.v0 = 0;
+        inst.u1 = 1;
+        inst.v1 = 1;
         texture = store.whiteTexture();
       } else {
         // Neither textured nor coloured — the CPU path drew nothing either.
@@ -247,7 +261,10 @@ export class UiQuadPass {
       }
 
       const [r, g, b] = quad.color !== undefined ? floatsOf(quad.color) : WHITE;
-      inst.r = r; inst.g = g; inst.b = b; inst.a = alpha;
+      inst.r = r;
+      inst.g = g;
+      inst.b = b;
+      inst.a = alpha;
 
       // Centre + extent, in device pixels. The corners land on exactly the
       // `[x*dpr, (x+w)*dpr]` rect the CPU path's drawImage used.

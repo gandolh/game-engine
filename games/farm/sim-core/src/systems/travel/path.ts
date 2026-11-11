@@ -1,11 +1,10 @@
-
 export const STEP_TICKS = 8;
 
 export function smoothPath(
   path: ReadonlyArray<{ x: number; y: number }>,
   isWalkable: (x: number, y: number) => boolean,
 ): { x: number; y: number }[] {
-  if (path.length <= 2) return path.map(p => ({ x: p.x, y: p.y }));
+  if (path.length <= 2) return path.map((p) => ({ x: p.x, y: p.y }));
 
   const lineOfSight = (a: { x: number; y: number }, b: { x: number; y: number }) => {
     let x = a.x;
@@ -20,8 +19,16 @@ export function smoothPath(
       const e2 = 2 * err;
       let movedX = false;
       let movedY = false;
-      if (e2 > -dyAbs) { err -= dyAbs; x += sx; movedX = true; }
-      if (e2 < dxAbs) { err += dxAbs; y += sy; movedY = true; }
+      if (e2 > -dyAbs) {
+        err -= dyAbs;
+        x += sx;
+        movedX = true;
+      }
+      if (e2 < dxAbs) {
+        err += dxAbs;
+        y += sy;
+        movedY = true;
+      }
       if (!isWalkable(x, y)) return false;
       if (movedX && movedY && !isWalkable(x - sx, y) && !isWalkable(x, y - sy)) {
         return false;
@@ -56,8 +63,14 @@ export function smoothPath(
     for (let guard = dxAbs + dyAbs + 1; guard > 0; guard -= 1) {
       if (x === b.x && y === b.y) break;
       const e2 = 2 * err;
-      if (e2 > -dyAbs) { err -= dyAbs; x += sx; }
-      if (e2 < dxAbs) { err += dxAbs; y += sy; }
+      if (e2 > -dyAbs) {
+        err -= dyAbs;
+        x += sx;
+      }
+      if (e2 < dxAbs) {
+        err += dxAbs;
+        y += sy;
+      }
       dense.push({ x, y });
     }
   }

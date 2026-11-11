@@ -14,12 +14,16 @@ function findGrass(t: TerrainGrid, w: number, h: number, sx: number, sy: number)
   for (let r = 0; r < 40; r++) {
     for (let dy = -r; dy <= r; dy++) {
       for (let dx = -r; dx <= r; dx++) {
-        const x = sx + dx, y = sy + dy;
+        const x = sx + dx,
+          y = sy + dy;
         if (x < 0 || y < 0 || x + w > t.width || y + h > t.height) continue;
         let ok = true;
         for (let yy = 0; yy < h && ok; yy++)
           for (let xx = 0; xx < w; xx++)
-            if (t.cells[(y + yy) * t.width + (x + xx)] !== TerrainType.Grass) { ok = false; break; }
+            if (t.cells[(y + yy) * t.width + (x + xx)] !== TerrainType.Grass) {
+              ok = false;
+              break;
+            }
         if (ok) return { x, y };
       }
     }
@@ -43,8 +47,14 @@ describe("Citadel 35 — CitadelSimHost (multi-writer)", () => {
     const s0 = findGrass(terrain, 3, 3, 24, 24);
     const s1 = findGrass(terrain, 3, 3, 70, 70);
 
-    host.handleInbound(peer0, { type: "command", command: { type: "placeBuilding", payload: { buildingType: "town-hall", x: s0.x, y: s0.y } } });
-    host.handleInbound(peer1, { type: "command", command: { type: "placeBuilding", payload: { buildingType: "town-hall", x: s1.x, y: s1.y } } });
+    host.handleInbound(peer0, {
+      type: "command",
+      command: { type: "placeBuilding", payload: { buildingType: "town-hall", x: s0.x, y: s0.y } },
+    });
+    host.handleInbound(peer1, {
+      type: "command",
+      command: { type: "placeBuilding", payload: { buildingType: "town-hall", x: s1.x, y: s1.y } },
+    });
     host.step();
 
     const halls = [...host.simResult!.world.query("building")].filter((e) => e.building.type === "town-hall");

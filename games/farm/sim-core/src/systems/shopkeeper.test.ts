@@ -25,11 +25,14 @@ function makeFarmer(
   });
 }
 
-function pushToShop(shop: GameEntity, msg: {
-  ontology: string;
-  sender: number;
-  body: Record<string, unknown>;
-}): void {
+function pushToShop(
+  shop: GameEntity,
+  msg: {
+    ontology: string;
+    sender: number;
+    body: Record<string, unknown>;
+  },
+): void {
   shop.inbox!.messages.push({
     performative: PERFORMATIVE.REQUEST,
     ontology: msg.ontology,
@@ -43,9 +46,7 @@ function seedSlate(shop: GameEntity, offers: ShopOffer[]): void {
   shop.shopkeeper!.dailySlate = offers;
 }
 
-function offer(
-  partial: Partial<ShopOffer> & Pick<ShopOffer, "crop" | "unitPrice" | "remaining">,
-): ShopOffer {
+function offer(partial: Partial<ShopOffer> & Pick<ShopOffer, "crop" | "unitPrice" | "remaining">): ShopOffer {
   return {
     offerId: partial.offerId ?? `o-${partial.crop}-${partial.unitPrice}-${partial.remaining}`,
     kind: "sell",
@@ -151,7 +152,6 @@ describe("ShopkeeperSystem", () => {
   });
 
   it("SELL uses the slate unit price, not the legacy fixed price", () => {
-
     const farmer = makeFarmer(world, { gold: 100 });
     seedSlate(shop, [offer({ crop: "radish", unitPrice: 7, remaining: 10 })]);
     pushToShop(shop, {
@@ -219,7 +219,7 @@ describe("ShopkeeperSystem", () => {
     pushToShop(shop, {
       ontology: ONT_SHOP.SELL,
       sender: farmer.id!,
-      body: { item: "seed", crop: "radish", quantity: 5 }, 
+      body: { item: "seed", crop: "radish", quantity: 5 },
     });
     sys.run({ tick: 1 });
 
@@ -300,7 +300,7 @@ describe("ShopkeeperSystem", () => {
   });
 
   it("SELL with insufficient gold fails and does not mutate farmer or offers", () => {
-    const farmer = makeFarmer(world, { gold: 4 }); 
+    const farmer = makeFarmer(world, { gold: 4 });
     const radishOffer = offer({ crop: "radish", unitPrice: 5, remaining: 10 });
     seedSlate(shop, [radishOffer]);
     pushToShop(shop, {
@@ -323,7 +323,6 @@ describe("ShopkeeperSystem", () => {
   });
 
   it("triggers an auction every K days and registers it with AuctionSystem", () => {
-
     const sys2 = new ShopkeeperSystem(bus, world, auction, {
       auctionEveryDays: 2,
       auctionDurationTicks: 10,

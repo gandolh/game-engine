@@ -266,7 +266,8 @@ function deliberateSabotage(agent: SocialAgent, candidates: readonly NeighborVie
     const distrust = 1 - relationshipScore(agent.relationships, c.id);
     const rivalry = Math.min(c.materials / RIVAL_MATERIAL_SCALE, 1);
     const grudge = grudgeToward(agent, c.id);
-    const score = w.aggression * aggression + w.distrust * distrust + w.rivalry * rivalry + FEUD_DELIBERATION_WEIGHT * grudge;
+    const score =
+      w.aggression * aggression + w.distrust * distrust + w.rivalry * rivalry + FEUD_DELIBERATION_WEIGHT * grudge;
     if (score > bestScore) {
       bestScore = score;
       best = c;
@@ -305,7 +306,8 @@ function deliberateAttack(agent: SocialAgent, candidates: readonly NeighborView[
 
   const w = ATTACK_WEIGHTS;
   const distrust = 1 - bestTrust;
-  const score = w.aggression * gene(agent, "aggression") + w.distrust * distrust + FEUD_DELIBERATION_WEIGHT * bestGrudge;
+  const score =
+    w.aggression * gene(agent, "aggression") + w.distrust * distrust + FEUD_DELIBERATION_WEIGHT * bestGrudge;
   return { score, kind: "attack", data: { targetId: best.id } };
 }
 
@@ -376,7 +378,11 @@ function deliberateGift(agent: SocialAgent, candidates: readonly NeighborView[])
 
   const w = GIFT_WEIGHTS;
   const ownSurplus = Math.min(surplus.have / (surplus.threshold * 2), 1);
-  let score = w.ownSurplus * ownSurplus + w.loyalty * gene(agent, "loyalty") + w.sociability * gene(agent, "sociability") + w.trust * bestTrust;
+  let score =
+    w.ownSurplus * ownSurplus +
+    w.loyalty * gene(agent, "loyalty") +
+    w.sociability * gene(agent, "sociability") +
+    w.trust * bestTrust;
   if (isCaretaker) score += ROLE_CARETAKER_BIAS;
   const amount = Math.min(surplus.have, surplus.threshold);
   return { score, kind: "gift", data: { targetId: best.id, good: surplus.good, amount } };
@@ -481,7 +487,8 @@ function deliberateTeach(agent: SocialAgent, candidates: readonly NeighborView[]
   if (!best) return null;
 
   const w = TEACH_WEIGHTS;
-  let score = w.curiosity * gene(agent, "curiosity") + w.sociability * gene(agent, "sociability") + w.skillGap * bestGap;
+  let score =
+    w.curiosity * gene(agent, "curiosity") + w.sociability * gene(agent, "sociability") + w.skillGap * bestGap;
   if (isTeacher) score += ROLE_TEACH_BIAS;
   return { score, kind: "teach", data: { targetId: best.id, skill: SKILL_MATERIAL } };
 }
@@ -545,9 +552,7 @@ function deliberateTrade(agent: SocialAgent, candidates: readonly NeighborView[]
 /** Fixed evaluation order — ALSO the tie-break order (see header): the
  *  first verb here wins a strict-tie against a later one. Antagonistic
  *  verbs first, then cooperative, an arbitrary but fixed convention. */
-const VERB_ORDER: ReadonlyArray<
-  (agent: SocialAgent, candidates: readonly NeighborView[]) => ScoredChoice | null
-> = [
+const VERB_ORDER: ReadonlyArray<(agent: SocialAgent, candidates: readonly NeighborView[]) => ScoredChoice | null> = [
   deliberateSteal,
   deliberateSabotage,
   deliberateAttack,

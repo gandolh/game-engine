@@ -1,8 +1,5 @@
-
 import { bootstrapSim } from "@farm/sim-core/sim-bootstrap";
-import {
-  ONT_ENCOUNTER,
-} from "@farm/sim-core/protocols/encounter";
+import { ONT_ENCOUNTER } from "@farm/sim-core/protocols/encounter";
 import type { AgentMessage } from "@engine/core";
 import { makePathfinder } from "../pathfinder";
 
@@ -10,8 +7,8 @@ const TICKS_PER_DAY = 20;
 const MAX_DAYS = 20;
 
 const BANDS = [
-  { label: "d00-04", from: 0,  to: 4  },
-  { label: "d05-09", from: 5,  to: 9  },
+  { label: "d00-04", from: 0, to: 4 },
+  { label: "d05-09", from: 5, to: 9 },
   { label: "d10-14", from: 10, to: 14 },
   { label: "d15-19", from: 15, to: 19 },
 ];
@@ -54,9 +51,7 @@ async function runSeed(seed: number): Promise<SeedResult> {
   for (const f of world.query("farmer", "inbox")) {
     const arr = f.inbox!.messages;
     const origPush = arr.push.bind(arr);
-    (arr as unknown as { push: (...m: AgentMessage[]) => number }).push = (
-      ...msgs: AgentMessage[]
-    ) => {
+    (arr as unknown as { push: (...m: AgentMessage[]) => number }).push = (...msgs: AgentMessage[]) => {
       for (const m of msgs) {
         if (!m) continue;
         const day = dayClock.day;
@@ -116,30 +111,20 @@ function printSeedResult(r: SeedResult): void {
   );
   for (const band of r.bands) {
     const totalBandDeclines = [...band.declines.values()].reduce((a, b) => a + b, 0);
-    const reasons = [...band.declines.entries()]
-      .map(([k, v]) => `${k}×${v}`)
-      .join(" ");
+    const reasons = [...band.declines.entries()].map(([k, v]) => `${k}×${v}`).join(" ");
     console.log(
       `  ${band.label.padEnd(8)} ${String(band.offers).padEnd(12)} ${String(band.closes).padEnd(8)} ${String(totalBandDeclines).padEnd(10)} ${reasons || "(none)"}`,
     );
   }
-  console.log(
-    `  TOTALS: offers=${r.totalOffers} closes=${r.totalCloses} declines=${r.totalDeclines}`,
-  );
-  console.log(
-    `  First close day: ${r.firstCloseDay !== null ? `day ${r.firstCloseDay}` : "none"}`,
-  );
-  console.log(
-    `  All decline reasons: ${r.allDeclineReasons.map(([k, v]) => `${k}×${v}`).join(", ") || "(none)"}`,
-  );
+  console.log(`  TOTALS: offers=${r.totalOffers} closes=${r.totalCloses} declines=${r.totalDeclines}`);
+  console.log(`  First close day: ${r.firstCloseDay !== null ? `day ${r.firstCloseDay}` : "none"}`);
+  console.log(`  All decline reasons: ${r.allDeclineReasons.map(([k, v]) => `${k}×${v}`).join(", ") || "(none)"}`);
 }
 
 async function main(): Promise<void> {
   const pf = (process.env["PATHFINDER"] ?? "js").toLowerCase();
   const seeds = [0xc0ffee, 1, 42];
-  console.log(
-    `\n=== BRIEF 70 PROBE (pathfinder=${pf}, ${MAX_DAYS}d, ticksPerDay=${TICKS_PER_DAY}) ===`,
-  );
+  console.log(`\n=== BRIEF 70 PROBE (pathfinder=${pf}, ${MAX_DAYS}d, ticksPerDay=${TICKS_PER_DAY}) ===`);
   console.log(`Seeds: ${seeds.map((s) => "0x" + s.toString(16)).join(", ")}`);
 
   const results: SeedResult[] = [];
@@ -147,9 +132,7 @@ async function main(): Promise<void> {
     process.stdout.write(`  Running seed 0x${seed.toString(16)}...`);
     const r = await runSeed(seed);
     results.push(r);
-    process.stdout.write(
-      ` done (${r.totalOffers} offers, ${r.totalCloses} closes)\n`,
-    );
+    process.stdout.write(` done (${r.totalOffers} offers, ${r.totalCloses} closes)\n`);
   }
 
   console.log("\n--- PEER CROP TRADE COUNTS BY DAY-BAND ---");
@@ -165,24 +148,16 @@ async function main(): Promise<void> {
   console.log(`  0xc0ffee early-game (d00-14) closes: ${earlyCloses}`);
   const earlyBreachDeclines = coffeeResult.bands
     .filter((b) => BANDS.find((bb) => bb.label === b.label)!.to <= 14)
-    .reduce(
-      (s, b) => s + (b.declines.get("would-breach-reserve") ?? 0),
-      0,
-    );
-  console.log(
-    `  0xc0ffee early-game (d00-14) would-breach-reserve declines: ${earlyBreachDeclines}`,
-  );
+    .reduce((s, b) => s + (b.declines.get("would-breach-reserve") ?? 0), 0);
+  console.log(`  0xc0ffee early-game (d00-14) would-breach-reserve declines: ${earlyBreachDeclines}`);
   for (const r of results) {
     const any15 = r.firstCloseDay !== null && r.firstCloseDay < 15;
     console.log(
       `  0x${r.seed.toString(16)}: first close = ${r.firstCloseDay !== null ? `day ${r.firstCloseDay}` : "none"}  early close (<15d): ${any15 ? "YES" : "NO"}`,
     );
   }
-  const targetMet =
-    coffeeResult.firstCloseDay !== null && coffeeResult.firstCloseDay < 15;
-  console.log(
-    `\n  TARGET (>=1 close in first 15 days on 0xc0ffee): ${targetMet ? "MET ✓" : "NOT MET ✗"}`,
-  );
+  const targetMet = coffeeResult.firstCloseDay !== null && coffeeResult.firstCloseDay < 15;
+  console.log(`\n  TARGET (>=1 close in first 15 days on 0xc0ffee): ${targetMet ? "MET ✓" : "NOT MET ✗"}`);
 }
 
 main().catch((e) => {

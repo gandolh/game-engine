@@ -1,4 +1,3 @@
-
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { RunRegistry } from "./run-registry";
 import type { ClientSocket, MakeHostFn } from "./run-registry";
@@ -67,7 +66,6 @@ function makeSnapshotMsg(day = 1): SimSnapshotMsg {
   return {
     type: "snapshot",
     snapshot: {
-
       wealthSeries: [{ farmerId: 1, name: "Alice", personality: "conservative", rows: [] }],
       day,
       tick: day * 20,
@@ -130,7 +128,7 @@ describe("RunRegistry — run sharing", () => {
     const lastB = b.sent[b.sent.length - 1];
     expect(lastA).toBeDefined();
     expect(lastB).toBeDefined();
-    expect(lastA).toBe(lastB); 
+    expect(lastA).toBe(lastB);
   });
 
   it("same seed/params but distinct clientId → separate runs, each socket owns its own Pip", () => {
@@ -156,7 +154,7 @@ describe("RunRegistry — run sharing", () => {
     const b = new FakeSocket();
 
     registry.attachInit(a, makeInit(1));
-    registry.attachInit(b, makeInit(2)); 
+    registry.attachInit(b, makeInit(2));
 
     expect(registry.runCount()).toBe(2);
     expect(stubs.length).toBe(2);
@@ -270,7 +268,7 @@ describe("RunRegistry — late-join replay", () => {
 describe("RunRegistry — zero-socket reaping", () => {
   it("detaching the last socket → host.stop() called after grace; run removed", async () => {
     vi.useFakeTimers();
-    const { registry } = makeRegistry(100 );
+    const { registry } = makeRegistry(100);
     const socket = new FakeSocket();
     const init = makeInit();
 
@@ -481,7 +479,7 @@ describe("RunRegistry — drop-stale", () => {
     const init = makeInit();
     const fast = new FakeSocket();
     const slow = new FakeSocket();
-    slow.bufferedAmount = 1_100_000; 
+    slow.bufferedAmount = 1_100_000;
 
     registry.attachInit(fast, init);
     registry.attachInit(slow, init);

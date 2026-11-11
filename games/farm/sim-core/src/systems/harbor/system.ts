@@ -1,5 +1,3 @@
-
-
 import type { SimContext, System, World, MessageBus, Rng } from "@engine/core";
 import { bodyOf } from "@engine/core";
 import type { GameEntity } from "../../components";
@@ -12,11 +10,7 @@ import {
   type ContractMissedBody,
   type ContractExpiredBody,
 } from "../../protocols/harbor";
-import {
-  HARBOR_POST_CADENCE,
-  HARBOR_BATCH_SIZE,
-  HARBOR_REP_MISS_PENALTY,
-} from "../../economy";
+import { HARBOR_POST_CADENCE, HARBOR_BATCH_SIZE, HARBOR_REP_MISS_PENALTY } from "../../economy";
 import { deductCrops } from "../../economy";
 import { generateContracts, canFulfillContract } from "./contracts";
 
@@ -102,7 +96,6 @@ export class HarborSystem implements System {
         hb.committed.delete(contract.id);
         this.applyMissPenalty(committedFarmerId, contract, tick);
       } else {
-
         const expBody: ContractExpiredBody = { contractId: contract.id, day: today };
         this.bus.send(
           {
@@ -119,17 +112,10 @@ export class HarborSystem implements System {
     hb.openContracts = stillOpen;
   }
 
-  private applyMissPenalty(
-    farmerId: number,
-    contract: HarborContract,
-    tick: number,
-  ): void {
+  private applyMissPenalty(farmerId: number, contract: HarborContract, tick: number): void {
     for (const f of this.world.query("farmer")) {
       if (f.id !== farmerId) continue;
-      f.farmer.harborReputation = Math.max(
-        0,
-        (f.farmer.harborReputation ?? 0) - HARBOR_REP_MISS_PENALTY,
-      );
+      f.farmer.harborReputation = Math.max(0, (f.farmer.harborReputation ?? 0) - HARBOR_REP_MISS_PENALTY);
       if (f.farmer.committedContract?.id === contract.id) {
         f.farmer.committedContract = undefined;
       }

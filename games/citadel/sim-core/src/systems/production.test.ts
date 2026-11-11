@@ -116,9 +116,9 @@ describe("ProductionSystem — happiness scales output to a floor (never 0)", ()
     const loB = spawnWoodcutter(lo, 14, 14);
     const loOut = outputAfterOneCycle(lo, loB);
 
-    expect(hiOut).toBe(base);              // h=100 → factor 1.0 → full output
-    expect(loOut).toBeLessThan(hiOut);     // unhappy town slows down
-    expect(loOut).toBeGreaterThan(0);      // but the floor holds — never 0
+    expect(hiOut).toBe(base); // h=100 → factor 1.0 → full output
+    expect(loOut).toBeLessThan(hiOut); // unhappy town slows down
+    expect(loOut).toBeGreaterThan(0); // but the floor holds — never 0
     expect(loOut).toBe(Math.floor(base * 0.6)); // 2 × 0.6 = 1.2 → 1
   });
 });
@@ -156,7 +156,7 @@ describe("ProductionSystem — autonomous town-hall work-hours output lift (cozy
     covered.players[0]!.happiness = 100; // isolate the town-hall lift from the throttle
     covered.players[0]!.stockpiles.flour = 100; // keep the converter fed
     const cId = spawnBakeryL3(covered, 20, 20); // centre (21,21)
-    placeTownHall(covered, 22, 20);             // centre (23,21) → dist 2 ≤ 10
+    placeTownHall(covered, 22, 20); // centre (23,21) → dist 2 ≤ 10
     const cOut = outputAfterOneCycle(covered, cId);
 
     // WITHOUT any town hall.
@@ -168,8 +168,8 @@ describe("ProductionSystem — autonomous town-hall work-hours output lift (cozy
 
     const def = getProductionDef("bakery")!;
     const base = effectiveOutputPerCycle(def, 3); // 6
-    expect(bOut).toBe(base);                       // 6, no lift
-    expect(cOut).toBe(Math.floor(base * 1.2));     // floor(6×1.2)=7, lifted
+    expect(bOut).toBe(base); // 6, no lift
+    expect(cOut).toBe(Math.floor(base * 1.2)); // floor(6×1.2)=7, lifted
     expect(cOut).toBeGreaterThan(bOut);
   });
 
@@ -177,8 +177,8 @@ describe("ProductionSystem — autonomous town-hall work-hours output lift (cozy
     const state = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY }).state;
     state.players[0]!.happiness = 100;
     state.players[0]!.stockpiles.flour = 100;
-    const id = spawnBakeryL3(state, 20, 20);   // centre (21,21)
-    placeTownHall(state, 60, 60);              // far away → no coverage
+    const id = spawnBakeryL3(state, 20, 20); // centre (21,21)
+    placeTownHall(state, 60, 60); // far away → no coverage
     const out = outputAfterOneCycle(state, id);
     expect(out).toBe(effectiveOutputPerCycle(getProductionDef("bakery")!, 3)); // 6, unlifted
   });

@@ -5,8 +5,16 @@ import { EDG } from "../palette";
 // real WebGL2, so exercise TintPass against a mock GL object — same convention as
 // ../webgl2/program.test.ts's fake GL.
 
-interface FakeShader { __kind: "shader"; type: number; source: string; compiled: boolean }
-interface FakeProgram { __kind: "program"; linked: boolean }
+interface FakeShader {
+  __kind: "shader";
+  type: number;
+  source: string;
+  compiled: boolean;
+}
+interface FakeProgram {
+  __kind: "program";
+  linked: boolean;
+}
 
 function makeFakeGl(): {
   gl: WebGL2RenderingContext;
@@ -21,7 +29,10 @@ function makeFakeGl(): {
   createProgram: ReturnType<typeof vi.fn>;
 } {
   const createShader = vi.fn((type: number): FakeShader => ({
-    __kind: "shader", type, source: "", compiled: true,
+    __kind: "shader",
+    type,
+    source: "",
+    compiled: true,
   }));
   const createProgram = vi.fn((): FakeProgram => ({ __kind: "program", linked: true }));
   const createVertexArray = vi.fn(() => ({ __kind: "vao" }));
@@ -43,7 +54,9 @@ function makeFakeGl(): {
     ONE_MINUS_SRC_ALPHA: 8,
 
     createShader,
-    shaderSource: vi.fn((s: FakeShader, src: string) => { s.source = src; }),
+    shaderSource: vi.fn((s: FakeShader, src: string) => {
+      s.source = src;
+    }),
     compileShader: vi.fn(),
     getShaderParameter: vi.fn((s: FakeShader) => s.compiled),
     getShaderInfoLog: vi.fn(() => ""),
@@ -70,8 +83,15 @@ function makeFakeGl(): {
 
   return {
     gl: gl as unknown as WebGL2RenderingContext,
-    createVertexArray, useProgram, bindVertexArray, uniform3f, uniform1f, drawArrays, blendFunc,
-    createShader, createProgram,
+    createVertexArray,
+    useProgram,
+    bindVertexArray,
+    uniform3f,
+    uniform1f,
+    drawArrays,
+    blendFunc,
+    createShader,
+    createProgram,
   };
 }
 

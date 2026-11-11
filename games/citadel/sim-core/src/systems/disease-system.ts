@@ -45,7 +45,10 @@ export class DiseaseSystem implements System {
    */
   private readonly deferUntilBuildings: number;
 
-  constructor(private readonly state: SimState, opts: { cozy?: boolean; deferUntilBuildings?: number } = {}) {
+  constructor(
+    private readonly state: SimState,
+    opts: { cozy?: boolean; deferUntilBuildings?: number } = {},
+  ) {
     this.cozy = opts.cozy ?? true;
     this.deferUntilBuildings = opts.deferUntilBuildings ?? 0;
     // Fork the base RNG ONCE in constructor, never per-tick.
@@ -112,9 +115,14 @@ export class DiseaseSystem implements System {
         // Brief 102: healer legibility — append healer copy when one is in reach
         // at the moment the outbreak starts (sharp keeps the "disease outbreak"
         // substring intact for the Challenge-mode guard).
-        pushEvent(state, this.cozy
-          ? `Day ${state.day}: ${p.sickVillagers} villager(s) are under the weather.` + (healerNear ? " The healer is tending the sick." : "")
-          : `Day ${state.day}: disease outbreak! ${p.sickVillagers} villagers sick.` + (healerNear ? " A healer is nearby." : ""));
+        pushEvent(
+          state,
+          this.cozy
+            ? `Day ${state.day}: ${p.sickVillagers} villager(s) are under the weather.` +
+                (healerNear ? " The healer is tending the sick." : "")
+            : `Day ${state.day}: disease outbreak! ${p.sickVillagers} villagers sick.` +
+                (healerNear ? " A healer is nearby." : ""),
+        );
       }
     } else {
       // Active outbreak: spread (shared), then mortality + recovery — branched on cozy.
@@ -126,9 +134,9 @@ export class DiseaseSystem implements System {
 
       if (!this.cozy) {
         // Frozen legacy path: disease can kill. Byte-identical to pre-cozy behavior.
-        const deathRate = healerNear ? 0.05 : 0.20;
+        const deathRate = healerNear ? 0.05 : 0.2;
         const rawDeaths = Math.floor(p.sickVillagers * deathRate);
-        const deaths = (healerNear || crowding <= 2) ? rawDeaths : Math.max(1, rawDeaths);
+        const deaths = healerNear || crowding <= 2 ? rawDeaths : Math.max(1, rawDeaths);
         if (deaths > 0 && p.population > 0) {
           const actualDeaths = Math.min(deaths, p.population);
           for (let i = 0; i < actualDeaths; i++) {
@@ -167,11 +175,14 @@ export class DiseaseSystem implements System {
         // Brief 102: healer legibility on the END event too. Cozy swaps in a
         // dedicated thank-you line (not a plain append); sharp appends verbatim,
         // keeping the "disease outbreak ended" substring intact.
-        pushEvent(state, this.cozy
-          ? (healerNear
+        pushEvent(
+          state,
+          this.cozy
+            ? healerNear
               ? `Day ${state.day}: the town is back on its feet — thank the healer.`
-              : `Day ${state.day}: the town is back on its feet.`)
-          : `Day ${state.day}: disease outbreak ended.` + (healerNear ? " The healer helped." : ""));
+              : `Day ${state.day}: the town is back on its feet.`
+            : `Day ${state.day}: disease outbreak ended.` + (healerNear ? " The healer helped." : ""),
+        );
       }
     }
   }
@@ -240,5 +251,4 @@ export class DiseaseSystem implements System {
     }
     return false;
   }
-
 }

@@ -2,12 +2,7 @@ import type { GameEntity } from "../../components";
 import { recordReason } from "../../components";
 import { PORTS, isPortDockTile, nearestPort, portAtDockTile, type Port } from "../../world/ports";
 
-export function deliberatePortHop(
-  farmer: GameEntity,
-  period: number,
-  priority: number,
-  apFloor: number,
-): void {
+export function deliberatePortHop(farmer: GameEntity, period: number, priority: number, apFloor: number): void {
   if (!farmer.intentions || !farmer.beliefs || !farmer.farmer || !farmer.ap || !farmer.transform) return;
 
   if (farmer.intentions.queue.some((i) => i.kind === "board-boat" || i.kind === "return-to-shore")) {
@@ -21,7 +16,6 @@ export function deliberatePortHop(
   const onPortDock = isPortDockTile(fx, fy);
 
   if (aboard) {
-
     const target = existingTripTarget(farmer, day);
     if (!target) {
       if (onPortDock) farmer.intentions.queue.push({ kind: "return-to-shore", data: {}, priority });

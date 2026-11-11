@@ -39,7 +39,13 @@ function dispatchTick(bus: MessageBus): void {
  *  `seq` (in the `from` field) so eviction order is easy to assert on. */
 function sendGift(bus: MessageBus, tick: number, seq: number): void {
   bus.send(
-    { performative: "inform", ontology: ONT_SOCIAL.GIFT, sender: seq, recipient: "broadcast", body: { tick, from: seq, to: seq + 1 } },
+    {
+      performative: "inform",
+      ontology: ONT_SOCIAL.GIFT,
+      sender: seq,
+      recipient: "broadcast",
+      body: { tick, from: seq, to: seq + 1 },
+    },
     tick,
   );
   dispatchTick(bus);
@@ -51,7 +57,13 @@ describe("createChronicle", () => {
     const chronicle = createChronicle(bus);
 
     bus.send(
-      { performative: "inform", ontology: ONT_FAMILY.BIRTH, sender: "world", recipient: "broadcast", body: { tick: 12, childId: 9, parentAId: 1, parentBId: 2 } },
+      {
+        performative: "inform",
+        ontology: ONT_FAMILY.BIRTH,
+        sender: "world",
+        recipient: "broadcast",
+        body: { tick: 12, childId: 9, parentAId: 1, parentBId: 2 },
+      },
       12,
     );
     dispatchTick(bus);
@@ -66,15 +78,33 @@ describe("createChronicle", () => {
     const chronicle = createChronicle(bus);
 
     bus.send(
-      { performative: "inform", ontology: ONT_FAMILY.DEATH, sender: "world", recipient: "broadcast", body: { tick: 1, agentId: 1, cause: "oldAge" } },
+      {
+        performative: "inform",
+        ontology: ONT_FAMILY.DEATH,
+        sender: "world",
+        recipient: "broadcast",
+        body: { tick: 1, agentId: 1, cause: "oldAge" },
+      },
       1,
     );
     bus.send(
-      { performative: "inform", ontology: ONT_FAMILY.DEATH, sender: "world", recipient: "broadcast", body: { tick: 1, agentId: 2, cause: "starvation" } },
+      {
+        performative: "inform",
+        ontology: ONT_FAMILY.DEATH,
+        sender: "world",
+        recipient: "broadcast",
+        body: { tick: 1, agentId: 2, cause: "starvation" },
+      },
       1,
     );
     bus.send(
-      { performative: "inform", ontology: ONT_SOCIAL.GIFT, sender: 3, recipient: "broadcast", body: { tick: 1, from: 3, to: 4 } },
+      {
+        performative: "inform",
+        ontology: ONT_SOCIAL.GIFT,
+        sender: 3,
+        recipient: "broadcast",
+        body: { tick: 1, from: 3, to: 4 },
+      },
       1,
     );
     dispatchTick(bus);
@@ -88,15 +118,33 @@ describe("createChronicle", () => {
     const chronicle = createChronicle(bus);
 
     bus.send(
-      { performative: "inform", ontology: ONT_FAMILY.BIRTH, sender: "world", recipient: "broadcast", body: { tick: 1, childId: 1, parentAId: 2, parentBId: 3 } },
+      {
+        performative: "inform",
+        ontology: ONT_FAMILY.BIRTH,
+        sender: "world",
+        recipient: "broadcast",
+        body: { tick: 1, childId: 1, parentAId: 2, parentBId: 3 },
+      },
       1,
     );
     bus.send(
-      { performative: "inform", ontology: ONT_FAMILY.BIRTH, sender: "world", recipient: "broadcast", body: { tick: 2, childId: 4, parentAId: 2, parentBId: 3 } },
+      {
+        performative: "inform",
+        ontology: ONT_FAMILY.BIRTH,
+        sender: "world",
+        recipient: "broadcast",
+        body: { tick: 2, childId: 4, parentAId: 2, parentBId: 3 },
+      },
       2,
     );
     bus.send(
-      { performative: "inform", ontology: ONT_FAMILY.DEATH, sender: "world", recipient: "broadcast", body: { tick: 3, agentId: 1, cause: "oldAge" } },
+      {
+        performative: "inform",
+        ontology: ONT_FAMILY.DEATH,
+        sender: "world",
+        recipient: "broadcast",
+        body: { tick: 3, agentId: 1, cause: "oldAge" },
+      },
       3,
     );
     dispatchTick(bus);
@@ -161,7 +209,13 @@ describe("createChronicle", () => {
 
     for (let i = 0; i < 6; i++) sendGift(bus, i, i); // fills + overflows the 2-slot cap
     bus.send(
-      { performative: "inform", ontology: ONT_FAMILY.DEATH, sender: "world", recipient: "broadcast", body: { tick: 6, agentId: 1, cause: "oldAge" } },
+      {
+        performative: "inform",
+        ontology: ONT_FAMILY.DEATH,
+        sender: "world",
+        recipient: "broadcast",
+        body: { tick: 6, agentId: 1, cause: "oldAge" },
+      },
       6,
     );
     dispatchTick(bus);
@@ -197,13 +251,25 @@ describe("createChronicle", () => {
     const chronicle = createChronicle(bus);
 
     bus.send(
-      { performative: "inform", ontology: ONT_FAMILY.BIRTH, sender: "world", recipient: "broadcast", body: { tick: 1, childId: 1, parentAId: 2, parentBId: 3 } },
+      {
+        performative: "inform",
+        ontology: ONT_FAMILY.BIRTH,
+        sender: "world",
+        recipient: "broadcast",
+        body: { tick: 1, childId: 1, parentAId: 2, parentBId: 3 },
+      },
       1,
     );
     dispatchTick(bus);
     chronicle.captureRationalizerDecisions([makeDecision({ tick: 2 })]);
     bus.send(
-      { performative: "inform", ontology: ONT_FAMILY.BIRTH, sender: "world", recipient: "broadcast", body: { tick: 3, childId: 4, parentAId: 2, parentBId: 3 } },
+      {
+        performative: "inform",
+        ontology: ONT_FAMILY.BIRTH,
+        sender: "world",
+        recipient: "broadcast",
+        body: { tick: 3, childId: 4, parentAId: 2, parentBId: 3 },
+      },
       3,
     );
     dispatchTick(bus);
@@ -219,7 +285,13 @@ describe("createChronicle", () => {
     const chronicle = createChronicle(bus);
 
     chronicle.captureRationalizerDecisions([
-      makeDecision({ outcome: "rejected", reason: "stale-candidates", rationale: "", bdiKind: "gift", chosenKind: "gift" }),
+      makeDecision({
+        outcome: "rejected",
+        reason: "stale-candidates",
+        rationale: "",
+        bdiKind: "gift",
+        chosenKind: "gift",
+      }),
     ]);
 
     const [event] = chronicle.events();

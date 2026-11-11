@@ -1,11 +1,4 @@
-
-import type {
-  SimInbound,
-  SimOutbound,
-  SimInitMsg,
-  SimStaticLayerMsg,
-  SimSnapshotMsg,
-} from "@farm/sim-core/protocol";
+import type { SimInbound, SimOutbound, SimInitMsg, SimStaticLayerMsg, SimSnapshotMsg } from "@farm/sim-core/protocol";
 import type { SnapshotWealthSeries } from "@farm/sim-core/snapshot";
 import type { SimHost, SendFn } from "./sim-host";
 
@@ -27,7 +20,6 @@ interface Run {
 }
 
 export interface RunRegistryOptions {
-
   reapGraceMs?: number;
 
   /**
@@ -93,7 +85,7 @@ export class RunRegistry {
       }
 
       const run: Run = {
-        host: null as unknown as SimHost, 
+        host: null as unknown as SimHost,
         sockets: new Set(),
         owner: socket,
         lastStatic: null,
@@ -113,7 +105,6 @@ export class RunRegistry {
       this.sendDirect(socket, { type: "attach", owner: true });
       return null;
     } else {
-
       if (existing.reapTimer !== null) {
         clearTimeout(existing.reapTimer);
         existing.reapTimer = null;
@@ -132,7 +123,6 @@ export class RunRegistry {
         this.sendDirectRaw(socket, JSON.stringify(existing.lastStatic));
       }
       if (existing.lastSnapshot !== null) {
-
         const replaySnap: SimSnapshotMsg =
           existing.lastWealthSeries !== null
             ? {
@@ -156,7 +146,6 @@ export class RunRegistry {
 
     for (const run of this.runs.values()) {
       if (run.sockets.has(socket)) {
-
         if (socket === run.owner) {
           run.host.handleInbound(msg);
         }
@@ -196,7 +185,6 @@ export class RunRegistry {
         }
 
         run.reapTimer = setTimeout(() => {
-
           if (run.sockets.size === 0) {
             run.host.stop();
             this.runs.delete(key);
@@ -218,7 +206,6 @@ export class RunRegistry {
   private makeFanOut(run: Run): SendFn {
     const MAX_BUFFERED = 1_000_000;
     return (msg: SimOutbound): void => {
-
       if (msg.type === "static-layer") {
         run.lastStatic = msg;
       } else if (msg.type === "snapshot") {

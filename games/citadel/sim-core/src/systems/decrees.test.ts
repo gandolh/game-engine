@@ -62,9 +62,19 @@ function seedVillagers(sim: ReturnType<typeof boot>, n: number): void {
       villager: {
         id: sim.state.nextVillagerId++,
         ownerId: 0,
-        homeX: 1, homeY: 1, workX: 1, workY: 1, storeX: 1, storeY: 1,
-        fsm: "idle", pathX: [], pathY: [], pathStep: 0,
-        carryGood: null, carryAmount: 0, ticksAtWork: 0,
+        homeX: 1,
+        homeY: 1,
+        workX: 1,
+        workY: 1,
+        storeX: 1,
+        storeY: 1,
+        fsm: "idle",
+        pathX: [],
+        pathY: [],
+        pathStep: 0,
+        carryGood: null,
+        carryAmount: 0,
+        ticksAtWork: 0,
       },
     });
   }
@@ -142,7 +152,7 @@ describe("Citadel 09 — tithe starvation cushion", () => {
     // Day 0 boundary: baseline. Day 1 boundary: real consumption with 1 bread
     // available vs 4 needed → deficit of 3.
     localPlayer(sim.state).stockpiles.bread = 1;
-    tickRange(sim, 0, TICKS_PER_DAY);   // baseline day
+    tickRange(sim, 0, TICKS_PER_DAY); // baseline day
     localPlayer(sim.state).stockpiles.bread = 1;
     tickRange(sim, TICKS_PER_DAY, 2 * TICKS_PER_DAY); // deficit day
     return sim;

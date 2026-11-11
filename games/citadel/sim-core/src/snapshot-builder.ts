@@ -72,7 +72,7 @@ export function getBuildings(state: SimState): readonly BuildingSnapshot[] {
       connected: rs?.connected ?? false,
       outputBuffer: rs?.outputBuffer ?? 0,
       workerCount: rs?.workerCount ?? 0,
-      occupancy: entity.id !== undefined ? occByBuilding.get(entity.id) ?? 0 : 0,
+      occupancy: entity.id !== undefined ? (occByBuilding.get(entity.id) ?? 0) : 0,
       // Phase 4.5: fire state
       onFire: fs?.burning ?? false,
       burning: fs?.burning ?? false,
@@ -201,8 +201,12 @@ export function getSnapshot(state: SimState, dayClock: DayClockSystem, multiplay
     raiders: lp.raiders.map((r) => ({ id: r.id, x: r.x, y: r.y, strength: r.strength })),
     // Citadel 32: in-flight PvP armies (global; empty in solo)
     armies: state.armies.map((a) => ({
-      id: a.id, x: a.x, y: a.y, strength: a.strength,
-      attackerId: a.attackerId, targetPlayerId: a.targetPlayerId,
+      id: a.id,
+      x: a.x,
+      y: a.y,
+      strength: a.strength,
+      attackerId: a.attackerId,
+      targetPlayerId: a.targetPlayerId,
     })),
     threatLevel: lp.threatLevel,
     nextRaidDay,

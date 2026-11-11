@@ -17,12 +17,7 @@ import type { Footprint } from "@engine/core";
 import type { TerrainGrid } from "../world/terrain";
 import { isWalkable, TerrainType } from "../world/terrain";
 import type { BuildingRuntimeState, GoodType } from "../entities/building";
-import {
-  getBuildingDef,
-  getProductionDef,
-  effectiveHousingCapacity,
-  buildCost,
-} from "../entities/building";
+import { getBuildingDef, getProductionDef, effectiveHousingCapacity, buildCost } from "../entities/building";
 import type { SimState, Stockpiles } from "../sim-state";
 import { pushEvent, localPlayer } from "../sim-state";
 import { TIER_LOCK, tierAtLeast, unlockTier } from "./tiers";
@@ -110,9 +105,10 @@ export function isWalkableTile(state: SimState, terrain: TerrainGrid, tx: number
  */
 export function rebakeWalkable(ctx: PlacementContext, mode: "buildable" | "roads", fp?: Footprint): void {
   const { state, terrain } = ctx;
-  const pred = mode === "roads"
-    ? (tx: number, ty: number): boolean => isWalkableTile(state, terrain, tx, ty)
-    : (tx: number, ty: number): boolean => isBuildableTile(terrain, tx, ty);
+  const pred =
+    mode === "roads"
+      ? (tx: number, ty: number): boolean => isWalkableTile(state, terrain, tx, ty)
+      : (tx: number, ty: number): boolean => isBuildableTile(terrain, tx, ty);
   if (fp === undefined) {
     ctx.walkable = rebuildWalkable(state.width, state.height, state.occupancy, pred);
   } else {
@@ -322,7 +318,10 @@ export function placeOne(
       for (let dy = 0; dy < def.h && !onForest; dy++) {
         for (let dx = 0; dx < def.w; dx++) {
           const t = terrain.cells[(y + dy) * width + (x + dx)];
-          if (t === TerrainType.Forest) { onForest = true; break; }
+          if (t === TerrainType.Forest) {
+            onForest = true;
+            break;
+          }
         }
       }
       if (!onForest) return "terrain";
@@ -332,7 +331,10 @@ export function placeOne(
       for (let dy = 0; dy < def.h && !onStone; dy++) {
         for (let dx = 0; dx < def.w; dx++) {
           const t = terrain.cells[(y + dy) * width + (x + dx)];
-          if (t === TerrainType.Stone) { onStone = true; break; }
+          if (t === TerrainType.Stone) {
+            onStone = true;
+            break;
+          }
         }
       }
       if (!onStone) return "terrain";
@@ -393,7 +395,9 @@ export function describeReject(state: SimState, buildingType: string, reason: Pl
     case "bounds":
       return `Day ${state.day}: can't build a ${buildingType} there — off the map.`;
     case "cost": {
-      const need = Object.entries(buildCost(buildingType)).map(([g, q]) => `${q} ${g}`).join(", ");
+      const need = Object.entries(buildCost(buildingType))
+        .map(([g, q]) => `${q} ${g}`)
+        .join(", ");
       return `Day ${state.day}: can't afford a ${buildingType} — need ${need}.`;
     }
     default:

@@ -1,5 +1,3 @@
-
-
 import { describe, it, expect } from "vitest";
 import { ZERO_CROPS } from "./economy";
 import { summarizeRun } from "./run-recap";
@@ -22,7 +20,9 @@ function makeHistory(
   return rows;
 }
 
-function makeStandings(specs: Array<{ id: number; name: string; personality: string; rank: number; totalValue: number; gold: number }>): FinalStandingRow[] {
+function makeStandings(
+  specs: Array<{ id: number; name: string; personality: string; rank: number; totalValue: number; gold: number }>,
+): FinalStandingRow[] {
   return specs.map((s) => ({
     ...s,
     unsoldValue: s.totalValue - s.gold,
@@ -42,8 +42,8 @@ describe("summarizeRun — arc patterns", () => {
     const history = makeHistory(DAYS, FARMERS, (id, day) => {
       if (id === 1) return day >= 80 ? 1 : 4;
 
-      if (day >= 80) return id; 
-      return id - 1; 
+      if (day >= 80) return id;
+      return id - 1;
     });
 
     const standings = makeStandings([
@@ -66,12 +66,10 @@ describe("summarizeRun — arc patterns", () => {
     const history = makeHistory(DAYS, FARMERS, (id, day) => {
       if (id === 3) return day <= 70 ? 1 : 3;
       if (day <= 70) {
-
         if (id === 1) return 2;
         if (id === 2) return 3;
-        return 4; 
+        return 4;
       } else {
-
         if (id === 1) return 1;
         if (id === 2) return 2;
         return 4;
@@ -116,7 +114,7 @@ describe("summarizeRun — standings with midRankDelta", () => {
     const DAYS = 100;
 
     const history = makeHistory(DAYS, 2, (id, day) => {
-      if (id === 1) return day <= 50 ? 3 : 1; 
+      if (id === 1) return day <= 50 ? 3 : 1;
       return day <= 50 ? 1 : 2;
     });
 
@@ -174,9 +172,7 @@ describe("summarizeRun — headline", () => {
     const standings = makeStandings([
       { id: 1, name: "Otto", personality: "opportunist", rank: 1, totalValue: 600, gold: 600 },
     ]);
-    const events: EventEntry[] = [
-      makeEvent("Drought! Atticus lost 2 crops", 50),
-    ];
+    const events: EventEntry[] = [makeEvent("Drought! Atticus lost 2 crops", 50)];
     const recap = summarizeRun([], events, standings);
     expect(recap.headline.toLowerCase()).toContain("drought");
   });
@@ -188,7 +184,6 @@ describe("summarizeRun — headline drama-based selection (brief 38)", () => {
   ]);
 
   it("prefers the highest-drama event as the headline source", () => {
-
     const events: EventEntry[] = [
       makeEvent("Cora bought 5 wheat from Otto (70g)", 10, 0.1),
       makeEvent("Atticus overtakes Hannah for 1st!", 80, 0.9),
@@ -243,9 +238,7 @@ describe("summarizeRun — rivalries (brief 37)", () => {
   });
 
   it("includes alliance line for alliance kind", () => {
-    const rivalries: SnapshotRivalry[] = [
-      { aId: 1, bId: 2, aName: "Cora", bName: "Otto", score: 0, kind: "alliance" },
-    ];
+    const rivalries: SnapshotRivalry[] = [{ aId: 1, bId: 2, aName: "Cora", bName: "Otto", score: 0, kind: "alliance" }];
     const recap = summarizeRun([], [], standings, rivalries);
     expect(recap.rivalries).toBeDefined();
     expect(recap.rivalries![0]).toContain("Cora");

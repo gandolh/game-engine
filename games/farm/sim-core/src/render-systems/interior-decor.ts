@@ -1,5 +1,3 @@
-
-
 import { createRng } from "@engine/core";
 import type { World } from "@engine/core";
 import type { GameEntity } from "../components";
@@ -35,7 +33,6 @@ export const MIN_SPACING = 2;
 const MAX_ATTEMPTS = 600;
 
 interface ThemeEntry {
-
   frames: readonly string[];
 
   density: number;
@@ -63,7 +60,13 @@ export const THEME_TABLE: Record<RegionTheme, ThemeEntry> = {
     density: 6,
   },
   ring: {
-    frames: ["decoration/hay-bale", "decoration/grain-sack", "decoration/flour-bag", "decoration/barrel", "decoration/crate"],
+    frames: [
+      "decoration/hay-bale",
+      "decoration/grain-sack",
+      "decoration/flour-bag",
+      "decoration/barrel",
+      "decoration/crate",
+    ],
     density: 4,
   },
 
@@ -99,8 +102,7 @@ export const THEME_TABLE: Record<RegionTheme, ThemeEntry> = {
 
 const key = (x: number, y: number): number => y * WORLD_WIDTH + x;
 
-const inWorld = (x: number, y: number): boolean =>
-  x >= 0 && y >= 0 && x < WORLD_WIDTH && y < WORLD_HEIGHT;
+const inWorld = (x: number, y: number): boolean => x >= 0 && y >= 0 && x < WORLD_WIDTH && y < WORLD_HEIGHT;
 
 const toTile = (px: number): number => Math.floor(px / TILE);
 
@@ -181,7 +183,6 @@ export function computeInteriorDecor(world: World<GameEntity>): readonly Interio
     const rng = createRng(WORLD_GEN_SEED).fork("decor:" + region.id);
 
     for (let attempt = 0; attempt < MAX_ATTEMPTS && countInRegion(placed, region.id) < target; attempt++) {
-
       const tx = rng.int(minX, maxX + 1);
       const ty = rng.int(minY, maxY + 1);
       const frame = rng.pick(entry.frames);

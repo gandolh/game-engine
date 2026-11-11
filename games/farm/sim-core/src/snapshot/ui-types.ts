@@ -1,4 +1,3 @@
-
 export interface LeaderboardRow {
   rank: number;
   id: number;

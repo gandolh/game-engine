@@ -172,11 +172,12 @@ describe("cross-seed governance + antagonism divergence (chunk hollow-12b)", () 
       curiosity: 1,
     };
 
-    const greedy = seeds.map((seed) => runAndSummarize(seed, greedyGenome, GREEDY_LOYAL_TICKS, GREEDY_LOYAL_POPULATION));
+    const greedy = seeds.map((seed) =>
+      runAndSummarize(seed, greedyGenome, GREEDY_LOYAL_TICKS, GREEDY_LOYAL_POPULATION),
+    );
     const loyal = seeds.map((seed) => runAndSummarize(seed, loyalGenome, GREEDY_LOYAL_TICKS, GREEDY_LOYAL_POPULATION));
 
-    const sum = (rows: readonly RunSummary[], pick: (r: RunSummary) => number) =>
-      rows.reduce((s, r) => s + pick(r), 0);
+    const sum = (rows: readonly RunSummary[], pick: (r: RunSummary) => number) => rows.reduce((s, r) => s + pick(r), 0);
 
     const greedyShare = sum(greedy, (r) => r.meanShareRate) / greedy.length;
     const loyalShare = sum(loyal, (r) => r.meanShareRate) / loyal.length;

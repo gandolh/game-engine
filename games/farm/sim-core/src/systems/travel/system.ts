@@ -1,13 +1,4 @@
-
-
-import type {
-  SimContext,
-  System,
-  World,
-  MessageBus,
-  Pathfinder,
-  PathfinderGrid,
-} from "@engine/core";
+import type { SimContext, System, World, MessageBus, Pathfinder, PathfinderGrid } from "@engine/core";
 import type { GameEntity } from "../../components";
 import { getRegion, regionAt, type RegionId } from "../../world/regions";
 import { ONT_TRAVEL, type TravelArrivedBody } from "../../protocols/travel";
@@ -50,9 +41,7 @@ export class TravelSystem implements System {
     if (hasTravelIntent && !farmer.path) {
       const targetRegionId = front.data.targetRegionId as RegionId | undefined;
 
-      const targetTile = front.data.targetTile as
-        | { x: number; y: number }
-        | undefined;
+      const targetTile = front.data.targetTile as { x: number; y: number } | undefined;
 
       let dest: { x: number; y: number };
       if (targetTile) {
@@ -68,9 +57,7 @@ export class TravelSystem implements System {
       } else if (targetRegionId) {
         dest = getRegion(targetRegionId).center;
       } else {
-        console.warn(
-          `[travel] farmer ${entity.id} has travel intent without targetRegionId or targetTile; dropping`,
-        );
+        console.warn(`[travel] farmer ${entity.id} has travel intent without targetRegionId or targetTile; dropping`);
         intentions.queue.shift();
         return;
       }
@@ -86,7 +73,7 @@ export class TravelSystem implements System {
       } catch (err) {
         console.error(
           `[travel] pathfinder fault (unexpected — allocator bug was fixed in brief 10) ` +
-          `from (${start.x},${start.y}) to ${destLabel} for farmer ${entity.id}; dropping intent`,
+            `from (${start.x},${start.y}) to ${destLabel} for farmer ${entity.id}; dropping intent`,
           err,
         );
         intentions.queue.shift();
@@ -163,8 +150,14 @@ export class TravelSystem implements System {
   ): { x: number; y: number } | undefined {
     if (this.isWalkable(grid, tileX, tileY)) return { x: tileX, y: tileY };
     const offsets = [
-      [0, -1], [1, 0], [0, 1], [-1, 0],
-      [1, -1], [1, 1], [-1, 1], [-1, -1],
+      [0, -1],
+      [1, 0],
+      [0, 1],
+      [-1, 0],
+      [1, -1],
+      [1, 1],
+      [-1, 1],
+      [-1, -1],
     ] as const;
     for (const [dx, dy] of offsets) {
       const nx = tileX + dx;

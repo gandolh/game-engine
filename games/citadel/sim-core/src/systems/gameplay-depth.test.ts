@@ -55,7 +55,7 @@ describe("siege variance", () => {
       if (resolveSiege(30, 3, createRng(s).fork("b")) === "sacked") weakSack++;
     }
     expect(strongRepel).toBeGreaterThan(160); // ~90%+
-    expect(weakSack).toBeGreaterThan(140);    // most fall
+    expect(weakSack).toBeGreaterThan(140); // most fall
   });
 
   it("low raider morale shifts the odds toward the defender", () => {
@@ -154,7 +154,11 @@ describe("player-driven trading post", () => {
     });
     if (e.id !== undefined) {
       sim.state.buildingState.set(e.id, {
-        outputBuffer: 0, workerCount, connected, productionTick: 0, level: 1,
+        outputBuffer: 0,
+        workerCount,
+        connected,
+        productionTick: 0,
+        level: 1,
       });
     }
   }

@@ -1,5 +1,3 @@
-
-
 import { Worker } from "node:worker_threads";
 import { availableParallelism } from "node:os";
 import { fingerprint, describeDivergence, type RunResult } from "./run-core";
@@ -99,9 +97,7 @@ export async function runDeterminismCheck(opts: CheckOptions): Promise<boolean> 
     const b = pair?.[1];
     const seedHex = `0x${(seed >>> 0).toString(16)}`;
     if (a && b && fingerprint(a) === fingerprint(b)) {
-      console.error(
-        `  seed ${seedHex}: MATCH (${a.perDay.length} day snapshots, ${a.finalStandings.length} farmers)`,
-      );
+      console.error(`  seed ${seedHex}: MATCH (${a.perDay.length} day snapshots, ${a.finalStandings.length} farmers)`);
     } else {
       anyDiverged = true;
       console.error(`  seed ${seedHex}: DIVERGE`);

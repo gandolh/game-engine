@@ -30,24 +30,26 @@ import { findClear } from "./helpers";
  *
  * Returns { cmds, injectWoodPerDay, injectStonePerDay }.
  */
-export function buildSiegeScenario(
-  terrain: TerrainGrid,
-): { cmds: CitadelCommand[]; injectWoodPerDay: number; injectStonePerDay: number } {
+export function buildSiegeScenario(terrain: TerrainGrid): {
+  cmds: CitadelCommand[];
+  injectWoodPerDay: number;
+  injectStonePerDay: number;
+} {
   const cx = Math.floor(terrain.width / 2);
   const cy = Math.floor(terrain.height / 2);
 
   // ---------- Economy core ----------
-  const store   = findClear(terrain, 3, 2, cx, cy);
-  const farm1   = findClear(terrain, 3, 3, store.x + 5, store.y - 3);
-  const farm2   = findClear(terrain, 3, 3, store.x + 5, store.y + 2);
-  const mill1   = findClear(terrain, 2, 2, store.x - 1, store.y - 5);
-  const mill2   = findClear(terrain, 2, 2, store.x + 3, store.y - 5);
+  const store = findClear(terrain, 3, 2, cx, cy);
+  const farm1 = findClear(terrain, 3, 3, store.x + 5, store.y - 3);
+  const farm2 = findClear(terrain, 3, 3, store.x + 5, store.y + 2);
+  const mill1 = findClear(terrain, 2, 2, store.x - 1, store.y - 5);
+  const mill2 = findClear(terrain, 2, 2, store.x + 3, store.y - 5);
   const bakery1 = findClear(terrain, 2, 2, store.x - 5, store.y - 1);
   const bakery2 = findClear(terrain, 2, 2, store.x - 5, store.y + 2);
-  const house1  = findClear(terrain, 2, 2, store.x - 3, store.y + 4);
-  const house2  = findClear(terrain, 2, 2, store.x,     store.y + 4);
-  const house3  = findClear(terrain, 2, 2, store.x + 3, store.y + 4);
-  const house4  = findClear(terrain, 2, 2, store.x,     store.y + 7);
+  const house1 = findClear(terrain, 2, 2, store.x - 3, store.y + 4);
+  const house2 = findClear(terrain, 2, 2, store.x, store.y + 4);
+  const house3 = findClear(terrain, 2, 2, store.x + 3, store.y + 4);
+  const house4 = findClear(terrain, 2, 2, store.x, store.y + 7);
 
   // ---------- Refining chain ----------
   // Sawmill and smith are converter types → get founding workers on days 3-6.
@@ -56,7 +58,7 @@ export function buildSiegeScenario(
   // No quarry: raw material comes from injection so we don't need an extra
   // primary type that would displace a converter from the founding window.
   const sawmill = findClear(terrain, 2, 2, store.x - 1, store.y - 8);
-  const smith   = findClear(terrain, 2, 2, store.x + 3, store.y - 8);
+  const smith = findClear(terrain, 2, 2, store.x + 3, store.y - 8);
 
   // ---------- Citadel core ----------
   // Only keep (primary, day 2 founding) — no garrison, to keep primary types at 2.
@@ -65,24 +67,24 @@ export function buildSiegeScenario(
   const keep = findClear(terrain, 3, 3, store.x + 2, store.y + 12);
 
   const cmds: CitadelCommand[] = [
-    { type: "placeBuilding", payload: { buildingType: "storehouse", x: store.x,   y: store.y } },
+    { type: "placeBuilding", payload: { buildingType: "storehouse", x: store.x, y: store.y } },
     // Primary types (2): farm (day 1), keep (day 2).
-    { type: "placeBuilding", payload: { buildingType: "farm",       x: farm1.x,   y: farm1.y } },
-    { type: "placeBuilding", payload: { buildingType: "farm",       x: farm2.x,   y: farm2.y } },
+    { type: "placeBuilding", payload: { buildingType: "farm", x: farm1.x, y: farm1.y } },
+    { type: "placeBuilding", payload: { buildingType: "farm", x: farm2.x, y: farm2.y } },
     // Converter types (4): mill (day 3), bakery (day 4), sawmill (day 5), smith (day 6).
-    { type: "placeBuilding", payload: { buildingType: "mill",       x: mill1.x,   y: mill1.y } },
-    { type: "placeBuilding", payload: { buildingType: "mill",       x: mill2.x,   y: mill2.y } },
-    { type: "placeBuilding", payload: { buildingType: "bakery",     x: bakery1.x, y: bakery1.y } },
-    { type: "placeBuilding", payload: { buildingType: "bakery",     x: bakery2.x, y: bakery2.y } },
-    { type: "placeBuilding", payload: { buildingType: "sawmill",    x: sawmill.x, y: sawmill.y } },
-    { type: "placeBuilding", payload: { buildingType: "smith",      x: smith.x,   y: smith.y } },
+    { type: "placeBuilding", payload: { buildingType: "mill", x: mill1.x, y: mill1.y } },
+    { type: "placeBuilding", payload: { buildingType: "mill", x: mill2.x, y: mill2.y } },
+    { type: "placeBuilding", payload: { buildingType: "bakery", x: bakery1.x, y: bakery1.y } },
+    { type: "placeBuilding", payload: { buildingType: "bakery", x: bakery2.x, y: bakery2.y } },
+    { type: "placeBuilding", payload: { buildingType: "sawmill", x: sawmill.x, y: sawmill.y } },
+    { type: "placeBuilding", payload: { buildingType: "smith", x: smith.x, y: smith.y } },
     // Housing: 4 houses → popCap 24
-    { type: "placeBuilding", payload: { buildingType: "house",      x: house1.x,  y: house1.y } },
-    { type: "placeBuilding", payload: { buildingType: "house",      x: house2.x,  y: house2.y } },
-    { type: "placeBuilding", payload: { buildingType: "house",      x: house3.x,  y: house3.y } },
-    { type: "placeBuilding", payload: { buildingType: "house",      x: house4.x,  y: house4.y } },
+    { type: "placeBuilding", payload: { buildingType: "house", x: house1.x, y: house1.y } },
+    { type: "placeBuilding", payload: { buildingType: "house", x: house2.x, y: house2.y } },
+    { type: "placeBuilding", payload: { buildingType: "house", x: house3.x, y: house3.y } },
+    { type: "placeBuilding", payload: { buildingType: "house", x: house4.x, y: house4.y } },
     // Citadel: keep only (day 2 primary).
-    { type: "placeBuilding", payload: { buildingType: "keep",       x: keep.x,    y: keep.y } },
+    { type: "placeBuilding", payload: { buildingType: "keep", x: keep.x, y: keep.y } },
   ];
 
   // ---------- Wall ring tightly around the keep ----------
@@ -125,10 +127,10 @@ export function buildSiegeScenario(
   const roadTiles: Array<{ x: number; y: number }> = [];
 
   // Economy carpet (covers all food + refining buildings).
-  const econLeft  = Math.min(bakery1.x, bakery2.x) - 1;
+  const econLeft = Math.min(bakery1.x, bakery2.x) - 1;
   const econRight = Math.max(farm1.x + 2, farm2.x + 2) + 1;
-  const econTop   = Math.min(sawmill.y, smith.y) - 1;
-  const econBot   = Math.max(house4.y + 1, house3.y + 1);
+  const econTop = Math.min(sawmill.y, smith.y) - 1;
+  const econBot = Math.max(house4.y + 1, house3.y + 1);
   for (let ry = econTop; ry <= econBot; ry++) {
     for (let rx = econLeft; rx <= econRight; rx++) {
       if (isWalkable(terrain, rx, ry)) roadTiles.push({ x: rx, y: ry });
@@ -137,10 +139,10 @@ export function buildSiegeScenario(
 
   // Citadel carpet (covers the keep inside the wall ring).
   // We use the wall-ring bounding box + 1 tile margin.
-  const citeLeft  = x0 - 1;
+  const citeLeft = x0 - 1;
   const citeRight = x1 + 1;
-  const citeTop   = y0 - 1;
-  const citeBot   = y1 + 1;
+  const citeTop = y0 - 1;
+  const citeBot = y1 + 1;
   for (let ry = citeTop; ry <= citeBot; ry++) {
     for (let rx = citeLeft; rx <= citeRight; rx++) {
       if (isWalkable(terrain, rx, ry)) roadTiles.push({ x: rx, y: ry });

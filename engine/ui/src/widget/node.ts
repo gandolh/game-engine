@@ -33,15 +33,7 @@ export interface Rect {
   height: number;
 }
 
-export type UINodeKind =
-  | "panel"
-  | "box"
-  | "label"
-  | "button"
-  | "slider"
-  | "checkbox"
-  | "icon"
-  | "custom";
+export type UINodeKind = "panel" | "box" | "label" | "button" | "slider" | "checkbox" | "icon" | "custom";
 
 interface BaseNode {
   /** Stable per-node id (unique within a process run). Used for keying/hit-test/a11y. */
@@ -256,14 +248,7 @@ export interface CustomNode extends BaseNode {
   draw: (surface: UISurface, rect: Rect, alpha: number) => void;
 }
 
-export type UINode =
-  | ContainerNode
-  | LabelNode
-  | ButtonNode
-  | SliderNode
-  | CheckboxNode
-  | IconNode
-  | CustomNode;
+export type UINode = ContainerNode | LabelNode | ButtonNode | SliderNode | CheckboxNode | IconNode | CustomNode;
 
 let nextId = 1;
 
@@ -355,11 +340,7 @@ export function custom(
 }
 
 /** Create an **icon** (shade-mask leaf), tinted by `ramp` (see {@link IconRamp}). */
-export function icon(
-  name: string,
-  ramp: IconRamp,
-  opts: { layout?: LayoutProps; scale?: number } = {},
-): IconNode {
+export function icon(name: string, ramp: IconRamp, opts: { layout?: LayoutProps; scale?: number } = {}): IconNode {
   const node: IconNode = {
     id: freshId(),
     kind: "icon",

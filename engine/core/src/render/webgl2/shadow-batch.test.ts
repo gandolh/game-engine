@@ -55,9 +55,11 @@ function makeFakeGl() {
     createVertexArray: vi.fn(() => ({ __kind: "vao" })),
     bindVertexArray: vi.fn(),
     enableVertexAttribArray: vi.fn(),
-    vertexAttribPointer: vi.fn((location: number, size: number, _type: number, _normalized: boolean, stride: number, offset: number) => {
-      attribCalls.push({ location, size, stride, offset });
-    }),
+    vertexAttribPointer: vi.fn(
+      (location: number, size: number, _type: number, _normalized: boolean, stride: number, offset: number) => {
+        attribCalls.push({ location, size, stride, offset });
+      },
+    ),
     vertexAttribDivisor: vi.fn(),
 
     createBuffer: vi.fn((): FakeBuffer => ({ __kind: "buffer", size: 0, data: null, deleted: false })),
@@ -67,9 +69,11 @@ function makeFakeGl() {
     bufferData: vi.fn((_target: number, size: number) => {
       if (currentArrayBuffer) currentArrayBuffer.size = size;
     }),
-    bufferSubData: vi.fn((_target: number, _dstOffset: number, srcData: Float32Array, srcOffset: number, length: number) => {
-      if (currentArrayBuffer) currentArrayBuffer.data = srcData.slice(srcOffset, srcOffset + length);
-    }),
+    bufferSubData: vi.fn(
+      (_target: number, _dstOffset: number, srcData: Float32Array, srcOffset: number, length: number) => {
+        if (currentArrayBuffer) currentArrayBuffer.data = srcData.slice(srcOffset, srcOffset + length);
+      },
+    ),
     deleteBuffer: vi.fn((buf: FakeBuffer) => {
       buf.deleted = true;
       deletedBuffers.push(buf);
@@ -103,7 +107,8 @@ describe("ShadowBatch#begin/add", () => {
     batch.add(10, 20, 5, 6, 0.1, 0.2, 0.3, 0.4);
     batch.upload();
 
-    const staging = (gl as unknown as { bufferSubData: ReturnType<typeof vi.fn> }).bufferSubData.mock.calls[0]![2] as Float32Array;
+    const staging = (gl as unknown as { bufferSubData: ReturnType<typeof vi.fn> }).bufferSubData.mock
+      .calls[0]![2] as Float32Array;
     const expected = [10, 20, 5, 6, 0.1, 0.2, 0.3, 0.4].map(Math.fround);
     expect(Array.from(staging.slice(0, 8))).toEqual(expected);
   });
@@ -115,7 +120,8 @@ describe("ShadowBatch#begin/add", () => {
     expect(batch.count).toBe(80);
 
     batch.upload();
-    const staging = (gl as unknown as { bufferSubData: ReturnType<typeof vi.fn> }).bufferSubData.mock.calls[0]![2] as Float32Array;
+    const staging = (gl as unknown as { bufferSubData: ReturnType<typeof vi.fn> }).bufferSubData.mock
+      .calls[0]![2] as Float32Array;
     expect(staging[0]).toBe(0);
     expect(staging[79 * 8]).toBe(79);
   });
@@ -188,7 +194,12 @@ describe("ShadowBatch#draw", () => {
 
     batch.draw(gl);
 
-    expect(raw.blendFuncSeparate).toHaveBeenCalledWith(raw.ONE, raw.ONE_MINUS_SRC_ALPHA, raw.ONE, raw.ONE_MINUS_SRC_ALPHA);
+    expect(raw.blendFuncSeparate).toHaveBeenCalledWith(
+      raw.ONE,
+      raw.ONE_MINUS_SRC_ALPHA,
+      raw.ONE,
+      raw.ONE_MINUS_SRC_ALPHA,
+    );
     expect(raw.blendEquationSeparate).toHaveBeenCalledWith(raw.FUNC_ADD, raw.FUNC_ADD);
     expect(raw.enable).toHaveBeenCalledWith(raw.BLEND);
   });

@@ -39,7 +39,10 @@ describe("findViewportOverflows", () => {
   });
 
   it("reports a button pushed past the right edge", () => {
-    const root = box({ direction: "row", gap: 10 }, Array.from({ length: 12 }, (_, i) => button(`x${i}`)));
+    const root = box(
+      { direction: "row", gap: 10 },
+      Array.from({ length: 12 }, (_, i) => button(`x${i}`)),
+    );
     computeLayout(root, 0, 0, undefined, VIEWPORT);
 
     const bad = findViewportOverflows(root, VIEWPORT);

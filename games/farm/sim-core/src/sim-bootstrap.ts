@@ -1,12 +1,4 @@
-import {
-  MessageBus,
-  Scheduler,
-  World,
-  createRng,
-  type Pathfinder,
-  type PathfinderGrid,
-  type Rng,
-} from "@engine/core";
+import { MessageBus, Scheduler, World, createRng, type Pathfinder, type PathfinderGrid, type Rng } from "@engine/core";
 
 export interface PathfinderLike {
   findPath(
@@ -55,7 +47,14 @@ import { OrchardSystem } from "./systems/farming/orchard";
 import { HarborSystem } from "./systems/harbor";
 import { setupWeatherFeature } from "./agents/weather-station";
 import { setupMarketShopFeature } from "./agents/market-wall";
-import { cropInventoryValue, productInventoryValue, fruitInventoryValue, ANIMAL_BUY_COST, FRUIT_SELL_PRICE, FRUIT_YIELD_PER_HARVEST } from "./economy";
+import {
+  cropInventoryValue,
+  productInventoryValue,
+  fruitInventoryValue,
+  ANIMAL_BUY_COST,
+  FRUIT_SELL_PRICE,
+  FRUIT_YIELD_PER_HARVEST,
+} from "./economy";
 import "./agents/conservative";
 import "./agents/aggressive";
 import "./agents/hoarder";
@@ -66,55 +65,95 @@ const FIXED_FARMER_SPECS: FarmerSpec[] = [
     name: "Cora",
     personality: "conservative",
     homeRegion: "farm-cora",
-    homeX: 24, homeY: 40,
+    homeX: 24,
+    homeY: 40,
     startGold: 80,
-    riskProfile: "low", minGoldReserve: 30,
+    riskProfile: "low",
+    minGoldReserve: 30,
     startSeeds: { radish: 3 },
   },
   {
     name: "Atticus",
     personality: "aggressive",
     homeRegion: "farm-atticus",
-    homeX: 296, homeY: 40,
+    homeX: 296,
+    homeY: 40,
     startGold: 110,
-    riskProfile: "high", minGoldReserve: 10,
+    riskProfile: "high",
+    minGoldReserve: 10,
     startSeeds: { radish: 1, wheat: 1, pumpkin: 1 },
   },
   {
     name: "Hannah",
     personality: "hoarder",
     homeRegion: "farm-hannah",
-    homeX: 24, homeY: 136,
+    homeX: 24,
+    homeY: 136,
     startGold: 150,
-    riskProfile: "high", minGoldReserve: 80,
+    riskProfile: "high",
+    minGoldReserve: 80,
     startSeeds: { wheat: 2, pumpkin: 1 },
   },
   {
     name: "Otto",
     personality: "opportunist",
     homeRegion: "farm-otto",
-    homeX: 296, homeY: 136,
+    homeX: 296,
+    homeY: 136,
     startGold: 100,
-    riskProfile: "medium", minGoldReserve: 50,
+    riskProfile: "medium",
+    minGoldReserve: 50,
     startSeeds: { radish: 2, wheat: 1 },
   },
   {
     name: "Pip",
     personality: "pip",
     homeRegion: "farm-pip",
-    homeX: 33, homeY: 19,
+    homeX: 33,
+    homeY: 19,
     startGold: 90,
-    riskProfile: "medium", minGoldReserve: 0,
+    riskProfile: "medium",
+    minGoldReserve: 0,
     startSeeds: { radish: 3, wheat: 1 },
     player: true,
   },
 ];
 
-const EXTRA_FARMER_TEMPLATES: ReadonlyArray<Omit<FarmerSpec, "homeRegion" | "homeX" | "homeY" | "name"> & { baseName: string }> = [
-  { baseName: "Cora",    personality: "conservative", startGold: 80,  riskProfile: "low",    minGoldReserve: 30, startSeeds: { radish: 3 } },
-  { baseName: "Atticus", personality: "aggressive",   startGold: 110, riskProfile: "high",   minGoldReserve: 10, startSeeds: { radish: 1, wheat: 1, pumpkin: 1 } },
-  { baseName: "Hannah",  personality: "hoarder",      startGold: 150, riskProfile: "high",   minGoldReserve: 80, startSeeds: { wheat: 2, pumpkin: 1 } },
-  { baseName: "Otto",    personality: "opportunist",  startGold: 100, riskProfile: "medium", minGoldReserve: 50, startSeeds: { radish: 2, wheat: 1 } },
+const EXTRA_FARMER_TEMPLATES: ReadonlyArray<
+  Omit<FarmerSpec, "homeRegion" | "homeX" | "homeY" | "name"> & { baseName: string }
+> = [
+  {
+    baseName: "Cora",
+    personality: "conservative",
+    startGold: 80,
+    riskProfile: "low",
+    minGoldReserve: 30,
+    startSeeds: { radish: 3 },
+  },
+  {
+    baseName: "Atticus",
+    personality: "aggressive",
+    startGold: 110,
+    riskProfile: "high",
+    minGoldReserve: 10,
+    startSeeds: { radish: 1, wheat: 1, pumpkin: 1 },
+  },
+  {
+    baseName: "Hannah",
+    personality: "hoarder",
+    startGold: 150,
+    riskProfile: "high",
+    minGoldReserve: 80,
+    startSeeds: { wheat: 2, pumpkin: 1 },
+  },
+  {
+    baseName: "Otto",
+    personality: "opportunist",
+    startGold: 100,
+    riskProfile: "medium",
+    minGoldReserve: 50,
+    startSeeds: { radish: 2, wheat: 1 },
+  },
 ];
 
 function makeExtraFarmerSpecs(): FarmerSpec[] {
@@ -125,7 +164,8 @@ function makeExtraFarmerSpecs(): FarmerSpec[] {
       name: `${t.baseName}-${i}`,
       personality: t.personality,
       homeRegion: `farm-${i}` as RegionId,
-      homeX: 0, homeY: 0,
+      homeX: 0,
+      homeY: 0,
       startGold: t.startGold,
       riskProfile: t.riskProfile,
       minGoldReserve: t.minGoldReserve,
@@ -135,10 +175,7 @@ function makeExtraFarmerSpecs(): FarmerSpec[] {
   return specs;
 }
 
-export const DEFAULT_FARMER_SPECS: FarmerSpec[] = [
-  ...FIXED_FARMER_SPECS,
-  ...makeExtraFarmerSpecs(),
-];
+export const DEFAULT_FARMER_SPECS: FarmerSpec[] = [...FIXED_FARMER_SPECS, ...makeExtraFarmerSpecs()];
 
 export interface SimBootstrapOptions {
   seed: number;
@@ -208,9 +245,7 @@ export function bootstrapSim(opts: SimBootstrapOptions): BootedSim {
   const combat = new CombatSystem(world, bus, rng, opts.ticksPerDay);
   const runHistory = new RunHistorySystem(world, bus);
   const eventFeed = new EventFeedSystem(world, dayClock, rivalry, runHistory);
-  const scheduler = new Scheduler()
-    .stage("CLOCK")
-    .add(dayClock);
+  const scheduler = new Scheduler().stage("CLOCK").add(dayClock);
 
   if (opts.shock !== false) {
     scheduler.add(

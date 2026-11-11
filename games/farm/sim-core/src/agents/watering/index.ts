@@ -1,4 +1,3 @@
-
 export type { WateringStyle } from "./shared";
 
 export { deliberateRefillCan, deliberateWatering } from "./water";

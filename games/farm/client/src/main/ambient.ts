@@ -1,5 +1,3 @@
-
-
 import { createRng } from "@engine/core/runtime";
 import type { Rng } from "@engine/core/runtime";
 import type { Sprite } from "@engine/core/render";
@@ -7,7 +5,6 @@ import { FORGE_SMOKE_FRAMES } from "@farm/sim-core/render-systems";
 import type { Season } from "@farm/sim-core/protocols/weather";
 
 const CONSTANTS = {
-
   BIRD_CAP: 6,
   LEAF_CAP: 20,
   SMOKE_CAP: 12,
@@ -184,7 +181,6 @@ export class AmbientLayer {
   private leafCountdown: number = 0;
 
   constructor() {
-
     this.rng = createRng(0);
     this.birds = makeBirdPool(CONSTANTS.BIRD_CAP);
     this.leaves = makeLeafPool(CONSTANTS.LEAF_CAP);
@@ -195,7 +191,6 @@ export class AmbientLayer {
   }
 
   init(staticSprites: readonly Sprite[], seed: number): void {
-
     this.rng = createRng((seed ^ 0xdeadbeef) >>> 0);
     this.treeAnchors = [];
     this.smokeAnchors = [];
@@ -204,39 +199,22 @@ export class AmbientLayer {
       if (s.frame.startsWith("structure/tree")) {
         this.treeAnchors.push({ x: s.x, y: s.y });
       } else if (SMOKE_BUILDING_FRAMES.has(s.frame)) {
-
         const chimneyX = s.x;
         const chimneyY = s.y - s.height / 2 + 2;
         this.smokeAnchors.push({
           x: chimneyX,
           y: chimneyY,
 
-          countdown: this.rng.range(
-            CONSTANTS.SMOKE_SPAWN_INTERVAL_MIN_S,
-            CONSTANTS.SMOKE_SPAWN_INTERVAL_MAX_S,
-          ),
+          countdown: this.rng.range(CONSTANTS.SMOKE_SPAWN_INTERVAL_MIN_S, CONSTANTS.SMOKE_SPAWN_INTERVAL_MAX_S),
         });
       }
     }
 
-    this.birdCountdown = this.rng.range(
-      CONSTANTS.BIRD_SPAWN_INTERVAL_MIN_S,
-      CONSTANTS.BIRD_SPAWN_INTERVAL_MAX_S,
-    );
-    this.leafCountdown = this.rng.range(
-      CONSTANTS.LEAF_SPAWN_INTERVAL_MIN_S,
-      CONSTANTS.LEAF_SPAWN_INTERVAL_MAX_S,
-    );
+    this.birdCountdown = this.rng.range(CONSTANTS.BIRD_SPAWN_INTERVAL_MIN_S, CONSTANTS.BIRD_SPAWN_INTERVAL_MAX_S);
+    this.leafCountdown = this.rng.range(CONSTANTS.LEAF_SPAWN_INTERVAL_MIN_S, CONSTANTS.LEAF_SPAWN_INTERVAL_MAX_S);
   }
 
-  update(
-    dtMs: number,
-    nowMs: number,
-    view: ViewRect,
-    nightness: number,
-    season: Season,
-  ): void {
-
+  update(dtMs: number, nowMs: number, view: ViewRect, nightness: number, season: Season): void {
     this._season = season;
     this._nowMs = nowMs;
 
@@ -252,7 +230,6 @@ export class AmbientLayer {
   private _nowMs: number = 0;
 
   private _updateBirds(dtS: number, nowMs: number, view: ViewRect): void {
-
     for (const bird of this.birds) {
       if (!bird.active) continue;
       const dx = bird.speedX * dtS;
@@ -272,10 +249,7 @@ export class AmbientLayer {
 
     this.birdCountdown -= dtS;
     if (this.birdCountdown <= 0) {
-      this.birdCountdown = this.rng.range(
-        CONSTANTS.BIRD_SPAWN_INTERVAL_MIN_S,
-        CONSTANTS.BIRD_SPAWN_INTERVAL_MAX_S,
-      );
+      this.birdCountdown = this.rng.range(CONSTANTS.BIRD_SPAWN_INTERVAL_MIN_S, CONSTANTS.BIRD_SPAWN_INTERVAL_MAX_S);
       const count = this.rng.int(1, CONSTANTS.BIRD_SPAWN_COUNT_MAX + 1);
       const goRight = this.rng.nextFloat() < 0.5;
       const viewW = view.right - view.left;
@@ -283,7 +257,7 @@ export class AmbientLayer {
 
       for (let i = 0; i < count; i++) {
         const slot = this._findFreeSlot(this.birds);
-        if (slot === -1) break; 
+        if (slot === -1) break;
 
         const bird = this.birds[slot]!;
         bird.active = true;
@@ -302,11 +276,11 @@ export class AmbientLayer {
   }
 
   private _updateLeaves(dtS: number, view: ViewRect): void {
-
     for (const leaf of this.leaves) {
       if (!leaf.active) continue;
       leaf.life += dtS;
-      leaf.x += leaf.driftX * dtS +
+      leaf.x +=
+        leaf.driftX * dtS +
         Math.sin(leaf.swayPhase + leaf.life * CONSTANTS.LEAF_SWAY_FREQ * Math.PI * 2) * CONSTANTS.LEAF_SWAY_AMP * dtS;
       leaf.y += leaf.fallSpeed * dtS;
 
@@ -317,10 +291,7 @@ export class AmbientLayer {
 
     this.leafCountdown -= dtS;
     if (this.leafCountdown <= 0) {
-      this.leafCountdown = this.rng.range(
-        CONSTANTS.LEAF_SPAWN_INTERVAL_MIN_S,
-        CONSTANTS.LEAF_SPAWN_INTERVAL_MAX_S,
-      );
+      this.leafCountdown = this.rng.range(CONSTANTS.LEAF_SPAWN_INTERVAL_MIN_S, CONSTANTS.LEAF_SPAWN_INTERVAL_MAX_S);
 
       if (this.treeAnchors.length === 0) return;
 
@@ -350,7 +321,6 @@ export class AmbientLayer {
   }
 
   private _updateSmoke(dtS: number, nowMs: number, nightness: number, _view: ViewRect): void {
-
     for (const wisp of this.smoke) {
       if (!wisp.active) continue;
       wisp.life += dtS;
@@ -365,10 +335,8 @@ export class AmbientLayer {
     for (const anchor of this.smokeAnchors) {
       anchor.countdown -= dtS;
       if (anchor.countdown <= 0) {
-        const interval = this.rng.range(
-          CONSTANTS.SMOKE_SPAWN_INTERVAL_MIN_S,
-          CONSTANTS.SMOKE_SPAWN_INTERVAL_MAX_S,
-        ) / nightSuppression;
+        const interval =
+          this.rng.range(CONSTANTS.SMOKE_SPAWN_INTERVAL_MIN_S, CONSTANTS.SMOKE_SPAWN_INTERVAL_MAX_S) / nightSuppression;
         anchor.countdown = interval;
 
         const slot = this._findFreeSlot(this.smoke);
@@ -436,7 +404,7 @@ export class AmbientLayer {
     for (const wisp of this.smoke) {
       if (!wisp.active) continue;
       if (smokeSpriteIdx >= this.smokeSprites.length) break;
-      const t = wisp.life / CONSTANTS.SMOKE_LIFE_S; 
+      const t = wisp.life / CONSTANTS.SMOKE_LIFE_S;
       const alpha = CONSTANTS.SMOKE_ALPHA_MAX * (1 - t);
       const frameIdx =
         Math.floor((nowMs - wisp.spawnMs) / (CONSTANTS.SMOKE_FRAME_PERIOD_MS / FORGE_SMOKE_FRAMES.length)) %

@@ -14,10 +14,7 @@ import { isFishingIsle, isWalkable } from "../../../world/regions";
 import { applyFishingRarityBonus } from "../helpers";
 import type { ActingFarmer } from "../types";
 
-export function pickWeightedFish(
-  weights: Record<FishKind, number>,
-  fishRng: Rng,
-): FishKind {
+export function pickWeightedFish(weights: Record<FishKind, number>, fishRng: Rng): FishKind {
   const total = FISH_KINDS.reduce((s, k) => s + weights[k], 0);
   const r = fishRng.nextFloat() * total;
   let acc = 0;
@@ -28,12 +25,7 @@ export function pickWeightedFish(
   return FISH_KINDS[FISH_KINDS.length - 1]!;
 }
 
-export function handleFish(
-  farmer: ActingFarmer,
-  bubbleTiles: ReadonlySet<string>,
-  tick: number,
-  fishRng: Rng,
-): void {
+export function handleFish(farmer: ActingFarmer, bubbleTiles: ReadonlySet<string>, tick: number, fishRng: Rng): void {
   const rod = (farmer.inventory.tools ?? []).find((t) => t.kind === "fishing-rod");
   if (!rod || !farmer.transform) return;
   if (!isFishingIsle(farmer.farmer?.currentRegion ?? null)) return;
@@ -42,7 +34,10 @@ export function handleFish(
   const fy = Math.round(farmer.transform.y);
 
   const NEIGHBOURS = [
-    { dx: 1, dy: 0 }, { dx: -1, dy: 0 }, { dx: 0, dy: 1 }, { dx: 0, dy: -1 },
+    { dx: 1, dy: 0 },
+    { dx: -1, dy: 0 },
+    { dx: 0, dy: 1 },
+    { dx: 0, dy: -1 },
   ];
   let castX: number | null = null;
   let castY: number | null = null;
@@ -51,7 +46,10 @@ export function handleFish(
     const ox = fx + dx;
     const oy = fy + dy;
     if (isWalkable(ox, oy)) continue;
-    if (castX === null) { castX = ox; castY = oy; }
+    if (castX === null) {
+      castX = ox;
+      castY = oy;
+    }
     if (bubbleTiles.has(`${ox},${oy}`)) nearBubble = true;
   }
   if (castX === null) return;

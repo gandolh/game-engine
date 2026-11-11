@@ -26,11 +26,8 @@ export function newGameOpen(): boolean {
  * `?mp` fast-paths and supplies `onChoose` (boot.ts's `startGame`).
  */
 export function initNewGameModal(preChosen: GameMode | null, onChoose: (mode: GameMode) => void): void {
-  newGameModal = new NewGameModal(
-    { onChoose },
-    { openAtStart: preChosen === null },
-  );
-  newGameDispatcher = createInputDispatcher(() => (newGameOpen() ? newGameModal?.root ?? null : null));
+  newGameModal = new NewGameModal({ onChoose }, { openAtStart: preChosen === null });
+  newGameDispatcher = createInputDispatcher(() => (newGameOpen() ? (newGameModal?.root ?? null) : null));
   if (newGameA11yMount !== null) {
     newGameMirror = createA11yMirror(newGameA11yMount, {
       rootLabel: "New game",

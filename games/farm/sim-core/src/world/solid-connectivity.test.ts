@@ -3,7 +3,7 @@ import { bootstrapSim } from "../sim-bootstrap";
 import { buildWalkableGrid } from "./walkable-grid";
 import { WORLD_WIDTH, WORLD_HEIGHT, REGIONS, ROADS, getRegion } from "./regions";
 
-const VILLAGE = getRegion("village").center; 
+const VILLAGE = getRegion("village").center;
 
 function idx(x: number, y: number): number {
   return y * WORLD_WIDTH + x;
@@ -50,7 +50,6 @@ describe("solid-obstacle connectivity", () => {
     const cells = gridWithSolids(world);
     const reachable = flood(cells, VILLAGE.x, VILLAGE.y);
     for (const r of REGIONS) {
-
       expect(reachable[idx(r.center.x, r.center.y)], `region ${r.id} center unreachable`).toBe(1);
     }
   });

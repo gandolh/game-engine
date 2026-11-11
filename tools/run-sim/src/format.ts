@@ -10,17 +10,11 @@ export function lpad(s: string | number, n: number): string {
 }
 
 export function printDayLine(day: number, weather: string, summaries: FarmerSummary[]): void {
-  const cells = summaries
-    .map((f) => `${f.name.slice(0, 4)}:${lpad(f.gold, 4)}g/${lpad(f.totalValue, 4)}t`)
-    .join("  ");
+  const cells = summaries.map((f) => `${f.name.slice(0, 4)}:${lpad(f.gold, 4)}g/${lpad(f.totalValue, 4)}t`).join("  ");
   console.log(`day ${lpad(day, 3)} weather=${pad(weather, 7)} ${cells}`);
 }
 
-export function printFinalLeaderboard(
-  day: number,
-  weather: string,
-  summaries: FarmerSummary[],
-): void {
+export function printFinalLeaderboard(day: number, weather: string, summaries: FarmerSummary[]): void {
   console.log();
   console.log("=".repeat(72));
   console.log(`  FARM VALLEY  —  final standings after ${day} days  (weather: ${weather})`);
@@ -38,15 +32,7 @@ export function printFinalLeaderboard(
   console.log("=".repeat(72));
 }
 
-const EXPORT_COLUMNS = [
-  "day",
-  "name",
-  "personality",
-  "gold",
-  "unsold",
-  "total",
-  "weather",
-] as const;
+const EXPORT_COLUMNS = ["day", "name", "personality", "gold", "unsold", "total", "weather"] as const;
 
 interface ExportRow {
   day: number;

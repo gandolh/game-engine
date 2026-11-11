@@ -51,13 +51,7 @@ import type { ScoredChoice } from "../agents/social-verbs";
  * actor a bounded surplus, and harm nobody — consulting on them would burn
  * most of the budget on the least interesting decisions in the run.
  */
-export const SIGNIFICANT_SOCIAL_VERBS: ReadonlySet<string> = new Set([
-  "steal",
-  "sabotage",
-  "attack",
-  "rumor",
-  "trade",
-]);
+export const SIGNIFICANT_SOCIAL_VERBS: ReadonlySet<string> = new Set(["steal", "sabotage", "attack", "rumor", "trade"]);
 
 /**
  * `true` when ANY option on the table is a significant verb.

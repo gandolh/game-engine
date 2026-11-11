@@ -208,7 +208,9 @@ describe("TierSystem", () => {
     // Continuous absolute tick — the day clock only advances on tick>0 at a day
     // boundary, so the two tier evaluations must land on distinct days.
     let t = 0;
-    const tickDays = (n: number): void => { for (let i = 0; i < n * TPD; i++) sim.scheduler.tick({ tick: t++ }); };
+    const tickDays = (n: number): void => {
+      for (let i = 0; i < n * TPD; i++) sim.scheduler.tick({ tick: t++ });
+    };
 
     lp.population = 20; // → Town
     tickDays(1);
@@ -230,7 +232,9 @@ describe("TierSystem", () => {
     const sim = bootstrapSim({ seed: SEED, ticksPerDay: TPD });
     const lp = localPlayer(sim.state);
     let t = 0;
-    const tickDays = (n: number): void => { for (let i = 0; i < n * TPD; i++) sim.scheduler.tick({ tick: t++ }); };
+    const tickDays = (n: number): void => {
+      for (let i = 0; i < n * TPD; i++) sim.scheduler.tick({ tick: t++ });
+    };
 
     lp.population = 20; // → Town
     tickDays(1);
@@ -284,10 +288,14 @@ describe("save/load round-trip", () => {
       type: "placeRoad",
       payload: {
         tiles: [
-          { x: cx + 3, y: cy }, { x: cx + 4, y: cy },
-          { x: cx, y: cy - 1 }, { x: cx, y: cy - 2 },
-          { x: cx - 1, y: cy }, { x: cx - 2, y: cy },
-          { x: cx, y: cy + 2 }, { x: cx, y: cy + 3 },
+          { x: cx + 3, y: cy },
+          { x: cx + 4, y: cy },
+          { x: cx, y: cy - 1 },
+          { x: cx, y: cy - 2 },
+          { x: cx - 1, y: cy },
+          { x: cx - 2, y: cy },
+          { x: cx, y: cy + 2 },
+          { x: cx, y: cy + 3 },
         ],
       },
     });

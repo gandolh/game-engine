@@ -44,7 +44,10 @@ class FakeSurface {
   }
 }
 
-function series(rows: { day: number; gold: number }[], overrides: Partial<SnapshotWealthSeries> = {}): SnapshotWealthSeries {
+function series(
+  rows: { day: number; gold: number }[],
+  overrides: Partial<SnapshotWealthSeries> = {},
+): SnapshotWealthSeries {
   return {
     farmerId: 1,
     name: "Pip",
@@ -80,9 +83,15 @@ describe("createWealthGraph", () => {
     const graph = createWealthGraph();
     const surface = new FakeSurface();
 
-    const s1 = series([{ day: 1, gold: 10 }, { day: 5, gold: 50 }]);
+    const s1 = series([
+      { day: 1, gold: 10 },
+      { day: 5, gold: 50 },
+    ]);
     const s2 = series(
-      [{ day: 1, gold: 20 }, { day: 5, gold: 5 }],
+      [
+        { day: 1, gold: 20 },
+        { day: 5, gold: 5 },
+      ],
       { farmerId: 2, name: "Amara", personality: "aggressive" },
     );
 
@@ -149,7 +158,7 @@ describe("createWealthToggle", () => {
     expect(btns[0]!.label).toBe("Wealth");
   });
 
-  it("toggleOpen() flips prefs via toggle(\"wealth\") and refresh() reports true exactly once", () => {
+  it('toggleOpen() flips prefs via toggle("wealth") and refresh() reports true exactly once', () => {
     const prefs = makeFakePrefs();
     const toggle = createWealthToggle(prefs);
 

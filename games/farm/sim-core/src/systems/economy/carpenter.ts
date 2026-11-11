@@ -4,11 +4,7 @@ import { DECORATION_RECIPE, MAX_DECORATION_BOOST } from "../../components";
 import { REGIONS, forEachLandTile } from "../../world/regions";
 import { findById } from "../entity-helpers";
 import { PERFORMATIVE } from "../../protocols/performatives";
-import {
-  ONT_COMMISSION,
-  type CommissionBuildBody,
-  type CommissionDoneBody,
-} from "../../protocols/commission";
+import { ONT_COMMISSION, type CommissionBuildBody, type CommissionDoneBody } from "../../protocols/commission";
 
 export const COMMISSION_BUILD_TICKS = 30;
 
@@ -58,7 +54,7 @@ export class CarpenterSystem implements System {
     const kind = body.kind as DecorationKind | undefined;
     const recipe = kind ? DECORATION_RECIPE[kind] : undefined;
     if (!kind || !recipe) {
-      this.replyDone(ctx.tick, msg.sender, { ok: false, kind: (kind ?? "scarecrow"), reason: "invalid-commission" });
+      this.replyDone(ctx.tick, msg.sender, { ok: false, kind: kind ?? "scarecrow", reason: "invalid-commission" });
       return;
     }
 
@@ -79,7 +75,7 @@ export class CarpenterSystem implements System {
       return;
     }
 
-    res.wood -= recipe.woodCost; 
+    res.wood -= recipe.woodCost;
     if (!carpenter.carpenter!.pending) carpenter.carpenter!.pending = [];
     carpenter.carpenter!.pending.push({
       ownerId: farmer.id!,
@@ -102,7 +98,8 @@ export class CarpenterSystem implements System {
       if (e.plot.regionId === job.regionId) usedTiles.add(`${e.plot.tileX},${e.plot.tileY}`);
     }
     for (const e of this.world.query("farmDecoration")) {
-      if (e.farmDecoration.regionId === job.regionId) usedTiles.add(`${e.farmDecoration.tileX},${e.farmDecoration.tileY}`);
+      if (e.farmDecoration.regionId === job.regionId)
+        usedTiles.add(`${e.farmDecoration.tileX},${e.farmDecoration.tileY}`);
     }
     for (const e of this.world.query("tileFeature")) {
       if (e.tileFeature.regionId === job.regionId) usedTiles.add(`${e.tileFeature.tileX},${e.tileFeature.tileY}`);

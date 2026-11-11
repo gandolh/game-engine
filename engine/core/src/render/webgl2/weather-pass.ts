@@ -23,7 +23,7 @@ import type { RainField } from "../rain-field";
 import { rgbOf } from "../palette";
 
 const STREAK_FLOATS = 5; // p0.xy, p1.xy, halfWidth
-const SNOW_FLOATS = 3;   // center.xy, halfSize
+const SNOW_FLOATS = 3; // center.xy, halfSize
 const STREAK_STRIDE_BYTES = STREAK_FLOATS * 4;
 const SNOW_STRIDE_BYTES = SNOW_FLOATS * 4;
 
@@ -197,12 +197,33 @@ export class WeatherPass {
     gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
     setupAttrib(gl, { location: LOC_P0, size: 2, type: gl.FLOAT, stride: STREAK_STRIDE_BYTES, offset: 0, divisor: 1 });
     setupAttrib(gl, { location: LOC_P1, size: 2, type: gl.FLOAT, stride: STREAK_STRIDE_BYTES, offset: 8, divisor: 1 });
-    setupAttrib(gl, { location: LOC_HALF_WIDTH, size: 1, type: gl.FLOAT, stride: STREAK_STRIDE_BYTES, offset: 16, divisor: 1 });
+    setupAttrib(gl, {
+      location: LOC_HALF_WIDTH,
+      size: 1,
+      type: gl.FLOAT,
+      stride: STREAK_STRIDE_BYTES,
+      offset: 16,
+      divisor: 1,
+    });
   }
 
   private _bindSnowAttribs(gl: WebGL2RenderingContext, buffer: WebGLBuffer): void {
     gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-    setupAttrib(gl, { location: LOC_CENTER, size: 2, type: gl.FLOAT, stride: SNOW_STRIDE_BYTES, offset: 0, divisor: 1 });
-    setupAttrib(gl, { location: LOC_HALF_SIZE, size: 1, type: gl.FLOAT, stride: SNOW_STRIDE_BYTES, offset: 8, divisor: 1 });
+    setupAttrib(gl, {
+      location: LOC_CENTER,
+      size: 2,
+      type: gl.FLOAT,
+      stride: SNOW_STRIDE_BYTES,
+      offset: 0,
+      divisor: 1,
+    });
+    setupAttrib(gl, {
+      location: LOC_HALF_SIZE,
+      size: 1,
+      type: gl.FLOAT,
+      stride: SNOW_STRIDE_BYTES,
+      offset: 8,
+      divisor: 1,
+    });
   }
 }

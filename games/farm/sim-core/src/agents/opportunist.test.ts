@@ -121,7 +121,6 @@ describe("deliberateOpportunist", () => {
   });
 
   it("falls back to the cheapest affordable crop, not the first hardcoded ladder entry (item 25)", () => {
-
     const f = makeFarmer({ gold: 57, reserve: 50, seeds: {}, weather: { forecast: "sunny" } });
     deliberateOpportunist(f, { tick: 0 });
     const buy = f.intentions!.queue.find((i) => i.kind === "buy-seed");
@@ -141,9 +140,7 @@ describe("deliberateOpportunist", () => {
     deliberateOpportunist(f, { tick: 0 });
     const queue = f.intentions!.queue;
     const postIdx = queue.findIndex((i) => i.kind === "post-offer");
-    const travelIdx = queue.findIndex(
-      (i) => i.kind === "travel" && i.data["targetRegionId"] === "village",
-    );
+    const travelIdx = queue.findIndex((i) => i.kind === "travel" && i.data["targetRegionId"] === "village");
     expect(postIdx).toBeGreaterThan(-1);
     expect(travelIdx).toBeGreaterThan(-1);
     expect(travelIdx).toBeLessThan(postIdx);
@@ -157,15 +154,11 @@ describe("deliberateOpportunist", () => {
       region: "farm-hannah",
     });
     f.beliefs!.data["currentDay"] = 5; // avoid deliberateEarlyVillageVisit's day<=1 travel push
-    f.inventory!.tools = [
-      { kind: "hoe", tier: "wooden", durability: 10 },
-    ]; // avoid deliberateBuyTool's own travel-to-village push
+    f.inventory!.tools = [{ kind: "hoe", tier: "wooden", durability: 10 }]; // avoid deliberateBuyTool's own travel-to-village push
     deliberateOpportunist(f, { tick: 5 });
     const queue = f.intentions!.queue;
     const sellIdx = queue.findIndex((i) => i.kind === "sell-shopkeeper");
-    const travelIdx = queue.findIndex(
-      (i) => i.kind === "travel" && i.data["targetRegionId"] === "village",
-    );
+    const travelIdx = queue.findIndex((i) => i.kind === "travel" && i.data["targetRegionId"] === "village");
     expect(sellIdx).toBeGreaterThan(-1);
     expect(travelIdx).toBeGreaterThan(-1);
     expect(travelIdx).toBeLessThan(sellIdx);
@@ -179,15 +172,11 @@ describe("deliberateOpportunist", () => {
       region: "farm-hannah",
     });
     f.beliefs!.data["currentDay"] = 5; // avoid deliberateEarlyVillageVisit's day<=1 travel push
-    f.inventory!.tools = [
-      { kind: "hoe", tier: "wooden", durability: 10 },
-    ]; // avoid deliberateBuyTool's own travel-to-village push
+    f.inventory!.tools = [{ kind: "hoe", tier: "wooden", durability: 10 }]; // avoid deliberateBuyTool's own travel-to-village push
     deliberateOpportunist(f, { tick: 5 });
     const queue = f.intentions!.queue;
     const sells = queue.filter((i) => i.kind === "sell-shopkeeper");
-    const travels = queue.filter(
-      (i) => i.kind === "travel" && i.data["targetRegionId"] === "village",
-    );
+    const travels = queue.filter((i) => i.kind === "travel" && i.data["targetRegionId"] === "village");
     expect(sells.length).toBe(3);
     expect(travels.length).toBe(1);
   });

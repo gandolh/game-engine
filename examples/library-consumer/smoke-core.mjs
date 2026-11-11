@@ -32,7 +32,10 @@ function smokeRuntime() {
   const seqB = [b.nextFloat(), b.nextFloat()];
 
   assert.deepEqual(seqA, seqB, "same seed + same fork label must reproduce the same sequence");
-  assert.ok(seqA.every((v) => v >= 0 && v < 1), "nextFloat() must be in [0,1)");
+  assert.ok(
+    seqA.every((v) => v >= 0 && v < 1),
+    "nextFloat() must be in [0,1)",
+  );
 
   console.log("[core/runtime] OK — createRng(123).fork('label') deterministic:", seqA);
 }

@@ -7,15 +7,7 @@ import { ICON_SIZE } from "../icon/icons";
 import type { Theme } from "../theme/theme";
 import { DEFAULT_THEME } from "../theme/theme";
 import { resolvePadding } from "../layout/props";
-import type {
-  ButtonNode,
-  CheckboxNode,
-  ContainerNode,
-  IconNode,
-  LabelNode,
-  SliderNode,
-  UINode,
-} from "./node";
+import type { ButtonNode, CheckboxNode, ContainerNode, IconNode, LabelNode, SliderNode, UINode } from "./node";
 
 /**
  * Render walk for the `@engine/ui` retained tree.

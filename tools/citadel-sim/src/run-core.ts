@@ -60,12 +60,13 @@ export function runOneSim(
     if (sim.dayClock.day !== lastDay) {
       lastDay = sim.dayClock.day;
       const snap = tickSnap ?? sim.getSnapshot(tick);
-      const hazardStr = (snap.activeFires > 0 || snap.outbreakActive)
-        ? ` | fires=${snap.activeFires} sick=${snap.sickVillagers}${snap.outbreakActive ? " [OUTBREAK]" : ""}`
-        : "";
+      const hazardStr =
+        snap.activeFires > 0 || snap.outbreakActive
+          ? ` | fires=${snap.activeFires} sick=${snap.sickVillagers}${snap.outbreakActive ? " [OUTBREAK]" : ""}`
+          : "";
       console.log(
         `  Day ${String(snap.day + 1).padStart(2)}/${MAX_DAYS} pop=${snap.population}/${snap.popCap}` +
-        ` bread=${snap.stockpiles.bread ?? 0} happy=${snap.happiness}${hazardStr}`,
+          ` bread=${snap.stockpiles.bread ?? 0} happy=${snap.happiness}${hazardStr}`,
       );
       for (const ev of snap.recentEvents) {
         if (!allEvents.includes(ev)) {
@@ -101,8 +102,8 @@ export function runOneSim(
  */
 export function runDiseaseComparison(terrain: TerrainGrid, report: boolean): CitadelComparisonRunReport | null {
   console.log(`\n=== DISEASE COMPARISON: crowded housing (seed=0x${SEED.toString(16)}) ===`);
-  const resultCrowded   = runOneSim(buildDiseaseScenario(terrain, false), "CROWDED — no healer (unmitigated)", report);
-  const resultMitigated = runOneSim(buildDiseaseScenario(terrain, true),  "MITIGATED — healer in range", false);
+  const resultCrowded = runOneSim(buildDiseaseScenario(terrain, false), "CROWDED — no healer (unmitigated)", report);
+  const resultMitigated = runOneSim(buildDiseaseScenario(terrain, true), "MITIGATED — healer in range", false);
   console.log("\n=== DISEASE COMPARISON SUMMARY ===");
   console.log(`  Unmitigated: ${resultCrowded.deaths} disease deaths, final pop ${resultCrowded.finalPop}`);
   console.log(`  Mitigated:   ${resultMitigated.deaths} disease deaths, final pop ${resultMitigated.finalPop}`);
@@ -136,8 +137,8 @@ export function runDiseaseComparison(terrain: TerrainGrid, report: boolean): Cit
  */
 export function runFireComparison(terrain: TerrainGrid, report: boolean): CitadelComparisonRunReport | null {
   console.log(`\n=== FIRE COMPARISON: dense wooden district (seed=0x${SEED.toString(16)}) ===`);
-  const resultDense    = runOneSim(buildFireCommands(terrain, false), "DENSE — no well (unmitigated)", report);
-  const resultMitigated = runOneSim(buildFireCommands(terrain, true),  "MITIGATED — well inside district", false);
+  const resultDense = runOneSim(buildFireCommands(terrain, false), "DENSE — no well (unmitigated)", report);
+  const resultMitigated = runOneSim(buildFireCommands(terrain, true), "MITIGATED — well inside district", false);
   console.log("\n=== FIRE COMPARISON SUMMARY ===");
   console.log(`  Unmitigated: ${resultDense.fires} fire events, final pop ${resultDense.finalPop}`);
   console.log(`  Mitigated:   ${resultMitigated.fires} fire events, final pop ${resultMitigated.finalPop}`);

@@ -32,11 +32,7 @@ describe("connectedComponents — deterministic BFS", () => {
   it("splits disconnected clusters into separate components sorted by minimum id", () => {
     const hasEdge = (a: number, b: number): boolean => Math.floor(a / 10) === Math.floor(b / 10);
     const components = connectedComponents([21, 1, 22, 2, 11], hasEdge);
-    expect(components).toEqual([
-      [1, 2],
-      [11],
-      [21, 22],
-    ]);
+    expect(components).toEqual([[1, 2], [11], [21, 22]]);
   });
 
   it("is a pure function of ids + hasEdge regardless of input array order", () => {

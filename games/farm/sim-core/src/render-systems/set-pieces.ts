@@ -1,4 +1,3 @@
-
 import { createRng } from "@engine/core";
 import { WORLD_WIDTH, WORLD_HEIGHT, isWalkable, WORLD_GEN_SEED } from "../world/regions";
 import { CORAL } from "./geometry";
@@ -58,7 +57,6 @@ function computeSetPieces(): readonly SetPieceTile[] {
   };
 
   for (let attempt = 0; attempt < MAX_ATTEMPTS && placed.length < TARGET_COUNT; attempt++) {
-
     const tx = rng.int(0, WORLD_WIDTH);
     const ty = rng.int(0, WORLD_HEIGHT);
     const frame = rng.pick(PROP_FRAMES);

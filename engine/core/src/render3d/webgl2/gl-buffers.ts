@@ -24,12 +24,7 @@
  *  with undefined contents (matches `gl.bufferData`'s own overload split). */
 export type BufferData = ArrayBufferView | number;
 
-function createBoundBuffer(
-  gl: WebGL2RenderingContext,
-  target: number,
-  data: BufferData,
-  usage: number,
-): WebGLBuffer {
+function createBoundBuffer(gl: WebGL2RenderingContext, target: number, data: BufferData, usage: number): WebGLBuffer {
   const buffer = gl.createBuffer();
   if (!buffer) {
     throw new Error("webgl2: gl.createBuffer() returned null");

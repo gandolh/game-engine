@@ -5,9 +5,9 @@ const TPD = 1200;
 
 describe("day-night grading", () => {
   it("daylight peaks at midday and is zero deep at night", () => {
-    expect(daylightAt(0.5, 0.6)).toBe(1); 
-    expect(daylightAt(0.0, 0.6)).toBe(0); 
-    expect(daylightAt(0.95, 0.6)).toBe(0); 
+    expect(daylightAt(0.5, 0.6)).toBe(1);
+    expect(daylightAt(0.0, 0.6)).toBe(0);
+    expect(daylightAt(0.95, 0.6)).toBe(0);
   });
 
   it("the night wash is stronger (more opaque) than the noon wash", () => {
@@ -17,7 +17,6 @@ describe("day-night grading", () => {
   });
 
   it("winter has a shorter daylight window than summer", () => {
-
     const f = 0.72;
     const winterLight = daylightAt(f, 0.42);
     const summerLight = daylightAt(f, 0.7);

@@ -146,8 +146,7 @@ export function buildSimOptions(seed: number = SEED): HollowSimOptions {
     pairbondProximityTiles: numEnv("PAIRBOND_PROXIMITY_TILES") ?? RESEARCH_PROFILE.pairbondProximityTiles,
     birthWindowTicks: numEnv("BIRTH_WINDOW_TICKS") ?? RESEARCH_PROFILE.birthWindowTicks,
     birthChance: numEnv("BIRTH_CHANCE") ?? RESEARCH_PROFILE.birthChance,
-    birthFoodSecurityFraction:
-      numEnv("BIRTH_FOOD_SECURITY_FRACTION") ?? RESEARCH_PROFILE.birthFoodSecurityFraction,
+    birthFoodSecurityFraction: numEnv("BIRTH_FOOD_SECURITY_FRACTION") ?? RESEARCH_PROFILE.birthFoodSecurityFraction,
     gestationTicks: numEnv("GESTATION_TICKS") ?? RESEARCH_PROFILE.gestationTicks,
     birthPerCapitaFoodTarget: numEnv("BIRTH_PERCAPITA_FOOD_TARGET") ?? RESEARCH_PROFILE.birthPerCapitaFoodTarget,
     foodNodeCount: numEnv("FOOD_NODE_COUNT") ?? RESEARCH_PROFILE.foodNodeCount,

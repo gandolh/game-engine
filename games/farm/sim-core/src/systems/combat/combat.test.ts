@@ -7,7 +7,14 @@ import { ONT_COMBAT } from "../../protocols/combat";
 import { RING_STAKE_GOLD } from "./constants";
 
 const ZERO: Record<CropKind, number> = {
-  radish: 0, wheat: 0, carrot: 0, tomato: 0, corn: 0, pumpkin: 0, grape: 0, "winter-squash": 0,
+  radish: 0,
+  wheat: 0,
+  carrot: 0,
+  tomato: 0,
+  corn: 0,
+  pumpkin: 0,
+  grape: 0,
+  "winter-squash": 0,
 };
 
 function makeFighter(
@@ -79,7 +86,7 @@ describe("CombatSystem — bout lifecycle", () => {
     combat.startBout(a.id!, b.id!, "ring", 0);
     runToEnd(combat, a, b);
     const total = a.inventory!.gold + b.inventory!.gold;
-    expect(total).toBe(200); 
+    expect(total).toBe(200);
     expect(Math.abs(a.inventory!.gold - 100)).toBe(RING_STAKE_GOLD);
   });
 
@@ -94,7 +101,7 @@ describe("CombatSystem — bout lifecycle", () => {
   });
 
   it("ring AP-out: a fighter with no AP loses immediately", () => {
-    const a = makeFighter(world, { ap: 0 });   
+    const a = makeFighter(world, { ap: 0 });
     const b = makeFighter(world, { ap: 100 });
     const { combat } = newCombat(world);
     combat.startBout(a.id!, b.id!, "ring", 0);
@@ -151,7 +158,12 @@ describe("CombatSystem — bout lifecycle", () => {
     bus.flush();
     const results = bus.drain().filter((m) => m.ontology === ONT_COMBAT.RESULT);
     expect(results.length).toBe(1);
-    const body = results[0]!.body as unknown as { context: string; winnerId: number | null; loserId: number | null; koed: boolean };
+    const body = results[0]!.body as unknown as {
+      context: string;
+      winnerId: number | null;
+      loserId: number | null;
+      koed: boolean;
+    };
     expect(body.context).toBe("ring"); // still a ring result, not relabelled as a street one
     expect(body.winnerId).toBeNull();
     expect(body.loserId).toBeNull();
@@ -194,13 +206,15 @@ describe("CombatSystem — bout lifecycle", () => {
     const { combat } = newCombat(world);
     combat.startBout(a.id!, b.id!, "ring", 0);
     runToEnd(combat, a, b);
-    expect(a.inventory!.gold).toBe(110); 
+    expect(a.inventory!.gold).toBe(110);
   });
 });
 
 describe("CombatSystem — street fights", () => {
   let world: World<GameEntity>;
-  beforeEach(() => { world = new World<GameEntity>(); });
+  beforeEach(() => {
+    world = new World<GameEntity>();
+  });
 
   it("street KO: victor loots up to 3 goods units (no gold)", () => {
     const a = makeFighter(world, { gold: 100 });
@@ -243,7 +257,9 @@ describe("CombatSystem — street fights", () => {
 
 describe("CombatSystem — ring teleport + handshake + governors", () => {
   let world: World<GameEntity>;
-  beforeEach(() => { world = new World<GameEntity>(); });
+  beforeEach(() => {
+    world = new World<GameEntity>();
+  });
 
   function withTransform(f: GameEntity, x: number, y: number, region: string): GameEntity {
     f.transform = { x, y, prevX: x, prevY: y, rotation: 0 };
@@ -328,7 +344,9 @@ describe("CombatSystem — ring teleport + handshake + governors", () => {
 
 describe("CombatSystem — street witness trust penalties", () => {
   let world: World<GameEntity>;
-  beforeEach(() => { world = new World<GameEntity>(); });
+  beforeEach(() => {
+    world = new World<GameEntity>();
+  });
 
   function inRegion(f: GameEntity, region: string): GameEntity {
     f.farmer!.currentRegion = region as never;

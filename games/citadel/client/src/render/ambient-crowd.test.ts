@@ -13,10 +13,24 @@ import type { BuildingSnapshot, RaiderSnapshot, RenderSnapshot } from "@citadel/
 
 function mkRoad(x: number, y: number): BuildingSnapshot {
   return {
-    type: "road", x, y, w: 1, h: 1,
-    connected: true, outputBuffer: 0, workerCount: 0, occupancy: 0, ownerId: 0,
-    onFire: false, burning: false, level: 1,
-    lacksFaith: true, lacksSafety: true, lacksGoods: true, mood: 40, wellServed: false,
+    type: "road",
+    x,
+    y,
+    w: 1,
+    h: 1,
+    connected: true,
+    outputBuffer: 0,
+    workerCount: 0,
+    occupancy: 0,
+    ownerId: 0,
+    onFire: false,
+    burning: false,
+    level: 1,
+    lacksFaith: true,
+    lacksSafety: true,
+    lacksGoods: true,
+    mood: 40,
+    wellServed: false,
   };
 }
 
@@ -24,15 +38,42 @@ function mkSnapshot(tier: string, roads: number, raiders: RaiderSnapshot[] = [])
   const buildings: BuildingSnapshot[] = [];
   for (let i = 0; i < roads; i++) buildings.push(mkRoad(i % 90, Math.floor(i / 90)));
   return {
-    tick: 0, localPlayerId: 0, isHost: true, day: 0, season: "spring", speed: 1, paused: false,
-    buildings, villagers: [], stockpiles: {}, population: 0, popCap: 0,
-    foodSurplus: 0, gameOver: false, recentEvents: [], eventsSeq: 0,
-    happiness: 50, faithCoverage: 0, safetyCoverage: 0, goodsCoverage: 0,
-    activeDecrees: [], traderPresent: false, traderOffers: [],
-    raiders, armies: [], threatLevel: 0, nextRaidDay: -1, defensiveStrength: 0,
-    keepPresent: false, keepSacked: false,
-    sickVillagers: 0, outbreakActive: false, activeFires: 0,
-    tier, peakTier: tier, reliefReserve: 0,
+    tick: 0,
+    localPlayerId: 0,
+    isHost: true,
+    day: 0,
+    season: "spring",
+    speed: 1,
+    paused: false,
+    buildings,
+    villagers: [],
+    stockpiles: {},
+    population: 0,
+    popCap: 0,
+    foodSurplus: 0,
+    gameOver: false,
+    recentEvents: [],
+    eventsSeq: 0,
+    happiness: 50,
+    faithCoverage: 0,
+    safetyCoverage: 0,
+    goodsCoverage: 0,
+    activeDecrees: [],
+    traderPresent: false,
+    traderOffers: [],
+    raiders,
+    armies: [],
+    threatLevel: 0,
+    nextRaidDay: -1,
+    defensiveStrength: 0,
+    keepPresent: false,
+    keepSacked: false,
+    sickVillagers: 0,
+    outbreakActive: false,
+    activeFires: 0,
+    tier,
+    peakTier: tier,
+    reliefReserve: 0,
     allHomesCovered: false,
   };
 }
@@ -75,9 +116,7 @@ describe("CitadelAmbientCrowd", () => {
     const crowd = new CitadelAmbientCrowd(123);
     crowd.update(0.016, mkSnapshot("Citadel", 200));
     expect(crowd.activeCount).toBeGreaterThan(0);
-    crowd.update(0.016, mkSnapshot("Citadel", 200, [
-      { id: 1, x: 5, y: 5, strength: 10 },
-    ]));
+    crowd.update(0.016, mkSnapshot("Citadel", 200, [{ id: 1, x: 5, y: 5, strength: 10 }]));
     expect(crowd.activeCount).toBe(0);
     expect(crowd.quads()).toHaveLength(0);
   });
@@ -145,9 +184,15 @@ describe("CitadelAmbientCrowd", () => {
   it("pedestrians move over time", () => {
     const crowd = new CitadelAmbientCrowd(123);
     crowd.update(0.016, mkSnapshot("Town", 200));
-    const before = crowd.quads().map((q) => `${q.x},${q.y}`).join("|");
+    const before = crowd
+      .quads()
+      .map((q) => `${q.x},${q.y}`)
+      .join("|");
     for (let i = 0; i < 5; i++) crowd.update(0.1, mkSnapshot("Town", 200));
-    const after = crowd.quads().map((q) => `${q.x},${q.y}`).join("|");
+    const after = crowd
+      .quads()
+      .map((q) => `${q.x},${q.y}`)
+      .join("|");
     expect(after).not.toBe(before);
   });
 });

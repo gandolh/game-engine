@@ -1,5 +1,3 @@
-
-
 export const FIST_DAMAGE = { lo: 4, hi: 9 } as const;
 
 export const BAT_DAMAGE = { lo: 8, hi: 15 } as const;

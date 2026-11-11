@@ -42,7 +42,7 @@ export class DebugOverlay {
   private frameCount = 0;
   private fps = 0;
   private accumulatedMs = 0;
-  private frameMs = 0; 
+  private frameMs = 0;
 
   private workerReport: ProfileReport | null = null;
   private frameReport: ProfileReport | null = null;
@@ -58,8 +58,8 @@ export class DebugOverlay {
       "padding: 6px 8px",
       "font: 12px/1.4 ui-monospace, monospace",
       `color: ${EDG.silver}`,
-      "background: rgba(24, 20, 37, 0.55)", 
-      "border: 1px solid rgba(255, 255, 255, 0.08)", 
+      "background: rgba(24, 20, 37, 0.55)",
+      "border: 1px solid rgba(255, 255, 255, 0.08)",
       "border-radius: 4px",
       "pointer-events: none",
       "white-space: pre",

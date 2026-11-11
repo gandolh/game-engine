@@ -3,7 +3,6 @@ import type { Season } from "./weather";
 import { SEASON_LENGTH, SEASON_ORDER } from "./weather";
 
 export const ONT_FESTIVAL = {
-
   ANNOUNCE: "festival-announce",
 
   RESULT: "festival-result",
@@ -11,11 +10,7 @@ export const ONT_FESTIVAL = {
 
 export type FestivalOntology = (typeof ONT_FESTIVAL)[keyof typeof ONT_FESTIVAL];
 
-export type FestivalId =
-  | "spring-planting-fair"
-  | "summer-market-day"
-  | "autumn-harvest-fair"
-  | "winter-feast";
+export type FestivalId = "spring-planting-fair" | "summer-market-day" | "autumn-harvest-fair" | "winter-feast";
 
 export interface FestivalDef {
   id: FestivalId;
@@ -134,7 +129,7 @@ export function daysUntilFestival(day: number): number {
   for (let ahead = 0; ahead <= yearLength; ahead++) {
     if (festivalForDay(day + ahead) !== null) return ahead;
   }
-  return yearLength; 
+  return yearLength;
 }
 
 export interface FestivalAnnounceBody {

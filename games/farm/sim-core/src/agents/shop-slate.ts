@@ -23,22 +23,20 @@ export interface PriceTable {
 }
 
 export const DEFAULT_PRICES: PriceTable = {
-  radish:          { buy: 6,  sell: 5  },
-  wheat:           { buy: 10, sell: 8  },
-  carrot:          { buy: 8,  sell: 6  },
-  tomato:          { buy: 13, sell: 10 },
-  corn:            { buy: 16, sell: 13 },
-  pumpkin:         { buy: 19, sell: 15 },
-  grape:           { buy: 24, sell: 19 },
+  radish: { buy: 6, sell: 5 },
+  wheat: { buy: 10, sell: 8 },
+  carrot: { buy: 8, sell: 6 },
+  tomato: { buy: 13, sell: 10 },
+  corn: { buy: 16, sell: 13 },
+  pumpkin: { buy: 19, sell: 15 },
+  grape: { buy: 24, sell: 19 },
   "winter-squash": { buy: 13, sell: 11 },
 };
 
 export const SLATE_SIZE = 5;
-export const PRICE_JITTER = 0.2; 
+export const PRICE_JITTER = 0.2;
 
-const CROPS = [
-  "radish", "wheat", "carrot", "tomato", "corn", "pumpkin", "grape", "winter-squash",
-] as const;
+const CROPS = ["radish", "wheat", "carrot", "tomato", "corn", "pumpkin", "grape", "winter-squash"] as const;
 
 export interface SlateConsumeResult {
   ok: boolean;
@@ -47,7 +45,6 @@ export interface SlateConsumeResult {
 }
 
 export interface SlateConsumeOptions {
-
   dryRun?: boolean;
 }
 
@@ -61,9 +58,7 @@ export function consumeFromSlate(
     return { ok: false, reason: "no-matching-offer" };
   }
 
-  const matching = slate.filter(
-    (o) => o.kind === "sell" && o.crop === crop && o.remaining > 0,
-  );
+  const matching = slate.filter((o) => o.kind === "sell" && o.crop === crop && o.remaining > 0);
 
   if (matching.length === 0) {
     return { ok: false, reason: "no-matching-offer" };

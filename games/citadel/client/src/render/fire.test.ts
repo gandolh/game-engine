@@ -11,10 +11,24 @@ import type { BuildingSnapshot } from "@citadel/sim-core";
 
 function building(over: Partial<BuildingSnapshot> = {}): BuildingSnapshot {
   return {
-    type: "house", x: 4, y: 4, w: 2, h: 2,
-    connected: true, outputBuffer: 0, workerCount: 1, occupancy: 0, ownerId: 0,
-    onFire: false, burning: false, level: 1,
-    lacksFaith: false, lacksSafety: false, lacksGoods: false, mood: 50, wellServed: false,
+    type: "house",
+    x: 4,
+    y: 4,
+    w: 2,
+    h: 2,
+    connected: true,
+    outputBuffer: 0,
+    workerCount: 1,
+    occupancy: 0,
+    ownerId: 0,
+    onFire: false,
+    burning: false,
+    level: 1,
+    lacksFaith: false,
+    lacksSafety: false,
+    lacksGoods: false,
+    mood: 50,
+    wellServed: false,
     ...over,
   };
 }
@@ -52,7 +66,11 @@ describe("fireFlicker", () => {
     // Different phases generally give different values (not a hard guarantee at
     // every t, but at a representative sample they must differ somewhere).
     let differed = false;
-    for (let t = 0; t < 2000; t += 50) if (fireFlicker(t, 0) !== fireFlicker(t, 500)) { differed = true; break; }
+    for (let t = 0; t < 2000; t += 50)
+      if (fireFlicker(t, 0) !== fireFlicker(t, 500)) {
+        differed = true;
+        break;
+      }
     expect(differed).toBe(true);
   });
 });

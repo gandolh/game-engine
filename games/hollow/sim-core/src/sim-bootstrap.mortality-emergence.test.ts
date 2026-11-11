@@ -78,7 +78,7 @@ describe("mortality & care emerge from the real villager-driven sim (chunk hollo
 
     // Deaths happened, from multiple causes including the new disease cause.
     expect(snap.diedCount).toBeGreaterThan(0);
-    expect((deathCauses["disease"] ?? 0)).toBeGreaterThan(0);
+    expect(deathCauses["disease"] ?? 0).toBeGreaterThan(0);
 
     // The care roles actually staffed themselves...
     expect(sawGraveDigger).toBe(true);

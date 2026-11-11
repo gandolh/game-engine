@@ -13,12 +13,7 @@ function makeFarmer(world: World<GameEntity>, region: RegionId = "village"): Gam
   });
 }
 
-function pushMeet(
-  entity: GameEntity,
-  peerId: number,
-  tick: number,
-  region: RegionId = "village",
-): void {
+function pushMeet(entity: GameEntity, peerId: number, tick: number, region: RegionId = "village"): void {
   entity.inbox!.messages.push({
     performative: PERFORMATIVE.INFORM,
     ontology: ONT_ENCOUNTER.MEET,
@@ -83,7 +78,7 @@ describe("MeetIndicatorSystem", () => {
     const a = makeFarmer(world);
     const b = makeFarmer(world);
 
-    pushMeet(a, b.id!, 0); 
+    pushMeet(a, b.id!, 0);
     sys.run({ tick: 5 });
 
     expect(sys.active(5)).toHaveLength(0);
@@ -97,7 +92,7 @@ describe("MeetIndicatorSystem", () => {
     sys.run({ tick: 0 });
     expect(sys.active(0)[0]!.expiresAtTick).toBe(INDICATOR_DURATION_TICKS);
 
-    pushMeet(a, b.id!, 5); 
+    pushMeet(a, b.id!, 5);
     sys.run({ tick: 5 });
     expect(sys.active(5)).toHaveLength(1);
     expect(sys.active(5)[0]!.expiresAtTick).toBe(5 + INDICATOR_DURATION_TICKS);
@@ -114,6 +109,6 @@ describe("MeetIndicatorSystem", () => {
     pushMeet(c, a.id!, 0);
     sys.run({ tick: 0 });
 
-    expect(sys.active(0)).toHaveLength(4); 
+    expect(sys.active(0)).toHaveLength(4);
   });
 });

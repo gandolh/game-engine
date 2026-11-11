@@ -1,5 +1,3 @@
-
-
 export type DramaEventKind =
   | "trade"
   | "auction"
@@ -16,7 +14,6 @@ export type DramaEventKind =
   | "coral-catch";
 
 export interface DramaCtx {
-
   day: number;
 
   maxDays: number;
@@ -33,25 +30,25 @@ export function actBandForDay(day: number, maxDays: number): ActBand {
 }
 
 const BASE_DRAMA: Record<DramaEventKind, number> = {
-  "trade":      0.10,
-  "auction":    0.55,
-  "shock":      0.85,
-  "crop-death": 0.40,
-  "accept":     0.15,
-  "rivalry":    0.45,
-  "alliance":   0.40,
-  "rank-flip":  0.75,
-  "race-on":    0.90,
-  "festival":   0.70,
-  "contract-delivered": 0.60,
-  "contract-missed":    0.55,
-  "coral-catch":        0.50,
+  trade: 0.1,
+  auction: 0.55,
+  shock: 0.85,
+  "crop-death": 0.4,
+  accept: 0.15,
+  rivalry: 0.45,
+  alliance: 0.4,
+  "rank-flip": 0.75,
+  "race-on": 0.9,
+  festival: 0.7,
+  "contract-delivered": 0.6,
+  "contract-missed": 0.55,
+  "coral-catch": 0.5,
 };
 
 const ACT_MULTIPLIER: Record<ActBand, number> = {
-  "establishment": 0.80,
-  "competition":   1.00,
-  "climax":        1.20,
+  establishment: 0.8,
+  competition: 1.0,
+  climax: 1.2,
 };
 
 export function dramaScore(kind: DramaEventKind, ctx: DramaCtx): number {

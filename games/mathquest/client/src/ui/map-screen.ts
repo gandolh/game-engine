@@ -107,7 +107,14 @@ const NODE_GLYPH: Record<NodeType, string> = { combat: "†", elite: "★", rest
 const LEGEND_ORDER: readonly NodeType[] = ["combat", "elite", "rest", "boss"];
 
 /** Palette accents used for flower petals (all Resurrect-64 roles) — picked deterministically. */
-const FLOWER_COLORS: readonly string[] = [MATE_PAL.gold, MATE_PAL.red, MATE_PAL.mauve, MATE_PAL.white, MATE_PAL.salmon, MATE_PAL.skyBlue];
+const FLOWER_COLORS: readonly string[] = [
+  MATE_PAL.gold,
+  MATE_PAL.red,
+  MATE_PAL.mauve,
+  MATE_PAL.white,
+  MATE_PAL.salmon,
+  MATE_PAL.skyBlue,
+];
 
 type ZoneKind = "forest" | "village" | "mountains" | "lair";
 interface ZoneTheme {
@@ -214,12 +221,7 @@ function moistureAt(tx: number, ty: number, seed: number): number {
  * refactor. Explicit parameters keep the disagreement visible instead of burying it.
  */
 function terrainShade(tx: number, ty: number, seed: number): number {
-  return hillshadeFrom(
-    (x, y) => heightAt(x, y, seed),
-    tx,
-    ty,
-    { slope: SLOPE_GAIN, height: HEIGHT_GAIN },
-  );
+  return hillshadeFrom((x, y) => heightAt(x, y, seed), tx, ty, { slope: SLOPE_GAIN, height: HEIGHT_GAIN });
 }
 
 function computeMapLayout(map: RunMap, viewW: number, viewH: number): MapLayout {
@@ -262,7 +264,8 @@ function computeMapLayout(map: RunMap, viewW: number, viewH: number): MapLayout 
   }
 
   const startRects = map.startIds.map((id) => nodes.get(id)!).filter(Boolean);
-  const anchorCy = startRects.length > 0 ? startRects.reduce((s, r) => s + r.cy, 0) / startRects.length : (playTop + playBottom) / 2;
+  const anchorCy =
+    startRects.length > 0 ? startRects.reduce((s, r) => s + r.cy, 0) / startRects.length : (playTop + playBottom) / 2;
   return { nodes, zones: bands, worldW, worldH, playTop, playBottom, anchor: { cx: MARGIN_X - 46, cy: anchorCy } };
 }
 
@@ -280,7 +283,15 @@ interface Painter {
   visible(x: number, w: number): boolean;
 }
 
-function drawTriangle(P: Painter, cx: number, baseY: number, halfBase: number, height: number, color: string, alpha = 1): void {
+function drawTriangle(
+  P: Painter,
+  cx: number,
+  baseY: number,
+  halfBase: number,
+  height: number,
+  color: string,
+  alpha = 1,
+): void {
   const rows = Math.max(3, Math.round(height / 3));
   const rh = height / rows;
   for (let i = 0; i < rows; i++) {
@@ -435,7 +446,8 @@ function buildGroundQuads(L: MapLayout): GroundQuad[] {
         const size = rand01(gx * 7 + i, gy * 11 + i) > 0.5 ? 3 : 2;
         const light = rand01(gx * 5 + i * 3, gy * 23 + i) < bias;
         let c = light ? theme.gLight : theme.gDark;
-        if (theme.kind === "mountains" && light && rand01(gx + i, gy * 3) > 0.65) c = MATE_PAL.white; // snow glint
+        if (theme.kind === "mountains" && light && rand01(gx + i, gy * 3) > 0.65)
+          c = MATE_PAL.white; // snow glint
         else if (theme.kind === "lair" && !light && rand01(gx * 2 + i, gy) > 0.92) c = MATE_PAL.orange; // rare ember
         out.push({ x: x + sgx * sub, y: y + sgy * sub, w: size, h: size, c });
       }
@@ -481,7 +493,16 @@ function outlineDraw(P: Painter, fn: (p: Painter) => void): void {
     ctext: () => {},
     visible: (x, w) => P.visible(x, w),
   });
-  const offsets: readonly (readonly [number, number])[] = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]];
+  const offsets: readonly (readonly [number, number])[] = [
+    [-1, -1],
+    [0, -1],
+    [1, -1],
+    [-1, 0],
+    [1, 0],
+    [-1, 1],
+    [0, 1],
+    [1, 1],
+  ];
   for (const [dx, dy] of offsets) fn(stamp(dx, dy));
   fn(P);
 }
@@ -524,7 +545,8 @@ function stampDirt(P: Painter, x: number, y: number, w: number, i: number): void
 }
 function stampCobble(P: Painter, x: number, y: number, w: number, i: number): void {
   P.rect(x - w / 2, y - w / 2, w, w, MATE_PAL.slate, 1); // smooth stone ribbon
-  if (i % 3 === 0) P.rect(x - 2, y - 2, 4, 4, MATE_PAL.woodDark, 0.5); // mortar seam
+  if (i % 3 === 0)
+    P.rect(x - 2, y - 2, 4, 4, MATE_PAL.woodDark, 0.5); // mortar seam
   else if (i % 3 === 1) P.rect(x - 2, y - 2.5, 4, 3, MATE_PAL.steel, 0.85); // stone highlight
 }
 function stampPlank(P: Painter, x: number, y: number, w: number, nx: number, ny: number, i: number): void {
@@ -535,11 +557,19 @@ function stampPlank(P: Painter, x: number, y: number, w: number, nx: number, ny:
 }
 function stampObsidian(P: Painter, x: number, y: number, w: number, i: number): void {
   P.rect(x - w / 2, y - w / 2, w, w, MATE_PAL.bark, 1); // smooth dark ribbon
-  if (i % 3 === 0) P.rect(x - 2, y - 2, 4, 4, MATE_PAL.black, 0.7); // stone joint
+  if (i % 3 === 0)
+    P.rect(x - 2, y - 2, 4, 4, MATE_PAL.black, 0.7); // stone joint
   else if (i % 5 === 2) P.rect(x - 1.5, y - 1.5, 3, 3, MATE_PAL.plum, 0.6); // faint sheen
 }
 
-function drawRoad(P: Painter, from: { cx: number; cy: number }, to: { cx: number; cy: number }, bright: boolean, seed: number, zones: readonly ZoneBand[]): void {
+function drawRoad(
+  P: Painter,
+  from: { cx: number; cy: number },
+  to: { cx: number; cy: number },
+  bright: boolean,
+  seed: number,
+  zones: readonly ZoneBand[],
+): void {
   const dx = to.cx - from.cx;
   const dy = to.cy - from.cy;
   const dist = Math.hypot(dx, dy) || 1;
@@ -589,7 +619,14 @@ function drawRoad(P: Painter, from: { cx: number; cy: number }, to: { cx: number
 
 type NodeState = "reachable" | "visited" | "locked";
 
-function drawNode(P: Painter, rect: NodeRect, node: MapNode, state: NodeState, hovered: boolean, strings: Strings): void {
+function drawNode(
+  P: Painter,
+  rect: NodeRect,
+  node: MapNode,
+  state: NodeState,
+  hovered: boolean,
+  strings: Strings,
+): void {
   const { cx, cy, w, h } = rect;
   if (!P.visible(cx - w, w * 2)) return;
   const x = cx - w / 2;
@@ -597,8 +634,22 @@ function drawNode(P: Painter, rect: NodeRect, node: MapNode, state: NodeState, h
   // signpost + drop shadow (raised off the map — Citadel's fake-height trick)
   P.rect(cx - 3, cy, 6, h / 2 + 10, MATE_PAL.woodDark, 1);
   P.rect(x + SHADOW_OFF, y + SHADOW_OFF, w, h, MATE_PAL.ink, 0.32);
-  P.rect(x - NODE_BORDER - 1, y - NODE_BORDER - 1, w + NODE_BORDER * 2 + 2, h + NODE_BORDER * 2 + 2, MATE_PAL.black, 0.9); // dark keyline
-  const border = state === "reachable" ? (hovered ? MATE_PAL.yellow : MATE_PAL.gold) : state === "visited" ? MATE_PAL.steel : MATE_PAL.navy;
+  P.rect(
+    x - NODE_BORDER - 1,
+    y - NODE_BORDER - 1,
+    w + NODE_BORDER * 2 + 2,
+    h + NODE_BORDER * 2 + 2,
+    MATE_PAL.black,
+    0.9,
+  ); // dark keyline
+  const border =
+    state === "reachable"
+      ? hovered
+        ? MATE_PAL.yellow
+        : MATE_PAL.gold
+      : state === "visited"
+        ? MATE_PAL.steel
+        : MATE_PAL.navy;
   P.rect(x - NODE_BORDER, y - NODE_BORDER, w + NODE_BORDER * 2, h + NODE_BORDER * 2, border, 1);
   // SOLID fill (always opaque — never see-through). State darkens over the opaque base.
   P.rect(x, y, w, h, NODE_TYPE_COLOR[node.type], 1);
@@ -607,7 +658,8 @@ function drawNode(P: Painter, rect: NodeRect, node: MapNode, state: NodeState, h
   if (state !== "locked") P.rect(x + 2, y + 2, w - 4, 3, MATE_PAL.white, 0.35); // top highlight
   const textColor = state === "locked" ? MATE_PAL.steel : MATE_PAL.white;
   P.ctext((state === "visited" ? strings.visitedPrefix : "") + NODE_GLYPH[node.type], cx, cy - 10, textColor, 1);
-  if (node.type !== "rest") P.ctext(strings.gradeLabel[node.grade], cx, cy + 2, state === "locked" ? MATE_PAL.slate : MATE_PAL.cream, 1);
+  if (node.type !== "rest")
+    P.ctext(strings.gradeLabel[node.grade], cx, cy + 2, state === "locked" ? MATE_PAL.slate : MATE_PAL.cream, 1);
 }
 
 function drawHero(P: Painter, cx: number, cyNode: number, h: number): void {
@@ -650,7 +702,10 @@ export interface MapScreen {
   /** M5 slice 2: the clickable "RO | EN" HUD indicator's fixed screen-space hit region — a PURE
    * function of the viewport (independent of the camera/locale/strings, so `main.ts` can hit-test
    * a click against it without needing to know which one is active first). */
-  localeToggleRect(viewW: number, viewH: number): { readonly x: number; readonly y: number; readonly w: number; readonly h: number };
+  localeToggleRect(
+    viewW: number,
+    viewH: number,
+  ): { readonly x: number; readonly y: number; readonly w: number; readonly h: number };
 }
 
 export function createMapScreen(): MapScreen {
@@ -731,10 +786,11 @@ export function createMapScreen(): MapScreen {
         if (to !== undefined) drawRoad(P, from, to, node.id === current, node.id * 131 + targetId, L.zones);
       }
     }
-    if (current === null) for (const id of run.map.startIds) {
-      const to = L.nodes.get(id);
-      if (to !== undefined) drawRoad(P, L.anchor, to, true, id * 131, L.zones);
-    }
+    if (current === null)
+      for (const id of run.map.startIds) {
+        const to = L.nodes.get(id);
+        if (to !== undefined) drawRoad(P, L.anchor, to, true, id * 131, L.zones);
+      }
 
     const reachable = new Set(run.reachableIds);
     const visited = new Set(run.visitedIds);
@@ -777,7 +833,8 @@ export function createMapScreen(): MapScreen {
     // not carry at all, so both edge arrows drew nothing. The playtest read that as "the map gives
     // no sign it pans" — the sign was there, it just had no glyph. The arrows ARE covered.
     if (camX > 2) drawText(surface, "←", 8, viewH / 2 - 8, { color: MATE_PAL.gold, scale: 2 });
-    if (camX < worldW - viewW - 2) drawText(surface, "→", viewW - 22, viewH / 2 - 8, { color: MATE_PAL.gold, scale: 2 });
+    if (camX < worldW - viewW - 2)
+      drawText(surface, "→", viewW - 22, viewH / 2 - 8, { color: MATE_PAL.gold, scale: 2 });
   }
 
   function nodeAtScreen(sx: number, sy: number): number | null {
@@ -831,7 +888,10 @@ export function localeSwitchCostsTheRun(run: RunView): boolean {
  * codes regardless of which is active (only the styling — bold/dim — changes per `drawLocaleToggle`
  * below). Shared by `drawLocaleToggle` (paints it) and `MapScreen.localeToggleRect` (hit-tests it),
  * so the two can never drift apart. */
-function computeLocaleToggleRect(viewW: number, viewH: number): { readonly x: number; readonly y: number; readonly w: number; readonly h: number } {
+function computeLocaleToggleRect(
+  viewW: number,
+  viewH: number,
+): { readonly x: number; readonly y: number; readonly w: number; readonly h: number } {
   const label = "RO | EN"; // measurement only — "|" is a layout glyph, not translated prose
   const w = measureText(label) + 16;
   const h = LEGEND_H - 8;

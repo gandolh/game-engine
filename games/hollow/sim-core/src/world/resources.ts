@@ -57,23 +57,11 @@ export class ResourceWorld {
       this.addNode(nextId++, "food", placementRng, opts.foodNodeMaxStock, opts.foodNodeRegenPerTick);
     }
     for (let i = 0; i < opts.materialNodeCount; i++) {
-      this.addNode(
-        nextId++,
-        "material",
-        placementRng,
-        opts.materialNodeMaxStock,
-        opts.materialNodeRegenPerTick,
-      );
+      this.addNode(nextId++, "material", placementRng, opts.materialNodeMaxStock, opts.materialNodeRegenPerTick);
     }
   }
 
-  private addNode(
-    id: number,
-    kind: ResourceKind,
-    placementRng: Rng,
-    maxStock: number,
-    regenPerTick: number,
-  ): void {
+  private addNode(id: number, kind: ResourceKind, placementRng: Rng, maxStock: number, regenPerTick: number): void {
     const node: ResourceNode = {
       id,
       kind,

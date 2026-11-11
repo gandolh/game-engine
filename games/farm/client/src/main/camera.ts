@@ -20,15 +20,33 @@ export let playerFarmerId: number | null = null;
 export let _simClient: SimClient | null = null;
 export let _camera: Camera2D | null = null;
 
-export function setFocusedFarmerId(id: number | null): void { focusedFarmerId = id; }
-export function setPanOffset(o: { x: number; y: number }): void { panOffset = o; }
-export function setZoom(z: number): void { zoom = z; }
-export function setRecenteringOnPip(v: boolean): void { recenteringOnPip = v; }
-export function setLastPlayerMoveX(v: "left" | "right" | null): void { lastPlayerMoveX = v; }
-export function setLastPlayerMoveY(v: "up" | "down" | null): void { lastPlayerMoveY = v; }
-export function setPlayerFarmerId(id: number | null): void { playerFarmerId = id; }
-export function setSimClient(c: SimClient | null): void { _simClient = c; }
-export function setCamera(c: Camera2D | null): void { _camera = c; }
+export function setFocusedFarmerId(id: number | null): void {
+  focusedFarmerId = id;
+}
+export function setPanOffset(o: { x: number; y: number }): void {
+  panOffset = o;
+}
+export function setZoom(z: number): void {
+  zoom = z;
+}
+export function setRecenteringOnPip(v: boolean): void {
+  recenteringOnPip = v;
+}
+export function setLastPlayerMoveX(v: "left" | "right" | null): void {
+  lastPlayerMoveX = v;
+}
+export function setLastPlayerMoveY(v: "up" | "down" | null): void {
+  lastPlayerMoveY = v;
+}
+export function setPlayerFarmerId(id: number | null): void {
+  playerFarmerId = id;
+}
+export function setSimClient(c: SimClient | null): void {
+  _simClient = c;
+}
+export function setCamera(c: Camera2D | null): void {
+  _camera = c;
+}
 
 let _prevFocusId: number | null = null;
 let _gliding = false;
@@ -50,27 +68,27 @@ export function stepFocusGlide(
 ): GlideState {
   const K = 10;
   const MAX_ELAPSED = 0.6;
-  const REST_THRESHOLD = 0.5; 
-  if (focusChanged) { state.gliding = true; state.elapsedSec = 0; }
+  const REST_THRESHOLD = 0.5;
+  if (focusChanged) {
+    state.gliding = true;
+    state.elapsedSec = 0;
+  }
   if (state.gliding) {
     let cx = expSmooth(prevCenter.x, rawTarget.x, K, dtSec);
     let cy = expSmooth(prevCenter.y, rawTarget.y, K, dtSec);
     state.elapsedSec += dtSec;
     const screenDist = Math.hypot(rawTarget.x - cx, rawTarget.y - cy) * sx;
     if (screenDist < REST_THRESHOLD || state.elapsedSec >= MAX_ELAPSED) {
-      cx = rawTarget.x; cy = rawTarget.y; state.gliding = false;
+      cx = rawTarget.x;
+      cy = rawTarget.y;
+      state.gliding = false;
     }
     return { center: { x: cx, y: cy }, gliding: state.gliding, elapsedSec: state.elapsedSec };
   }
   return { center: { x: rawTarget.x, y: rawTarget.y }, gliding: false, elapsedSec: 0 };
 }
 
-export function applyFocusAndPan(
-  camera: Camera2D,
-  sprites?: SnapshotSprite[],
-  dtSec = 0,
-  sx = 0,
-): void {
+export function applyFocusAndPan(camera: Camera2D, sprites?: SnapshotSprite[], dtSec = 0, sx = 0): void {
   let baseX: number;
   let baseY: number;
   if (focusedFarmerId !== null && _simClient !== null) {
@@ -95,23 +113,22 @@ export function applyFocusAndPan(
   if (dtSec > 0) {
     const focusChanged = focusedFarmerId !== _prevFocusId;
     _prevFocusId = focusedFarmerId;
-    const result = stepFocusGlide(
-      { x: camera.centerX, y: camera.centerY }, rawTarget, focusChanged, dtSec, sx,
-      { gliding: _gliding, elapsedSec: _glideElapsedSec },
-    );
-    _gliding = result.gliding; _glideElapsedSec = result.elapsedSec;
+    const result = stepFocusGlide({ x: camera.centerX, y: camera.centerY }, rawTarget, focusChanged, dtSec, sx, {
+      gliding: _gliding,
+      elapsedSec: _glideElapsedSec,
+    });
+    _gliding = result.gliding;
+    _glideElapsedSec = result.elapsedSec;
     camera.setCenter(result.center.x, result.center.y);
   } else {
-    _prevFocusId = focusedFarmerId; _gliding = false; _glideElapsedSec = 0;
+    _prevFocusId = focusedFarmerId;
+    _gliding = false;
+    _glideElapsedSec = 0;
     camera.setCenter(rawTarget.x, rawTarget.y);
   }
 }
 
-export function setupCameraListeners(
-  canvas: HTMLCanvasElement,
-  camera: Camera2D,
-): void {
-
+export function setupCameraListeners(canvas: HTMLCanvasElement, camera: Camera2D): void {
   camera.setZoom(zoom);
 
   let isDragging = false;
@@ -134,7 +151,7 @@ export function setupCameraListeners(
   canvas.addEventListener("mousedown", (e: MouseEvent) => {
     if (e.button !== 0 && e.button !== 1) return;
     isDragging = true;
-    recenteringOnPip = false; 
+    recenteringOnPip = false;
     dragStartX = e.clientX;
     dragStartY = e.clientY;
     camStartX = panOffset.x;
@@ -162,12 +179,16 @@ export function setupCameraListeners(
     isDragging = false;
   });
 
-  canvas.addEventListener("wheel", (e: WheelEvent) => {
-    e.preventDefault();
+  canvas.addEventListener(
+    "wheel",
+    (e: WheelEvent) => {
+      e.preventDefault();
 
-    const factor = e.deltaY > 0 ? 1 / 1.1 : 1.1;
-    zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom * factor));
-    camera.setZoom(zoom);
-    applyFocusAndPan(camera);
-  }, { passive: false });
+      const factor = e.deltaY > 0 ? 1 / 1.1 : 1.1;
+      zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom * factor));
+      camera.setZoom(zoom);
+      applyFocusAndPan(camera);
+    },
+    { passive: false },
+  );
 }

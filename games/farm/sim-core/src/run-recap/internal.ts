@@ -11,9 +11,7 @@ export function midpointDay(history: readonly RunHistoryRow[]): number {
   return Math.floor(maxDay / 2);
 }
 
-export function buildRankMap(
-  history: readonly RunHistoryRow[],
-): Map<number, Map<number, number>> {
+export function buildRankMap(history: readonly RunHistoryRow[]): Map<number, Map<number, number>> {
   const out = new Map<number, Map<number, number>>();
   for (const row of history) {
     let dayMap = out.get(row.day);
@@ -48,9 +46,7 @@ export function farmerArc(
   finalRank: number,
   history: readonly RunHistoryRow[],
 ): string {
-  const farmerRows = history
-    .filter((r) => r.farmerId === farmerId)
-    .sort((a, b) => a.day - b.day);
+  const farmerRows = history.filter((r) => r.farmerId === farmerId).sort((a, b) => a.day - b.day);
 
   if (farmerRows.length === 0) {
     return `${name} — no recorded history.`;
@@ -95,10 +91,7 @@ export function farmerArc(
   return `${name} — finished ${finalRank}${rankSuffix(finalRank)} after a ${describeTrajectory(farmerRows)} run.`;
 }
 
-export function buildHeadline(
-  events: readonly EventEntry[],
-  winner: RecapStanding | undefined,
-): string {
+export function buildHeadline(events: readonly EventEntry[], winner: RecapStanding | undefined): string {
   let maxDrama = 0;
   for (const e of events) {
     const d = e.drama ?? 0;
@@ -109,11 +102,7 @@ export function buildHeadline(
     let best: EventEntry | null = null;
     for (const e of events) {
       if ((e.drama ?? 0) >= maxDrama) {
-        if (
-          best === null ||
-          e.day > best.day ||
-          (e.day === best.day && (e.drama ?? 0) >= (best.drama ?? 0))
-        ) {
+        if (best === null || e.day > best.day || (e.day === best.day && (e.drama ?? 0) >= (best.drama ?? 0))) {
           best = e;
         }
       }

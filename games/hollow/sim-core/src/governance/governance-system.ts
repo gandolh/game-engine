@@ -95,7 +95,13 @@
  * `HollowCommunitySystem`.
  */
 import type { SimContext, System, World, MessageBus, AgentMessage } from "@engine/core";
-import { PERFORMATIVE, relationshipScore, applyRelationshipDelta, replenishNeed, UNIT_TRUST_SCALE } from "@engine/core/agent";
+import {
+  PERFORMATIVE,
+  relationshipScore,
+  applyRelationshipDelta,
+  replenishNeed,
+  UNIT_TRUST_SCALE,
+} from "@engine/core/agent";
 import type { HollowEntity } from "../components";
 import { takeGoods } from "../components";
 import { NEED_BELONGING } from "../economy";
@@ -249,7 +255,9 @@ export class HollowGovernanceSystem implements System {
     bus.subscribeOntology(ONT_SOCIAL.SABOTAGE, (msg: AgentMessage) =>
       this.recordViolation(msg, VIOLATION_SEVERITY_SABOTAGE),
     );
-    bus.subscribeOntology(ONT_SOCIAL.ATTACK, (msg: AgentMessage) => this.recordViolation(msg, VIOLATION_SEVERITY_ATTACK));
+    bus.subscribeOntology(ONT_SOCIAL.ATTACK, (msg: AgentMessage) =>
+      this.recordViolation(msg, VIOLATION_SEVERITY_ATTACK),
+    );
   }
 
   private recordHelp(msg: AgentMessage): void {
@@ -452,7 +460,8 @@ export class HollowGovernanceSystem implements System {
 
   private preferredAdmissionPolicy(member: GovernanceEntity): number {
     return (
-      NORM_ADMISSION_POLICY_MIN + this.preferenceScalar(member) * (NORM_ADMISSION_POLICY_MAX - NORM_ADMISSION_POLICY_MIN)
+      NORM_ADMISSION_POLICY_MIN +
+      this.preferenceScalar(member) * (NORM_ADMISSION_POLICY_MAX - NORM_ADMISSION_POLICY_MIN)
     );
   }
 
@@ -557,7 +566,11 @@ export class HollowGovernanceSystem implements System {
     const next = current + step;
     community.norms[norm] = next;
     if (Math.abs(next - current) >= NORM_CHANGE_EMIT_EPSILON) {
-      this.emit(ONT_GOVERNANCE.NORM_CHANGED, { communityId: community.id, norm, oldValue: current, newValue: next, tick }, tick);
+      this.emit(
+        ONT_GOVERNANCE.NORM_CHANGED,
+        { communityId: community.id, norm, oldValue: current, newValue: next, tick },
+        tick,
+      );
     }
   }
 
@@ -590,7 +603,8 @@ export class HollowGovernanceSystem implements System {
         const contributed = this.contributionTally.get(memberId) ?? 0;
         const expectedContribution = totalGoods * community.norms.shareRate;
         const isHoarding =
-          totalGoods >= SANCTION_HOARD_MIN_GOODS && contributed < expectedContribution * SANCTION_HOARD_LENIENCY_FRACTION;
+          totalGoods >= SANCTION_HOARD_MIN_GOODS &&
+          contributed < expectedContribution * SANCTION_HOARD_LENIENCY_FRACTION;
 
         const severity = antisocialTotal + (isHoarding ? VIOLATION_SEVERITY_HOARD : 0);
         if (severity <= 0) {
@@ -604,7 +618,15 @@ export class HollowGovernanceSystem implements System {
           this.persistentAntisocialSeverity.delete(memberId);
           this.emit(
             ONT_GOVERNANCE.SANCTIONED,
-            { communityId: community.id, agentId: memberId, severity, action: "excluded", finedAmount: 0, trustPenalty: 0, tick },
+            {
+              communityId: community.id,
+              agentId: memberId,
+              severity,
+              action: "excluded",
+              finedAmount: 0,
+              trustPenalty: 0,
+              tick,
+            },
             tick,
           );
           continue;

@@ -274,7 +274,9 @@ export function bootstrapMathquestSim(opts: MathquestSimOptions): BootedMathques
   const locale: Locale = opts.locale ?? DEFAULT_LOCALE;
 
   let runCount = 0;
-  let map: RunMap = generateMap(rng.fork("map"), { eliteUnlocked: overallMasteryTier(masteryStore) >= ELITE_UNLOCK_TIER });
+  let map: RunMap = generateMap(rng.fork("map"), {
+    eliteUnlocked: overallMasteryTier(masteryStore) >= ELITE_UNLOCK_TIER,
+  });
   let currentId: number | null = null;
   let reachableIds: readonly number[] = map.startIds;
   let visitedIds: readonly number[] = [];
@@ -371,7 +373,11 @@ export function bootstrapMathquestSim(opts: MathquestSimOptions): BootedMathques
       // M4c: unlocked blueprint items (`masteryStore.blueprints`) widen the BETTER pool — see
       // run/loot.ts's module doc. `blueprintItemsFor` returns `[]` for an empty store, so this is
       // byte-identical to pre-M4c when nothing has been unlocked yet.
-      lootOffers = rollLoot(rng.fork("loot"), tierForNodeType(pendingWinNode.type), blueprintItemsFor(masteryStore.blueprints));
+      lootOffers = rollLoot(
+        rng.fork("loot"),
+        tierForNodeType(pendingWinNode.type),
+        blueprintItemsFor(masteryStore.blueprints),
+      );
       return;
     }
     if (pendingWinNode !== null) {
@@ -488,7 +494,9 @@ export function bootstrapMathquestSim(opts: MathquestSimOptions): BootedMathques
     // M4c: eliteUnlocked is recomputed from the CURRENT (persisted) masteryStore — never reset by
     // newRun() (see the module doc); masteryStore itself is untouched below, unlike every other
     // run-scoped field.
-    map = generateMap(rng.fork(`run:${runCount}`), { eliteUnlocked: overallMasteryTier(masteryStore) >= ELITE_UNLOCK_TIER });
+    map = generateMap(rng.fork(`run:${runCount}`), {
+      eliteUnlocked: overallMasteryTier(masteryStore) >= ELITE_UNLOCK_TIER,
+    });
     currentId = null;
     reachableIds = map.startIds;
     visitedIds = [];
@@ -552,4 +560,3 @@ export function bootstrapMathquestSim(opts: MathquestSimOptions): BootedMathques
     newRun,
   };
 }
-

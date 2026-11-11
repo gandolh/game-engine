@@ -19,7 +19,13 @@ export function storehouse(): MeshModel {
   const doorL = translate(box([0.55, 0.1, 0.72], "darkwood"), [1.0, 1.74, 0]);
   const doorR = translate(box([0.55, 0.1, 0.72], "darkwood"), [1.6, 1.74, 0]);
   const props = crates([0.35, 1.5, 0]);
-  return { name: "bld/storehouse", footprintW: 3, footprintD: 2, heightTiles: 1, mesh: merge(body, roof, doorL, doorR, props) };
+  return {
+    name: "bld/storehouse",
+    footprintW: 3,
+    footprintD: 2,
+    heightTiles: 1,
+    mesh: merge(body, roof, doorL, doorR, props),
+  };
 }
 
 /** Warehouse with a striped market CANOPY across the front + crates. */
@@ -31,5 +37,11 @@ export function tradingpost(): MeshModel {
   const postL = translate(cylinder(0.05, 0.82, 6, "timber"), [0.5, 1.92, 0]);
   const postR = translate(cylinder(0.05, 0.82, 6, "timber"), [2.5, 1.92, 0]);
   const props = crates([0.5, 1.35, 0]);
-  return { name: "bld/tradingpost", footprintW: 3, footprintD: 2, heightTiles: 1, mesh: merge(body, roof, canopy, postL, postR, props) };
+  return {
+    name: "bld/tradingpost",
+    footprintW: 3,
+    footprintD: 2,
+    heightTiles: 1,
+    mesh: merge(body, roof, canopy, postL, postR, props),
+  };
 }

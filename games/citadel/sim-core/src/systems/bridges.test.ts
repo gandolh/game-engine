@@ -47,7 +47,10 @@ describe("road over water → bridge", () => {
     let land: { x: number; y: number } | null = null;
     for (let ty = 0; ty < sim.terrain.height && land === null; ty++) {
       for (let tx = 0; tx < sim.terrain.width; tx++) {
-        if (sim.terrain.cells[ty * WORLD_WIDTH + tx] === TerrainType.Grass) { land = { x: tx, y: ty }; break; }
+        if (sim.terrain.cells[ty * WORLD_WIDTH + tx] === TerrainType.Grass) {
+          land = { x: tx, y: ty };
+          break;
+        }
       }
     }
     expect(land).not.toBeNull();

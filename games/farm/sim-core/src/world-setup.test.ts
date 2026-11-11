@@ -44,7 +44,7 @@ describe("starting crop surplus", () => {
     expect(total).toBeLessThanOrEqual(2);
 
     const crops = inv(farmer).crops;
-    const stocked = (Object.keys(crops) as CropKind[]).filter(c => crops[c] > 0);
+    const stocked = (Object.keys(crops) as CropKind[]).filter((c) => crops[c] > 0);
     expect(stocked.length).toBe(1);
     const crop = stocked[0]!;
     expect(CROP_SELL_PRICE[crop]).toBeGreaterThan(0);
@@ -76,10 +76,10 @@ describe("starting crop surplus", () => {
   it("varies deterministically across farmer names under the same seed", () => {
     const world = new World<GameEntity>();
     const names = ["Cora", "Atticus", "Hannah", "Otto", "Pip"];
-    const surpluses = names.map(name => {
+    const surpluses = names.map((name) => {
       const farmer = setupFarmer(world, makeSpec(name), 0xbeef);
       const crops = inv(farmer).crops;
-      const crop = (Object.keys(crops) as CropKind[]).find(c => crops[c] > 0)!;
+      const crop = (Object.keys(crops) as CropKind[]).find((c) => crops[c] > 0)!;
       return `${crop}:${crops[crop]}`;
     });
 

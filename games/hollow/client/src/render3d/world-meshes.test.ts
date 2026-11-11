@@ -25,7 +25,7 @@ describe("buildGroundMesh", () => {
     }
   });
 
-  it("uses a single material (\"grass\") for every triangle", () => {
+  it('uses a single material ("grass") for every triangle', () => {
     const mesh = buildGroundMesh(4);
     const materials = new Set(mesh.tris.map((t) => t.material));
     expect([...materials]).toEqual(["grass"]);

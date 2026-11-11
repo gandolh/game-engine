@@ -13,7 +13,7 @@ export const WELL_REGIONS = ["well-north", "well-south"] as const;
 /** Seasonal forage zones and the season each is productive in. */
 export const FORAGE_ZONES: Array<{ region: string; season: Season }> = [
   { region: "mushroom-grove", season: "autumn" },
-  { region: "ice-pond",       season: "winter" },
+  { region: "ice-pond", season: "winter" },
 ];
 
 /**
@@ -35,8 +35,7 @@ function deriveFishingCastTiles(): ReadonlyArray<{ x: number; y: number }> {
       for (let x = bounds.minX; x <= bounds.maxX && !pick; x++) {
         if (regionAt(x, y) !== id) continue;
         const oceanAdjacent =
-          !isWalkable(x - 1, y) || !isWalkable(x + 1, y) ||
-          !isWalkable(x, y - 1) || !isWalkable(x, y + 1);
+          !isWalkable(x - 1, y) || !isWalkable(x + 1, y) || !isWalkable(x, y - 1) || !isWalkable(x, y + 1);
         if (oceanAdjacent) pick = { x, y };
       }
     }
@@ -99,7 +98,7 @@ export function nearestWaterSource(farmer: GameEntity): string | undefined {
   let best: string | undefined = home;
   let bestDist = Infinity;
   for (const id of candidates) {
-    const def = REGIONS.find(r => r.id === id);
+    const def = REGIONS.find((r) => r.id === id);
     if (!def) continue;
     const d = Math.abs(def.center.x - t.x) + Math.abs(def.center.y - t.y);
     if (d < bestDist) {
@@ -126,7 +125,10 @@ export function nearestTile(
   for (let i = 1; i < tiles.length; i++) {
     const t = tiles[i]!;
     const d = Math.abs(t.tileX - transform.x) + Math.abs(t.tileY - transform.y);
-    if (d < bestDist || (d === bestDist && (t.tileY < best.tileY || (t.tileY === best.tileY && t.tileX < best.tileX)))) {
+    if (
+      d < bestDist ||
+      (d === bestDist && (t.tileY < best.tileY || (t.tileY === best.tileY && t.tileX < best.tileX)))
+    ) {
       best = t;
       bestDist = d;
     }

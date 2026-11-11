@@ -1,5 +1,3 @@
-
-
 export const SEED = Number(process.env["SEED"] ?? 0xc0ffee);
 /**
  * World-gen seed (brief 92/93). When unset the world uses the fixed default map

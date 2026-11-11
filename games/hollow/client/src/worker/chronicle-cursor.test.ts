@@ -45,7 +45,11 @@ describe("advanceChronicleCursor", () => {
 
   it("never produces an out-of-range slice index", () => {
     for (const [live, dropped, posted] of [
-      [0, 0, 0], [0, 100, 100], [5, 0, 99], [5, 100, 0], [50, 7, 999],
+      [0, 0, 0],
+      [0, 100, 100],
+      [5, 0, 99],
+      [5, 100, 0],
+      [50, 7, 999],
     ] as const) {
       const c = advanceChronicleCursor(live, dropped, posted);
       expect(c.startIndex).toBeGreaterThanOrEqual(0);
@@ -87,12 +91,12 @@ describe("advanceChronicleCursor", () => {
 
     // Every event captured is accounted for, exactly once, in order.
     expect(posted).toBe(60);
-    expect(chronicle.events().length).toBe(cap);       // genuinely bounded
-    expect(chronicle.droppedCount()).toBe(60 - cap);   // and genuinely evicting
-    expect(new Set(seen).size).toBe(seen.length);      // no duplicates
+    expect(chronicle.events().length).toBe(cap); // genuinely bounded
+    expect(chronicle.droppedCount()).toBe(60 - cap); // and genuinely evicting
+    expect(new Set(seen).size).toBe(seen.length); // no duplicates
     expect([...seen].sort((a, b) => a - b)).toEqual(seen); // strictly in order
     // Draining every 7 while the cap is 16 means nothing ages out unseen.
     expect(seen).toEqual(Array.from({ length: 60 }, (_, i) => i + 1));
-    expect(CHRONICLE_CAP).toBeGreaterThan(cap);        // production cap is larger
+    expect(CHRONICLE_CAP).toBeGreaterThan(cap); // production cap is larger
   });
 });

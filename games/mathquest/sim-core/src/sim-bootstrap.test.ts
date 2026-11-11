@@ -59,8 +59,7 @@ function numbersIn(text: string): number[] {
 function correctResponseFor(view: ProblemView): AnswerResponse {
   const [x, y] = numbersIn(view.prompt);
   if (view.kind === "typed") {
-    const value =
-      view.topic === "addition" ? x! + y! : view.topic === "subtraction" ? x! - y! : x! * y!;
+    const value = view.topic === "addition" ? x! + y! : view.topic === "subtraction" ? x! - y! : x! * y!;
     return { kind: "typed", value };
   }
   const relation = x! < y! ? "<" : x! > y! ? ">" : "=";
@@ -121,7 +120,8 @@ function driveCombat(sim: BootedMathquestSim, healThreshold = 14): void {
       const intent = c.enemy.intent;
       let action: "attack" | "heal" | "shield";
       if (hp <= healThreshold) action = "heal";
-      else if (hp - intent <= 6) action = "shield"; // mitigate a hit that would leave us critical
+      else if (hp - intent <= 6)
+        action = "shield"; // mitigate a hit that would leave us critical
       else action = "attack";
       sim.chooseAction(action);
     } else if (c.phase === "await_answer") {
@@ -221,7 +221,8 @@ function scriptExactWin(sim: BootedMathquestSim, nodeId: number, shieldPadding: 
     if (before.mode !== "combat") throw new Error("scriptExactWin: fight already over — bad shieldPadding?");
     sim.chooseAction(action);
     const pending = sim.getSnapshot();
-    if (pending.mode !== "combat") throw new Error("scriptExactWin: unreachable — chooseAction alone can't end a fight");
+    if (pending.mode !== "combat")
+      throw new Error("scriptExactWin: unreachable — chooseAction alone can't end a fight");
     sim.submitAnswer(correctResponseFor(pending.combat.problem!));
   };
   for (let i = 0; i < shieldPadding; i++) act("shield");
@@ -268,9 +269,7 @@ describe("bootstrapMathquestSim — run bootstrap (M3)", () => {
     expect(snap.run.warriorMaxHp).toBe(WARRIOR_MAX_HP);
     expect(snap.run.currentId).toBeNull();
     expect(snap.run.visitedIds).toEqual([]);
-    expect([...snap.run.reachableIds].sort((a, b) => a - b)).toEqual(
-      [...snap.run.map.startIds].sort((a, b) => a - b),
-    );
+    expect([...snap.run.reachableIds].sort((a, b) => a - b)).toEqual([...snap.run.map.startIds].sort((a, b) => a - b));
   });
 
   it("world and scheduler are freshly constructed per bootstrap call (no shared state leaks)", () => {

@@ -1,5 +1,3 @@
-
-
 import type { SimContext, System, World } from "@engine/core";
 import type { GameEntity } from "../../components";
 import {
@@ -43,10 +41,8 @@ export class RivalrySystem implements System {
             this.freshThisTick.push({ aId: from.id, bId: to.id, score: trust, kind: "rivalry" });
           }
         } else if (trust > RIVAL_REARM) {
-
           this.latchedRivalKeys.delete(key);
         }
-
       }
     }
   }
@@ -126,7 +122,6 @@ export class RivalrySystem implements System {
 }
 
 function compareFresh(a: FreshRivalry, b: FreshRivalry): number {
-
   const ka = a.kind === "rivalry" ? directedKey(a.aId, a.bId) : pairKey(a.aId, a.bId);
   const kb = b.kind === "rivalry" ? directedKey(b.aId, b.bId) : pairKey(b.aId, b.bId);
   return ka < kb ? -1 : ka > kb ? 1 : 0;

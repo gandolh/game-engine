@@ -3,7 +3,6 @@ import type { GameEntity } from "../../components";
 import { PERFORMATIVE, ONT_SIMULATION, type ShockBody, type ShockKind } from "../../protocols";
 
 export interface ShockConfig {
-
   shockDay: number;
 
   kind: ShockKind;

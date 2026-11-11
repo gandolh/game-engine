@@ -51,7 +51,9 @@ describe("hash21 — the CPU port uses the shader's constants", () => {
   const block = noiseBlock();
 
   it("the dot-product constants match", () => {
-    expect(block).toContain(`vec2(${String(SHADER_NOISE_CONSTANTS.hashDotX)}, ${String(SHADER_NOISE_CONSTANTS.hashDotY)})`);
+    expect(block).toContain(
+      `vec2(${String(SHADER_NOISE_CONSTANTS.hashDotX)}, ${String(SHADER_NOISE_CONSTANTS.hashDotY)})`,
+    );
   });
 
   it("the sine scale constant matches", () => {
@@ -66,7 +68,12 @@ describe("hash21 — the CPU port uses the shader's constants", () => {
   it("the TS port really is fract(sin(...)), including for negative coordinates", () => {
     // `fract` is `x - floor(x)`, NOT `%` — they differ in sign for negatives, and getting that
     // wrong is silent (the noise just looks slightly different on one side of the origin).
-    for (const [x, y] of [[0, 0], [1, 0], [-3, 7], [12.5, -4.25]] as const) {
+    for (const [x, y] of [
+      [0, 0],
+      [1, 0],
+      [-3, 7],
+      [12.5, -4.25],
+    ] as const) {
       const expected = (() => {
         const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453;
         return s - Math.floor(s);
@@ -94,7 +101,11 @@ describe("valueNoise — same cubic-Hermite smoothing", () => {
   it("the TS port reduces to the raw hash exactly at a lattice point", () => {
     // At integer coords the fractional part is 0, so smoothing weights are 0 and only corner A
     // contributes. If the port's corner ordering or smoothing were wrong, this would drift.
-    for (const [x, y] of [[0, 0], [3, 5], [-2, 9]] as const) {
+    for (const [x, y] of [
+      [0, 0],
+      [3, 5],
+      [-2, 9],
+    ] as const) {
       expect(valueNoise21(x, y)).toBeCloseTo(hash21(x, y), 12);
     }
   });
@@ -105,9 +116,7 @@ describe("valueNoise — same cubic-Hermite smoothing", () => {
       const y = (i * 0.61) % 7;
       const ix = Math.floor(x);
       const iy = Math.floor(y);
-      const corners = [
-        hash21(ix, iy), hash21(ix + 1, iy), hash21(ix, iy + 1), hash21(ix + 1, iy + 1),
-      ];
+      const corners = [hash21(ix, iy), hash21(ix + 1, iy), hash21(ix, iy + 1), hash21(ix + 1, iy + 1)];
       const v = valueNoise21(x, y);
       expect(v).toBeGreaterThanOrEqual(Math.min(...corners) - 1e-12);
       expect(v).toBeLessThanOrEqual(Math.max(...corners) + 1e-12);

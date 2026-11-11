@@ -28,7 +28,6 @@ export function deliberateCoralFishing(
   const hasRod = (farmer.inventory?.tools ?? []).some((t) => t.kind === "fishing-rod");
 
   if (aboard) {
-
     const castDay = farmer.beliefs.data["coralCastDay"] as number | undefined;
     const castsDone = castDay === day ? ((farmer.beliefs.data["coralCastsDone"] as number | undefined) ?? 0) : 0;
     const tripStillWorth =

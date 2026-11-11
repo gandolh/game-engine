@@ -1,19 +1,17 @@
-
-
 import type { SimContext, System, World, MessageBus, Rng } from "@engine/core";
 import { bodyOf } from "@engine/core";
 import type { GameEntity, TileFeatureKind } from "../../components";
 import { ONT_SIMULATION } from "../../protocols";
 import { REGIONS, forEachLandTile } from "../../world/regions";
 
-const FARM_TREE_CHANCE  = 0.02;
+const FARM_TREE_CHANCE = 0.02;
 const FARM_STONE_CHANCE = 0.015;
-const FARM_BUSH_CHANCE  = 0.01;
+const FARM_BUSH_CHANCE = 0.01;
 const MAX_PER_FARM = 6;
 
-const ZONE_TREE_CHANCE  = 0.25;
-const ZONE_STONE_CHANCE = 0.20;
-const ZONE_BUSH_CHANCE  = 0.08; 
+const ZONE_TREE_CHANCE = 0.25;
+const ZONE_STONE_CHANCE = 0.2;
+const ZONE_BUSH_CHANCE = 0.08;
 const MAX_PER_ZONE = 20;
 
 export class TileFeatureSystem implements System {
@@ -88,7 +86,7 @@ export class TileFeatureSystem implements System {
     for (const def of REGIONS) {
       const isForest = def.id === "forest-north" || def.id === "forest-south";
       const isQuarry = def.id === "quarry-north" || def.id === "quarry-south";
-      const isFarm   = def.kind === "farm";
+      const isFarm = def.kind === "farm";
 
       if (!isFarm && !isForest && !isQuarry) continue;
 
@@ -104,13 +102,16 @@ export class TileFeatureSystem implements System {
           const dx = farmDef.center.x - def.center.x;
           const dy = farmDef.center.y - def.center.y;
           const d = dx * dx + dy * dy;
-          if (d < bestDist) { bestDist = d; ownerId = id; }
+          if (d < bestDist) {
+            bestDist = d;
+            ownerId = id;
+          }
         }
       }
       if (ownerId === undefined) continue;
 
       const rid = def.id;
-      const maxFeatures = (isForest || isQuarry) ? MAX_PER_ZONE : MAX_PER_FARM;
+      const maxFeatures = isForest || isQuarry ? MAX_PER_ZONE : MAX_PER_FARM;
       const currentCount = featureCountByRegion.get(rid) ?? 0;
       if (currentCount >= maxFeatures) continue;
 
@@ -127,7 +128,7 @@ export class TileFeatureSystem implements System {
       if (candidates.length === 0) continue;
 
       const slots: Array<TileFeatureKind> = [];
-      const room = maxFeatures - currentCount; 
+      const room = maxFeatures - currentCount;
       for (const _candidate of candidates) {
         if (slots.length >= room) break;
         const r = this.cluster.nextFloat();
@@ -152,10 +153,7 @@ export class TileFeatureSystem implements System {
       for (let i = 0; i < placements.length; i++) {
         const { x, y } = placements[i]!;
         const kind = slots[i]!;
-        const frame =
-          kind === "tree" ? "structure/tree" :
-          kind === "stone" ? "structure/stone" :
-          "structure/bush";
+        const frame = kind === "tree" ? "structure/tree" : kind === "stone" ? "structure/stone" : "structure/bush";
         this.world.spawn({
           transform: { x, y, prevX: x, prevY: y, rotation: 0 },
           sprite: { atlasId: "main", frame, layer: 30, tintRgba: 0xffffffff },

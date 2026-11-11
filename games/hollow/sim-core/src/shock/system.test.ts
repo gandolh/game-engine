@@ -32,7 +32,8 @@ describe("HollowShockSystem — famine/boom (regen multiplier)", () => {
     sim.tick(); // shock applies at this tick boundary (SHOCK runs before RESOURCE-REGEN, same tick)
 
     for (const node of sim.resources.nodes) {
-      if (node.kind === "food") expect(node.stock).toBeCloseTo(1, 10); // 10 * 0.1
+      if (node.kind === "food")
+        expect(node.stock).toBeCloseTo(1, 10); // 10 * 0.1
       else expect(node.stock).toBeCloseTo(5, 10); // material untouched — still full regenPerTick
     }
   });

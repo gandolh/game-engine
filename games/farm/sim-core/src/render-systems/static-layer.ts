@@ -1,13 +1,7 @@
 import type { World } from "@engine/core";
 import type { Sprite } from "@engine/core/render";
 import type { GameEntity } from "../components";
-import {
-  WORLD_WIDTH,
-  WORLD_HEIGHT,
-  TOWN_SQUARE,
-  regionAt,
-  isWalkable,
-} from "../world/regions";
+import { WORLD_WIDTH, WORLD_HEIGHT, TOWN_SQUARE, regionAt, isWalkable } from "../world/regions";
 import type { Season } from "../protocols/weather";
 import {
   FENCES,
@@ -70,22 +64,18 @@ function backdropFrame(tx: number, ty: number, season: Season = "spring"): strin
   if (region === "waterfall") return grassFrame;
   if (region === "camp") return grassFrame;
   if (region === "weather-station") return grassFrame;
-  if (region === "volcano") return "tile/volcanic-floor"; 
-  if (region === "casino") return "tile/stone-floor";   
+  if (region === "volcano") return "tile/volcanic-floor";
+  if (region === "casino") return "tile/stone-floor";
   if (region === "village") {
-    if (tx >= TOWN_SQUARE.minX && tx <= TOWN_SQUARE.maxX &&
-        ty >= TOWN_SQUARE.minY && ty <= TOWN_SQUARE.maxY) {
+    if (tx >= TOWN_SQUARE.minX && tx <= TOWN_SQUARE.maxX && ty >= TOWN_SQUARE.minY && ty <= TOWN_SQUARE.maxY) {
       return "tile/market-floor";
     }
     return "tile/dirt";
   }
-  return "tile/dirt"; 
+  return "tile/dirt";
 }
 
-export function* iterStaticSprites(
-  world: World<GameEntity>,
-  season: Season = "spring",
-): Generator<LogicalSprite> {
+export function* iterStaticSprites(world: World<GameEntity>, season: Season = "spring"): Generator<LogicalSprite> {
   for (let ty = 0; ty < WORLD_HEIGHT; ty++) {
     for (let tx = 0; tx < WORLD_WIDTH; tx++) {
       const frame = backdropFrame(tx, ty, season);
@@ -223,10 +213,7 @@ export function* iterStaticSprites(
   }
 }
 
-export function buildStaticLayerSprites(
-  world: World<GameEntity>,
-  season: Season = "spring",
-): Sprite[] {
+export function buildStaticLayerSprites(world: World<GameEntity>, season: Season = "spring"): Sprite[] {
   const out: Sprite[] = [];
   for (const ls of iterStaticSprites(world, season)) {
     out.push({

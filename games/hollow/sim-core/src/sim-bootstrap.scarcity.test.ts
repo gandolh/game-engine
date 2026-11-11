@@ -7,10 +7,7 @@ function starvingCount(snapshot: HollowSnapshot): number {
   return snapshot.agents.filter((a) => a.starving).length;
 }
 
-function runFor(
-  opts: Parameters<typeof bootstrapHollowSim>[0],
-  ticks: number,
-): ReturnType<typeof bootstrapHollowSim> {
+function runFor(opts: Parameters<typeof bootstrapHollowSim>[0], ticks: number): ReturnType<typeof bootstrapHollowSim> {
   // chunk hollow-15 made starvation LETHAL after 3 in-game days (60 ticks at
   // ticksPerDay=20). This test predates that and deliberately measures the
   // starvation-ONSET SIGNAL over a 600-tick run — it expects a resource-poor

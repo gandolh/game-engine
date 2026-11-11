@@ -14,13 +14,13 @@ export const FISHING_SPOT_FRAMES = [
 
 const FISHING_SPOT_CLIP = loopClip("fishing-spot", FISHING_SPOT_FRAMES, 1200);
 
-const ACTION_SWING_HALF_MS = 220; 
+const ACTION_SWING_HALF_MS = 220;
 
 const ACTION_POP_AMP = 0.1;
 
 const IDLE_BOB_MS = 1700;
 const IDLE_BOB_AMP = 1.3;
-const IDLE_BOB_RISE = 0.35; 
+const IDLE_BOB_RISE = 0.35;
 
 export const FORGE_FIRE_FRAMES = [
   "structure/forge-fire-a",
@@ -47,22 +47,11 @@ export const WATERFALL_FALL_FRAMES = [
   "tile/waterfall-fall-c",
 ] as const;
 
-export const WATERFALL_FRAMES = [
-  "structure/waterfall-a",
-  "structure/waterfall-b",
-  "structure/waterfall-c",
-] as const;
+export const WATERFALL_FRAMES = ["structure/waterfall-a", "structure/waterfall-b", "structure/waterfall-c"] as const;
 
-export const CAMPFIRE_FRAMES = [
-  "structure/campfire-a",
-  "structure/campfire-b",
-  "structure/campfire-c",
-] as const;
+export const CAMPFIRE_FRAMES = ["structure/campfire-a", "structure/campfire-b", "structure/campfire-c"] as const;
 
-export const WEATHER_BEACON_FRAMES = [
-  "structure/weather-beacon-a",
-  "structure/weather-beacon-b",
-] as const;
+export const WEATHER_BEACON_FRAMES = ["structure/weather-beacon-a", "structure/weather-beacon-b"] as const;
 
 export const WEATHER_BEACON_PX = {
   x: 114 * TILE + TILE / 2,
@@ -70,19 +59,19 @@ export const WEATHER_BEACON_PX = {
 } as const;
 
 const FRAME_PREFIX_TO_ATLAS: Readonly<Record<string, string>> = {
-  "farmer":     "characters",
-  "npc":        "characters",
-  "structure":  "buildings",
-  "tile":       "terrain",
-  "crop":       "crops",
-  "decoration": "props",
-  "fish":       "items-ui",
-  "tool":       "items-ui",
-  "indicator":  "items-ui",
-  "debug":      "items-ui",
-  "animal":     "characters",
-  "product":    "items-ui",
-  "fruit":      "items-ui",
+  farmer: "characters",
+  npc: "characters",
+  structure: "buildings",
+  tile: "terrain",
+  crop: "crops",
+  decoration: "props",
+  fish: "items-ui",
+  tool: "items-ui",
+  indicator: "items-ui",
+  debug: "items-ui",
+  animal: "characters",
+  product: "items-ui",
+  fruit: "items-ui",
 };
 
 export function frameToAtlasId(frame: string): string {
@@ -101,8 +90,8 @@ export function isFarmerMoving(entity: GameEntity): boolean {
   return farmer?.path !== undefined || farmer?.movedThisTick === true;
 }
 
-const WALK_CYCLE_MS = 440; 
-const WALK_PHASE_MS = WALK_CYCLE_MS / 4; 
+const WALK_CYCLE_MS = 440;
+const WALK_PHASE_MS = WALK_CYCLE_MS / 4;
 
 const WALK_CLIP = loopClip("farmer-walk", ["/walk-a", "", "/walk-b", ""], WALK_CYCLE_MS, [
   { name: "step", atMs: 0 },
@@ -115,13 +104,13 @@ export function walkStepsBetween(id: number, prevMs: number, nowMs: number): num
 }
 
 export const ACTION_POSE: Record<string, string> = {
-  till:          "/till",
-  water:         "/water",
-  "refill-can":  "/refill",
-  "chop-tree":   "/chop",
-  "mine-stone":  "/mine",
-  plant:         "/plant",
-  harvest:       "/work",   
+  till: "/till",
+  water: "/water",
+  "refill-can": "/refill",
+  "chop-tree": "/chop",
+  "mine-stone": "/mine",
+  plant: "/plant",
+  harvest: "/work",
 };
 
 export type Facing = "down" | "up" | "side";
@@ -132,12 +121,12 @@ export function enumerateFarmerFrames(base: string): string[] {
   const out = new Set<string>();
   for (const seg of Object.values(FACING_SEG)) {
     const dir = base + seg;
-    out.add(dir); 
-    for (const f of WALK_CLIP.frames) if (f.frame) out.add(dir + f.frame); 
+    out.add(dir);
+    for (const f of WALK_CLIP.frames) if (f.frame) out.add(dir + f.frame);
   }
   for (const suffix of new Set(Object.values(ACTION_POSE))) {
-    out.add(base + suffix); 
-    out.add(base + suffix + "-b"); 
+    out.add(base + suffix);
+    out.add(base + suffix + "-b");
   }
   return [...out];
 }
@@ -151,7 +140,7 @@ const SEASONAL_FOLIAGE_BASES: ReadonlySet<string> = new Set([
 
 const SEASON_FOLIAGE_SUFFIX: Record<Season, string> = {
   spring: "-blossom",
-  summer: "", 
+  summer: "",
   autumn: "-autumn",
   winter: "-bare",
 };
@@ -194,11 +183,10 @@ export function resolveFrameAndBob(
   const dir = base + FACING_SEG[facing];
 
   if (s.moving === true) {
-
     return { frame: dir + sampleCycle(WALK_CLIP, nowMs, s.id ?? 0), bobY: 0 };
   }
 
-  const p = (((nowMs / IDLE_BOB_MS) + (s.id ?? 0) * 0.21) % 1 + 1) % 1;
+  const p = (((nowMs / IDLE_BOB_MS + (s.id ?? 0) * 0.21) % 1) + 1) % 1;
   const tri = p < IDLE_BOB_RISE ? p / IDLE_BOB_RISE : 1 - (p - IDLE_BOB_RISE) / (1 - IDLE_BOB_RISE);
   const bobY = -easeOutQuad(tri) * IDLE_BOB_AMP;
   return { frame: dir, bobY };

@@ -81,7 +81,7 @@ export class TraderSystem implements System {
       return d !== 0 ? d : TRADEABLE.indexOf(a) - TRADEABLE.indexOf(b);
     });
     const plentiful = [...ranked].reverse(); // highest stock first → player GIVES
-    const scarce = ranked;                    // lowest stock first  → player RECEIVES
+    const scarce = ranked; // lowest stock first  → player RECEIVES
 
     const offers: BarterOffer[] = [];
     for (let i = 0; i < MAX_OFFERS; i++) {

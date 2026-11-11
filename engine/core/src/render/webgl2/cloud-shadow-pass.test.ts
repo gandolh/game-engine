@@ -112,16 +112,12 @@ describe("CloudShadowPass", () => {
     pass.setView({ scaleX: 1, scaleY: -1, offsetX: 0, offsetY: 0 });
 
     pass.draw(gl, { ...BASE_OPTS, mode: "shadow" });
-    const shadowCall = (gl.uniform1f as ReturnType<typeof vi.fn>).mock.calls.find(
-      (c) => c[0]?.__uniform === "u_mode",
-    );
+    const shadowCall = (gl.uniform1f as ReturnType<typeof vi.fn>).mock.calls.find((c) => c[0]?.__uniform === "u_mode");
     expect(shadowCall?.[1]).toBe(0);
 
     (gl.uniform1f as ReturnType<typeof vi.fn>).mockClear();
     pass.draw(gl, { ...BASE_OPTS, mode: "haze" });
-    const hazeCall = (gl.uniform1f as ReturnType<typeof vi.fn>).mock.calls.find(
-      (c) => c[0]?.__uniform === "u_mode",
-    );
+    const hazeCall = (gl.uniform1f as ReturnType<typeof vi.fn>).mock.calls.find((c) => c[0]?.__uniform === "u_mode");
     expect(hazeCall?.[1]).toBe(1);
   });
 
@@ -131,16 +127,12 @@ describe("CloudShadowPass", () => {
     pass.setView({ scaleX: 1, scaleY: -1, offsetX: 0, offsetY: 0 });
 
     pass.draw(gl, { ...BASE_OPTS, vignette: 5 });
-    let call = (gl.uniform1f as ReturnType<typeof vi.fn>).mock.calls.find(
-      (c) => c[0]?.__uniform === "u_vignette",
-    );
+    let call = (gl.uniform1f as ReturnType<typeof vi.fn>).mock.calls.find((c) => c[0]?.__uniform === "u_vignette");
     expect(call?.[1]).toBe(1);
 
     (gl.uniform1f as ReturnType<typeof vi.fn>).mockClear();
     pass.draw(gl, BASE_OPTS);
-    call = (gl.uniform1f as ReturnType<typeof vi.fn>).mock.calls.find(
-      (c) => c[0]?.__uniform === "u_vignette",
-    );
+    call = (gl.uniform1f as ReturnType<typeof vi.fn>).mock.calls.find((c) => c[0]?.__uniform === "u_vignette");
     expect(call?.[1]).toBe(0);
   });
 
@@ -150,15 +142,7 @@ describe("CloudShadowPass", () => {
     pass.setView({ scaleX: 2, scaleY: -3, offsetX: 4, offsetY: 5 });
     pass.draw(gl, BASE_OPTS);
 
-    expect(gl.uniform2f).toHaveBeenCalledWith(
-      expect.objectContaining({ __uniform: "u_scale" }),
-      2,
-      -3,
-    );
-    expect(gl.uniform2f).toHaveBeenCalledWith(
-      expect.objectContaining({ __uniform: "u_offset" }),
-      4,
-      5,
-    );
+    expect(gl.uniform2f).toHaveBeenCalledWith(expect.objectContaining({ __uniform: "u_scale" }), 2, -3);
+    expect(gl.uniform2f).toHaveBeenCalledWith(expect.objectContaining({ __uniform: "u_offset" }), 4, 5);
   });
 });

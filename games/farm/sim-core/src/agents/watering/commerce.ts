@@ -3,10 +3,7 @@ import { recordReason } from "../../components";
 import { totalProductCount, totalFruitCount } from "../../economy";
 import type { MarketOffer } from "../../protocols/market";
 
-export function deliberateSellProducts(
-  farmer: GameEntity,
-  priority: number,
-): void {
+export function deliberateSellProducts(farmer: GameEntity, priority: number): void {
   if (!farmer.intentions || !farmer.inventory || !farmer.farmer) return;
   const products = farmer.inventory.products;
   if (!products) return;
@@ -16,7 +13,7 @@ export function deliberateSellProducts(
     const total = totalProductCount(farmer.inventory, kind);
     if (total <= 0) continue;
     if (!inVillage) {
-      if (!farmer.intentions.queue.some(i => i.kind === "travel" && i.data.targetRegionId === "village")) {
+      if (!farmer.intentions.queue.some((i) => i.kind === "travel" && i.data.targetRegionId === "village")) {
         farmer.intentions.queue.push({
           kind: "travel",
           data: { targetRegionId: "village" },
@@ -24,7 +21,7 @@ export function deliberateSellProducts(
         });
       }
     }
-    if (!farmer.intentions.queue.some(i => i.kind === "sell-product" && i.data.kind === kind)) {
+    if (!farmer.intentions.queue.some((i) => i.kind === "sell-product" && i.data.kind === kind)) {
       farmer.intentions.queue.push({
         kind: "sell-product",
         data: { kind },
@@ -35,10 +32,7 @@ export function deliberateSellProducts(
   }
 }
 
-export function deliberateSellFruit(
-  farmer: GameEntity,
-  priority: number,
-): void {
+export function deliberateSellFruit(farmer: GameEntity, priority: number): void {
   if (!farmer.intentions || !farmer.inventory || !farmer.farmer) return;
   const fruit = farmer.inventory.fruit;
   if (!fruit) return;
@@ -48,7 +42,7 @@ export function deliberateSellFruit(
     const total = totalFruitCount(farmer.inventory, kind);
     if (total <= 0) continue;
     if (!inVillage) {
-      if (!farmer.intentions.queue.some(i => i.kind === "travel" && i.data.targetRegionId === "village")) {
+      if (!farmer.intentions.queue.some((i) => i.kind === "travel" && i.data.targetRegionId === "village")) {
         farmer.intentions.queue.push({
           kind: "travel",
           data: { targetRegionId: "village" },
@@ -56,7 +50,7 @@ export function deliberateSellFruit(
         });
       }
     }
-    if (!farmer.intentions.queue.some(i => i.kind === "sell-fruit" && i.data.kind === kind)) {
+    if (!farmer.intentions.queue.some((i) => i.kind === "sell-fruit" && i.data.kind === kind)) {
       farmer.intentions.queue.push({
         kind: "sell-fruit",
         data: { kind },
@@ -75,11 +69,7 @@ export function deliberateSellFruit(
  * land back in inventory and the normal sell path can turn them into gold.
  * Requires the seller to be in the village (the wall's cancel gate).
  */
-export function deliberateWallLiquidation(
-  farmer: GameEntity,
-  withinDays: number,
-  priority: number,
-): void {
+export function deliberateWallLiquidation(farmer: GameEntity, withinDays: number, priority: number): void {
   if (!farmer.intentions || !farmer.beliefs || !farmer.farmer) return;
   const daysRemaining = farmer.beliefs.data.daysRemaining as number | undefined;
   if (daysRemaining === undefined || daysRemaining > withinDays) return;
@@ -92,9 +82,7 @@ export function deliberateWallLiquidation(
 
   if (
     farmer.farmer.currentRegion !== "village" &&
-    !farmer.intentions.queue.some(
-      (i) => i.kind === "travel" && i.data.targetRegionId === "village",
-    )
+    !farmer.intentions.queue.some((i) => i.kind === "travel" && i.data.targetRegionId === "village")
   ) {
     farmer.intentions.queue.push({
       kind: "travel",
@@ -104,11 +92,7 @@ export function deliberateWallLiquidation(
   }
 
   for (const offer of mine) {
-    if (
-      farmer.intentions.queue.some(
-        (i) => i.kind === "sell-from-wall" && i.data.offerId === offer.offerId,
-      )
-    ) {
+    if (farmer.intentions.queue.some((i) => i.kind === "sell-from-wall" && i.data.offerId === offer.offerId)) {
       continue;
     }
     farmer.intentions.queue.push({
@@ -116,24 +100,17 @@ export function deliberateWallLiquidation(
       data: { offerId: offer.offerId },
       priority,
     });
-    recordReason(
-      farmer,
-      `pull ${offer.crop} x${offer.quantity} off the wall: ${daysRemaining}d left`,
-    );
+    recordReason(farmer, `pull ${offer.crop} x${offer.quantity} off the wall: ${daysRemaining}d left`);
   }
 }
 
-export function deliberatePeriodicMarketVisit(
-  farmer: GameEntity,
-  period: number,
-  priority: number,
-): void {
+export function deliberatePeriodicMarketVisit(farmer: GameEntity, period: number, priority: number): void {
   if (!farmer.intentions || !farmer.beliefs || !farmer.farmer) return;
   const day = (farmer.beliefs.data.currentDay as number | undefined) ?? 0;
-  if (day === 0) return; 
+  if (day === 0) return;
   if (day % period !== 0) return;
   if (farmer.farmer.currentRegion === "village") return;
-  if (farmer.intentions.queue.some(i => i.kind === "travel" && i.data.targetRegionId === "village")) return;
+  if (farmer.intentions.queue.some((i) => i.kind === "travel" && i.data.targetRegionId === "village")) return;
   farmer.intentions.queue.push({
     kind: "travel",
     data: { targetRegionId: "village" },

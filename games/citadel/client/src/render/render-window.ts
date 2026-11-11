@@ -56,8 +56,10 @@ export function visibleTileWindow(
   const z = zoom > 0 ? zoom : 1;
   const halfW = viewW / 2 / z;
   const halfH = viewH / 2 / z;
-  const x0 = cx - halfW, x1 = cx + halfW;
-  const y0 = cy - halfH, y1 = cy + halfH;
+  const x0 = cx - halfW,
+    x1 = cx + halfW;
+  const y0 = cy - halfH,
+    y1 = cy + halfH;
 
   // Invert the viewport's four corners into continuous tile space; the visible
   // tile set is the bbox of those four points (the rotated square's extent).
@@ -67,7 +69,10 @@ export function visibleTileWindow(
     iso.isoToTileContinuous(x0, y1),
     iso.isoToTileContinuous(x1, y1),
   ];
-  let loX = Infinity, hiX = -Infinity, loY = Infinity, hiY = -Infinity;
+  let loX = Infinity,
+    hiX = -Infinity,
+    loY = Infinity,
+    hiY = -Infinity;
   for (const c of corners) {
     if (c.tileX < loX) loX = c.tileX;
     if (c.tileX > hiX) hiX = c.tileX;

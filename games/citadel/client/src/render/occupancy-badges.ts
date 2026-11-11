@@ -65,11 +65,7 @@ export class OccupancyBadgeLayer {
    * bridge/gate) is always excluded. `tileToCss` projects the building's top-
    * centre tile to screen CSS-px to anchor the chip over the roof.
    */
-  update(
-    buildings: readonly BuildingSnapshot[],
-    ownerId: number,
-    tileToCss: TileToCss,
-  ): void {
+  update(buildings: readonly BuildingSnapshot[], ownerId: number, tileToCss: TileToCss): void {
     let i = 0;
     for (const b of buildings) {
       if (b.ownerId !== ownerId) continue;
@@ -128,10 +124,7 @@ export class OccupancyBadgeLayer {
         color: EDG.yellow,
         layout: {},
       });
-      const container = panel(
-        { direction: "row", padding: CHIP_PADDING, align: "center" },
-        [lbl],
-      );
+      const container = panel({ direction: "row", padding: CHIP_PADDING, align: "center" }, [lbl]);
       chip = { container, lbl };
       this.pool[i] = chip;
       // Pre-extend the active array slot.

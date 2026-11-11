@@ -23,7 +23,10 @@ function topic(correct: number, attempts: number): TopicMastery {
   return { correct, attempts };
 }
 
-function storeWith(overrides: Partial<Record<MathTopic, TopicMastery>>, blueprints: readonly string[] = []): MasteryStore {
+function storeWith(
+  overrides: Partial<Record<MathTopic, TopicMastery>>,
+  blueprints: readonly string[] = [],
+): MasteryStore {
   return {
     version: 1,
     topics: {
@@ -223,7 +226,10 @@ describe("parseMasteryStore — persistence round-trip + validate-or-reset", () 
 
   it("blueprints are normalized: deduped + sorted, non-string entries dropped", () => {
     const store = storeWith({});
-    const malformed = { ...store, blueprints: [BLUEPRINTS.multiplication.id, BLUEPRINTS.addition.id, BLUEPRINTS.addition.id, 42, null] };
+    const malformed = {
+      ...store,
+      blueprints: [BLUEPRINTS.multiplication.id, BLUEPRINTS.addition.id, BLUEPRINTS.addition.id, 42, null],
+    };
     const parsed = parseMasteryStore(JSON.stringify(malformed));
     expect(parsed.blueprints).toEqual([BLUEPRINTS.addition.id, BLUEPRINTS.multiplication.id].sort());
   });

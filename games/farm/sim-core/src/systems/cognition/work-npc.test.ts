@@ -56,11 +56,11 @@ describe("WorkNpcSystem", () => {
 
   it("a pose:null station shows the idle figure, never the building sprite", () => {
     const { world, e } = makeNpc();
-    e.workNpc!.stationIndex = 1; 
+    e.workNpc!.stationIndex = 1;
     e.workNpc!.phase = "walking";
     e.workNpc!.timer = 1;
     const sys = new WorkNpcSystem(world);
-    tick(world, sys, 20); 
+    tick(world, sys, 20);
     expect(e.transform!.x).toBe(2);
     expect(e.transform!.y).toBe(2);
     expect(e.workNpc!.phase).toBe("working");
@@ -72,7 +72,7 @@ describe("WorkNpcSystem", () => {
   it("shows the idle figure while walking between stations", () => {
     const { world, e } = makeNpc();
     const sys = new WorkNpcSystem(world);
-    tick(world, sys, 1); 
+    tick(world, sys, 1);
     expect(e.workNpc!.phase).toBe("walking");
     expect(e.workNpc!.poseFrame).toBe("npc/blacksmith/idle");
   });

@@ -4,35 +4,60 @@ import { registerPersonality, type DeliberateContext } from "./registry";
 import { ONT_MARKET, type MarketOffer } from "../protocols/market";
 import type { WeatherCondition, Season } from "../protocols/weather";
 import { seasonForDay } from "../protocols/weather";
-import {
-  registerPeerTradeHooks,
-} from "./peer-trade-registry";
+import { registerPeerTradeHooks } from "./peer-trade-registry";
 import { makeRespondPeerOffer, makeInitiatePeerTrade } from "./peer-trade-policy";
 import { CROP_SELL_PRICE, SEED_COST, CROP_SEASON } from "../economy";
 import { deliberateBean } from "./bean-valuation";
 import { nonFarmFocus, gatherBias, TEMPERAMENT } from "./skill-valuation";
-import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberateMillVisit, deliberateSkilledNonFarm, deliberatePlantNearby, deliberateBuildPen, deliberateBuyAnimal, deliberateTendPens, deliberateSellProducts, deliberatePlantOrchard, deliberateHarvestFruit, deliberateSellFruit, deliberateHireHelp, deliberateTavernGather, deliberateFestivalGather, FESTIVAL_FRONT_PRIORITY, deliberateHarborContract, deliberateShrineVisit, deliberatePortHop, deliberateWallLiquidation } from "./watering";
+import {
+  deliberateWatering,
+  deliberateRefillCan,
+  deliberateTill,
+  deliberateBuyTool,
+  deliberateResourceGather,
+  deliberateDecoration,
+  deliberateUpgrade,
+  deliberateResourceZoneVisit,
+  deliberateEarlyVillageVisit,
+  deliberateSleep,
+  deliberatePeriodicMarketVisit,
+  deliberateMillVisit,
+  deliberateSkilledNonFarm,
+  deliberatePlantNearby,
+  deliberateBuildPen,
+  deliberateBuyAnimal,
+  deliberateTendPens,
+  deliberateSellProducts,
+  deliberatePlantOrchard,
+  deliberateHarvestFruit,
+  deliberateSellFruit,
+  deliberateHireHelp,
+  deliberateTavernGather,
+  deliberateFestivalGather,
+  FESTIVAL_FRONT_PRIORITY,
+  deliberateHarborContract,
+  deliberateShrineVisit,
+  deliberatePortHop,
+  deliberateWallLiquidation,
+} from "./watering";
 import type { PlotWaterSense } from "../systems/farming/plot-sense";
 import type { TileFeature, FarmDecoration } from "../components";
 import type { HarborContract } from "../protocols/harbor";
 
 const FAIR_PRICE: Record<CropKind, number> = {
-  radish:          7,
-  wheat:           12,
-  carrot:          10,
-  tomato:          18,
-  corn:            23,
-  pumpkin:         30,
-  grape:           44,
+  radish: 7,
+  wheat: 12,
+  carrot: 10,
+  tomato: 18,
+  corn: 23,
+  pumpkin: 30,
+  grape: 44,
   "winter-squash": 19,
 };
 const LOW_SUPPLY_THRESHOLD = 3;
-const BUY_PRICE_MULTIPLIER = 1.1; 
+const BUY_PRICE_MULTIPLIER = 1.1;
 
-function pickCropFromWeatherAndSeason(
-  forecast: WeatherCondition | undefined,
-  day: number,
-): CropKind {
+function pickCropFromWeatherAndSeason(forecast: WeatherCondition | undefined, day: number): CropKind {
   const season = seasonForDay(day);
   const inSeason: Record<Season, CropKind[]> = {
     spring: ["wheat", "carrot", "radish"],
@@ -42,9 +67,9 @@ function pickCropFromWeatherAndSeason(
   };
   const candidates = inSeason[season];
   if (forecast === "storm" || forecast === "rainy") {
-    return candidates[candidates.length - 1]!; 
+    return candidates[candidates.length - 1]!;
   }
-  return candidates[0]!; 
+  return candidates[0]!;
 }
 
 const FALLBACK_LADDER: CropKind[] = (["tomato", "carrot", "radish", "winter-squash", "wheat"] as CropKind[])
@@ -71,8 +96,7 @@ export function deliberateOpportunist(farmer: GameEntity, ctx: DeliberateContext
   const reserve = (farmer.desires.data["minGoldReserve"] as number | undefined) ?? 50;
   const day = (farmer.beliefs.data["currentDay"] as number | undefined) ?? ctx.tick;
   const weather = farmer.beliefs.data["weather"] as
-    | { current?: WeatherCondition; forecast?: WeatherCondition }
-    | undefined;
+    { current?: WeatherCondition; forecast?: WeatherCondition } | undefined;
   const forecast = weather?.forecast ?? weather?.current;
   const inVillage = farmer.farmer?.currentRegion === "village";
 
@@ -107,9 +131,9 @@ export function deliberateOpportunist(farmer: GameEntity, ctx: DeliberateContext
   deliberateEarlyVillageVisit(farmer, 5);
 
   deliberateUpgrade(farmer, "pickaxe", 9);
-  deliberateUpgrade(farmer, "hoe",     10);
+  deliberateUpgrade(farmer, "hoe", 10);
   deliberateResourceZoneVisit(farmer, features, "stone", 11);
-  deliberateResourceZoneVisit(farmer, features, "tree",  12);
+  deliberateResourceZoneVisit(farmer, features, "tree", 12);
 
   const desired = pickCropFromWeatherAndSeason(forecast, day);
   const target = fallbackCrop(desired, farmer.inventory.gold, reserve);
@@ -173,9 +197,12 @@ export function deliberateOpportunist(farmer: GameEntity, ctx: DeliberateContext
         data: { crop, quantity: qty },
         priority: 3,
       });
-      recordReason(farmer, needsLiquidity
-        ? `sell ${crop} x${qty}: liquidity fallback (gold ${farmer.inventory.gold} < ${Math.floor(reserve * 0.5)})`
-        : `sell ${crop} x${qty}: high supply ${supply}`);
+      recordReason(
+        farmer,
+        needsLiquidity
+          ? `sell ${crop} x${qty}: liquidity fallback (gold ${farmer.inventory.gold} < ${Math.floor(reserve * 0.5)})`
+          : `sell ${crop} x${qty}: high supply ${supply}`,
+      );
     }
   }
 
@@ -194,7 +221,7 @@ export function deliberateOpportunist(farmer: GameEntity, ctx: DeliberateContext
     if (offer.pricePerUnit > ceiling) continue;
     const cost = offer.pricePerUnit * offer.quantity;
     if (farmer.inventory.gold - cost < reserve) continue;
-    const t = trust?.get(offer.sellerId) ?? 0.5; 
+    const t = trust?.get(offer.sellerId) ?? 0.5;
     if (best === null || t > best.trust) {
       best = { offer, trust: t };
     }
@@ -272,7 +299,7 @@ export function deliberateOpportunist(farmer: GameEntity, ctx: DeliberateContext
 
 registerPersonality("opportunist", deliberateOpportunist);
 
-const OPP_PEER_BUY_CEILING = 1.1; 
+const OPP_PEER_BUY_CEILING = 1.1;
 const OPP_PEER_SELL_FLOOR = 0.9;
 const OPP_BUFFER_SEEDS = 1;
 
@@ -285,7 +312,7 @@ export const respondToPeerOfferOpportunist = makeRespondPeerOffer({
 
 export const respondCropOfferOpportunist = makeRespondPeerOffer({
   commodity: "crop",
-  buyCeiling: 1.0, 
+  buyCeiling: 1.0,
   sellFloor: 0.9,
   bufferSeeds: 0,
   reserveDefault: 50,

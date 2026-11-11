@@ -97,9 +97,7 @@ describe("createElementArrayBuffer", () => {
       { target: gl.ELEMENT_ARRAY_BUFFER, buffer },
       { target: gl.ELEMENT_ARRAY_BUFFER, buffer: null },
     ]);
-    expect(gl.bufferDataCalls).toEqual([
-      { target: gl.ELEMENT_ARRAY_BUFFER, data, usage: gl.STATIC_DRAW },
-    ]);
+    expect(gl.bufferDataCalls).toEqual([{ target: gl.ELEMENT_ARRAY_BUFFER, data, usage: gl.STATIC_DRAW }]);
   });
 });
 

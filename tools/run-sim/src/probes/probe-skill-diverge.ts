@@ -1,4 +1,3 @@
-
 import { bootstrapSim, leaderboard } from "@farm/sim-core/sim-bootstrap";
 import { skillLevel } from "@farm/sim-core/systems/skills";
 import { SKILL_KINDS, type GameEntity } from "@farm/sim-core/components";
@@ -33,9 +32,7 @@ async function runSeed(seed: number): Promise<void> {
 
   console.log(`\n================= SEED 0x${seed.toString(16)} =================`);
   // Per-farmer skill sheet + wealth, sorted by wealth desc.
-  const rows = board
-    .slice()
-    .sort((a, b) => b.totalValue - a.totalValue);
+  const rows = board.slice().sort((a, b) => b.totalValue - a.totalValue);
 
   const nonFarmLeaders = new Set<string>();
   const dominantLineCounts: Record<string, number> = {};
@@ -64,9 +61,7 @@ async function runSeed(seed: number): Promise<void> {
       dominantLineCounts[topNon] = (dominantLineCounts[topNon] ?? 0) + 1;
       if (rank <= 5) wealthDominanceTop5[topNon] = (wealthDominanceTop5[topNon] ?? 0) + 1;
     }
-    const skStr = SKILL_KINDS.map(
-      (a) => `${a[0]!.toUpperCase()}${a[1]}${levels[a as Axis]}`,
-    ).join(" ");
+    const skStr = SKILL_KINDS.map((a) => `${a[0]!.toUpperCase()}${a[1]}${levels[a as Axis]}`).join(" ");
     console.log(
       `  #${String(rank).padStart(2)} ${row.name.padEnd(10)} ${row.personality.padEnd(12)} tot=${String(Math.round(row.totalValue)).padStart(5)}  ${skStr}${leansNonFarm ? "  <=NONFARM(" + topNon + ")" : ""}`,
     );

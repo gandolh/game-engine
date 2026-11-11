@@ -213,10 +213,7 @@ export function createRightColumn(
   const wealthSection = box({ direction: "column", gap: 0, align: "stretch" }, [wealthToggle.root]);
   function syncWealth(): void {
     const want = wealthToggle.isOpen() ? [wealthToggle.root, wealthGraph.root] : [wealthToggle.root];
-    if (
-      wealthSection.children.length !== want.length ||
-      wealthSection.children.some((c, i) => c !== want[i])
-    ) {
+    if (wealthSection.children.length !== want.length || wealthSection.children.some((c, i) => c !== want[i])) {
       wealthSection.children = want;
     }
   }

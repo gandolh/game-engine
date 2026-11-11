@@ -142,7 +142,11 @@ export class HollowShockSystem implements System {
         this.applyDisaster(shock.resourceKind, tick, seq);
         break;
       case "plague":
-        this.activePlagues.push({ need: shock.need, amountPerTick: shock.amountPerTick, endTick: tick + shock.durationTicks });
+        this.activePlagues.push({
+          need: shock.need,
+          amountPerTick: shock.amountPerTick,
+          endTick: tick + shock.durationTicks,
+        });
         break;
     }
     this.emit(intervention);

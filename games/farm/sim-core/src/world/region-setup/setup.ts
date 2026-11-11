@@ -1,6 +1,18 @@
 import type { World } from "@engine/core";
 import type { GameEntity } from "../../components";
-import { REGIONS, ROADS, AUCTION_PODIUM_TILE, NOTICE_BOARD_TILE, HARBOR_BOARD_TILE, HARBOR_DOCK_TILE, scaleAroundNearestIsland, snapPropToLand, regionAt, type RegionId, type RegionDef } from "../regions";
+import {
+  REGIONS,
+  ROADS,
+  AUCTION_PODIUM_TILE,
+  NOTICE_BOARD_TILE,
+  HARBOR_BOARD_TILE,
+  HARBOR_DOCK_TILE,
+  scaleAroundNearestIsland,
+  snapPropToLand,
+  regionAt,
+  type RegionId,
+  type RegionDef,
+} from "../regions";
 import { BLACKSMITH_TILE, MARKET_WALL_TILE, SHOPKEEPER_TILE } from "./tiles";
 import { fountainTile, placeProps, placeFootprint, setReservedSolidTiles } from "./placement";
 import { PLOT_OFFSETS, forcedCoreTiles } from "./anchors";
@@ -39,10 +51,7 @@ export interface SetupRegionsResult {
   harborBoardEntity: GameEntity;
 }
 
-export function setupRegions(
-  world: World<GameEntity>,
-  farmers: GameEntity[],
-): SetupRegionsResult {
+export function setupRegions(world: World<GameEntity>, farmers: GameEntity[]): SetupRegionsResult {
   const regionEntities = new Map<RegionId, GameEntity>();
   const plotEntities: GameEntity[] = [];
   const fountainEntities: GameEntity[] = [];
@@ -87,7 +96,6 @@ export function setupRegions(
     regionEntities.set(def.id, regionEntity);
 
     if (def.kind === "farm" && farmer !== undefined && ownerId !== undefined) {
-
       const start = farmer.player
         ? { x: def.center.x + PLOT_OFFSETS[0], y: def.center.y + PLOT_OFFSETS[0] }
         : def.center;
@@ -156,9 +164,12 @@ export function setupRegions(
       ]);
 
       placeFootprint(world, [
-        { x: 99, y: 76 }, { x: 100, y: 76 },
-        { x: 99, y: 77 }, { x: 100, y: 77 },
-        { x: 99, y: 78 }, { x: 100, y: 78 },
+        { x: 99, y: 76 },
+        { x: 100, y: 76 },
+        { x: 99, y: 77 },
+        { x: 100, y: 77 },
+        { x: 99, y: 78 },
+        { x: 100, y: 78 },
       ]);
       world.spawn({
         transform: {
@@ -174,7 +185,6 @@ export function setupRegions(
         workNpc: {
           idlePose: "npc/blacksmith/idle",
           stations: scaleStations([
-
             { tileX: 99, tileY: 82, facing: "up", flipX: false, pose: "npc/blacksmith/hammer" },
 
             { tileX: 97, tileY: 80, facing: "up", flipX: false, pose: null },
@@ -206,9 +216,12 @@ export function setupRegions(
       ]);
 
       placeFootprint(world, [
-        { x: 59, y: 76 }, { x: 60, y: 76 },
-        { x: 59, y: 77 }, { x: 60, y: 77 },
-        { x: 59, y: 78 }, { x: 60, y: 78 },
+        { x: 59, y: 76 },
+        { x: 60, y: 76 },
+        { x: 59, y: 77 },
+        { x: 60, y: 77 },
+        { x: 59, y: 78 },
+        { x: 60, y: 78 },
       ]);
       world.spawn({
         transform: { x: cx, y: cy, prevX: cx, prevY: cy, rotation: 0 },
@@ -218,7 +231,6 @@ export function setupRegions(
         workNpc: {
           idlePose: "npc/carpenter/idle",
           stations: scaleStations([
-
             { tileX: 63, tileY: 79, facing: "up", flipX: false, pose: "npc/carpenter/saw" },
 
             { tileX: 65, tileY: 78, facing: "up", flipX: false, pose: "npc/carpenter/saw" },
@@ -312,7 +324,6 @@ export function setupRegions(
       workNpc: {
         idlePose: "npc/barkeep/idle",
         stations: scaleStations([
-
           { tileX: 82, tileY: 76, facing: "down", flipX: false, pose: "npc/barkeep/pour" },
 
           { tileX: 81, tileY: 76, facing: "down", flipX: false, pose: "npc/barkeep/pour" },
@@ -380,7 +391,7 @@ export function setupRegions(
 
   for (const [id, frame] of [
     ["mushroom-grove", "structure/mushroom-marker"],
-    ["ice-pond",       "structure/ice-marker"],
+    ["ice-pond", "structure/ice-marker"],
   ] as const) {
     const r = REGIONS.find((reg) => reg.id === id);
     if (r) {
@@ -403,7 +414,7 @@ export function setupRegions(
 
   for (const [id, frame] of [
     ["heritage-stones", "structure/heritage-stones"],
-    ["heritage-ruin",   "structure/heritage-ruin"],
+    ["heritage-ruin", "structure/heritage-ruin"],
     ["heritage-statue", "structure/heritage-statue"],
   ] as const) {
     const r = REGIONS.find((reg) => reg.id === id);
@@ -548,9 +559,9 @@ export function setupRegions(
     workNpc: {
       idlePose: "npc/dockmaster/idle",
       stations: scaleStations([
-        { tileX: 96, tileY: 109, facing: "up", flipX: false, pose: null },   
-        { tileX: 96, tileY: 106, facing: "down", flipX: false, pose: null }, 
-        { tileX: 98, tileY: 110, facing: "side", flipX: false, pose: null }, 
+        { tileX: 96, tileY: 109, facing: "up", flipX: false, pose: null },
+        { tileX: 96, tileY: 106, facing: "down", flipX: false, pose: null },
+        { tileX: 98, tileY: 110, facing: "side", flipX: false, pose: null },
       ]),
       stationIndex: 0,
       phase: "working",

@@ -92,7 +92,7 @@ describe("deliberateAggressive", () => {
       sellerId: 99,
       crop: "wheat",
       quantity: 2,
-      pricePerUnit: 5, 
+      pricePerUnit: 5,
       postedDay: 0,
     };
     const fair: MarketOffer = {
@@ -100,7 +100,7 @@ describe("deliberateAggressive", () => {
       sellerId: 98,
       crop: "wheat",
       quantity: 2,
-      pricePerUnit: 14, 
+      pricePerUnit: 14,
       postedDay: 0,
     };
     const f = makeFarmer({ day: 2, gold: 1000, offers: [cheap, fair] });
@@ -127,9 +127,7 @@ describe("deliberateAggressive", () => {
     deliberateAggressive(f, { tick: 2 });
     const queue = f.intentions!.queue;
     const postIdx = queue.findIndex((i) => i.kind === "post-offer");
-    const travelIdx = queue.findIndex(
-      (i) => i.kind === "travel" && i.data["targetRegionId"] === "village",
-    );
+    const travelIdx = queue.findIndex((i) => i.kind === "travel" && i.data["targetRegionId"] === "village");
     expect(postIdx).toBeGreaterThan(-1);
     expect(travelIdx).toBeGreaterThan(-1);
     expect(travelIdx).toBeLessThan(postIdx);
@@ -170,9 +168,7 @@ describe("deliberateAggressive", () => {
     deliberateAggressive(f, { tick: 1980 });
 
     const queue = f.intentions!.queue;
-    const travelIdx = queue.findIndex(
-      (i) => i.kind === "travel" && i.data["targetRegionId"] === "village",
-    );
+    const travelIdx = queue.findIndex((i) => i.kind === "travel" && i.data["targetRegionId"] === "village");
     const sellIdx = queue.findIndex((i) => i.kind === "sell-shopkeeper");
     expect(travelIdx).toBeGreaterThan(-1);
     expect(sellIdx).toBeGreaterThan(-1);
@@ -196,13 +192,10 @@ describe("deliberateAggressive", () => {
     const f = makeFarmer({ day: 60, seeds: { pumpkin: 1, wheat: 1, radish: 1 } });
     deliberateAggressive(f, { tick: 1200 });
     expect(f.decisionTrace).toBeDefined();
-    expect(
-      f.decisionTrace!.reasons.some((r) => r.startsWith("plant pumpkin:")),
-    ).toBe(true);
+    expect(f.decisionTrace!.reasons.some((r) => r.startsWith("plant pumpkin:"))).toBe(true);
   });
 
   it("keeps the daysRemaining <= 2 liquidation queue priority-sorted, not push-ordered (item 24)", () => {
-
     const f = makeFarmer({
       day: 98,
       crops: { radish: 4 },
@@ -241,8 +234,6 @@ describe("deliberateAggressive", () => {
     const f = makeFarmer({ crops: { wheat: 3 }, region: "village", day: 50 });
     f.beliefs!.data["daysRemaining"] = 1;
     deliberateAggressive(f, { tick: 1000 });
-    expect(
-      f.decisionTrace!.reasons.some((r) => r.includes("liquidate")),
-    ).toBe(true);
+    expect(f.decisionTrace!.reasons.some((r) => r.includes("liquidate"))).toBe(true);
   });
 });

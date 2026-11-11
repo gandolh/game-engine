@@ -33,53 +33,53 @@ export const SWATCH: Readonly<Record<string, readonly [number, number, number, n
   ".": NONE,
 
   // Darks / outlines
-  "#": rgba(EDG.black),     // outline
-  "%": rgba(EDG.bark),      // dark brown outline / shadow
-  "i": rgba(EDG.ink),       // cool dark
+  "#": rgba(EDG.black), // outline
+  "%": rgba(EDG.bark), // dark brown outline / shadow
+  i: rgba(EDG.ink), // cool dark
 
   // Wood / thatch
-  "w": rgba(EDG.wood),
-  "W": rgba(EDG.woodDark),
-  "t": rgba(EDG.tan),
-  "c": rgba(EDG.cream),
+  w: rgba(EDG.wood),
+  W: rgba(EDG.woodDark),
+  t: rgba(EDG.tan),
+  c: rgba(EDG.cream),
 
   // Roofs (warm)
-  "r": rgba(EDG.clay),
-  "R": rgba(EDG.rust),
-  "x": rgba(EDG.crimson),
-  "e": rgba(EDG.red),
+  r: rgba(EDG.clay),
+  R: rgba(EDG.rust),
+  x: rgba(EDG.crimson),
+  e: rgba(EDG.red),
 
   // Fire / gold accents
-  "o": rgba(EDG.orange),
-  "O": rgba(EDG.gold),
-  "y": rgba(EDG.yellow),
+  o: rgba(EDG.orange),
+  O: rgba(EDG.gold),
+  y: rgba(EDG.yellow),
 
   // Foliage / farm
-  "g": rgba(EDG.green),
-  "G": rgba(EDG.greenMid),
-  "d": rgba(EDG.greenDark),
-  "T": rgba(EDG.teal),
+  g: rgba(EDG.green),
+  G: rgba(EDG.greenMid),
+  d: rgba(EDG.greenDark),
+  T: rgba(EDG.teal),
 
   // Stone / metal / grey ramp
-  "s": rgba(EDG.steel),
-  "S": rgba(EDG.slate),
-  "n": rgba(EDG.navy),
-  "l": rgba(EDG.silver),
-  "v": rgba(EDG.white),
+  s: rgba(EDG.steel),
+  S: rgba(EDG.slate),
+  n: rgba(EDG.navy),
+  l: rgba(EDG.silver),
+  v: rgba(EDG.white),
 
   // Glass / water
-  "b": rgba(EDG.blue),
-  "B": rgba(EDG.skyBlue),
-  "C": rgba(EDG.cyan),
+  b: rgba(EDG.blue),
+  B: rgba(EDG.skyBlue),
+  C: rgba(EDG.cyan),
 
   // Special roofs / banners
-  "p": rgba(EDG.plum),
-  "m": rgba(EDG.mauve),
-  "P": rgba(EDG.salmon),
+  p: rgba(EDG.plum),
+  m: rgba(EDG.mauve),
+  P: rgba(EDG.salmon),
 
   // Figures
-  "k": rgba(EDG.skin),
-  "K": rgba(EDG.skinMid),
+  k: rgba(EDG.skin),
+  K: rgba(EDG.skinMid),
 };
 
 /** Resolve a recipe char to RGBA. Throws on an unknown char (authoring guard). */

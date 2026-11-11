@@ -24,11 +24,7 @@ function buttons(host: HTMLElement): HTMLButtonElement[] {
 
 describe("a11y mirror — tree → DOM", () => {
   it("creates a <button> per button with its label as accessible name and disabled reflected", () => {
-    const tree: UINode = panel({}, [
-      label("Title"),
-      button("Plant"),
-      button("Harvest", { state: "disabled" }),
-    ]);
+    const tree: UINode = panel({}, [label("Title"), button("Plant"), button("Harvest", { state: "disabled" })]);
     const host = mount();
     const mirror = createA11yMirror(host);
     mirror.update(tree);
@@ -65,11 +61,7 @@ describe("a11y mirror — tree → DOM", () => {
   });
 
   it("keeps DOM (tab) order == pre-order tree order", () => {
-    const tree: UINode = box({}, [
-      button("first"),
-      box({}, [button("nested")]),
-      button("last"),
-    ]);
+    const tree: UINode = box({}, [button("first"), box({}, [button("nested")]), button("last")]);
     const host = mount();
     const mirror = createA11yMirror(host);
     mirror.update(tree);
@@ -376,8 +368,7 @@ describe("a11y mirror — checkbox", () => {
 
     // Start with empty label — no text node yet.
     const lbl = host.querySelector("label")!;
-    const textNodes = (): Text[] =>
-      Array.from(lbl.childNodes).filter((n) => n.nodeType === Node.TEXT_NODE) as Text[];
+    const textNodes = (): Text[] => Array.from(lbl.childNodes).filter((n) => n.nodeType === Node.TEXT_NODE) as Text[];
     expect(textNodes().length).toBe(0);
 
     // Set caption to "Foo".

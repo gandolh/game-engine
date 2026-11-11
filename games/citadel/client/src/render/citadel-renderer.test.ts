@@ -75,7 +75,9 @@ const iso = makeIso(96, 96);
 import { glowAlphaForMood, houseAlphaForMood } from "./citadel-fx";
 import { FRAME_ROAD, FRAME_BRIDGE } from "./sprites/recipes";
 
-function building(partial: Partial<BuildingSnapshot> & Pick<BuildingSnapshot, "type" | "x" | "y" | "w" | "h">): BuildingSnapshot {
+function building(
+  partial: Partial<BuildingSnapshot> & Pick<BuildingSnapshot, "type" | "x" | "y" | "w" | "h">,
+): BuildingSnapshot {
   return {
     connected: true,
     outputBuffer: 0,
@@ -294,7 +296,12 @@ describe("screenToWorld / screenToTile (placement transform)", () => {
   });
 
   it("round-trips an ISO tile center back to its tile (the placement pick path)", () => {
-    for (const [tileX, tileY] of [[0, 0], [12, 47], [95, 95], [48, 48]] as const) {
+    for (const [tileX, tileY] of [
+      [0, 0],
+      [12, 47],
+      [95, 95],
+      [48, 48],
+    ] as const) {
       const c = iso.tileCenterToIso(tileX, tileY); // iso world-px of the diamond centre
       const { sx, sy } = worldToScreen(transform, c.x, c.y);
       const { tx, ty } = screenToTile(iso, transform, sx, sy);
@@ -353,9 +360,7 @@ describe("neighbourMask", () => {
   });
 
   it("cross (all four) sets N|E|S|W", () => {
-    const set = new Set<number>([
-      tileKey(5, 5), tileKey(5, 4), tileKey(5, 6), tileKey(4, 5), tileKey(6, 5),
-    ]);
+    const set = new Set<number>([tileKey(5, 5), tileKey(5, 4), tileKey(5, 6), tileKey(4, 5), tileKey(6, 5)]);
     expect(neighbourMask(5, 5, set)).toBe(DIR_N | DIR_E | DIR_S | DIR_W);
   });
 
@@ -397,11 +402,16 @@ function hasArm(quads: QuadSpec[], tileX: number, tileY: number, dir: number): b
     // Only consider quads whose center lies within the queried tile.
     if (qcx < px || qcx >= px + TILE_SIZE || qcy < py || qcy >= py + TILE_SIZE) return false;
     switch (dir) {
-      case DIR_N: return qcy < cy - 0.01 && Math.abs(qcx - cx) < 0.01;
-      case DIR_S: return qcy > cy + 0.01 && Math.abs(qcx - cx) < 0.01;
-      case DIR_W: return qcx < cx - 0.01 && Math.abs(qcy - cy) < 0.01;
-      case DIR_E: return qcx > cx + 0.01 && Math.abs(qcy - cy) < 0.01;
-      default: return false;
+      case DIR_N:
+        return qcy < cy - 0.01 && Math.abs(qcx - cx) < 0.01;
+      case DIR_S:
+        return qcy > cy + 0.01 && Math.abs(qcx - cx) < 0.01;
+      case DIR_W:
+        return qcx < cx - 0.01 && Math.abs(qcy - cy) < 0.01;
+      case DIR_E:
+        return qcx > cx + 0.01 && Math.abs(qcy - cy) < 0.01;
+      default:
+        return false;
     }
   });
 }
@@ -483,7 +493,9 @@ describe("networkQuads", () => {
     expect(hasArm(q, 5, 5, DIR_S)).toBe(true);
     expect(hasArm(q, 5, 7, DIR_N)).toBe(true);
     // The gate tile itself emits no wall autotile quads (drawn by buildingQuad).
-    const gateBlock = q.filter((qq) => qq.x >= 5 * TILE_SIZE && qq.x < 6 * TILE_SIZE && qq.y >= 6 * TILE_SIZE && qq.y < 7 * TILE_SIZE);
+    const gateBlock = q.filter(
+      (qq) => qq.x >= 5 * TILE_SIZE && qq.x < 6 * TILE_SIZE && qq.y >= 6 * TILE_SIZE && qq.y < 7 * TILE_SIZE,
+    );
     expect(gateBlock).toHaveLength(0);
   });
 
@@ -565,7 +577,11 @@ describe("ditherHash", () => {
 
 describe("ditherClusters", () => {
   const allTypes: TerrainType[] = [
-    TerrainType.Grass, TerrainType.Water, TerrainType.Forest, TerrainType.Stone, TerrainType.Rough,
+    TerrainType.Grass,
+    TerrainType.Water,
+    TerrainType.Forest,
+    TerrainType.Stone,
+    TerrainType.Rough,
   ];
   // Structural (count/color/bounds) properties don't depend on the hillshade
   // bias, so a flat sampler is enough here — the bias itself is exercised on a
@@ -980,8 +996,22 @@ describe("pushAmbientCrowd (brief 105 crowd honesty)", () => {
     } as unknown as RendererLike;
 
     const quads: QuadSpec[] = [
-      { x: 5 * TILE_SIZE, y: 5 * TILE_SIZE, width: TILE_SIZE * 0.6, height: TILE_SIZE * 0.6, tintRgba: packTint(EDG.tan), frame: "vil/pedestrian" },
-      { x: 7 * TILE_SIZE, y: 3 * TILE_SIZE, width: TILE_SIZE * 0.6, height: TILE_SIZE * 0.6, tintRgba: packTint(EDG.blue), frame: "vil/pedestrian" },
+      {
+        x: 5 * TILE_SIZE,
+        y: 5 * TILE_SIZE,
+        width: TILE_SIZE * 0.6,
+        height: TILE_SIZE * 0.6,
+        tintRgba: packTint(EDG.tan),
+        frame: "vil/pedestrian",
+      },
+      {
+        x: 7 * TILE_SIZE,
+        y: 3 * TILE_SIZE,
+        width: TILE_SIZE * 0.6,
+        height: TILE_SIZE * 0.6,
+        tintRgba: packTint(EDG.blue),
+        frame: "vil/pedestrian",
+      },
     ];
     pushAmbientCrowd(fakeRenderer, iso, quads);
 
@@ -1162,7 +1192,11 @@ describe("pushScene house clustering memoizes on the buildings array identity (a
     const pushed: Sprite[] = [];
     const renderer: RendererLike = { push: (s: Sprite) => pushed.push(s) } as unknown as RendererLike;
 
-    pushScene(renderer, iso, { buildings: [building({ type: "house", x: 10, y: 10, w: 1, h: 1 })], villagers: [], raiders: [] });
+    pushScene(renderer, iso, {
+      buildings: [building({ type: "house", x: 10, y: 10, w: 1, h: 1 })],
+      villagers: [],
+      raiders: [],
+    });
     pushed.length = 0;
 
     // A brand-new array adding a neighbour — the memo must re-derive the
@@ -1182,7 +1216,11 @@ describe("pushScene house clustering memoizes on the buildings array identity (a
     const pushed: Sprite[] = [];
     const renderer: RendererLike = { push: (s: Sprite) => pushed.push(s) } as unknown as RendererLike;
 
-    pushScene(renderer, iso, { buildings: [building({ type: "house", x: 20, y: 20, w: 1, h: 1 })], villagers: [], raiders: [] });
+    pushScene(renderer, iso, {
+      buildings: [building({ type: "house", x: 20, y: 20, w: 1, h: 1 })],
+      villagers: [],
+      raiders: [],
+    });
     expect(pushed.some((s) => s.frame === "bld/house")).toBe(true);
 
     pushed.length = 0;

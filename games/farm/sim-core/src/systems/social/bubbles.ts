@@ -1,5 +1,3 @@
-
-
 import type { SimContext, System, World, Rng } from "@engine/core";
 import { bodyOf } from "@engine/core";
 import type { GameEntity } from "../../components";
@@ -20,9 +18,7 @@ function ringTilesFor(isleId: (typeof FISHING_ISLE_IDS)[number]): Array<{ x: num
     for (let x = b.minX - 1; x <= b.maxX + 1; x++) {
       if (isWalkable(x, y)) continue; // only ocean tiles can hold a fishing spot
 
-      const touchesIsle =
-        isIsleLand(x - 1, y) || isIsleLand(x + 1, y) ||
-        isIsleLand(x, y - 1) || isIsleLand(x, y + 1);
+      const touchesIsle = isIsleLand(x - 1, y) || isIsleLand(x + 1, y) || isIsleLand(x, y - 1) || isIsleLand(x, y + 1);
       if (touchesIsle) out.push({ x, y });
     }
   }

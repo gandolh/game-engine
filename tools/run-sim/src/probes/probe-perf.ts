@@ -1,4 +1,3 @@
-
 import { spawn, type ChildProcess } from "node:child_process";
 import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -22,14 +21,14 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..")
 interface ProcStat {
   pid: number;
   ppid: number;
-  jiffies: number; 
+  jiffies: number;
   rssPages: number;
 }
 
 function readProcStat(pid: number): ProcStat | null {
   try {
     const raw = readFileSync(`/proc/${pid}/stat`, "utf8");
-    const close = raw.lastIndexOf(")"); 
+    const close = raw.lastIndexOf(")");
     const rest = raw.slice(close + 2).split(" ");
 
     const ppid = Number(rest[1]);
@@ -74,11 +73,11 @@ function sampleTree(rootPid: number): { jiffies: number; rssMb: number } {
   return { jiffies, rssMb: (rssPages * 4096) / (1024 * 1024) };
 }
 
-const HZ = 100; 
+const HZ = 100;
 
 interface ClientStats {
   snapshots: number;
-  payloadBytes: number; 
+  payloadBytes: number;
   lastProfile: Record<string, { mean: number; p95: number; count: number }> | null;
 }
 
@@ -86,7 +85,10 @@ class DrainClient {
   readonly stats: ClientStats = { snapshots: 0, payloadBytes: 0, lastProfile: null };
   private readonly ws: WebSocket;
 
-  constructor(readonly id: number, profile: boolean) {
+  constructor(
+    readonly id: number,
+    profile: boolean,
+  ) {
     this.ws = new WebSocket(`ws://localhost:${PORT}`);
     this.ws.on("open", () => {
       this.ws.send(JSON.stringify(INIT));
@@ -95,7 +97,7 @@ class DrainClient {
     this.ws.on("message", (data) => {
       const text = data.toString();
       this.stats.payloadBytes += text.length;
-      if (text.startsWith('{"type":"snapshot"')) { 
+      if (text.startsWith('{"type":"snapshot"')) {
         this.stats.snapshots += 1;
       } else if (text.startsWith('{"type":"profile"')) {
         const msg = JSON.parse(text) as {
@@ -107,7 +109,7 @@ class DrainClient {
     this.ws.on("error", (e) => console.error(`[client ${id}] error:`, e.message));
   }
 
-  wireBytes(): number { 
+  wireBytes(): number {
     const sock = (this.ws as unknown as { _socket?: { bytesRead: number } })._socket;
     return sock?.bytesRead ?? 0;
   }
@@ -130,7 +132,7 @@ function startServer(): Promise<ChildProcess> {
     const child = spawn("npx", ["tsx", "src/index.ts"], {
       cwd: resolve(repoRoot, "games/farm/server"),
       stdio: ["ignore", "pipe", "pipe"],
-      detached: true, 
+      detached: true,
     });
     const onData = (buf: Buffer): void => {
       const line = buf.toString();
@@ -174,9 +176,7 @@ async function main(): Promise<void> {
 
       const cpuPct = ((cpu1.jiffies - cpu0.jiffies) / HZ / elapsed) * 100;
       console.log(`[probe] === phase ${target} results (${elapsed.toFixed(1)}s window) ===`);
-      console.log(
-        `[probe] server CPU ${cpuPct.toFixed(1)}% of one core | RSS ${cpu1.rssMb.toFixed(0)} MB`,
-      );
+      console.log(`[probe] server CPU ${cpuPct.toFixed(1)}% of one core | RSS ${cpu1.rssMb.toFixed(0)} MB`);
 
       let rateSum = 0;
       let raterMin = Infinity;
@@ -222,9 +222,7 @@ async function main(): Promise<void> {
     for (const c of clients) c.close();
     try {
       process.kill(-serverPid, "SIGTERM");
-    } catch {
-
-    }
+    } catch {}
   }
   console.log("[probe] done");
 }

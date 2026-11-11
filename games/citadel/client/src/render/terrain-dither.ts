@@ -91,7 +91,10 @@ export function makeTerrainDecorate(iso: IsoProjection, grid: TerrainGrid): Deco
         if (c0.x + ISO_HW <= rl || c0.x - ISO_HW >= rr || c0.y + ISO_HH <= rt || c0.y - ISO_HH >= rb) continue;
         const t = grid.cells[ty * grid.width + tx] as TerrainType;
         const [top, right, bottom, left] = iso.tileDiamond(tx, ty) as [
-          { x: number; y: number }, { x: number; y: number }, { x: number; y: number }, { x: number; y: number },
+          { x: number; y: number },
+          { x: number; y: number },
+          { x: number; y: number },
+          { x: number; y: number },
         ];
         // Hillshaded base fill: pick a darker/base/lighter EDG swatch by the cell's
         // NW-lit slope band (see `landformFill`) so the ground reads as shaped
@@ -269,9 +272,9 @@ export function landformFill(sampler: HeightSampler, type: TerrainType, tx: numb
   if (type === TerrainType.Water) return base;
   const acc = ditherAccents(type);
   const band = shadeBand(hillshade(sampler, tx, ty));
-  if (band < 0) return acc.dark;  // shadowed (SE-facing) slope
+  if (band < 0) return acc.dark; // shadowed (SE-facing) slope
   if (band > 0) return acc.light; // lit (NW-facing) slope
-  return base;                    // locally flat
+  return base; // locally flat
 }
 
 /** A single dither cluster: a small filled square at (x,y) within the cell. */

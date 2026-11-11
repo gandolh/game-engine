@@ -61,7 +61,7 @@ describe("recipes integrity", () => {
     for (const r of BUILDING_FRAMES) {
       // Iso sprite width = (w+h)·ISO_HW, always a multiple of 16 (ISO_HW). Height
       // is roof+walls+diamond — positive, not tile-quantised.
-      expect(r.width % (TILE_SIZE), `${r.name} width`).toBe(0);
+      expect(r.width % TILE_SIZE, `${r.name} width`).toBe(0);
       expect(r.height, `${r.name} height`).toBeGreaterThan(0);
     }
     for (const r of UNIT_RECIPES) {
@@ -118,7 +118,8 @@ describe("recipes integrity", () => {
     const raster = MESH_OVERRIDES.get("bld/well");
     expect(raster, "bld/well mesh frame exists").toBeTruthy();
     if (!raster) return;
-    let sumX = 0, opaque = 0;
+    let sumX = 0,
+      opaque = 0;
     for (let y = 0; y < raster.height; y++) {
       for (let x = 0; x < raster.width; x++) {
         if (raster.rgba[(y * raster.width + x) * 4 + 3]! === 0) continue;
@@ -127,7 +128,10 @@ describe("recipes integrity", () => {
       }
     }
     const centroidX = sumX / opaque;
-    expect(Math.abs(centroidX - raster.width / 2), `well centroid-x ${centroidX} vs centre ${raster.width / 2}`).toBeLessThanOrEqual(2);
+    expect(
+      Math.abs(centroidX - raster.width / 2),
+      `well centroid-x ${centroidX} vs centre ${raster.width / 2}`,
+    ).toBeLessThanOrEqual(2);
   });
 
   it("the mill has a base frame + rotated-sail animation frames, all mesh-rendered", () => {
@@ -135,12 +139,19 @@ describe("recipes integrity", () => {
     // frames, so a base-only override silently leaves the spinning mill on old art.
     const millFrames = BUILDING_FRAMES.filter((r) => r.name === "bld/mill" || r.name.startsWith("bld/mill@"));
     expect(millFrames.length, "mill frame count").toBe(MILL_FRAME_COUNT);
-    expect(millFrames.some((r) => r.name === "bld/mill"), "base bld/mill exists").toBe(true);
+    expect(
+      millFrames.some((r) => r.name === "bld/mill"),
+      "base bld/mill exists",
+    ).toBe(true);
     // millFrameAt cycles within the frame set and includes the base frame.
     const seen = new Set<string>();
     for (let t = 0; t < 4000; t += 100) seen.add(millFrameAt(t));
     expect(seen.has("bld/mill"), "cycles through base frame").toBe(true);
-    for (const f of seen) expect(millFrames.some((r) => r.name === f), `${f} is a real frame`).toBe(true);
+    for (const f of seen)
+      expect(
+        millFrames.some((r) => r.name === f),
+        `${f} is a real frame`,
+      ).toBe(true);
   });
 });
 
@@ -148,11 +159,27 @@ describe("building-type → frame mapping", () => {
   // The wave-1 contract: every standalone building type has a sprite. Road /
   // wall / gate are deliberately excluded (autotile networks + inset boxes).
   const EXPECTED = [
-    "house", "farm", "mill", "bakery", "woodcutter", "storehouse",
-    "chapel", "market", "watchpost", "tradingpost", "public-square",
-    "quarry", "sawmill", "smith", "mine",
-    "tower", "garrison", "keep", "town-hall",
-    "well", "healer",
+    "house",
+    "farm",
+    "mill",
+    "bakery",
+    "woodcutter",
+    "storehouse",
+    "chapel",
+    "market",
+    "watchpost",
+    "tradingpost",
+    "public-square",
+    "quarry",
+    "sawmill",
+    "smith",
+    "mine",
+    "tower",
+    "garrison",
+    "keep",
+    "town-hall",
+    "well",
+    "healer",
   ].sort();
 
   it("covers exactly the wave-1 building set", () => {

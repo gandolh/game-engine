@@ -21,8 +21,12 @@ const rec = vi.hoisted(() => ({ order: [] as string[], life: [] as string[], con
 vi.mock("./gl-context", () => {
   class GlContext {
     gl = {
-      clearColor: () => { /* recorded via clear */ },
-      clear: () => { rec.order.push("clear"); },
+      clearColor: () => {
+        /* recorded via clear */
+      },
+      clear: () => {
+        rec.order.push("clear");
+      },
       COLOR_BUFFER_BIT: 0x4000,
     };
     lost = false;
@@ -33,10 +37,20 @@ vi.mock("./gl-context", () => {
       rec.contexts.push(c);
       return c;
     }
-    resize(): void { rec.order.push("resize"); }
-    isLost(): boolean { return this.lost; }
-    onContextLost(h: () => void): () => void { this.lostHandlers.push(h); return () => {}; }
-    onContextRestored(h: () => void): () => void { this.restoredHandlers.push(h); return () => {}; }
+    resize(): void {
+      rec.order.push("resize");
+    }
+    isLost(): boolean {
+      return this.lost;
+    }
+    onContextLost(h: () => void): () => void {
+      this.lostHandlers.push(h);
+      return () => {};
+    }
+    onContextRestored(h: () => void): () => void {
+      this.restoredHandlers.push(h);
+      return () => {};
+    }
     /** Test helper: drive a full loss → restore cycle like the browser would. */
     simulateLossAndRestore(): void {
       this.lost = true;
@@ -51,16 +65,27 @@ vi.mock("./gl-context", () => {
 
 vi.mock("./gl-atlas-store", () => ({
   GlAtlasStore: class {
-    add(): void { rec.life.push("atlas.add"); }
-    get(): undefined { return undefined; }
+    add(): void {
+      rec.life.push("atlas.add");
+    }
+    get(): undefined {
+      return undefined;
+    }
     uv(): { u0: number; v0: number; u1: number; v1: number; layer: number } {
       return { u0: 0, v0: 0, u1: 1, v1: 1, layer: 0 };
     }
     uvInto(_a: string, _f: string, out: { u0: number; v0: number; u1: number; v1: number }): void {
-      out.u0 = 0; out.v0 = 0; out.u1 = 1; out.v1 = 1;
+      out.u0 = 0;
+      out.v0 = 0;
+      out.u1 = 1;
+      out.v1 = 1;
     }
-    texture(): object { return { __tex: true }; }
-    whiteTexture(): object { return { __white: true }; }
+    texture(): object {
+      return { __tex: true };
+    }
+    whiteTexture(): object {
+      return { __white: true };
+    }
     dispose(): void {}
   },
 }));
@@ -68,64 +93,115 @@ vi.mock("./gl-atlas-store", () => ({
 vi.mock("./sprite-batch", () => ({
   SpriteBatch: class {
     count = 0;
-    begin(): void { this.count = 0; }
-    setView(): void { rec.order.push("sprite.setView"); }
-    add(): number { this.count += 1; return this.count - 1; }
+    begin(): void {
+      this.count = 0;
+    }
+    setView(): void {
+      rec.order.push("sprite.setView");
+    }
+    add(): number {
+      this.count += 1;
+      return this.count - 1;
+    }
     upload(): void {}
-    beginPass(): void { rec.order.push("sprite.beginPass"); }
-    drawRange(): void { rec.order.push("sprites"); }
-    endPass(): void { rec.order.push("sprite.endPass"); }
+    beginPass(): void {
+      rec.order.push("sprite.beginPass");
+    }
+    drawRange(): void {
+      rec.order.push("sprites");
+    }
+    endPass(): void {
+      rec.order.push("sprite.endPass");
+    }
   },
 }));
 
 vi.mock("./shadow-batch", () => ({
   ShadowBatch: class {
     begin(): void {}
-    setView(): void { rec.order.push("shadow.setView"); }
+    setView(): void {
+      rec.order.push("shadow.setView");
+    }
     add(): void {}
     upload(): void {}
-    draw(): void { rec.order.push("shadows"); }
+    draw(): void {
+      rec.order.push("shadows");
+    }
   },
 }));
 
 vi.mock("./static-layer-pass", () => ({
   StaticLayerPass: class {
-    constructor() { rec.life.push("staticPass.ctor"); }
-    setView(): void { rec.order.push("static.setView"); }
-    bake(): void { rec.life.push("staticPass.bake"); }
+    constructor() {
+      rec.life.push("staticPass.ctor");
+    }
+    setView(): void {
+      rec.order.push("static.setView");
+    }
+    bake(): void {
+      rec.life.push("staticPass.bake");
+    }
     clear(): void {}
-    draw(): void { rec.order.push("static"); }
+    draw(): void {
+      rec.order.push("static");
+    }
   },
 }));
 
 vi.mock("./water-pass", () => ({
   WaterPass: class {
-    constructor() { rec.life.push("waterPass.ctor"); }
-    setView(): void { rec.order.push("water.setView"); }
-    bakePattern(): void { rec.life.push("waterPass.bakePattern"); }
+    constructor() {
+      rec.life.push("waterPass.ctor");
+    }
+    setView(): void {
+      rec.order.push("water.setView");
+    }
+    bakePattern(): void {
+      rec.life.push("waterPass.bakePattern");
+    }
     setDepthMask(): void {}
-    setScroll(): void { rec.life.push("waterPass.setScroll"); }
+    setScroll(): void {
+      rec.life.push("waterPass.setScroll");
+    }
     setSwell(): void {}
-    draw(): void { rec.order.push("water"); }
+    draw(): void {
+      rec.order.push("water");
+    }
   },
 }));
 
 vi.mock("./particle-batch", () => ({
-  ParticleBatch: class { draw(): void { rec.order.push("particles"); } },
+  ParticleBatch: class {
+    draw(): void {
+      rec.order.push("particles");
+    }
+  },
 }));
 
 vi.mock("./weather-pass", () => ({
-  WeatherPass: class { draw(): void { rec.order.push("weather"); } },
+  WeatherPass: class {
+    draw(): void {
+      rec.order.push("weather");
+    }
+  },
 }));
 
 vi.mock("./tint-pass", () => ({
-  TintPass: class { draw(): void { rec.order.push("tint"); } },
+  TintPass: class {
+    draw(): void {
+      rec.order.push("tint");
+    }
+  },
 }));
 
 vi.mock("./cloud-shadow-pass", () => ({
   CloudShadowPass: class {
-    setView(): void { rec.order.push("cloud.setView"); }
-    draw(): void { rec.order.push("cloud"); }
+    setView(): void {
+      rec.order.push("cloud.setView");
+    }
+    draw(): void {
+      rec.order.push("cloud");
+    }
   },
 }));
 
@@ -146,14 +222,22 @@ vi.mock("../overlay-2d", () => ({
       globalAlpha: 1,
       globalCompositeOperation: "source-over",
     };
-    beginFrame(): void { rec.order.push("overlay.beginFrame"); }
-    applyWorldTransform(): void { rec.order.push("overlay.worldTransform"); }
-    resetTransform(): void { rec.order.push("overlay.resetTransform"); }
+    beginFrame(): void {
+      rec.order.push("overlay.beginFrame");
+    }
+    applyWorldTransform(): void {
+      rec.order.push("overlay.worldTransform");
+    }
+    resetTransform(): void {
+      rec.order.push("overlay.resetTransform");
+    }
   },
 }));
 
 vi.mock("../ui-draw", () => ({
-  drawUIQuad: () => { rec.order.push("uiQuad"); },
+  drawUIQuad: () => {
+    rec.order.push("uiQuad");
+  },
 }));
 
 // The screen-space UI pass (sweep-04). Mocked like every other pass: what this
@@ -164,18 +248,33 @@ vi.mock("./ui-quad-pass", () => ({
   UiQuadPass: class {
     groups = 0;
     instances = 0;
-    get groupCount(): number { return this.groups; }
-    get instanceCount(): number { return this.instances; }
+    get groupCount(): number {
+      return this.groups;
+    }
+    get instanceCount(): number {
+      return this.instances;
+    }
     pack(_b: unknown, _s: unknown, _a: unknown, _q: unknown, len: number): void {
       rec.order.push("ui.pack");
       this.groups = len > 0 ? 1 : 0;
       this.instances = len;
     }
-    draw(): void { rec.order.push("ui.draw"); }
-    reset(): void { rec.life.push("ui.reset"); this.groups = 0; this.instances = 0; }
+    draw(): void {
+      rec.order.push("ui.draw");
+    }
+    reset(): void {
+      rec.life.push("ui.reset");
+      this.groups = 0;
+      this.instances = 0;
+    }
   },
   screenSpaceView: (w: number, h: number) => ({
-    scaleX: 2 / w, scaleY: -2 / h, offsetX: -1, offsetY: 1, timeSec: 0, windStrength: 0,
+    scaleX: 2 / w,
+    scaleY: -2 / h,
+    offsetX: -1,
+    offsetY: 1,
+    timeSec: 0,
+    windStrength: 0,
   }),
 }));
 
@@ -184,8 +283,12 @@ vi.mock("./ui-quad-pass", () => ({
 vi.mock("../rain-field", () => ({
   RainField: class {
     count = 0;
-    constructor(count = 1) { this.count = count; }
-    draw(): void { rec.order.push("weather.cpuDraw"); }
+    constructor(count = 1) {
+      this.count = count;
+    }
+    draw(): void {
+      rec.order.push("weather.cpuDraw");
+    }
   },
 }));
 
@@ -197,7 +300,10 @@ import type { ParticleSystem, Sprite, WeatherLike } from "..";
 
 function makeCanvas(): HTMLCanvasElement {
   return {
-    width: 640, height: 480, clientWidth: 640, clientHeight: 480,
+    width: 640,
+    height: 480,
+    clientWidth: 640,
+    clientHeight: 480,
     style: {} as Record<string, string>,
     parentElement: null,
   } as unknown as HTMLCanvasElement;
@@ -213,8 +319,16 @@ function stubAtlas(id = "a"): LoadedAtlasImage {
 
 function makeSprite(over: Partial<Sprite> = {}): Sprite {
   return {
-    x: 0, y: 0, width: 16, height: 16, frame: "f", atlasId: "a",
-    rotation: 0, layer: 0, alpha: 1, ...over,
+    x: 0,
+    y: 0,
+    width: 16,
+    height: 16,
+    frame: "f",
+    atlasId: "a",
+    rotation: 0,
+    layer: 0,
+    alpha: 1,
+    ...over,
   } as Sprite;
 }
 
@@ -236,9 +350,17 @@ function makeRain(count: number): WeatherLike {
   return field as unknown as WeatherLike;
 }
 
-const particles = { count: 3, draw: () => { rec.order.push("particles.cpuDraw"); } } as unknown as ParticleSystem;
+const particles = {
+  count: 3,
+  draw: () => {
+    rec.order.push("particles.cpuDraw");
+  },
+} as unknown as ParticleSystem;
 
-beforeEach(() => { rec.order.length = 0; rec.life.length = 0; });
+beforeEach(() => {
+  rec.order.length = 0;
+  rec.life.length = 0;
+});
 
 describe("WebGl2Renderer draw order", () => {
   it("draws water → static → shadows → sprites → particles → weather → overlayLight → cloud → tint, then the overlay", () => {
@@ -247,12 +369,7 @@ describe("WebGl2Renderer draw order", () => {
     r.push(makeSprite());
     r.pushShadow(0, 0, 4, 2, 0.5);
     r.setCloudOptions({ color: "#000000", coverage: 0.5, driftSpeed: 1, timeSec: 0 });
-    r.endFrame(
-      { color: "#000000", alpha: 0.5 },
-      particles,
-      makeRain(5),
-      () => {},
-    );
+    r.endFrame({ color: "#000000", alpha: 0.5 }, particles, makeRain(5), () => {});
 
     const drawOnly = rec.order.filter((s) => !s.includes("setView") && s !== "resize");
     expect(drawOnly).toEqual([
@@ -403,7 +520,12 @@ describe("WebGl2Renderer effect branching", () => {
 
   it("routes a NON-RainField WeatherLike to the CPU overlay path even with useGpuEffects on", () => {
     const r = makeRenderer();
-    const custom: WeatherLike = { count: 2, draw: () => { rec.order.push("custom.cpuDraw"); } };
+    const custom: WeatherLike = {
+      count: 2,
+      draw: () => {
+        rec.order.push("custom.cpuDraw");
+      },
+    };
 
     r.beginFrame();
     r.push(makeSprite());
@@ -475,7 +597,12 @@ describe("WebGl2Renderer UI draw-list (sweep-04: instanced, on the GL canvas)", 
     // paints on it, so the UI has to stay on that same canvas (drawn after the
     // weather) rather than moving down to the GL one.
     const r = makeRenderer();
-    const custom: WeatherLike = { count: 2, draw: () => { rec.order.push("custom.cpuDraw"); } };
+    const custom: WeatherLike = {
+      count: 2,
+      draw: () => {
+        rec.order.push("custom.cpuDraw");
+      },
+    };
 
     r.profileUi = true;
     r.beginFrame();
@@ -577,7 +704,9 @@ describe("WebGl2Renderer guards", () => {
 });
 
 describe("WebGl2Renderer context-loss recovery", () => {
-  function ctx(): any { return rec.contexts[rec.contexts.length - 1]; }
+  function ctx(): any {
+    return rec.contexts[rec.contexts.length - 1];
+  }
 
   it("skips frames while the context is lost, instead of issuing dead GL calls", () => {
     const r = makeRenderer();

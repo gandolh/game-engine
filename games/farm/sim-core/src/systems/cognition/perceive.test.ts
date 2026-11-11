@@ -50,7 +50,7 @@ describe("PerceiveSystem — intra-day phases", () => {
 
   it("morning PHASE_START sets the day's AP ceiling and refills to it (rested)", () => {
     const f = spawnFarmer(world, { apCurrent: 0 });
-    pushPhase(f, "morning", 0); 
+    pushPhase(f, "morning", 0);
     sys.run({ tick: 0 });
     expect(f.ap!.max).toBe(100);
     expect(f.ap!.current).toBe(100);
@@ -60,7 +60,7 @@ describe("PerceiveSystem — intra-day phases", () => {
 
   it("the AP ceiling grows +2 per day", () => {
     const f = spawnFarmer(world, { apCurrent: 0 });
-    pushPhase(f, "morning", 10); 
+    pushPhase(f, "morning", 10);
     sys.run({ tick: 0 });
     expect(f.ap!.max).toBe(120);
     expect(f.ap!.current).toBe(120);
@@ -69,17 +69,17 @@ describe("PerceiveSystem — intra-day phases", () => {
   it("morning refill is HALVED when the farmer was unrested", () => {
     const f = spawnFarmer(world, { apCurrent: 0 });
     f.ap!.unrested = true;
-    pushPhase(f, "morning", 0); 
+    pushPhase(f, "morning", 0);
     sys.run({ tick: 0 });
-    expect(f.ap!.current).toBe(50); 
-    expect(f.ap!.unrested).toBe(false); 
+    expect(f.ap!.current).toBe(50);
+    expect(f.ap!.unrested).toBe(false);
   });
 
   it("work PHASE_START re-arms deliberation WITHOUT refilling AP (daily budget)", () => {
     const f = spawnFarmer(world, { apMax: 8, apCurrent: 3 });
     pushPhase(f, "work");
     sys.run({ tick: 240 });
-    expect(f.ap!.current).toBe(3); 
+    expect(f.ap!.current).toBe(3);
     expect(f.fsm!.current).toBe("PERCEIVE");
   });
 
@@ -100,16 +100,14 @@ describe("PerceiveSystem — intra-day phases", () => {
   });
 
   it("night PHASE_START camped on the camp island → SLEEP, RESTED", () => {
-
     const f = spawnFarmer(world, { region: "camp", home: "farm-cora" });
     pushPhase(f, "night");
     sys.run({ tick: 1080 });
     expect(f.fsm!.current).toBe("SLEEP");
-    expect(f.ap!.unrested).toBe(false); 
+    expect(f.ap!.unrested).toBe(false);
   });
 
   it("night PHASE_START camped but still travelling (path set) → unrested", () => {
-
     const f = spawnFarmer(world, { region: "camp", home: "farm-cora" });
     f.farmer!.path = { waypoints: [{ x: 71, y: 72 }], nextIndex: 0, ticksUntilStep: 1 };
     pushPhase(f, "night");
@@ -119,9 +117,9 @@ describe("PerceiveSystem — intra-day phases", () => {
 
   it("does not interrupt a farmer mid-cycle (only re-arms from WAIT_DAY/SLEEP)", () => {
     const f = spawnFarmer(world);
-    f.fsm!.current = "ACT"; 
+    f.fsm!.current = "ACT";
     pushPhase(f, "work");
     sys.run({ tick: 240 });
-    expect(f.fsm!.current).toBe("ACT"); 
+    expect(f.fsm!.current).toBe("ACT");
   });
 });

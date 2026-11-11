@@ -104,7 +104,10 @@ const fakes = vi.hoisted(() => {
     updateCursor: vi.fn(),
     startRoadDrag: vi.fn(() => {
       placement.isDraggingRoad = true;
-      placement.roadTiles = [{ x: 1, y: 1 }, { x: 2, y: 1 }];
+      placement.roadTiles = [
+        { x: 1, y: 1 },
+        { x: 2, y: 1 },
+      ];
     }),
     endRoadDrag: vi.fn(() => {
       placement.isDraggingRoad = false;
@@ -124,7 +127,15 @@ const fakes = vi.hoisted(() => {
     closeSettings: vi.fn(),
     closeInspect: vi.fn(),
     openInspectAtTile: vi.fn(() => false),
-    camera: { centerX: 0, centerY: 0, zoom: 1, worldUnitsX: 100, worldUnitsY: 100, setCenter: vi.fn(), setZoom: vi.fn() },
+    camera: {
+      centerX: 0,
+      centerY: 0,
+      zoom: 1,
+      worldUnitsX: 100,
+      worldUnitsY: 100,
+      setCenter: vi.fn(),
+      setZoom: vi.fn(),
+    },
   };
 });
 
@@ -301,7 +312,6 @@ describe("input.ts keydown chain — siege/status dispatcher forwarding", () => 
   });
 });
 
-
 /**
  * audit-48 — gesture ownership must always be RELEASABLE (Citadel half).
  *
@@ -345,9 +355,13 @@ describe("input.ts pointer ownership survives a release outside the canvas (audi
   function probeWorldMove(): () => void {
     // Bubble phase on the canvas: a capture-phase stopImmediatePropagation() hides the event from
     // it exactly as it hides it from the real world/camera handlers.
-    const onMove = (): void => { worldSawMove = true; };
+    const onMove = (): void => {
+      worldSawMove = true;
+    };
     canvas.addEventListener("mousemove", onMove);
-    return () => { canvas.removeEventListener("mousemove", onMove); };
+    return () => {
+      canvas.removeEventListener("mousemove", onMove);
+    };
   }
 
   it("a UI-consumed press blocks world moves WHILE the gesture is live", () => {
@@ -387,7 +401,9 @@ describe("input.ts pointer ownership survives a release outside the canvas (audi
 
   it("the next world CLICK is not eaten after an outside release", () => {
     let worldSawClick = false;
-    const onClick = (): void => { worldSawClick = true; };
+    const onClick = (): void => {
+      worldSawClick = true;
+    };
     canvas.addEventListener("click", onClick);
 
     canvas.dispatchEvent(mouse("mousedown", 10, 10));
@@ -405,7 +421,9 @@ describe("input.ts pointer ownership survives a release outside the canvas (audi
 
   it("THE NORMAL PATH IS UNCHANGED: press + release both inside the canvas stay UI-owned", () => {
     let worldSawClick = false;
-    const onClick = (): void => { worldSawClick = true; };
+    const onClick = (): void => {
+      worldSawClick = true;
+    };
     canvas.addEventListener("click", onClick);
 
     canvas.dispatchEvent(mouse("mousedown", 10, 10));
@@ -455,7 +473,12 @@ describe("input.ts pointer gestures that end off-canvas — the four acceptance 
     canvas.getBoundingClientRect = () =>
       ({ left: 0, top: 0, width: 800, height: 600, right: 800, bottom: 600, x: 0, y: 0, toJSON() {} }) as DOMRect;
     activations = 0;
-    btn = button("go", { layout: { width: 200, height: 60 }, onActivate: () => { activations++; } });
+    btn = button("go", {
+      layout: { width: 200, height: 60 },
+      onActivate: () => {
+        activations++;
+      },
+    });
     const tree = panel({ width: 200, height: 60 }, [btn]);
     computeLayout(tree, 0, 0);
     refs.uiDispatcher = createInputDispatcher(() => tree);
@@ -666,7 +689,12 @@ describe("input.ts — speed keys and Space whichever root holds focus", () => {
     canvas.getBoundingClientRect = () =>
       ({ left: 0, top: 0, width: 800, height: 600, right: 800, bottom: 600, x: 0, y: 0, toJSON() {} }) as DOMRect;
     activations = 0;
-    const house = button("House", { layout: { width: 100, height: 40 }, onActivate: () => { activations++; } });
+    const house = button("House", {
+      layout: { width: 100, height: 40 },
+      onActivate: () => {
+        activations++;
+      },
+    });
     const road = button("Road", { layout: { width: 100, height: 40 } });
     const bar = panel({ width: 220, height: 50, direction: "row" }, [house, road]);
     computeLayout(bar, 0, 0);

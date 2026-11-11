@@ -1,5 +1,3 @@
-
-
 type Ctx2D = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 
 export type ParticleShape = "circle" | "rect" | "star";
@@ -9,28 +7,28 @@ export interface GpuParticleView {
   y: number;
   size: number;
   shape: ParticleShape;
-  r: number; 
-  g: number; 
-  b: number; 
-  alpha: number; 
+  r: number;
+  g: number;
+  b: number;
+  alpha: number;
 }
 
 export interface ParticleEmitOptions {
-  x: number;          
+  x: number;
   y: number;
   count: number;
   shape: ParticleShape;
-  color: string;      
-  color2?: string;    
-  speedMin: number;   
+  color: string;
+  color2?: string;
+  speedMin: number;
   speedMax: number;
-  angleMin?: number;  
+  angleMin?: number;
   angleMax?: number;
-  lifetimeMin: number; 
+  lifetimeMin: number;
   lifetimeMax: number;
-  sizeMin: number;    
+  sizeMin: number;
   sizeMax: number;
-  gravity?: number;   
+  gravity?: number;
 }
 
 interface Particle {
@@ -38,19 +36,27 @@ interface Particle {
   y: number;
   vx: number;
   vy: number;
-  life: number;    
+  life: number;
   maxLife: number;
   size: number;
   shape: ParticleShape;
-  r: number; g: number; b: number;
+  r: number;
+  g: number;
+  b: number;
   gravity: number;
 }
 
 function hexToRgb(hex: string): [number, number, number] {
   const c = hex.replace("#", "");
-  const n = parseInt(c.length === 3
-    ? c.split("").map(ch => ch + ch).join("")
-    : c, 16);
+  const n = parseInt(
+    c.length === 3
+      ? c
+          .split("")
+          .map((ch) => ch + ch)
+          .join("")
+      : c,
+    16,
+  );
   return [(n >> 16) & 0xff, (n >> 8) & 0xff, n & 0xff];
 }
 
@@ -70,17 +76,16 @@ export class ParticleSystem {
   emit(opts: ParticleEmitOptions): void {
     const angleMin = opts.angleMin ?? 0;
     const angleMax = opts.angleMax ?? Math.PI * 2;
-    const gravity  = opts.gravity ?? 0;
+    const gravity = opts.gravity ?? 0;
     const [r1, g1, b1] = hexToRgb(opts.color);
     const [r2, g2, b2] = opts.color2 ? hexToRgb(opts.color2) : [r1, g1, b1];
 
     for (let i = 0; i < opts.count; i++) {
-
       if (this.particles.length >= MAX_PARTICLES) break;
-      const t    = Math.random();
+      const t = Math.random();
       const angle = rand(angleMin, angleMax);
       const speed = rand(opts.speedMin, opts.speedMax);
-      const life  = rand(opts.lifetimeMin, opts.lifetimeMax);
+      const life = rand(opts.lifetimeMin, opts.lifetimeMax);
       this.particles.push({
         x: opts.x,
         y: opts.y,
@@ -99,13 +104,11 @@ export class ParticleSystem {
   }
 
   update(dt: number): void {
-
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const p = this.particles[i];
       if (!p) continue;
       p.life -= dt;
       if (p.life <= 0) {
-
         const last = this.particles.length - 1;
         if (i !== last) {
           this.particles[i] = this.particles[last]!;
@@ -113,8 +116,8 @@ export class ParticleSystem {
         this.particles.pop();
         continue;
       }
-      p.x  += p.vx * dt;
-      p.y  += p.vy * dt;
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
       p.vy += p.gravity * dt;
     }
   }
@@ -125,7 +128,7 @@ export class ParticleSystem {
     for (const p of this.particles) {
       const alpha = Math.max(0, p.life / p.maxLife);
       ctx.globalAlpha = alpha;
-      ctx.fillStyle = `rgb(${p.r|0},${p.g|0},${p.b|0})`;
+      ctx.fillStyle = `rgb(${p.r | 0},${p.g | 0},${p.b | 0})`;
       if (p.shape === "circle") {
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
@@ -146,19 +149,23 @@ export class ParticleSystem {
 
   forEachParticle(visit: (v: GpuParticleView) => void): void {
     const view: GpuParticleView = {
-      x: 0, y: 0, size: 0,
+      x: 0,
+      y: 0,
+      size: 0,
       shape: "circle",
-      r: 0, g: 0, b: 0,
+      r: 0,
+      g: 0,
+      b: 0,
       alpha: 0,
     };
     for (const p of this.particles) {
-      view.x     = p.x;
-      view.y     = p.y;
-      view.size  = p.size;
+      view.x = p.x;
+      view.y = p.y;
+      view.size = p.size;
       view.shape = p.shape;
-      view.r     = p.r;
-      view.g     = p.g;
-      view.b     = p.b;
+      view.r = p.r;
+      view.g = p.g;
+      view.b = p.b;
       view.alpha = Math.max(0, p.life / p.maxLife);
       visit(view);
     }
@@ -172,7 +179,8 @@ function drawStar(ctx: Ctx2D, x: number, y: number, r: number): void {
     const rr = i % 2 === 0 ? r : r * 0.45;
     const px = x + Math.cos(angle) * rr;
     const py = y + Math.sin(angle) * rr;
-    if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
   }
   ctx.closePath();
   ctx.fill();

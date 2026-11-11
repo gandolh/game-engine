@@ -20,15 +20,9 @@ export async function makePathfinder(): Promise<PathfinderLike> {
   const kind = (process.env["PATHFINDER"] ?? "js").toLowerCase();
   if (kind === "wasm") {
     const here = dirname(fileURLToPath(import.meta.url));
-    const wasmPath = resolve(
-      here,
-      "../../../engine/wasm-modules/dist/pathfinding.wasm",
-    );
+    const wasmPath = resolve(here, "../../../engine/wasm-modules/dist/pathfinding.wasm");
     const buf = readFileSync(wasmPath);
-    const bytes = buf.buffer.slice(
-      buf.byteOffset,
-      buf.byteOffset + buf.byteLength,
-    ) as ArrayBuffer;
+    const bytes = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer;
     return (await createPathfinderFromBytes(bytes)) as unknown as PathfinderLike;
   }
   return new JsPathfinder();

@@ -49,7 +49,16 @@ type InspectableEntity = HollowEntity &
   Required<
     Pick<
       HollowEntity,
-      "id" | "agent" | "beliefs" | "needs" | "communityId" | "lifecycle" | "genome" | "householdId" | "relationships" | "intentions"
+      | "id"
+      | "agent"
+      | "beliefs"
+      | "needs"
+      | "communityId"
+      | "lifecycle"
+      | "genome"
+      | "householdId"
+      | "relationships"
+      | "intentions"
     >
   >;
 

@@ -49,26 +49,15 @@ const MAX_SLOT_INDEX = 1023;
 
 export interface ValidationError {
   /** Stable machine-readable code, so a client can act on it rather than parse prose. */
-  code:
-    | "not-an-object"
-    | "missing-type"
-    | "unknown-type"
-    | "out-of-range"
-    | "wrong-type";
+  code: "not-an-object" | "missing-type" | "unknown-type" | "out-of-range" | "wrong-type";
   /** The offending field, when there is one. */
   field?: string;
   message: string;
 }
 
-export type ValidationResult =
-  | { ok: true; msg: SimInbound }
-  | { ok: false; error: ValidationError };
+export type ValidationResult = { ok: true; msg: SimInbound } | { ok: false; error: ValidationError };
 
-function reject(
-  code: ValidationError["code"],
-  message: string,
-  field?: string,
-): ValidationResult {
+function reject(code: ValidationError["code"], message: string, field?: string): ValidationResult {
   return { ok: false, error: field === undefined ? { code, message } : { code, field, message } };
 }
 
@@ -76,10 +65,7 @@ function isBoundedInt(v: unknown, min: number, max: number): v is number {
   return typeof v === "number" && Number.isInteger(v) && v >= min && v <= max;
 }
 
-function requireBoundedInt(
-  raw: Record<string, unknown>,
-  field: keyof typeof INIT_BOUNDS,
-): ValidationResult | null {
+function requireBoundedInt(raw: Record<string, unknown>, field: keyof typeof INIT_BOUNDS): ValidationResult | null {
   const { min, max } = INIT_BOUNDS[field];
   const v = raw[field];
   if (typeof v !== "number" || !Number.isFinite(v)) {
@@ -199,8 +185,10 @@ export function validateInbound(raw: unknown): ValidationResult {
         }
         const t = tile as Record<string, unknown>;
         if (
-          typeof t["x"] !== "number" || !Number.isFinite(t["x"]) ||
-          typeof t["y"] !== "number" || !Number.isFinite(t["y"])
+          typeof t["x"] !== "number" ||
+          !Number.isFinite(t["x"]) ||
+          typeof t["y"] !== "number" ||
+          !Number.isFinite(t["y"])
         ) {
           return reject("wrong-type", "input.actionTile.x/y must be finite numbers", "actionTile");
         }
@@ -213,8 +201,7 @@ export function validateInbound(raw: unknown): ValidationResult {
         selectSlot: slot as number | null,
       };
       if (tile !== undefined) {
-        msg.actionTile =
-          tile === null ? null : { x: (tile as { x: number }).x, y: (tile as { y: number }).y };
+        msg.actionTile = tile === null ? null : { x: (tile as { x: number }).x, y: (tile as { y: number }).y };
       }
       return { ok: true, msg };
     }

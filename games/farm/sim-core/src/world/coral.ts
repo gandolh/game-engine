@@ -44,10 +44,7 @@ function reefOffIsle(id: CoralReef["id"], isleId: "fishing-isle" | "fishing-isle
 
 export function coralReefs(): readonly CoralReef[] {
   if (!_reefs) {
-    _reefs = [
-      reefOffIsle("reef-mill", "fishing-isle"),
-      reefOffIsle("reef-forest", "fishing-isle-2"),
-    ];
+    _reefs = [reefOffIsle("reef-mill", "fishing-isle"), reefOffIsle("reef-forest", "fishing-isle-2")];
   }
   return _reefs;
 }
@@ -102,7 +99,9 @@ export function nearestReef(x: number, y: number): CoralReef {
 export function buildBoatGrid(): PathfinderGrid {
   const cells = new Uint8Array(WORLD_WIDTH * WORLD_HEIGHT); // 0 = navigable
   for (const region of REGIONS) {
-    forEachLandTile(region, (x, y) => { cells[y * WORLD_WIDTH + x] = 1; }); // island land blocks boats
+    forEachLandTile(region, (x, y) => {
+      cells[y * WORLD_WIDTH + x] = 1;
+    }); // island land blocks boats
   }
   const open = (x: number, y: number) => {
     if (x >= 0 && y >= 0 && x < WORLD_WIDTH && y < WORLD_HEIGHT) cells[y * WORLD_WIDTH + x] = 0;

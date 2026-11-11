@@ -143,7 +143,9 @@ export function deriveCacheKey(request: RationalizerRequest): string {
  * otherwise: `submit`/`poll` behavior, timing and return values are
  * `wrapped`'s, unchanged — recording must never itself change a run.
  */
-export function createRecordingRationalizer(wrapped: Rationalizer): Rationalizer & { snapshot(): RationalizerCacheData } {
+export function createRecordingRationalizer(
+  wrapped: Rationalizer,
+): Rationalizer & { snapshot(): RationalizerCacheData } {
   const entries = new Map<string, RationalizerCacheEntry[]>();
 
   return {
@@ -156,7 +158,9 @@ export function createRecordingRationalizer(wrapped: Rationalizer): Rationalizer
       for (const result of results) {
         const key = deriveCacheKey(result.request);
         const entry: RationalizerCacheEntry =
-          result.error !== undefined ? { response: result.response, error: result.error } : { response: result.response };
+          result.error !== undefined
+            ? { response: result.response, error: result.error }
+            : { response: result.response };
         const bucket = entries.get(key);
         if (bucket) bucket.push(entry);
         else entries.set(key, [entry]);

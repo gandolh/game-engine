@@ -96,7 +96,13 @@ const FIXTURES: Fixture[] = [
   { name: "open field", grid: OPEN_FIELD, start: OPEN_START, end: OPEN_END, reachable: true },
   { name: "walled corridor with one gap", grid: CORRIDOR, start: CORRIDOR_START, end: CORRIDOR_END, reachable: true },
   { name: "U-shaped trap", grid: U_TRAP, start: U_TRAP_START, end: U_TRAP_END, reachable: true },
-  { name: "sealed wall, unreachable target", grid: UNREACHABLE, start: UNREACHABLE_START, end: UNREACHABLE_END, reachable: false },
+  {
+    name: "sealed wall, unreachable target",
+    grid: UNREACHABLE,
+    start: UNREACHABLE_START,
+    end: UNREACHABLE_END,
+    reachable: false,
+  },
   { name: "start === end", grid: SAME_POINT, start: SAME_POINT_XY, end: SAME_POINT_XY, reachable: true },
 ];
 

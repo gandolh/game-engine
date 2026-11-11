@@ -1,13 +1,20 @@
-import { describe, it, expect } from 'vitest';
-import { createRng } from '@engine/core';
-import { buildWalkableGrid } from './walkable-grid';
+import { describe, it, expect } from "vitest";
+import { createRng } from "@engine/core";
+import { buildWalkableGrid } from "./walkable-grid";
 import {
-  WORLD_WIDTH, WORLD_HEIGHT, REGIONS, ROADS, EXTRA_FARM_COUNT, WORLD_GEN_SEED,
-  getRegion, forEachLandTile, type RegionDef,
-} from './regions';
-import { CLIFFS } from '../render-systems/geometry';
+  WORLD_WIDTH,
+  WORLD_HEIGHT,
+  REGIONS,
+  ROADS,
+  EXTRA_FARM_COUNT,
+  WORLD_GEN_SEED,
+  getRegion,
+  forEachLandTile,
+  type RegionDef,
+} from "./regions";
+import { CLIFFS } from "../render-systems/geometry";
 
-const VILLAGE = getRegion('village').center;
+const VILLAGE = getRegion("village").center;
 
 /** Collect a region's mask-land tiles (organic shape, not the bounds rect). */
 function landTilesOf(region: RegionDef): Array<{ x: number; y: number }> {
@@ -41,25 +48,25 @@ function minChebyshevBetween(a: RegionDef, b: RegionDef): number {
   return min;
 }
 
-describe('buildWalkableGrid', () => {
-  it('grid size matches WORLD_WIDTH * WORLD_HEIGHT', () => {
+describe("buildWalkableGrid", () => {
+  it("grid size matches WORLD_WIDTH * WORLD_HEIGHT", () => {
     const grid = buildWalkableGrid();
     expect(grid.cells.length).toBe(WORLD_WIDTH * WORLD_HEIGHT);
     expect(grid.width).toBe(WORLD_WIDTH);
     expect(grid.height).toBe(WORLD_HEIGHT);
   });
 
-  it('village center is walkable', () => {
+  it("village center is walkable", () => {
     const grid = buildWalkableGrid();
-    expect(grid.cells[VILLAGE.y * WORLD_WIDTH + VILLAGE.x]).toBe(0); 
+    expect(grid.cells[VILLAGE.y * WORLD_WIDTH + VILLAGE.x]).toBe(0);
   });
 
-  it('ocean tile at (0,0) is blocked', () => {
+  it("ocean tile at (0,0) is blocked", () => {
     const grid = buildWalkableGrid();
     expect(grid.cells[0 * WORLD_WIDTH + 0]).toBe(1);
   });
 
-  it('bridge (road) tiles are walkable', () => {
+  it("bridge (road) tiles are walkable", () => {
     const grid = buildWalkableGrid();
     // There is at least one bridge, and every road tile is walkable. (Specific
     // tile coords aren't pinned — region scatter moves the bridges per seed.)
@@ -73,15 +80,15 @@ describe('buildWalkableGrid', () => {
     }
   });
 
-  it('resource zone tiles are walkable', () => {
+  it("resource zone tiles are walkable", () => {
     const grid = buildWalkableGrid();
-    for (const id of ['forest-north', 'quarry-north', 'forest-south', 'quarry-south'] as const) {
+    for (const id of ["forest-north", "quarry-north", "forest-south", "quarry-south"] as const) {
       const c = getRegion(id).center;
       expect(grid.cells[c.y * WORLD_WIDTH + c.x], `${id} center`).toBe(0);
     }
   });
 
-  it('walkable count matches an independent recomputation from REGIONS + ROADS', () => {
+  it("walkable count matches an independent recomputation from REGIONS + ROADS", () => {
     const expected = new Set<number>();
     const markRect = (b: { minX: number; minY: number; maxX: number; maxY: number }) => {
       for (let y = b.minY; y <= b.maxY; y++) {
@@ -100,7 +107,7 @@ describe('buildWalkableGrid', () => {
     expect(walkableCount).toBe(expected.size);
   });
 
-  it('no two island bodies are adjacent (≥2 Chebyshev between every region pair, over MASK land)', () => {
+  it("no two island bodies are adjacent (≥2 Chebyshev between every region pair, over MASK land)", () => {
     // Organic masks: compare actual land tiles, not bounds rects. Every land
     // tile of A must be Chebyshev ≥2 from every land tile of B (i.e. ≥1 ocean
     // tile between the bodies). The mask generator's cross-region adjacency
@@ -124,10 +131,7 @@ describe('buildWalkableGrid', () => {
         const a = REGIONS[i]!;
         const b = REGIONS[j]!;
         const boundsGap = boundsChebyshev(a, b);
-        expect(
-          boundsGap,
-          `${a.id} and ${b.id} bounds must be Chebyshev ≥2 apart`,
-        ).toBeGreaterThanOrEqual(2);
+        expect(boundsGap, `${a.id} and ${b.id} bounds must be Chebyshev ≥2 apart`).toBeGreaterThanOrEqual(2);
         // Only a bounds-adjacent pair can hide a tile-level violation; today there are none, but if
         // placement ever allows overlapping rects with non-touching masks, THIS is what catches it.
         if (boundsGap < 2) {
@@ -140,24 +144,20 @@ describe('buildWalkableGrid', () => {
     }
   });
 
-  it('jittered band farm bodies keep a ≥2 Chebyshev land margin (jitter budget holds)', () => {
+  it("jittered band farm bodies keep a ≥2 Chebyshev land margin (jitter budget holds)", () => {
     const band = REGIONS.filter((r) => /^farm-\d+$/.test(r.id));
     for (let i = 0; i < band.length; i++) {
       for (let j = i + 1; j < band.length; j++) {
         const a = band[i]!;
         const b = band[j]!;
-        expect(
-          minChebyshevBetween(a, b),
-          `${a.id} and ${b.id} land must keep Chebyshev ≥2`,
-        ).toBeGreaterThanOrEqual(2);
+        expect(minChebyshevBetween(a, b), `${a.id} and ${b.id} land must keep Chebyshev ≥2`).toBeGreaterThanOrEqual(2);
       }
     }
   });
 
-  it('ring jitter is deterministic (farm-ring-jitter draw reproduces)', () => {
-
+  it("ring jitter is deterministic (farm-ring-jitter draw reproduces)", () => {
     const drawJitter = () => {
-      const rng = createRng(WORLD_GEN_SEED).fork('farm-ring-jitter');
+      const rng = createRng(WORLD_GEN_SEED).fork("farm-ring-jitter");
       return Array.from({ length: EXTRA_FARM_COUNT }, () => ({
         dx: rng.int(-1, 2),
         dy: rng.int(-1, 2),
@@ -168,14 +168,15 @@ describe('buildWalkableGrid', () => {
     expect(jitterB).toEqual(jitterA);
   });
 
-  it('placeRegions yields distinct, walkable farm-band centers (placement determinism)', () => {
+  it("placeRegions yields distinct, walkable farm-band centers (placement determinism)", () => {
     // The band is jittered off its base ring slots by placeRegions, so ring-radius
     // assertions no longer hold. Instead assert the placed band is well-formed:
     // every band center is distinct and walkable on the default grid.
     const grid = buildWalkableGrid();
     const idx = (x: number, y: number) => y * WORLD_WIDTH + x;
-    const band = REGIONS.filter((r) => /^farm-\d+$/.test(r.id))
-      .sort((a, b) => Number(a.id.slice(5)) - Number(b.id.slice(5)));
+    const band = REGIONS.filter((r) => /^farm-\d+$/.test(r.id)).sort(
+      (a, b) => Number(a.id.slice(5)) - Number(b.id.slice(5)),
+    );
     expect(band).toHaveLength(EXTRA_FARM_COUNT);
 
     const seen = new Set<string>();
@@ -187,7 +188,7 @@ describe('buildWalkableGrid', () => {
     }
   });
 
-  it('every region center is walkable and reachable from the village', () => {
+  it("every region center is walkable and reachable from the village", () => {
     const grid = buildWalkableGrid();
     const W = WORLD_WIDTH;
     const idx = (x: number, y: number) => y * W + x;
@@ -199,7 +200,12 @@ describe('buildWalkableGrid', () => {
     const queue: Array<[number, number]> = [[VILLAGE.x, VILLAGE.y]];
     while (queue.length > 0) {
       const [x, y] = queue.shift()!;
-      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+      for (const [dx, dy] of [
+        [1, 0],
+        [-1, 0],
+        [0, 1],
+        [0, -1],
+      ] as const) {
         const nx = x + dx;
         const ny = y + dy;
         if (!walkable(nx, ny) || seen.has(idx(nx, ny))) continue;
@@ -214,44 +220,41 @@ describe('buildWalkableGrid', () => {
       expect(seen.has(idx(x, y)), `${region.id} center (${x},${y}) reachable from village`).toBe(true);
     }
 
-    const shrine = REGIONS.find((r) => r.id === 'shrine');
-    expect(shrine, 'shrine region exists').toBeTruthy();
-    expect(walkable(shrine!.center.x, shrine!.center.y), 'shrine center walkable').toBe(true);
-    expect(seen.has(idx(shrine!.center.x, shrine!.center.y)), 'shrine reachable from village').toBe(true);
+    const shrine = REGIONS.find((r) => r.id === "shrine");
+    expect(shrine, "shrine region exists").toBeTruthy();
+    expect(walkable(shrine!.center.x, shrine!.center.y), "shrine center walkable").toBe(true);
+    expect(seen.has(idx(shrine!.center.x, shrine!.center.y)), "shrine reachable from village").toBe(true);
 
-    for (const id of ['heritage-stones', 'heritage-ruin', 'heritage-statue'] as const) {
+    for (const id of ["heritage-stones", "heritage-ruin", "heritage-statue"] as const) {
       const h = REGIONS.find((r) => r.id === id);
       expect(h, `${id} region exists`).toBeTruthy();
       expect(walkable(h!.center.x, h!.center.y), `${id} center walkable`).toBe(true);
       expect(seen.has(idx(h!.center.x, h!.center.y)), `${id} reachable from village`).toBe(true);
     }
 
-    const waterfall = REGIONS.find((r) => r.id === 'waterfall');
-    expect(waterfall, 'waterfall region exists').toBeTruthy();
-    expect(walkable(waterfall!.center.x, waterfall!.center.y), 'waterfall center walkable').toBe(true);
-    expect(seen.has(idx(waterfall!.center.x, waterfall!.center.y)), 'waterfall reachable from village').toBe(true);
+    const waterfall = REGIONS.find((r) => r.id === "waterfall");
+    expect(waterfall, "waterfall region exists").toBeTruthy();
+    expect(walkable(waterfall!.center.x, waterfall!.center.y), "waterfall center walkable").toBe(true);
+    expect(seen.has(idx(waterfall!.center.x, waterfall!.center.y)), "waterfall reachable from village").toBe(true);
 
-    const camp = REGIONS.find((r) => r.id === 'camp');
-    expect(camp, 'camp region exists').toBeTruthy();
-    expect(walkable(camp!.center.x, camp!.center.y), 'camp center walkable').toBe(true);
-    expect(seen.has(idx(camp!.center.x, camp!.center.y)), 'camp reachable from village').toBe(true);
+    const camp = REGIONS.find((r) => r.id === "camp");
+    expect(camp, "camp region exists").toBeTruthy();
+    expect(walkable(camp!.center.x, camp!.center.y), "camp center walkable").toBe(true);
+    expect(seen.has(idx(camp!.center.x, camp!.center.y)), "camp reachable from village").toBe(true);
   });
 
-  it('the camping island keeps a ≥2 Chebyshev land margin from every other region', () => {
-    const camp = REGIONS.find((r) => r.id === 'camp')!;
+  it("the camping island keeps a ≥2 Chebyshev land margin from every other region", () => {
+    const camp = REGIONS.find((r) => r.id === "camp")!;
     for (const r of REGIONS) {
-      if (r.id === 'camp') continue;
-      expect(
-        minChebyshevBetween(camp, r),
-        `camp and ${r.id} land must keep Chebyshev ≥2`,
-      ).toBeGreaterThanOrEqual(2);
+      if (r.id === "camp") continue;
+      expect(minChebyshevBetween(camp, r), `camp and ${r.id} land must keep Chebyshev ≥2`).toBeGreaterThanOrEqual(2);
     }
   });
 
-  it('the waterfall island keeps a ≥2 Chebyshev land margin from every other region', () => {
-    const waterfall = REGIONS.find((r) => r.id === 'waterfall')!;
+  it("the waterfall island keeps a ≥2 Chebyshev land margin from every other region", () => {
+    const waterfall = REGIONS.find((r) => r.id === "waterfall")!;
     for (const r of REGIONS) {
-      if (r.id === 'waterfall') continue;
+      if (r.id === "waterfall") continue;
       expect(
         minChebyshevBetween(waterfall, r),
         `waterfall and ${r.id} land must keep Chebyshev ≥2`,
@@ -259,20 +262,17 @@ describe('buildWalkableGrid', () => {
     }
   });
 
-  it('each heritage islet keeps a ≥2 Chebyshev land margin from every other region', () => {
-    for (const id of ['heritage-stones', 'heritage-ruin', 'heritage-statue'] as const) {
+  it("each heritage islet keeps a ≥2 Chebyshev land margin from every other region", () => {
+    for (const id of ["heritage-stones", "heritage-ruin", "heritage-statue"] as const) {
       const h = REGIONS.find((r) => r.id === id)!;
       for (const r of REGIONS) {
         if (r.id === id) continue;
-        expect(
-          minChebyshevBetween(h, r),
-          `${id} and ${r.id} land must keep Chebyshev ≥2`,
-        ).toBeGreaterThanOrEqual(2);
+        expect(minChebyshevBetween(h, r), `${id} and ${r.id} land must keep Chebyshev ≥2`).toBeGreaterThanOrEqual(2);
       }
     }
   });
 
-  it('cliff tiles are all non-walkable (cliffs are purely visual and touch only ocean)', () => {
+  it("cliff tiles are all non-walkable (cliffs are purely visual and touch only ocean)", () => {
     const grid = buildWalkableGrid();
     for (const cliff of CLIFFS) {
       expect(
@@ -280,17 +280,16 @@ describe('buildWalkableGrid', () => {
         `cliff at (${cliff.tx},${cliff.ty}) frame=${cliff.frame} must be on a non-walkable ocean tile`,
       ).toBe(1);
     }
-    expect(CLIFFS.length, 'CLIFFS must be non-empty').toBeGreaterThan(0);
+    expect(CLIFFS.length, "CLIFFS must be non-empty").toBeGreaterThan(0);
   });
 
-  it('the shrine island keeps a ≥2 Chebyshev land margin from every other region', () => {
-    const shrine = REGIONS.find((r) => r.id === 'shrine')!;
+  it("the shrine island keeps a ≥2 Chebyshev land margin from every other region", () => {
+    const shrine = REGIONS.find((r) => r.id === "shrine")!;
     for (const r of REGIONS) {
-      if (r.id === 'shrine') continue;
-      expect(
-        minChebyshevBetween(shrine, r),
-        `shrine and ${r.id} land must keep Chebyshev ≥2`,
-      ).toBeGreaterThanOrEqual(2);
+      if (r.id === "shrine") continue;
+      expect(minChebyshevBetween(shrine, r), `shrine and ${r.id} land must keep Chebyshev ≥2`).toBeGreaterThanOrEqual(
+        2,
+      );
     }
   });
 });

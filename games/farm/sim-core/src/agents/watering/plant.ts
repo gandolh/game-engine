@@ -17,7 +17,7 @@ export function deliberatePlantNearby(
   if (emptyPlots.length === 0) return false;
 
   const transform = farmer.transform;
-  const inReach = emptyPlots.filter(p => isWithinReach(transform, p.tileX, p.tileY));
+  const inReach = emptyPlots.filter((p) => isWithinReach(transform, p.tileX, p.tileY));
 
   if (inReach.length > 0) {
     const target = inReach[0]!;
@@ -30,7 +30,7 @@ export function deliberatePlantNearby(
   }
 
   const nearest = nearestTile(transform, emptyPlots);
-  if (nearest && !farmer.intentions.queue.some(i => i.kind === "travel" && i.data.targetTile)) {
+  if (nearest && !farmer.intentions.queue.some((i) => i.kind === "travel" && i.data.targetTile)) {
     farmer.intentions.queue.push({
       kind: "travel",
       data: { targetTile: { x: nearest.tileX, y: nearest.tileY } },
@@ -53,13 +53,13 @@ export function deliberatePlantOrchard(
   const cost = TREE_PLANT_COST[kind];
   if (farmer.inventory.gold - cost < reserve) return;
 
-  const treeCount = farmer.beliefs?.data["orchardCount"] as number | undefined ?? 0;
+  const treeCount = (farmer.beliefs?.data["orchardCount"] as number | undefined) ?? 0;
   if (treeCount >= maxTrees) return;
 
-  if (farmer.intentions.queue.some(i => i.kind === "plant-tree" && i.data.kind === kind)) return;
+  if (farmer.intentions.queue.some((i) => i.kind === "plant-tree" && i.data.kind === kind)) return;
 
   const homeRegion = farmer.farmer.homeRegion;
-  const farmDef = homeRegion ? REGIONS.find(r => r.id === homeRegion) : undefined;
+  const farmDef = homeRegion ? REGIONS.find((r) => r.id === homeRegion) : undefined;
   if (!farmDef || farmDef.kind !== "farm") return;
 
   const occupied = new Set<string>((farmer.beliefs?.data["occupiedTiles"] as string[] | undefined) ?? []);
@@ -76,9 +76,8 @@ export function deliberatePlantOrchard(
   const inReach = isWithinReach(farmer.transform, target.x, target.y);
   if (!inReach) {
     const wanted = travelPriority ?? -1;
-    const existing = farmer.intentions.queue.find(i => i.kind === "travel" && i.data.targetTile);
+    const existing = farmer.intentions.queue.find((i) => i.kind === "travel" && i.data.targetTile);
     if (existing) {
-
       if (wanted < existing.priority) {
         existing.priority = wanted;
         existing.data = { targetTile: { x: target.x, y: target.y } };
@@ -101,20 +100,23 @@ export function deliberatePlantOrchard(
   recordReason(farmer, `plant ${kind} tree (orchards: ${treeCount}/${maxTrees})`);
 }
 
-export function deliberateHarvestFruit(
-  farmer: GameEntity,
-  priority: number,
-): void {
+export function deliberateHarvestFruit(farmer: GameEntity, priority: number): void {
   if (!farmer.intentions || !farmer.farmer || farmer.id === undefined) return;
 
-  const readyTrees = farmer.beliefs?.data["orchardFruitReady"] as Array<{ tileX: number; tileY: number; kind: string }> | undefined;
+  const readyTrees = farmer.beliefs?.data["orchardFruitReady"] as
+    Array<{ tileX: number; tileY: number; kind: string }> | undefined;
   if (!readyTrees || readyTrees.length === 0) return;
 
   for (const tree of readyTrees) {
-    if (farmer.intentions.queue.some(i => i.kind === "harvest-fruit" && i.data.tileX === tree.tileX && i.data.tileY === tree.tileY)) continue;
+    if (
+      farmer.intentions.queue.some(
+        (i) => i.kind === "harvest-fruit" && i.data.tileX === tree.tileX && i.data.tileY === tree.tileY,
+      )
+    )
+      continue;
     const inReach = isWithinReach(farmer.transform, tree.tileX, tree.tileY);
     if (!inReach) {
-      if (!farmer.intentions.queue.some(i => i.kind === "travel" && i.data.targetTile)) {
+      if (!farmer.intentions.queue.some((i) => i.kind === "travel" && i.data.targetTile)) {
         farmer.intentions.queue.push({
           kind: "travel",
           data: { targetTile: { x: tree.tileX, y: tree.tileY } },
@@ -140,13 +142,14 @@ export function deliberateGreenhousePlant(
   priority: number,
 ): void {
   if (!farmer.intentions || !farmer.inventory) return;
-  const empty = (farmer.beliefs?.data["greenhouseEmptyPlots"] as Array<{ tileX: number; tileY: number }> | undefined) ?? [];
+  const empty =
+    (farmer.beliefs?.data["greenhouseEmptyPlots"] as Array<{ tileX: number; tileY: number }> | undefined) ?? [];
   if (empty.length === 0) return;
 
   const haveSeed = farmer.inventory.seeds[crop] >= 1;
   if (!haveSeed) {
     if (farmer.inventory.gold - seedCost < reserve) return;
-    if (!farmer.intentions.queue.some(i => i.kind === "buy-seed" && i.data.crop === crop)) {
+    if (!farmer.intentions.queue.some((i) => i.kind === "buy-seed" && i.data.crop === crop)) {
       farmer.intentions.queue.push({ kind: "buy-seed", data: { crop, quantity: 1 }, priority: priority + 1 });
       recordReason(farmer, `buy ${crop} seed for greenhouse`);
     }
@@ -155,11 +158,19 @@ export function deliberateGreenhousePlant(
 
   const target = empty[0]!;
   if (isWithinReach(farmer.transform, target.tileX, target.tileY)) {
-    if (!farmer.intentions.queue.some(i => i.kind === "plant" && i.data.tileX === target.tileX && i.data.tileY === target.tileY)) {
-      farmer.intentions.queue.push({ kind: "plant", data: { crop, tileX: target.tileX, tileY: target.tileY }, priority });
+    if (
+      !farmer.intentions.queue.some(
+        (i) => i.kind === "plant" && i.data.tileX === target.tileX && i.data.tileY === target.tileY,
+      )
+    ) {
+      farmer.intentions.queue.push({
+        kind: "plant",
+        data: { crop, tileX: target.tileX, tileY: target.tileY },
+        priority,
+      });
       recordReason(farmer, `plant ${crop} in greenhouse (year-round)`);
     }
-  } else if (!farmer.intentions.queue.some(i => i.kind === "travel" && i.data.targetTile)) {
+  } else if (!farmer.intentions.queue.some((i) => i.kind === "travel" && i.data.targetTile)) {
     farmer.intentions.queue.push({
       kind: "travel",
       data: { targetTile: { x: target.tileX, y: target.tileY } },
@@ -186,12 +197,12 @@ export function deliberateBuildGreenhouse(
   const goldDue = useMaterials ? recipe.goldCost - recipe.goldDiscount : recipe.goldCost;
   if (farmer.inventory.gold - goldDue < reserve) return;
 
-  if (farmer.intentions.queue.some(i => i.kind === "build-greenhouse")) return;
+  if (farmer.intentions.queue.some((i) => i.kind === "build-greenhouse")) return;
 
   const inCarpentry = farmer.farmer.currentRegion === "carpentry";
   if (!inCarpentry) {
     const wanted = travelPriority ?? priority + 1;
-    const existing = farmer.intentions.queue.find(i => i.kind === "travel" && i.data.targetRegionId === "carpentry");
+    const existing = farmer.intentions.queue.find((i) => i.kind === "travel" && i.data.targetRegionId === "carpentry");
     if (existing) {
       if (wanted < existing.priority) existing.priority = wanted;
     } else {

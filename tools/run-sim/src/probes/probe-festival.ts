@@ -34,9 +34,7 @@ import { makePathfinder } from "../pathfinder";
 // component-map cache (world/connectivity.ts) is not reset on setActiveWorld, so
 // running multiple seeds in one process would have later seeds reuse the first
 // seed's connectivity map. `for s in …; do SEED=$s tsx probe-festival.ts; done`.
-const SEEDS = process.env["SEED"] !== undefined
-  ? [Number(process.env["SEED"])]
-  : [0xc0ffee, 1, 42];
+const SEEDS = process.env["SEED"] !== undefined ? [Number(process.env["SEED"])] : [0xc0ffee, 1, 42];
 const TICKS_PER_DAY = 1200;
 const MAX_DAYS = 100;
 const SAMPLE_EVERY = 50; // ticks; attendance is sampled this often on festival days
@@ -69,12 +67,18 @@ async function runSeed(seed: number): Promise<void> {
 
     if (festivalForDay(day) !== null && tick % SAMPLE_EVERY === 0) {
       const start = festivalStartDayForDay(day)!;
-      if (!cumVisited.has(start)) { cumVisited.set(start, new Set()); cumReached.set(start, new Set()); }
+      if (!cumVisited.has(start)) {
+        cumVisited.set(start, new Set());
+        cumReached.set(start, new Set());
+      }
       let simul = 0;
       for (const f of world.query("farmer", "personality")) {
         if (f.personality.kind === "pip" || !f.transform || f.id === undefined) continue;
         const inRegion = regionAt(Math.round(f.transform.x), Math.round(f.transform.y)) === FESTIVAL_REGION;
-        if (inRegion) { simul++; cumVisited.get(start)!.add(f.id); }
+        if (inRegion) {
+          simul++;
+          cumVisited.get(start)!.add(f.id);
+        }
         if (isWithinReach(f.transform, podium.x, podium.y)) cumReached.get(start)!.add(f.id);
       }
       if (simul > (maxSimul.get(start) ?? 0)) maxSimul.set(start, simul);
@@ -108,8 +112,8 @@ async function runSeed(seed: number): Promise<void> {
     if (isMajority) majorityVisited++;
     console.log(
       `  festival ${String(start).padStart(3)} (days ${windowDays(start).join(",")}): ` +
-      `maxSimultaneous=${simul}/20  cumulativeVisited=${visited}/20  cumulativeReachedPodium=${reached}/20` +
-      `  ${isMajority ? "MAJORITY visited" : "minority"}`,
+        `maxSimultaneous=${simul}/20  cumulativeVisited=${visited}/20  cumulativeReachedPodium=${reached}/20` +
+        `  ${isMajority ? "MAJORITY visited" : "minority"}`,
     );
   }
   console.log(`  --- festivals with a cumulative-visited majority: ${majorityVisited}/${starts.length}`);
@@ -128,7 +132,7 @@ async function runSeed(seed: number): Promise<void> {
     const dipPct = avgNeighbor !== 0 ? ((avgNeighbor - avgWindow) / Math.abs(avgNeighbor)) * 100 : 0;
     console.log(
       `      festival ${String(start).padStart(3)} (days ${days.join(",")}): ` +
-      `mean-window-gain=${avgWindow.toFixed(1)}g  avg-neighbor-gain=${avgNeighbor.toFixed(1)}g  dip=${dipPct.toFixed(1)}%`,
+        `mean-window-gain=${avgWindow.toFixed(1)}g  avg-neighbor-gain=${avgNeighbor.toFixed(1)}g  dip=${dipPct.toFixed(1)}%`,
     );
   }
 }

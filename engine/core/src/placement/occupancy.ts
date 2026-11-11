@@ -95,12 +95,7 @@ export function checkPlacement(
   adjacency?: (fp: Footprint, occ: OccupancyGrid) => boolean,
 ): PlacementResult {
   // 1. Bounds check
-  if (
-    fp.x < 0 ||
-    fp.y < 0 ||
-    fp.x + fp.w > occ.width ||
-    fp.y + fp.h > occ.height
-  ) {
+  if (fp.x < 0 || fp.y < 0 || fp.x + fp.w > occ.width || fp.y + fp.h > occ.height) {
     return { valid: false, reason: "out of bounds" };
   }
 
@@ -155,8 +150,7 @@ export function rebuildWalkable(
   for (let ty = 0; ty < height; ty++) {
     for (let tx = 0; tx < width; tx++) {
       const idx = ty * width + tx;
-      grid[idx] =
-        terrainWalkable(tx, ty) && !occ.isOccupied(tx, ty) ? 1 : 0;
+      grid[idx] = terrainWalkable(tx, ty) && !occ.isOccupied(tx, ty) ? 1 : 0;
     }
   }
   return grid;

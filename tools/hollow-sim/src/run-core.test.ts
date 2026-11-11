@@ -110,7 +110,10 @@ describe("runResearch — rationalizer decisions reach the chronicle and events.
     // serializer, so every rationalize.decision row shows up in the .jsonl
     // output exactly as it sits in `result.events`.
     const jsonl = eventsJsonl(result.events);
-    const lines = jsonl.trim().split("\n").map((l) => JSON.parse(l) as ChronicleEvent);
+    const lines = jsonl
+      .trim()
+      .split("\n")
+      .map((l) => JSON.parse(l) as ChronicleEvent);
     const exportedDecisions = lines.filter((e) => e.ontology === ONT_RATIONALIZE.DECISION);
     expect(exportedDecisions.length).toBe(decisions.length);
     expect(exportedDecisions[0]).toEqual(decisions[0]);
@@ -134,7 +137,11 @@ describe("runResearch — rationalizer decisions reach the chronicle and events.
     };
 
     const result = runResearch({
-      simOptions: { seed: 7, ...RESEARCH_PROFILE, rationalizer: createStubRationalizer({ respond, name: "override-stub" }) },
+      simOptions: {
+        seed: 7,
+        ...RESEARCH_PROFILE,
+        rationalizer: createStubRationalizer({ respond, name: "override-stub" }),
+      },
       ticksPerYear: 50,
       maxYears: 6,
     });

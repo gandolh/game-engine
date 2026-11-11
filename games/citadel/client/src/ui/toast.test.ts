@@ -31,7 +31,7 @@ describe("ToastManager — in-canvas stack", () => {
     expect(panels(t).length).toBe(1);
     expect(labelOf(panels(t)[0]!).text).toBe("A fire broke out!");
     expect(labelOf(panels(t)[0]!).color).toBe(EDG.salmon); // danger tone
-    expect(live.textContent).toBe("A fire broke out!");     // a11y announce
+    expect(live.textContent).toBe("A fire broke out!"); // a11y announce
   });
 
   it("colours by tone (danger/warn/good/info)", () => {
@@ -62,9 +62,9 @@ describe("ToastManager — in-canvas stack", () => {
     const t = new ToastManager(live);
     t.push("hello", 0);
     const p = panels(t)[0]!;
-    t.tick(80);           // mid fade-in (160ms ramp)
+    t.tick(80); // mid fade-in (160ms ramp)
     expect(p.opacity).toBeCloseTo(0.5);
-    t.tick(1000);         // holding
+    t.tick(1000); // holding
     expect(p.opacity).toBe(1);
     t.tick(HOLD + FADE / 2); // mid fade-out
     expect(p.opacity).toBeCloseTo(0.5);
@@ -76,9 +76,9 @@ describe("ToastManager — in-canvas stack", () => {
 describe("toastOpacity — age ramp", () => {
   it("ramps 0→1 over the fade-in, holds at 1, ramps back to 0", () => {
     expect(toastOpacity(0)).toBe(0);
-    expect(toastOpacity(160)).toBe(1);     // fully in at the ramp end
-    expect(toastOpacity(2000)).toBe(1);    // holding
-    expect(toastOpacity(HOLD)).toBe(1);    // hold boundary
+    expect(toastOpacity(160)).toBe(1); // fully in at the ramp end
+    expect(toastOpacity(2000)).toBe(1); // holding
+    expect(toastOpacity(HOLD)).toBe(1); // hold boundary
     expect(toastOpacity(HOLD + FADE)).toBeCloseTo(0); // faded out
   });
 });

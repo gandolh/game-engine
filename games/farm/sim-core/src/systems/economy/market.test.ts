@@ -9,11 +9,7 @@ import { ONT_MARKET, type MarketRejectedBody } from "../../protocols/market";
 import { PERFORMATIVE } from "../../protocols/performatives";
 import type { RegionId } from "../../world/regions";
 
-function makeFarmer(
-  world: World<GameEntity>,
-  gold = 50,
-  region: RegionId = "village",
-): GameEntity {
+function makeFarmer(world: World<GameEntity>, gold = 50, region: RegionId = "village"): GameEntity {
   return world.spawn({
     farmer: { name: "F", currentRegion: region },
     inbox: { messages: [] },
@@ -28,12 +24,15 @@ function makeFarmer(
   });
 }
 
-function pushToWall(wall: GameEntity, msg: {
-  ontology: string;
-  sender: number;
-  body: Record<string, unknown>;
-  performative?: string;
-}): void {
+function pushToWall(
+  wall: GameEntity,
+  msg: {
+    ontology: string;
+    sender: number;
+    body: Record<string, unknown>;
+    performative?: string;
+  },
+): void {
   wall.inbox!.messages.push({
     performative: msg.performative ?? PERFORMATIVE.INFORM,
     ontology: msg.ontology,
@@ -175,9 +174,7 @@ describe("MarketSystem", () => {
     sys.run({ tick: 2 });
 
     bus.flush();
-    const forwarded = bus.drain().find(
-      (m) => m.ontology === ONT_MARKET.BUY_REQUEST && m.recipient === seller.id,
-    );
+    const forwarded = bus.drain().find((m) => m.ontology === ONT_MARKET.BUY_REQUEST && m.recipient === seller.id);
     expect(forwarded).toBeDefined();
     expect(forwarded!.performative).toBe(PERFORMATIVE.REQUEST);
     const body = forwarded!.body as { offerId: string; buyerId: number };
@@ -207,14 +204,14 @@ describe("MarketSystem", () => {
     const idsA = collect();
     const idsB = collect();
     expect(idsA).toEqual(idsB);
-    expect(new Set(idsA).size).toBe(idsA.length); 
+    expect(new Set(idsA).size).toBe(idsA.length);
   });
 
   it("POST_OFFER from a non-existent farmer is silently ignored", () => {
     const sys = new MarketSystem(bus, world, createRng(1));
     pushToWall(wall, {
       ontology: ONT_MARKET.POST_OFFER,
-      sender: 9999, 
+      sender: 9999,
       body: { offer: { crop: "radish", quantity: 1, pricePerUnit: 5 } },
     });
     sys.run({ tick: 1 });
@@ -234,9 +231,7 @@ describe("MarketSystem", () => {
     expect(sys.offersById.size).toBe(0);
 
     bus.flush();
-    const rejection = bus
-      .drain()
-      .find((m) => m.ontology === ONT_MARKET.REJECTED && m.recipient === farmer.id);
+    const rejection = bus.drain().find((m) => m.ontology === ONT_MARKET.REJECTED && m.recipient === farmer.id);
     expect(rejection).toBeDefined();
     expect(rejection!.performative).toBe(PERFORMATIVE.REFUSE);
     const body = rejection!.body as unknown as MarketRejectedBody;
@@ -282,9 +277,7 @@ describe("MarketSystem", () => {
 
     expect(sys.offersById.size).toBe(1);
     bus.flush();
-    const rejection = bus
-      .drain()
-      .find((m) => m.ontology === ONT_MARKET.REJECTED && m.recipient === farmer.id);
+    const rejection = bus.drain().find((m) => m.ontology === ONT_MARKET.REJECTED && m.recipient === farmer.id);
     expect(rejection).toBeDefined();
     const body = rejection!.body as unknown as MarketRejectedBody;
     expect(body.originalOntology).toBe(ONT_MARKET.CANCEL_OFFER);
@@ -326,8 +319,7 @@ describe("MarketSystem", () => {
     bankHarvest(seller.inventory!, "radish", 1, "silver");
 
     const goldBefore = seller.inventory!.gold + buyer.inventory!.gold;
-    const radishBefore =
-      totalCropCount(seller.inventory!, "radish") + totalCropCount(buyer.inventory!, "radish");
+    const radishBefore = totalCropCount(seller.inventory!, "radish") + totalCropCount(buyer.inventory!, "radish");
     const sellerGold0 = seller.inventory!.gold;
     const buyerGold0 = buyer.inventory!.gold;
 
@@ -359,9 +351,7 @@ describe("MarketSystem", () => {
 
     // Conservation across the whole flow (escrow included — the offer is gone).
     expect(seller.inventory!.gold + buyer.inventory!.gold).toBe(goldBefore);
-    expect(
-      totalCropCount(seller.inventory!, "radish") + totalCropCount(buyer.inventory!, "radish"),
-    ).toBe(radishBefore);
+    expect(totalCropCount(seller.inventory!, "radish") + totalCropCount(buyer.inventory!, "radish")).toBe(radishBefore);
 
     // Quality tiers move with the goods rather than being re-minted as normal.
     expect(buyer.inventory!.cropQuality?.radish).toEqual({ normal: 0, silver: 1, gold: 2 });
@@ -434,8 +424,7 @@ describe("MarketSystem", () => {
     dispatch(world, bus);
     trades.run({ tick: 3 });
 
-    const bought =
-      totalCropCount(buyerA.inventory!, "radish") + totalCropCount(buyerB.inventory!, "radish");
+    const bought = totalCropCount(buyerA.inventory!, "radish") + totalCropCount(buyerB.inventory!, "radish");
     expect(bought).toBe(3); // exactly one fill, not two
     expect(seller.inventory!.gold).toBe(40 + 21);
     expect(sys.offersById.size).toBe(0);

@@ -59,9 +59,7 @@ describe("drawLineChart", () => {
 
   it("skips a series with fewer than 2 points without throwing", () => {
     const ctx = new RecordingCtx();
-    expect(() =>
-      drawLineChart(ctx, [{ values: [1], colorRole: "green" }], { width: 100, height: 40 }),
-    ).not.toThrow();
+    expect(() => drawLineChart(ctx, [{ values: [1], colorRole: "green" }], { width: 100, height: 40 })).not.toThrow();
     expect(ctx.calls.filter((c) => c === "beginPath")).toHaveLength(0);
   });
 

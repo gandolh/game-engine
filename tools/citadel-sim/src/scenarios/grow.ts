@@ -32,26 +32,26 @@ export function buildGrowScenario(terrain: TerrainGrid): CitadelCommand[] {
   // dense wooden cluster and density-driven ignition burns the town down by ~day 33.
   const house3 = findClear(terrain, 2, 2, store.x, store.y + 7);
   // Phase 3: service buildings
-  const chapel     = findClear(terrain, 2, 2, store.x - 8, store.y - 1);
-  const market     = findClear(terrain, 2, 2, store.x - 8, store.y + 2);
-  const watchpost  = findClear(terrain, 2, 2, store.x + 3, store.y + 4);
+  const chapel = findClear(terrain, 2, 2, store.x - 8, store.y - 1);
+  const market = findClear(terrain, 2, 2, store.x - 8, store.y + 2);
+  const watchpost = findClear(terrain, 2, 2, store.x + 3, store.y + 4);
   const tradingpost = findClear(terrain, 3, 2, store.x + 7, store.y);
 
   const cmds: CitadelCommand[] = [
-    { type: "placeBuilding", payload: { buildingType: "storehouse",  x: store.x,      y: store.y } },
-    { type: "placeBuilding", payload: { buildingType: "farm",        x: farm1.x,      y: farm1.y } },
-    { type: "placeBuilding", payload: { buildingType: "farm",        x: farm2.x,      y: farm2.y } },
-    { type: "placeBuilding", payload: { buildingType: "mill",        x: mill1.x,      y: mill1.y } },
-    { type: "placeBuilding", payload: { buildingType: "mill",        x: mill2.x,      y: mill2.y } },
-    { type: "placeBuilding", payload: { buildingType: "bakery",      x: bakery1.x,    y: bakery1.y } },
-    { type: "placeBuilding", payload: { buildingType: "bakery",      x: bakery2.x,    y: bakery2.y } },
-    { type: "placeBuilding", payload: { buildingType: "house",       x: house1.x,     y: house1.y } },
-    { type: "placeBuilding", payload: { buildingType: "house",       x: house2.x,     y: house2.y } },
-    { type: "placeBuilding", payload: { buildingType: "house",       x: house3.x,     y: house3.y } },
+    { type: "placeBuilding", payload: { buildingType: "storehouse", x: store.x, y: store.y } },
+    { type: "placeBuilding", payload: { buildingType: "farm", x: farm1.x, y: farm1.y } },
+    { type: "placeBuilding", payload: { buildingType: "farm", x: farm2.x, y: farm2.y } },
+    { type: "placeBuilding", payload: { buildingType: "mill", x: mill1.x, y: mill1.y } },
+    { type: "placeBuilding", payload: { buildingType: "mill", x: mill2.x, y: mill2.y } },
+    { type: "placeBuilding", payload: { buildingType: "bakery", x: bakery1.x, y: bakery1.y } },
+    { type: "placeBuilding", payload: { buildingType: "bakery", x: bakery2.x, y: bakery2.y } },
+    { type: "placeBuilding", payload: { buildingType: "house", x: house1.x, y: house1.y } },
+    { type: "placeBuilding", payload: { buildingType: "house", x: house2.x, y: house2.y } },
+    { type: "placeBuilding", payload: { buildingType: "house", x: house3.x, y: house3.y } },
     // Phase 3 service buildings
-    { type: "placeBuilding", payload: { buildingType: "chapel",      x: chapel.x,     y: chapel.y } },
-    { type: "placeBuilding", payload: { buildingType: "market",      x: market.x,     y: market.y } },
-    { type: "placeBuilding", payload: { buildingType: "watchpost",   x: watchpost.x,  y: watchpost.y } },
+    { type: "placeBuilding", payload: { buildingType: "chapel", x: chapel.x, y: chapel.y } },
+    { type: "placeBuilding", payload: { buildingType: "market", x: market.x, y: market.y } },
+    { type: "placeBuilding", payload: { buildingType: "watchpost", x: watchpost.x, y: watchpost.y } },
     { type: "placeBuilding", payload: { buildingType: "tradingpost", x: tradingpost.x, y: tradingpost.y } },
   ];
 
@@ -71,10 +71,10 @@ export function buildGrowScenario(terrain: TerrainGrid): CitadelCommand[] {
   link(roadTiles, house1.x + 1, house1.y - 1, store.x, storeBottom);
   link(roadTiles, house2.x, house2.y - 1, store.x + 2, storeBottom);
   link(roadTiles, house3.x + 1, house3.y - 1, store.x + 1, storeBottom);
-  link(roadTiles, chapel.x + 2,      chapel.y + 1,      storeLeft,  store.y);
-  link(roadTiles, market.x + 2,      market.y + 1,      storeLeft,  store.y + 1);
-  link(roadTiles, watchpost.x,       watchpost.y - 1,   store.x + 2, storeBottom);
-  link(roadTiles, tradingpost.x,     tradingpost.y + 1, storeRight,  store.y);
+  link(roadTiles, chapel.x + 2, chapel.y + 1, storeLeft, store.y);
+  link(roadTiles, market.x + 2, market.y + 1, storeLeft, store.y + 1);
+  link(roadTiles, watchpost.x, watchpost.y - 1, store.x + 2, storeBottom);
+  link(roadTiles, tradingpost.x, tradingpost.y + 1, storeRight, store.y);
 
   cmds.push({ type: "placeRoad", payload: { tiles: roadTiles } });
   return cmds;

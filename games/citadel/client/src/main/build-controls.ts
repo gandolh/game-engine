@@ -1,10 +1,4 @@
-import {
-  getBuildingDef,
-  getProductionDef,
-  tierAtLeast,
-  BUILDING_MAX_LEVEL,
-  upgradeCost,
-} from "@citadel/sim-core";
+import { getBuildingDef, getProductionDef, tierAtLeast, BUILDING_MAX_LEVEL, upgradeCost } from "@citadel/sim-core";
 import type { BuildingSnapshot, SettlementTier } from "@citadel/sim-core";
 import { createInputDispatcher, createA11yMirror } from "@engine/ui";
 import type { InputDispatcher, A11yMirror } from "@engine/ui";
@@ -63,7 +57,7 @@ export function initVillagerPanel(): void {
   // FIX B: a dispatcher that hit-tests the panel root only while following, so a click on the
   // panel's rect is consumed (UI-owned) and never reaches world build/pan. No buttons → no
   // focus/activation behaviour is needed; it exists purely for click consumption.
-  villagerDispatcher = createInputDispatcher(() => (followId !== null ? villagerPanel?.root ?? null : null));
+  villagerDispatcher = createInputDispatcher(() => (followId !== null ? (villagerPanel?.root ?? null) : null));
   if (villagerA11yMount !== null) {
     villagerMirror = createA11yMirror(villagerA11yMount, { rootLabel: "Followed villager" });
   }

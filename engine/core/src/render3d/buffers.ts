@@ -204,8 +204,12 @@ export function instanceAABB(mesh: Mesh, model: Mat4): { min: Vec3; max: Vec3 } 
     [min[0], max[1], max[2]],
     [max[0], max[1], max[2]],
   ];
-  let minX = Infinity, minY = Infinity, minZ = Infinity;
-  let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+  let minX = Infinity,
+    minY = Infinity,
+    minZ = Infinity;
+  let maxX = -Infinity,
+    maxY = -Infinity,
+    maxZ = -Infinity;
   for (const c of corners) {
     const p = transformPoint(model, c);
     if (p[0] < minX) minX = p[0];

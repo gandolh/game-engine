@@ -21,7 +21,12 @@ function fakeIo(): { io: PatchedImageIo; fetched: string[]; closed: number[] } {
     fetch: (url) => {
       fetched.push(url);
       const body = url.endsWith(".json") ? manifest : {};
-      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body), blob: () => Promise.resolve(new Blob()) } as Response);
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(body),
+        blob: () => Promise.resolve(new Blob()),
+      } as Response);
     },
     decode: () => {
       const id = n++;

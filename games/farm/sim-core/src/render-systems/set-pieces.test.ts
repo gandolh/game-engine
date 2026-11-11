@@ -1,24 +1,13 @@
 import { describe, it, expect } from "vitest";
-import {
-  SET_PIECES,
-  SET_PIECE_ALPHA,
-  MIN_SPACING,
-  type SetPieceTile,
-} from "./set-pieces";
+import { SET_PIECES, SET_PIECE_ALPHA, MIN_SPACING, type SetPieceTile } from "./set-pieces";
 import { CORAL } from "./geometry";
-import {
-  WORLD_WIDTH,
-  WORLD_HEIGHT,
-  isWalkable,
-  regionAt,
-} from "../world/regions";
+import { WORLD_WIDTH, WORLD_HEIGHT, isWalkable, regionAt } from "../world/regions";
 import { CORAL_REEFS } from "../world/coral";
 
 const key = (x: number, y: number): number => y * WORLD_WIDTH + x;
 
 describe("set-pieces (decorative open-water props)", () => {
   it("places a sane, fixed number of props", () => {
-
     expect(SET_PIECES.length).toBe(28);
     expect(SET_PIECES.length).toBeGreaterThan(0);
     expect(SET_PIECE_ALPHA).toBeGreaterThan(0);
@@ -26,7 +15,6 @@ describe("set-pieces (decorative open-water props)", () => {
   });
 
   it("is deterministic: a snapshot of the first few props is stable", () => {
-
     const first = SET_PIECES.slice(0, 4).map((p) => ({
       tx: p.tx,
       ty: p.ty,
@@ -122,7 +110,6 @@ describe("set-pieces (decorative open-water props)", () => {
   });
 
   it("prop tiles are disjoint from REGIONS/ROADS (guard-test grids unaffected)", () => {
-
     for (const p of SET_PIECES) {
       expect(regionAt(p.tx, p.ty)).toBeNull();
       expect(isWalkable(p.tx, p.ty)).toBe(false);

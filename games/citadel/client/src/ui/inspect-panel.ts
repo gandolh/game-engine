@@ -160,11 +160,7 @@ export function createInspectPanel(actions: InspectPanelActions): InspectPanel {
   const closeBtn = button("X", { onActivate: () => actions.close() });
   // A grow:1 spacer pushes the close button to the right edge of the header row.
   const headerSpacer = box({ grow: 1 });
-  const header = box({ direction: "row", align: "center", gap: 8 }, [
-    titleLbl,
-    headerSpacer,
-    closeBtn,
-  ]);
+  const header = box({ direction: "row", align: "center", gap: 8 }, [titleLbl, headerSpacer, closeBtn]);
 
   // Every dynamic line WRAPS to the panel's text column. These labels carry sim-authored text
   // of unbounded length ("Cost: 4 planks, 4 stone (Needs Village)"), and an unwrapped label is
@@ -179,13 +175,7 @@ export function createInspectPanel(actions: InspectPanelActions): InspectPanel {
   const workersLbl = label("");
   const levelLbl = label("");
   const connectedLbl = label("");
-  const details = box({ direction: "column", gap: 3 }, [
-    scopeLbl,
-    flowLbl,
-    workersLbl,
-    levelLbl,
-    connectedLbl,
-  ]);
+  const details = box({ direction: "column", gap: 3 }, [scopeLbl, flowLbl, workersLbl, levelLbl, connectedLbl]);
 
   // Trade offers (Phase G, cozy decision #8): a "Trade:" heading + up to 3 pre-created offer
   // buttons. Fixed pool (never re-allocated) — refresh() rebinds each button's label/onActivate
@@ -296,9 +286,7 @@ export function createInspectPanel(actions: InspectPanelActions): InspectPanel {
       return;
     }
 
-    const affordable = Object.entries(cost).every(
-      ([good, qty]) => (stockpiles[good] ?? 0) >= qty,
-    );
+    const affordable = Object.entries(cost).every(([good, qty]) => (stockpiles[good] ?? 0) >= qty);
     setText(costLbl, affordable ? `Cost: ${costStr}` : `Cost: ${costStr} (can't afford)`);
     setColor(costLbl, affordable ? EDG.silver : EDG.red);
     setDisabled(!affordable);
@@ -310,11 +298,7 @@ export function createInspectPanel(actions: InspectPanelActions): InspectPanel {
    * directly (not `setText`) since a row is added/removed, not re-textured — so this ALSO flips
    * `changed` on any add/remove/relabel, which is what the tree-shape doc above promises.
    */
-  function refreshTradeOffers(
-    type: string,
-    traderPresent: boolean,
-    offers: readonly BarterOffer[],
-  ): void {
+  function refreshTradeOffers(type: string, traderPresent: boolean, offers: readonly BarterOffer[]): void {
     const show = type === "tradingpost" && traderPresent;
     liveOffers = offers;
     const nextChildren: (LabelNode | ButtonNode)[] = [];
@@ -342,8 +326,16 @@ export function createInspectPanel(actions: InspectPanelActions): InspectPanel {
   function refresh(state: InspectPanelState): boolean {
     changed = false;
     const {
-      type, level, connected, workerCount, outputBuffer, season, stockpiles, peakTier,
-      traderPresent, traderOffers,
+      type,
+      level,
+      connected,
+      workerCount,
+      outputBuffer,
+      season,
+      stockpiles,
+      peakTier,
+      traderPresent,
+      traderOffers,
     } = state;
 
     // --- Name + description.

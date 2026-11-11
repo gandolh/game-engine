@@ -34,7 +34,7 @@ function generateFarmer(
     for (const [personality, subs] of Object.entries(PERSONALITY_SUBS)) {
       RECIPES.push({
         name: nameFor(personality, key),
-        size: template.length, 
+        size: template.length,
         pixels: applyFarmerLook(template, personality, subs),
       });
     }

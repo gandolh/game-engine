@@ -32,7 +32,7 @@ export class CropGrowthSystem implements System {
           }
         }
       }
-      break; 
+      break;
     }
 
     if (newDay === null) return;
@@ -70,9 +70,7 @@ export class CropGrowthSystem implements System {
         const cropSeason = CROP_SEASON[state.crop];
 
         const inGreenhouse = plotEntity.plot.greenhouse === true;
-        const seasonMultiplier = inGreenhouse || currentSeason === cropSeason
-          ? 1.0
-          : OUT_OF_SEASON_GROWTH_RATE;
+        const seasonMultiplier = inGreenhouse || currentSeason === cropSeason ? 1.0 : OUT_OF_SEASON_GROWTH_RATE;
         const skillMultiplier = farmingGrowthMultiplier(farmingXpByOwner.get(plotEntity.plot.ownerId) ?? 0);
         state.daysGrowing += seasonMultiplier * skillMultiplier;
         state.weatherSum += weatherMultiplier;
@@ -107,12 +105,7 @@ export class CropGrowthSystem implements System {
     }
   }
 
-  private announceDeath(
-    day: number,
-    ownerId: number,
-    crop: CropDeathBody["crop"],
-    tick: number,
-  ): void {
+  private announceDeath(day: number, ownerId: number, crop: CropDeathBody["crop"], tick: number): void {
     if (!this.bus) return;
     const body: CropDeathBody = { day, ownerId, crop };
     this.bus.send(

@@ -6,8 +6,14 @@ import type { OverlayFn } from "../renderer";
 // convention (../webgl2/program.test.ts's fake GL, ../ui-draw.test.ts's fake
 // OffscreenCanvas), both are stubbed here.
 
-interface FakeShader { __kind: "shader"; compiled: boolean }
-interface FakeProgram { __kind: "program"; linked: boolean }
+interface FakeShader {
+  __kind: "shader";
+  compiled: boolean;
+}
+interface FakeProgram {
+  __kind: "program";
+  linked: boolean;
+}
 
 interface Call {
   op: string;
@@ -15,14 +21,31 @@ interface Call {
 }
 
 function makeFakeGl(calls: Call[]): WebGL2RenderingContext {
-  const record = (op: string) => (...args: unknown[]) => { calls.push({ op, args }); };
+  const record =
+    (op: string) =>
+    (...args: unknown[]) => {
+      calls.push({ op, args });
+    };
 
   const gl = {
-    VERTEX_SHADER: 1, FRAGMENT_SHADER: 2, COMPILE_STATUS: 3, LINK_STATUS: 4,
-    TEXTURE_2D: 5, TEXTURE_MIN_FILTER: 6, TEXTURE_MAG_FILTER: 7, NEAREST: 8,
-    TEXTURE_WRAP_S: 9, TEXTURE_WRAP_T: 10, CLAMP_TO_EDGE: 11,
-    UNPACK_PREMULTIPLY_ALPHA_WEBGL: 12, RGBA: 13, UNSIGNED_BYTE: 14,
-    TEXTURE0: 15, BLEND: 16, ONE: 17, TRIANGLES: 18,
+    VERTEX_SHADER: 1,
+    FRAGMENT_SHADER: 2,
+    COMPILE_STATUS: 3,
+    LINK_STATUS: 4,
+    TEXTURE_2D: 5,
+    TEXTURE_MIN_FILTER: 6,
+    TEXTURE_MAG_FILTER: 7,
+    NEAREST: 8,
+    TEXTURE_WRAP_S: 9,
+    TEXTURE_WRAP_T: 10,
+    CLAMP_TO_EDGE: 11,
+    UNPACK_PREMULTIPLY_ALPHA_WEBGL: 12,
+    RGBA: 13,
+    UNSIGNED_BYTE: 14,
+    TEXTURE0: 15,
+    BLEND: 16,
+    ONE: 17,
+    TRIANGLES: 18,
 
     createShader: vi.fn((): FakeShader => ({ __kind: "shader", compiled: true })),
     shaderSource: vi.fn(),
@@ -65,8 +88,12 @@ class FakeOffscreenCtx {
   imageSmoothingEnabled = false;
   globalCompositeOperation = "source-over";
   globalAlpha = 1;
-  setTransform(...a: number[]): void { this.ops.push(`setTransform(${a.join(",")})`); }
-  clearRect(...a: number[]): void { this.ops.push(`clearRect(${a.join(",")})`); }
+  setTransform(...a: number[]): void {
+    this.ops.push(`setTransform(${a.join(",")})`);
+  }
+  clearRect(...a: number[]): void {
+    this.ops.push(`clearRect(${a.join(",")})`);
+  }
 }
 
 class FakeOffscreen {
@@ -152,7 +179,9 @@ describe("OverlayLightPass", () => {
     // `true` above is what pinned the bug: the upload is correct, the leak is not.
     expect(calls.some((c) => c.op === "pixelStorei" && c.args[1] === false)).toBe(true);
     expect(calls.some((c) => c.op === "blendFunc" && c.args[0] === gl.ONE && c.args[1] === gl.ONE)).toBe(true);
-    expect(calls.some((c) => c.op === "drawArrays" && c.args[0] === gl.TRIANGLES && c.args[1] === 0 && c.args[2] === 3)).toBe(true);
+    expect(
+      calls.some((c) => c.op === "drawArrays" && c.args[0] === gl.TRIANGLES && c.args[1] === 0 && c.args[2] === 3),
+    ).toBe(true);
   });
 
   it("restores UNPACK_PREMULTIPLY_ALPHA_WEBGL to false, in order, after every draw", async () => {

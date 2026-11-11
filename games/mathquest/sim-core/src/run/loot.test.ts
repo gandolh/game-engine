@@ -31,7 +31,11 @@ describe("rollLoot", () => {
   it("different seeds can produce different offers (not a constant roll)", () => {
     const seen = new Set<string>();
     for (let seed = 1; seed <= 20; seed++) {
-      seen.add(rollLoot(createRng(seed), "combat").map((i) => i.id).join(","));
+      seen.add(
+        rollLoot(createRng(seed), "combat")
+          .map((i) => i.id)
+          .join(","),
+      );
     }
     expect(seen.size).toBeGreaterThan(1);
   });
@@ -82,7 +86,7 @@ describe("toItemView", () => {
     expect(view).toEqual(expected);
   });
 
-  it("(M5 i18n) picks the EN name under \"en\", the RO name under \"ro\"/default", () => {
+  it('(M5 i18n) picks the EN name under "en", the RO name under "ro"/default', () => {
     const item: Item = { id: "x", name: "Sabie", nameEn: "Sword", bonus: { atk: 1 } };
     expect(toItemView(item).name).toBe("Sabie"); // default = RO
     expect(toItemView(item, "ro").name).toBe("Sabie");
@@ -90,8 +94,19 @@ describe("toItemView", () => {
   });
 
   it("(M4b) carries a lifeline grant through verbatim when the item has one", () => {
-    const item: Item = { id: "test-item", name: "Test", nameEn: "Test", bonus: {}, lifeline: { kind: "hint", charges: 2 } };
-    expect(toItemView(item)).toEqual({ id: "test-item", name: "Test", bonus: {}, lifeline: { kind: "hint", charges: 2 } });
+    const item: Item = {
+      id: "test-item",
+      name: "Test",
+      nameEn: "Test",
+      bonus: {},
+      lifeline: { kind: "hint", charges: 2 },
+    };
+    expect(toItemView(item)).toEqual({
+      id: "test-item",
+      name: "Test",
+      bonus: {},
+      lifeline: { kind: "hint", charges: 2 },
+    });
   });
 
   it("(M4b) omits the lifeline key entirely (not `lifeline: undefined`) when the item has none", () => {
@@ -134,7 +149,12 @@ describe("foldItemBonus", () => {
 // =================================================================================================
 
 describe("rollLoot — M4c extraPool", () => {
-  const BLUEPRINT_ITEM: Item = { id: "test-blueprint-item", name: "Testă de test", nameEn: "Test blueprint", bonus: { atk: 99 } };
+  const BLUEPRINT_ITEM: Item = {
+    id: "test-blueprint-item",
+    name: "Testă de test",
+    nameEn: "Test blueprint",
+    bonus: { atk: 99 },
+  };
 
   it("defaults to [] and stays byte-identical to a bare rollLoot(rng, tier) call", () => {
     for (const tier of TIERS) {
@@ -170,7 +190,12 @@ describe("rollLoot — M4c extraPool", () => {
   });
 
   it("multiple extra items can all appear across enough draws (not just the first)", () => {
-    const extra2: Item = { id: "test-blueprint-item-2", name: "Testă de test 2", nameEn: "Test blueprint 2", bonus: { block: 99 } };
+    const extra2: Item = {
+      id: "test-blueprint-item-2",
+      name: "Testă de test 2",
+      nameEn: "Test blueprint 2",
+      bonus: { block: 99 },
+    };
     const seenIds = new Set<string>();
     for (let seed = 1; seed <= 300; seed++) {
       for (const item of rollLoot(createRng(seed), "boss", [BLUEPRINT_ITEM, extra2])) seenIds.add(item.id);

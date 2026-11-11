@@ -19,7 +19,10 @@ import { MATERIALS, type Rgba, type FaceTones } from "./materials";
 import { cross, dot, normalize, sub } from "./geometry";
 import type { MeshModel, Vec3 } from "./types";
 
-interface P2 { readonly x: number; readonly y: number }
+interface P2 {
+  readonly x: number;
+  readonly y: number;
+}
 
 // Fixed dimetric viewer direction (toward the camera). In this oblique view the
 // three principal faces (+z, +x, +y) are visible; a face is visible iff its
@@ -52,7 +55,9 @@ function makeProjector(model: MeshModel): { W: number; H: number; project: (p: V
 }
 
 /** View depth: larger = nearer the camera (monotonic along the view axis). */
-function depthOf(p: Vec3): number { return p[0] + p[1] + p[2]; }
+function depthOf(p: Vec3): number {
+  return p[0] + p[1] + p[2];
+}
 
 function edge(ax: number, ay: number, bx: number, by: number, px: number, py: number): number {
   return (px - ax) * (by - ay) - (py - ay) * (bx - ax);
@@ -70,7 +75,9 @@ export function renderMeshModel(model: MeshModel): RasterizedRecipe {
   const { positions, tris } = model.mesh;
 
   for (const t of tris) {
-    const v0 = positions[t.a]!, v1 = positions[t.b]!, v2 = positions[t.c]!;
+    const v0 = positions[t.a]!,
+      v1 = positions[t.b]!,
+      v2 = positions[t.c]!;
     const n = cross(sub(v1, v0), sub(v2, v0));
     // Back-face cull: skip triangles whose outward normal faces away from camera.
     if (dot(n, VIEWER) <= 0) continue;
@@ -80,8 +87,12 @@ export function renderMeshModel(model: MeshModel): RasterizedRecipe {
     const fill = tones.emissive ? tones.top : toneForNormal(normalize(n), tones);
     const packedOutline = (tones.outline[0] << 16) | (tones.outline[1] << 8) | tones.outline[2];
 
-    const s0 = project(v0), s1 = project(v1), s2 = project(v2);
-    const d0 = depthOf(v0), d1 = depthOf(v1), d2 = depthOf(v2);
+    const s0 = project(v0),
+      s1 = project(v1),
+      s2 = project(v2);
+    const d0 = depthOf(v0),
+      d1 = depthOf(v1),
+      d2 = depthOf(v2);
 
     const minX = Math.max(0, Math.floor(Math.min(s0.x, s1.x, s2.x)));
     const maxX = Math.min(W - 1, Math.ceil(Math.max(s0.x, s1.x, s2.x)));
@@ -100,7 +111,9 @@ export function renderMeshModel(model: MeshModel): RasterizedRecipe {
         const w0 = edge(s1.x, s1.y, s2.x, s2.y, xc, yc);
         const w1 = edge(s2.x, s2.y, s0.x, s0.y, xc, yc);
         const w2 = edge(s0.x, s0.y, s1.x, s1.y, xc, yc);
-        const b0 = w0 * inv, b1 = w1 * inv, b2 = w2 * inv;
+        const b0 = w0 * inv,
+          b1 = w1 * inv,
+          b2 = w2 * inv;
         if (b0 < 0 || b1 < 0 || b2 < 0) continue; // outside
         const depth = b0 * d0 + b1 * d1 + b2 * d2;
         const idx = py * W + px;
@@ -139,8 +152,14 @@ function outlinePass(
     const idx = y * W + x;
     if (rgba[idx * 4 + 3] === 0) return false; // transparent: not an edge itself
     const d = depth[idx]!;
-    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
-      const nx = x + dx, ny = y + dy;
+    for (const [dx, dy] of [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ] as const) {
+      const nx = x + dx,
+        ny = y + dy;
       if (nx < 0 || ny < 0 || nx >= W || ny >= H) return true; // frame border
       const ni = ny * W + nx;
       if (rgba[ni * 4 + 3] === 0) return true; // borders transparency → silhouette

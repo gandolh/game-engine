@@ -28,11 +28,7 @@ export let inputReady = false;
  * inspect.ts, build-controls.ts, minimap-wiring.ts, sim-client.ts) only reads them via
  * the live ES-module bindings exported above.
  */
-export function setRendererState(created: {
-  renderer: RendererLike;
-  camera: Camera2D;
-  iso: IsoProjection;
-}): void {
+export function setRendererState(created: { renderer: RendererLike; camera: Camera2D; iso: IsoProjection }): void {
   renderer = created.renderer;
   camera = created.camera;
   iso = created.iso;

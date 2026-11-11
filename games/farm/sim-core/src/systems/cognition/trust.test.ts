@@ -21,7 +21,12 @@ function makeMarketWall(world: World<GameEntity>): GameEntity {
   });
 }
 
-function push(entity: GameEntity, ontology: string, sender: number | "world", body: Record<string, unknown> = {}): void {
+function push(
+  entity: GameEntity,
+  ontology: string,
+  sender: number | "world",
+  body: Record<string, unknown> = {},
+): void {
   entity.inbox!.messages.push({
     performative: PERFORMATIVE.INFORM,
     ontology,

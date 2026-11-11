@@ -2,12 +2,7 @@ import type { GameEntity, CropKind } from "../components";
 import { CORAL_WEIGHTS, FISH_VALUE, FISH_KINDS, type FishKind } from "../components";
 import { CROP_SELL_PRICE, SEED_COST, GROWTH_DAYS } from "../economy";
 import { seasonForDay } from "../protocols/weather";
-import {
-  farmingQualityBonus,
-  fishingRarityBonus,
-  foragingGoldMultiplier,
-  miningRarityBonus,
-} from "../systems/skills";
+import { farmingQualityBonus, fishingRarityBonus, foragingGoldMultiplier, miningRarityBonus } from "../systems/skills";
 import { applyCoralRarityBonus } from "../systems/act/helpers";
 import { AP_COST } from "../systems/economy/ap";
 import { FORAGE_ZONES } from "../systems/act/constants";
@@ -39,10 +34,8 @@ export const NON_FARM_LINES: readonly NonFarmLine[] = ["fishing", "foraging", "m
  */
 const CROP_KINDS = Object.keys(CROP_SELL_PRICE) as CropKind[];
 export const FARM_BASELINE_GPA: number =
-  CROP_KINDS.reduce(
-    (sum, c) => sum + (2 * CROP_SELL_PRICE[c] - SEED_COST[c]) / (GROWTH_DAYS[c] + 2),
-    0,
-  ) / CROP_KINDS.length;
+  CROP_KINDS.reduce((sum, c) => sum + (2 * CROP_SELL_PRICE[c] - SEED_COST[c]) / (GROWTH_DAYS[c] + 2), 0) /
+  CROP_KINDS.length;
 
 function fishXp(f: GameEntity): number {
   return f.skills?.fishing ?? 0;
@@ -70,8 +63,7 @@ export function fishingMarginalValue(f: GameEntity): number {
 }
 
 const FORAGE_REWARD_MEAN =
-  Object.values(FORAGE_ZONES).reduce((s, z) => s + z.reward, 0) /
-  Math.max(1, Object.values(FORAGE_ZONES).length);
+  Object.values(FORAGE_ZONES).reduce((s, z) => s + z.reward, 0) / Math.max(1, Object.values(FORAGE_ZONES).length);
 
 const FORAGE_SEASONS = new Set(Object.values(FORAGE_ZONES).map((z) => z.season));
 
@@ -253,11 +245,7 @@ export interface GatherBias {
   preferKind?: "stone" | "bush";
 }
 
-export function gatherBias(
-  focus: NonFarmFocus | null,
-  baseMax: number,
-  basePriority: number,
-): GatherBias {
+export function gatherBias(focus: NonFarmFocus | null, baseMax: number, basePriority: number): GatherBias {
   if (focus && (focus.line === "mining" || focus.line === "foraging")) {
     // At least +2 actions when leaning at all, up to +6 at full commit — enough
     // to clear a farm's regenerated features (cap 6) in one cycle so the skill

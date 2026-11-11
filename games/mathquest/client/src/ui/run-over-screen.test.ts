@@ -77,7 +77,11 @@ describe("createRunOverScreen", () => {
     const actions: RunOverScreenActions = { newRun: () => {} };
     const screen = createRunOverScreen(actions, STRINGS_RO);
     screen.refresh("run_lost", testRun({ visitedIds: [0, 1, 2], warriorHp: 0, warriorMaxHp: 30 }));
-    expect(labels(screen.root).map((l) => l.text).some((t) => t.includes("3") && t.includes("0/30"))).toBe(true);
+    expect(
+      labels(screen.root)
+        .map((l) => l.text)
+        .some((t) => t.includes("3") && t.includes("0/30")),
+    ).toBe(true);
   });
 
   it("refresh() reports true on first call, false when nothing changed, true when the mode flips", () => {
@@ -117,7 +121,9 @@ describe("createRunOverScreen", () => {
     wonScreen.refresh("run_won", run);
     lostScreen.refresh("run_lost", run);
     const masteryLine = (root: typeof wonScreen.root): string | undefined =>
-      labels(root).map((l) => l.text).find((t) => t.includes("Comparare"));
+      labels(root)
+        .map((l) => l.text)
+        .find((t) => t.includes("Comparare"));
     expect(masteryLine(wonScreen.root)).toBe(masteryLine(lostScreen.root));
     expect(masteryLine(wonScreen.root)).toContain("20/25");
   });

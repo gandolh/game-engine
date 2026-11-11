@@ -31,8 +31,7 @@ function numbersIn(text: string): number[] {
 function correctResponseFor(view: ProblemView): AnswerResponse {
   const [x, y] = numbersIn(view.prompt);
   if (view.kind === "typed") {
-    const value =
-      view.topic === "addition" ? x! + y! : view.topic === "subtraction" ? x! - y! : x! * y!; // multiplication
+    const value = view.topic === "addition" ? x! + y! : view.topic === "subtraction" ? x! - y! : x! * y!; // multiplication
     return { kind: "typed", value };
   }
   const relation = x! < y! ? "<" : x! > y! ? ">" : "=";
@@ -63,10 +62,7 @@ function actWrong(combat: Combat, action: "attack" | "heal" | "shield"): void {
 }
 
 /** Find a fresh combat (some seed in `[1, limit]`) whose FIRST problem is of the given `kind`. */
-function findFirstProblemOfKind(
-  kind: "typed" | "choice",
-  limit = 200,
-): { combat: Combat; view: ProblemView } {
+function findFirstProblemOfKind(kind: "typed" | "choice", limit = 200): { combat: Combat; view: ProblemView } {
   for (let seed = 1; seed <= limit; seed++) {
     const combat = makeCombat(seed);
     combat.chooseAction("attack");
@@ -567,7 +563,11 @@ describe("createCombat — M4b useLifeline('skip')", () => {
       solved.chooseAction("attack");
       solved.submitAnswer(correctResponseFor(solved.snapshot().problem!));
     }
-    expect(solved.result()).toMatchObject({ outcome: "won", warriorHp: solved.snapshot().warrior.hp, xpEarned: 3 * xpForSolve(1) }); // M4c: see topicOutcomes describe block
+    expect(solved.result()).toMatchObject({
+      outcome: "won",
+      warriorHp: solved.snapshot().warrior.hp,
+      xpEarned: 3 * xpForSolve(1),
+    }); // M4c: see topicOutcomes describe block
   });
 
   it("a skip-Attack that drops the enemy to 0 ends the fight WON with no further enemy turn", () => {
@@ -784,7 +784,8 @@ describe("createCombat — M4c topicOutcomes (CombatResult)", () => {
     while (combat.result() === null && guard++ < 40) {
       const snap = combat.snapshot();
       if (snap.phase === "await_action") combat.chooseAction("attack");
-      else if (snap.phase === "await_answer") combat.submitAnswer(wrongResponse(correctResponseFor(combat.snapshot().problem!)));
+      else if (snap.phase === "await_answer")
+        combat.submitAnswer(wrongResponse(correctResponseFor(combat.snapshot().problem!)));
       else if (snap.phase === "teach") combat.acknowledgeTeach();
     }
     expect(guard).toBeLessThan(40);

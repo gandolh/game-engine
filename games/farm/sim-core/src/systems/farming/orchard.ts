@@ -5,11 +5,7 @@ import { bodyOf } from "@engine/core";
 import type { GameEntity } from "../../components";
 import { ONT_SIMULATION } from "../../protocols";
 import { seasonForDay } from "../../protocols/weather";
-import {
-  ORCHARD_MATURATION_DAYS,
-  FRUIT_SEASON,
-  FRUIT_YIELD_PER_HARVEST,
-} from "../../economy";
+import { ORCHARD_MATURATION_DAYS, FRUIT_SEASON, FRUIT_YIELD_PER_HARVEST } from "../../economy";
 
 const DAYS_PER_SEASON = 25; // 4 seasons × 25 days = 100-day run
 
@@ -18,7 +14,6 @@ export class OrchardSystem implements System {
   private lastDayProcessed = -1;
 
   constructor(private readonly world: World<GameEntity>) {}
-
 
   run(_ctx: SimContext): void {
     const stations = this.world.query("weatherStation", "inbox");
@@ -62,9 +57,7 @@ export class OrchardSystem implements System {
       // Fruit once per 25-day season block; gates re-fruting each cycle.
       // Block 0 = days 0-24, block 4 = days 100-124 (second spring) → re-fruit.
       const lastBlock =
-        tree.lastHarvestDay < 0
-          ? -1
-          : Math.floor(Math.max(0, tree.lastHarvestDay - 1) / DAYS_PER_SEASON);
+        tree.lastHarvestDay < 0 ? -1 : Math.floor(Math.max(0, tree.lastHarvestDay - 1) / DAYS_PER_SEASON);
       const currentBlock = Math.floor(Math.max(0, newDay - 1) / DAYS_PER_SEASON);
       if (lastBlock === currentBlock) continue; // already fruited this season block
 

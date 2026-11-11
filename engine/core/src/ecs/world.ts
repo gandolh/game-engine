@@ -1,13 +1,4 @@
-import type {
-  Transform,
-  Sprite,
-  FsmState,
-  Beliefs,
-  Desires,
-  Intentions,
-  Personality,
-  AgentInbox,
-} from "./components";
+import type { Transform, Sprite, FsmState, Beliefs, Desires, Intentions, Personality, AgentInbox } from "./components";
 
 export interface EngineEntity {
   id?: number;
@@ -26,9 +17,7 @@ export type Entity<E extends EngineEntity = EngineEntity> = E;
 
 export type With<E, K extends keyof E> = E & Required<Pick<E, K>>;
 
-export class Query<E extends object, K extends keyof E = keyof E>
-  implements Iterable<With<E, K>>
-{
+export class Query<E extends object, K extends keyof E = keyof E> implements Iterable<With<E, K>> {
   readonly entities: With<E, K>[] = [];
   private readonly members = new Set<E>();
 

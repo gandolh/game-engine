@@ -46,7 +46,7 @@ describe("Node-context import smoke test (audit-19)", () => {
           "decisions.md -> Renderer records this failure mode: WebGl2Renderer must stay a " +
             "TYPE-ONLY export from engine/core/src/render/index.ts, and createRenderer must " +
             'keep its `await import("./webgl2/renderer")` dynamic import. The WebGL2 passes ' +
-            "statically `import ... from \"*.glsl?raw\"`, which only a bundler can resolve — " +
+            'statically `import ... from "*.glsl?raw"`, which only a bundler can resolve — ' +
             "a value export (or any other static export reaching webgl2/) makes Node crash " +
             "with ERR_UNKNOWN_FILE_EXTENSION on startup, even though these consumers never render.",
           "",

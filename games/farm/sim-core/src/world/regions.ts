@@ -1,34 +1,42 @@
-import { createRng, type Rng } from '@engine/core';
-import { WORLD_WIDTH, WORLD_HEIGHT } from './world-dims';
-import { forcedCoreTiles } from './region-setup/anchors';
-import { placeIslands, type RegionSpec } from './island-placement';
-import { buildBridgeGraph } from './bridge-graph';
-import { buildInventory, type InventoryRow } from './region-inventory';
+import { createRng, type Rng } from "@engine/core";
+import { WORLD_WIDTH, WORLD_HEIGHT } from "./world-dims";
+import { forcedCoreTiles } from "./region-setup/anchors";
+import { placeIslands, type RegionSpec } from "./island-placement";
+import { buildBridgeGraph } from "./bridge-graph";
+import { buildInventory, type InventoryRow } from "./region-inventory";
 
 export type FixedRegionId =
-  | 'village' | 'farm-cora' | 'farm-atticus' | 'farm-hannah' | 'farm-otto'
-  | 'farm-pip'                         
-  | 'blacksmith' | 'carpentry'
-  | 'forest-north' | 'quarry-north'
-  | 'forest-south' | 'quarry-south'
-  | 'mill'                            
-  | 'well-north' | 'well-south'       
-  | 'mushroom-grove'                  
-  | 'ice-pond'                        
-  | 'fishing-isle'                    
-  | 'fishing-isle-2'                  
-  | 'harbor'                          
-  | 'shrine'                          
-  | 'heritage-stones'                 
-  | 'heritage-ruin'                   
-  | 'heritage-statue'                 
-  | 'waterfall'                       
-  | 'camp'                            
-  | 'weather-station'                 
-  | 'volcano'                         
-  | 'casino'                          
-  | 'big-tree'                        
-  | 'ring';                           
+  | "village"
+  | "farm-cora"
+  | "farm-atticus"
+  | "farm-hannah"
+  | "farm-otto"
+  | "farm-pip"
+  | "blacksmith"
+  | "carpentry"
+  | "forest-north"
+  | "quarry-north"
+  | "forest-south"
+  | "quarry-south"
+  | "mill"
+  | "well-north"
+  | "well-south"
+  | "mushroom-grove"
+  | "ice-pond"
+  | "fishing-isle"
+  | "fishing-isle-2"
+  | "harbor"
+  | "shrine"
+  | "heritage-stones"
+  | "heritage-ruin"
+  | "heritage-statue"
+  | "waterfall"
+  | "camp"
+  | "weather-station"
+  | "volcano"
+  | "casino"
+  | "big-tree"
+  | "ring";
 
 export type ExtraFarmRegionId = `farm-${number}`;
 
@@ -36,17 +44,27 @@ export type RanchRegionId = `ranch-${number}`;
 
 export type RegionId = FixedRegionId | ExtraFarmRegionId | RanchRegionId;
 
-export type RegionKind = 'village' | 'farm' | 'landmark' | 'ranch';
+export type RegionKind = "village" | "farm" | "landmark" | "ranch";
 
 export type RegionTheme =
-  | 'ranch' | 'casino' | 'shrine' | 'heritage' | 'forest' | 'quarry' | 'big-tree' | 'ring'
-  | 'camp' | 'pond' | 'volcano' | 'boxing';
+  | "ranch"
+  | "casino"
+  | "shrine"
+  | "heritage"
+  | "forest"
+  | "quarry"
+  | "big-tree"
+  | "ring"
+  | "camp"
+  | "pond"
+  | "volcano"
+  | "boxing";
 
 export interface RegionDef {
   id: RegionId;
   kind: RegionKind;
-  ownerId?: number | undefined; 
-  bounds: { minX: number; minY: number; maxX: number; maxY: number }; 
+  ownerId?: number | undefined;
+  bounds: { minX: number; minY: number; maxX: number; maxY: number };
   center: { x: number; y: number };
 
   theme?: RegionTheme;
@@ -59,34 +77,33 @@ export { WORLD_WIDTH, WORLD_HEIGHT };
 export const WORLD_GEN_SEED = 0x5eed_face;
 
 /** Re-exported from the region inventory (number of procedural extra farms). */
-export { EXTRA_FARM_COUNT } from './region-inventory';
+export { EXTRA_FARM_COUNT } from "./region-inventory";
 
-export const FISHING_ISLE_IDS: readonly RegionId[] = ['fishing-isle', 'fishing-isle-2'];
+export const FISHING_ISLE_IDS: readonly RegionId[] = ["fishing-isle", "fishing-isle-2"];
 
-export const HARBOR_REGION_ID: RegionId = 'harbor';
-export const SHRINE_REGION_ID: RegionId = 'shrine';
-export const HERITAGE_REGION_IDS: readonly RegionId[] = [
-  'heritage-stones',
-  'heritage-ruin',
-  'heritage-statue',
-];
-export const WATERFALL_REGION_ID: RegionId = 'waterfall';
+export const HARBOR_REGION_ID: RegionId = "harbor";
+export const SHRINE_REGION_ID: RegionId = "shrine";
+export const HERITAGE_REGION_IDS: readonly RegionId[] = ["heritage-stones", "heritage-ruin", "heritage-statue"];
+export const WATERFALL_REGION_ID: RegionId = "waterfall";
 
-export const CAMP_REGION_ID: RegionId = 'camp';
+export const CAMP_REGION_ID: RegionId = "camp";
 
-export const WEATHER_STATION_REGION_ID: RegionId = 'weather-station';
+export const WEATHER_STATION_REGION_ID: RegionId = "weather-station";
 
-export const VOLCANO_REGION_ID: RegionId = 'volcano';
-export const CASINO_REGION_ID: RegionId = 'casino';
+export const VOLCANO_REGION_ID: RegionId = "volcano";
+export const CASINO_REGION_ID: RegionId = "casino";
 
-export const RING_REGION_ID: RegionId = 'ring';
+export const RING_REGION_ID: RegionId = "ring";
 
 export function isFishingIsle(region: RegionId | null): boolean {
-  return region === 'fishing-isle' || region === 'fishing-isle-2';
+  return region === "fishing-isle" || region === "fishing-isle-2";
 }
 
 interface RoadDef {
-  minX: number; minY: number; maxX: number; maxY: number;
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
 }
 
 function scaleAroundNearestIslandIn(
@@ -163,13 +180,12 @@ export function generateWorld(seed: number): GeneratedWorld {
  * (with masks) + `roads` — NOT the global REGIONS — so it can gate a candidate
  * placement before it is returned. Deterministic (BFS order is fixed).
  */
-function assertAllRegionsReachable(
-  regions: readonly RegionDef[],
-  roads: readonly RoadDef[],
-): void {
+function assertAllRegionsReachable(regions: readonly RegionDef[], roads: readonly RoadDef[]): void {
   const walk = new Uint8Array(WORLD_WIDTH * WORLD_HEIGHT); // 1 = walkable
   for (const reg of regions) {
-    forEachLandTile(reg, (x, y) => { walk[y * WORLD_WIDTH + x] = 1; });
+    forEachLandTile(reg, (x, y) => {
+      walk[y * WORLD_WIDTH + x] = 1;
+    });
   }
   for (const road of roads) {
     for (let y = road.minY; y <= road.maxY; y++) {
@@ -179,14 +195,14 @@ function assertAllRegionsReachable(
     }
   }
 
-  const village = regions.find((r) => r.id === 'village');
-  if (!village) throw new Error('assertAllRegionsReachable: no village');
+  const village = regions.find((r) => r.id === "village");
+  if (!village) throw new Error("assertAllRegionsReachable: no village");
   const start = village.center;
   const seen = new Uint8Array(WORLD_WIDTH * WORLD_HEIGHT);
   const queue: number[] = [];
   let head = 0;
   const sk = start.y * WORLD_WIDTH + start.x;
-  if (walk[sk] !== 1) throw new Error('assertAllRegionsReachable: village center not walkable');
+  if (walk[sk] !== 1) throw new Error("assertAllRegionsReachable: village center not walkable");
   seen[sk] = 1;
   queue.push(sk);
   while (head < queue.length) {
@@ -198,7 +214,10 @@ function assertAllRegionsReachable(
     if (x === WORLD_WIDTH - 1) nbrs[1] = -1;
     for (const nk of nbrs) {
       if (nk < 0 || nk >= walk.length) continue;
-      if (walk[nk] === 1 && seen[nk] === 0) { seen[nk] = 1; queue.push(nk); }
+      if (walk[nk] === 1 && seen[nk] === 0) {
+        seen[nk] = 1;
+        queue.push(nk);
+      }
     }
   }
 
@@ -237,7 +256,10 @@ function carveCorners(
   // Max carve depth scales with the smaller dimension but stays small (rect feel).
   const maxDepth = Math.max(1, Math.min(3, Math.floor(Math.min(w, h) / 6)));
   const corners: Array<[number, number]> = [
-    [0, 0], [w - 1, 0], [0, h - 1], [w - 1, h - 1],
+    [0, 0],
+    [w - 1, 0],
+    [0, h - 1],
+    [w - 1, h - 1],
   ];
   for (const [cxLocal, cyLocal] of corners) {
     const depth = rng.int(0, maxDepth + 1); // 0 = leave this corner square
@@ -273,9 +295,7 @@ function buildWorldFromPlacement(
   if (placement.coverage < 0.5) {
     throw new Error(`buildWorldFromPlacement: coverage ${(placement.coverage * 100).toFixed(1)}% below band`);
   }
-  const islandById = new Map<RegionId, (typeof placement.islands)[number]>(
-    placement.islands.map((i) => [i.id, i]),
-  );
+  const islandById = new Map<RegionId, (typeof placement.islands)[number]>(placement.islands.map((i) => [i.id, i]));
 
   // 2. Authored→generated displacement map: each region's authored design-space
   //    center maps to its generated center, so on-island content rides along.
@@ -293,9 +313,7 @@ function buildWorldFromPlacement(
   }
 
   // 3. Themed, unmasked region defs from the placement.
-  const themeById = new Map<RegionId, RegionTheme | undefined>(
-    inventory.map((r) => [r.id, r.theme]),
-  );
+  const themeById = new Map<RegionId, RegionTheme | undefined>(inventory.map((r) => [r.id, r.theme]));
   const allThemedUnmasked: RegionDef[] = placement.islands.map((isl) => {
     const theme = themeById.get(isl.id);
     const base: RegionDef = { id: isl.id, kind: isl.kind, bounds: isl.bounds, center: isl.center };
@@ -303,25 +321,19 @@ function buildWorldFromPlacement(
   });
 
   // 4. ranch-for-farm map (ranch-k pairs with the k-th farm by id order).
-  const farmIds = allThemedUnmasked.filter((r) => r.kind === 'farm').map((r) => r.id);
-  const ranchForFarmMap = new Map<RegionId, RegionId>(
-    farmIds.map((id, k) => [id, `ranch-${k}` as RegionId]),
-  );
+  const farmIds = allThemedUnmasked.filter((r) => r.kind === "farm").map((r) => r.id);
+  const ranchForFarmMap = new Map<RegionId, RegionId>(farmIds.map((id, k) => [id, `ranch-${k}` as RegionId]));
 
   // 5. Bridge graph: straight axis-aligned overlap bridges + loops (brief 93).
-  const bridge = buildBridgeGraph(
-    placement.islands,
-    createRng(seed).fork('bridges'),
-    BRIDGE_LOOP_DELTA,
-  );
+  const bridge = buildBridgeGraph(placement.islands, createRng(seed).fork("bridges"), BRIDGE_LOOP_DELTA);
   if (bridge === null) {
-    throw new Error('buildWorldFromPlacement: islands not connectable with straight overlap bridges');
+    throw new Error("buildWorldFromPlacement: islands not connectable with straight overlap bridges");
   }
   const roads: readonly RoadDef[] = bridge.roads.map((r) => ({ ...r }));
 
   // 8. Organic masks — sequential so each region can check adjacency against
   //    already-finalized masks. Fork per region, attempt per try, for stable determinism.
-  const maskRng = createRng(seed).fork('region-masks');
+  const maskRng = createRng(seed).fork("region-masks");
 
   // Chebyshev-1 halo of all finalized regions' land tiles. Used for the edge-tile
   // adjacency check: a candidate's bound-edge land tile must not touch a prior region's land.
@@ -358,10 +370,7 @@ function buildWorldFromPlacement(
     const attachTiles: { x: number; y: number }[] = [];
     for (const road of roads) {
       // Quick reject: expanded bounds of road must overlap region's expanded bounds.
-      if (
-        road.maxX < minX - 1 || road.minX > maxX + 1 ||
-        road.maxY < minY - 1 || road.minY > maxY + 1
-      ) continue;
+      if (road.maxX < minX - 1 || road.minX > maxX + 1 || road.maxY < minY - 1 || road.minY > maxY + 1) continue;
       // Add all road tiles adjacent to the region bounds.
       for (let ry = road.minY; ry <= road.maxY; ry++) {
         for (let rx = road.minX; rx <= road.maxX; rx++) {
@@ -400,7 +409,7 @@ function buildWorldFromPlacement(
     // a forced-core or bridge-attach tile (those must stay land).
     const mask = new Uint8Array(w * h).fill(1);
     const coreSet = new Set(core.map((t) => `${t.x},${t.y}`));
-    const carveRng = maskRng.fork('carve:' + themed.id);
+    const carveRng = maskRng.fork("carve:" + themed.id);
     carveCorners(mask, minX, minY, w, h, coreSet, carveRng);
 
     // Register this region's land tiles into the adjacency buffer.
@@ -438,28 +447,30 @@ function buildWorldFromPlacement(
     return nearestLandTile(r, { x: r.center.x + dx, y: r.center.y + dy });
   };
 
-  const village = regionById('village');
+  const village = regionById("village");
   // TOWN_SQUARE: a small rect around the village center. Its only consumer
   // (static-layer backdropFrame) is gated by isWalkable() + regionAt==='village'
   // before the rect is tested, so ocean tiles inside it are never tinted.
   const townSquare = {
-    minX: village.center.x - 2, minY: village.center.y - 1,
-    maxX: village.center.x + 1, maxY: village.center.y + 2,
+    minX: village.center.x - 2,
+    minY: village.center.y - 1,
+    maxX: village.center.x + 1,
+    maxY: village.center.y + 2,
   };
 
   return {
     regions,
     roads,
     ranchForFarm: ranchForFarmMap,
-    campfireTile: snapNear('camp', 1, 0),
-    waterfallTile: snapNear('waterfall', 0, 0),
-    volcanoCraterTile: snapNear('volcano', 0, -1),
-    casinoNeonTile: snapNear('casino', 0, 0),
-    weatherStationTile: snapNear('weather-station', 0, 0),
-    harborDockTile: snapNear('harbor', 0, -1),
-    harborBoardTile: snapNear('harbor', 1, 1),
-    auctionPodiumTile: snapNear('village', 0, 0),
-    noticeBoardTile: snapNear('village', -1, 0),
+    campfireTile: snapNear("camp", 1, 0),
+    waterfallTile: snapNear("waterfall", 0, 0),
+    volcanoCraterTile: snapNear("volcano", 0, -1),
+    casinoNeonTile: snapNear("casino", 0, 0),
+    weatherStationTile: snapNear("weather-station", 0, 0),
+    harborDockTile: snapNear("harbor", 0, -1),
+    harborBoardTile: snapNear("harbor", 1, 1),
+    auctionPodiumTile: snapNear("village", 0, 0),
+    noticeBoardTile: snapNear("village", -1, 0),
     townSquare,
     fallbackCount,
     displacement,
@@ -539,11 +550,7 @@ export function scaleAroundNearestIsland(t: { x: number; y: number }): { x: numb
 // bindings without ever calling setActiveWorld (tests, tools) see a valid world.
 activeWorld();
 
-function inBounds(
-  x: number,
-  y: number,
-  bounds: { minX: number; minY: number; maxX: number; maxY: number },
-): boolean {
+function inBounds(x: number, y: number, bounds: { minX: number; minY: number; maxX: number; maxY: number }): boolean {
   return x >= bounds.minX && x <= bounds.maxX && y >= bounds.minY && y <= bounds.maxY;
 }
 
@@ -572,10 +579,7 @@ export function forEachLandTile(region: RegionDef, fn: (x: number, y: number) =>
  * Throws if the region has zero land tiles — that is a real bug (every region
  * keeps at least its forced-core tiles as land), never a silent fallback.
  */
-export function nearestLandTile(
-  region: RegionDef,
-  target: { x: number; y: number },
-): { x: number; y: number } {
+export function nearestLandTile(region: RegionDef, target: { x: number; y: number }): { x: number; y: number } {
   if (regionMaskAt(region, target.x, target.y)) return { x: target.x, y: target.y };
 
   let best: { x: number; y: number } | null = null;
@@ -642,13 +646,8 @@ export function getRegion(id: RegionId): RegionDef {
   return region;
 }
 
-export function nearestResourceZone(
-  farmCenter: { x: number; y: number },
-  kind: "tree" | "stone",
-): RegionId {
-  const candidates: RegionId[] = kind === "tree"
-    ? ["forest-north", "forest-south"]
-    : ["quarry-north", "quarry-south"];
+export function nearestResourceZone(farmCenter: { x: number; y: number }, kind: "tree" | "stone"): RegionId {
+  const candidates: RegionId[] = kind === "tree" ? ["forest-north", "forest-south"] : ["quarry-north", "quarry-south"];
   let best: RegionId = candidates[0]!;
   let bestDist = Infinity;
   for (const id of candidates) {

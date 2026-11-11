@@ -17,15 +17,26 @@ interface Call {
 
 function makeFakeGl(): WebGL2RenderingContext & { calls: Call[] } {
   const calls: Call[] = [];
-  const record = (fn: string) => (...args: unknown[]) => {
-    calls.push({ fn, args });
-  };
+  const record =
+    (fn: string) =>
+    (...args: unknown[]) => {
+      calls.push({ fn, args });
+    };
 
   const gl = {
     calls,
-    ARRAY_BUFFER: 1, DYNAMIC_DRAW: 2, FLOAT: 3, TRIANGLES: 4,
-    VERTEX_SHADER: 5, FRAGMENT_SHADER: 6, COMPILE_STATUS: 7, LINK_STATUS: 8,
-    BLEND: 9, FUNC_ADD: 10, ONE: 11, ONE_MINUS_SRC_ALPHA: 12,
+    ARRAY_BUFFER: 1,
+    DYNAMIC_DRAW: 2,
+    FLOAT: 3,
+    TRIANGLES: 4,
+    VERTEX_SHADER: 5,
+    FRAGMENT_SHADER: 6,
+    COMPILE_STATUS: 7,
+    LINK_STATUS: 8,
+    BLEND: 9,
+    FUNC_ADD: 10,
+    ONE: 11,
+    ONE_MINUS_SRC_ALPHA: 12,
 
     createShader: vi.fn(() => ({ __kind: "shader" })),
     shaderSource: vi.fn(record("shaderSource")),
@@ -156,7 +167,14 @@ describe("ParticleBatch", () => {
     const { ctx, gl } = makeCtx();
     const batch = new ParticleBatch(ctx);
     const many = Array.from({ length: 300 }, (_, i) => ({
-      x: i, y: i, size: 1, shape: "rect" as const, r: 1, g: 1, b: 1, alpha: 1,
+      x: i,
+      y: i,
+      size: 1,
+      shape: "rect" as const,
+      r: 1,
+      g: 1,
+      b: 1,
+      alpha: 1,
     }));
 
     const bufferDataCallsBefore = gl.calls.filter((c) => c.fn === "bufferData").length;

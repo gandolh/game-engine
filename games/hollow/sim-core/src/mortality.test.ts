@@ -3,13 +3,7 @@ import { World, MessageBus, createRng, type SimContext } from "@engine/core";
 import { bootstrapHollowSim } from "./sim-bootstrap";
 import type { HollowEntity } from "./components";
 import { makeCorpse, makeDisease } from "./components";
-import {
-  HollowDiseaseSystem,
-  HollowCorpseSystem,
-  HollowCareActSystem,
-  daysToTicks,
-  isDayBoundary,
-} from "./mortality";
+import { HollowDiseaseSystem, HollowCorpseSystem, HollowCareActSystem, daysToTicks, isDayBoundary } from "./mortality";
 import { GRAVEYARD_TILE } from "./world";
 import { ONT_FAMILY, ONT_MORTALITY } from "./protocols";
 
@@ -182,7 +176,14 @@ describe("HollowDiseaseSystem — daily mortality + recovery (chunk hollow-15)",
 });
 
 describe("HollowCareActSystem — grave-digger + medic (chunk hollow-15)", () => {
-  function digger(world: World<HollowEntity>, id: number, gx: number, gy: number, intention: { kind: string; data: Record<string, unknown> }, carrying: number | null = null): HollowEntity {
+  function digger(
+    world: World<HollowEntity>,
+    id: number,
+    gx: number,
+    gy: number,
+    intention: { kind: string; data: Record<string, unknown> },
+    carrying: number | null = null,
+  ): HollowEntity {
     return world.spawn({
       id,
       agent: { gx, gy, moveTarget: null, carryingCorpseId: carrying },

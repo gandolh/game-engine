@@ -1,15 +1,7 @@
 import type { SimContext, System, World } from "@engine/core";
 import type { GameEntity } from "../../components";
-import {
-  ONT_SIMULATION,
-  type DayStartBody,
-  type PhaseStartBody,
-} from "../../protocols";
-import {
-  ONT_SHOP,
-  type AuctionCfpBody,
-  type AuctionResultBody,
-} from "../../protocols/shop";
+import { ONT_SIMULATION, type DayStartBody, type PhaseStartBody } from "../../protocols";
+import { ONT_SHOP, type AuctionCfpBody, type AuctionResultBody } from "../../protocols/shop";
 import { ONT_BOUNTY, type BountyPostedBody } from "../../protocols/bounty";
 import { ONT_MARKET, type OffersListBody } from "../../protocols/market";
 import { isActivePhase, isNightPhase, type DayPhase } from "../day-phase";
@@ -26,7 +18,6 @@ export class PerceiveSystem implements System {
   run(ctx: SimContext): void {
     const farmers = this.world.query("inbox", "beliefs", "fsm");
     for (const farmer of farmers) {
-
       if (farmer.fsm.current === "FIGHTING") continue;
       if (farmer.farmer?.busyUntilTick !== undefined && ctx.tick >= farmer.farmer.busyUntilTick) {
         delete farmer.farmer.busyUntilTick;
@@ -54,7 +45,6 @@ export class PerceiveSystem implements System {
           farmer.beliefs.data.currentDay = body.day;
           farmer.beliefs.data.daysRemaining = body.daysRemaining;
           farmer.beliefs.revision += 1;
-
         } else if (msg.ontology === ONT_SIMULATION.PHASE_START) {
           this.handlePhaseStart(farmer, msg.body as unknown as PhaseStartBody);
         } else if (msg.ontology === ONT_SHOP.AUCTION_CFP) {
@@ -63,9 +53,7 @@ export class PerceiveSystem implements System {
           farmer.beliefs.revision += 1;
         } else if (msg.ontology === ONT_SHOP.AUCTION_RESULT) {
           const res = msg.body as unknown as AuctionResultBody;
-          const open = farmer.beliefs.data.openAuction as
-            | AuctionCfpBody
-            | undefined;
+          const open = farmer.beliefs.data.openAuction as AuctionCfpBody | undefined;
           if (open && open.auctionId === res.auctionId) {
             farmer.beliefs.data.openAuction = undefined;
             farmer.beliefs.revision += 1;
@@ -140,14 +128,12 @@ export class PerceiveSystem implements System {
     }
 
     if (isNightPhase(body.phase)) {
-
       const settledTile = farmer.farmer?.path === undefined;
       const home =
         farmer.farmer?.homeRegion !== undefined &&
         farmer.farmer.currentRegion === farmer.farmer.homeRegion &&
         settledTile;
-      const onCamp =
-        farmer.farmer?.currentRegion === CAMP_REGION_ID && settledTile;
+      const onCamp = farmer.farmer?.currentRegion === CAMP_REGION_ID && settledTile;
       const rested = home || onCamp;
       if (farmer.ap) farmer.ap.unrested = !rested;
       if (settled) farmer.fsm.current = "SLEEP";

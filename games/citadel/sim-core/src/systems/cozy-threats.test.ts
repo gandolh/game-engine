@@ -35,7 +35,10 @@ function runDays(sim: CitadelSimResult, n: number, startTick = 0): ReturnType<Ci
 /** Find a clear w×h area on the terrain starting near (sx, sy). */
 function findClear(
   terrain: { width: number; height: number; cells: Uint8Array },
-  w: number, h: number, sx: number, sy: number,
+  w: number,
+  h: number,
+  sx: number,
+  sy: number,
 ): { x: number; y: number } {
   for (let r = 0; r < 40; r++) {
     for (let dy = -r; dy <= r; dy++) {
@@ -45,7 +48,10 @@ function findClear(
         let ok = true;
         for (let yy = 0; yy < h && ok; yy++)
           for (let xx = 0; xx < w; xx++)
-            if (!isWalkable(terrain, x + xx, y + yy)) { ok = false; break; }
+            if (!isWalkable(terrain, x + xx, y + yy)) {
+              ok = false;
+              break;
+            }
         if (ok) return { x, y };
       }
     }
@@ -78,7 +84,10 @@ function firstEntityId(sim: CitadelSimResult, type: string): number | null {
 /** Find a grass tile near (sx, sy) using the phase4-style terrain predicate. */
 function findGrass(
   terrain: { width: number; height: number; cells: Uint8Array },
-  w: number, h: number, sx: number, sy: number,
+  w: number,
+  h: number,
+  sx: number,
+  sy: number,
 ): { x: number; y: number } {
   return findClear(terrain, w, h, sx, sy);
 }
@@ -210,12 +219,12 @@ describe("cozy disease — never kills, always recovers", () => {
     sim.commands.enqueue({ type: "placeRoad", payload: { tiles: roadTiles } });
     const buildings: Array<{ type: string; x: number; y: number }> = [
       { type: "storehouse", x: 10, y: 11 },
-      { type: "farm",       x: 14, y: 14 },
-      { type: "farm",       x: 18, y: 14 },
-      { type: "mill",       x: 22, y: 14 },
-      { type: "bakery",     x: 25, y: 14 },
-      { type: "house",      x: 28, y: 14 },
-      { type: "house",      x: 32, y: 14 },
+      { type: "farm", x: 14, y: 14 },
+      { type: "farm", x: 18, y: 14 },
+      { type: "mill", x: 22, y: 14 },
+      { type: "bakery", x: 25, y: 14 },
+      { type: "house", x: 28, y: 14 },
+      { type: "house", x: 32, y: 14 },
     ];
     for (const it of buildings) {
       sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: it.type, x: it.x, y: it.y } });
@@ -393,7 +402,10 @@ describe("cozyThreats:false — the sharp path still bites (regression guard)", 
     let sacked = false;
     for (let tick = 0; tick < 60 * TICKS_PER_DAY; tick++) {
       sim.scheduler.tick({ tick });
-      if (lp.keepSacked) { sacked = true; break; }
+      if (lp.keepSacked) {
+        sacked = true;
+        break;
+      }
     }
     expect(sacked).toBe(true);
     expect(lp.gameOver).toBe(true);
@@ -405,7 +417,7 @@ describe("cozyThreats:false — the sharp path still bites (regression guard)", 
 // ---------------------------------------------------------------------------
 
 describe("winter grain floor", () => {
-  it("grainMultiplier(\"winter\") is 0.5, not 0", () => {
+  it('grainMultiplier("winter") is 0.5, not 0', () => {
     expect(grainMultiplier("winter")).toBe(0.5);
   });
 

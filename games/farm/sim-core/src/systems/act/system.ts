@@ -122,7 +122,16 @@ export class ActSystem implements System {
       break;
     }
 
-    return { plotsByOwner, occupiedByOwner, featuresByTile, fountainByRegion, bubbleTiles, blacksmithId, marketWallId, shopkeeperId };
+    return {
+      plotsByOwner,
+      occupiedByOwner,
+      featuresByTile,
+      fountainByRegion,
+      bubbleTiles,
+      blacksmithId,
+      marketWallId,
+      shopkeeperId,
+    };
   }
 
   private carpenterId(): number | undefined {
@@ -139,7 +148,7 @@ export class ActSystem implements System {
 
       const intentions = farmer.intentions.queue;
       const day = (farmer.beliefs?.data.currentDay as number | undefined) ?? 0;
-      const ownedPlots = farmer.id !== undefined ? actCtx.plotsByOwner.get(farmer.id) ?? [] : [];
+      const ownedPlots = farmer.id !== undefined ? (actCtx.plotsByOwner.get(farmer.id) ?? []) : [];
 
       for (const intent of intentions) {
         switch (intent.kind) {

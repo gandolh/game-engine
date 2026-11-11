@@ -1,16 +1,9 @@
-
 import { ZERO_CROPS } from "../economy";
 import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import {
-  MessageBus,
-  World,
-  createPathfinderFromBytes,
-  type Pathfinder,
-  type PathfinderGrid,
-} from "@engine/core";
+import { MessageBus, World, createPathfinderFromBytes, type Pathfinder, type PathfinderGrid } from "@engine/core";
 import type { GameEntity, FarmerFsmState } from "../components";
 import { TravelSystem, STEP_TICKS, smoothPath } from "./travel";
 import { buildWalkableGrid } from "../world/walkable-grid";
@@ -19,20 +12,14 @@ import { ONT_TRAVEL, type TravelArrivedBody } from "../protocols/travel";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-const wasmPath = resolve(
-  __dirname,
-  "../../../../../engine/wasm-modules/dist/pathfinding.wasm",
-);
+const wasmPath = resolve(__dirname, "../../../../../engine/wasm-modules/dist/pathfinding.wasm");
 
 function loadBytes(): ArrayBuffer {
   const buf = readFileSync(wasmPath);
   return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer;
 }
 
-function makeFarmer(
-  world: World<GameEntity>,
-  opts: { x: number; y: number; region: RegionId },
-): GameEntity {
+function makeFarmer(world: World<GameEntity>, opts: { x: number; y: number; region: RegionId }): GameEntity {
   return world.spawn({
     transform: { x: opts.x, y: opts.y, prevX: opts.x, prevY: opts.y, rotation: 0 },
     fsm: { current: "ACT" as FarmerFsmState, enteredTick: 0 },
@@ -57,25 +44,30 @@ function captureArrived(bus: MessageBus): TravelArrivedBody[] {
 }
 
 describe("smoothPath", () => {
-
   const field = (blocked: ReadonlyArray<[number, number]>) => {
     const set = new Set(blocked.map(([x, y]) => `${x},${y}`));
-    return (x: number, y: number) =>
-      x >= 0 && y >= 0 && x < 10 && y < 10 && !set.has(`${x},${y}`);
+    return (x: number, y: number) => x >= 0 && y >= 0 && x < 10 && y < 10 && !set.has(`${x},${y}`);
   };
 
   it("returns a copy unchanged for paths of length <= 2", () => {
-    const p = [{ x: 1, y: 1 }, { x: 2, y: 1 }];
+    const p = [
+      { x: 1, y: 1 },
+      { x: 2, y: 1 },
+    ];
     const out = smoothPath(p, field([]));
     expect(out).toEqual(p);
-    expect(out).not.toBe(p); 
+    expect(out).not.toBe(p);
   });
 
   it("cuts an L-shaped staircase into a diagonal on open ground", () => {
-
     const stair = [
-      { x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }, { x: 2, y: 1 },
-      { x: 2, y: 2 }, { x: 3, y: 2 }, { x: 3, y: 3 },
+      { x: 0, y: 0 },
+      { x: 1, y: 0 },
+      { x: 1, y: 1 },
+      { x: 2, y: 1 },
+      { x: 2, y: 2 },
+      { x: 3, y: 2 },
+      { x: 3, y: 3 },
     ];
     const out = smoothPath(stair, field([]));
 
@@ -91,28 +83,43 @@ describe("smoothPath", () => {
 
   it("keeps every smoothed step adjacent (one tile, 4- or 8-connected)", () => {
     const stair = [
-      { x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }, { x: 2, y: 1 },
-      { x: 2, y: 2 }, { x: 3, y: 2 }, { x: 3, y: 3 },
+      { x: 0, y: 0 },
+      { x: 1, y: 0 },
+      { x: 1, y: 1 },
+      { x: 2, y: 1 },
+      { x: 2, y: 2 },
+      { x: 3, y: 2 },
+      { x: 3, y: 3 },
     ];
     const out = smoothPath(stair, field([]));
     for (let i = 1; i < out.length; i += 1) {
       const dx = Math.abs(out[i]!.x - out[i - 1]!.x);
       const dy = Math.abs(out[i]!.y - out[i - 1]!.y);
-      expect(Math.max(dx, dy)).toBe(1); 
+      expect(Math.max(dx, dy)).toBe(1);
     }
   });
 
   it("never produces a step onto a blocked tile", () => {
-
     const blocked: [number, number][] = [];
     for (let y = 0; y <= 8; y += 1) blocked.push([2, y]);
     const isWalkable = field(blocked);
 
     const around = [
-      { x: 0, y: 0 }, { x: 0, y: 1 }, { x: 0, y: 2 }, { x: 0, y: 3 },
-      { x: 0, y: 4 }, { x: 0, y: 5 }, { x: 0, y: 6 }, { x: 0, y: 7 },
-      { x: 0, y: 8 }, { x: 0, y: 9 }, { x: 1, y: 9 }, { x: 2, y: 9 },
-      { x: 3, y: 9 }, { x: 3, y: 8 }, { x: 3, y: 7 },
+      { x: 0, y: 0 },
+      { x: 0, y: 1 },
+      { x: 0, y: 2 },
+      { x: 0, y: 3 },
+      { x: 0, y: 4 },
+      { x: 0, y: 5 },
+      { x: 0, y: 6 },
+      { x: 0, y: 7 },
+      { x: 0, y: 8 },
+      { x: 0, y: 9 },
+      { x: 1, y: 9 },
+      { x: 2, y: 9 },
+      { x: 3, y: 9 },
+      { x: 3, y: 8 },
+      { x: 3, y: 7 },
     ];
     const out = smoothPath(around, isWalkable);
     for (const step of out) {
@@ -124,8 +131,13 @@ describe("smoothPath", () => {
 
   it("is deterministic — identical input yields byte-identical output", () => {
     const stair = [
-      { x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }, { x: 2, y: 1 },
-      { x: 2, y: 2 }, { x: 3, y: 2 }, { x: 3, y: 3 },
+      { x: 0, y: 0 },
+      { x: 1, y: 0 },
+      { x: 1, y: 1 },
+      { x: 2, y: 1 },
+      { x: 2, y: 2 },
+      { x: 3, y: 2 },
+      { x: 3, y: 3 },
     ];
     const a = smoothPath(stair, field([]));
     const b = smoothPath(stair, field([]));
@@ -193,7 +205,6 @@ describe("TravelSystem", () => {
   });
 
   it("routes around the void: every waypoint of a real farm→village path is walkable and uses the road corridor", () => {
-
     const cora = getRegion("farm-cora");
     const village = getRegion("village");
     const path = pathfinder.findPath(grid, cora.center, village.center);
@@ -214,11 +225,12 @@ describe("TravelSystem", () => {
     }
 
     const inFarm = (p: { x: number; y: number }) =>
-      p.x >= cora.bounds.minX && p.x <= cora.bounds.maxX &&
-      p.y >= cora.bounds.minY && p.y <= cora.bounds.maxY;
+      p.x >= cora.bounds.minX && p.x <= cora.bounds.maxX && p.y >= cora.bounds.minY && p.y <= cora.bounds.maxY;
     const inVillage = (p: { x: number; y: number }) =>
-      p.x >= village.bounds.minX && p.x <= village.bounds.maxX &&
-      p.y >= village.bounds.minY && p.y <= village.bounds.maxY;
+      p.x >= village.bounds.minX &&
+      p.x <= village.bounds.maxX &&
+      p.y >= village.bounds.minY &&
+      p.y <= village.bounds.maxY;
     const corridorTiles = path.filter((p) => !inFarm(p) && !inVillage(p));
     expect(corridorTiles.length).toBeGreaterThan(0);
   });

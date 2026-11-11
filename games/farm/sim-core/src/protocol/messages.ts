@@ -1,5 +1,3 @@
-
-
 import type { ProfileReport } from "@engine/core";
 import type { Sprite } from "@engine/core/render";
 import type { RenderSnapshot } from "../snapshot/render-snapshot";
@@ -135,9 +133,4 @@ export interface SimRejectedMsg {
 }
 
 export type SimOutbound =
-  | SimStaticLayerMsg
-  | SimSnapshotMsg
-  | SimProfileMsg
-  | SimAttachMsg
-  | SimRejectedMsg
-  | SimFaultMsg;
+  SimStaticLayerMsg | SimSnapshotMsg | SimProfileMsg | SimAttachMsg | SimRejectedMsg | SimFaultMsg;

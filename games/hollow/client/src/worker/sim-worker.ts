@@ -242,11 +242,7 @@ function postNewEvents(): void {
   // `length > postedEventCount` permanently false and this worker would stop
   // posting chronicle events for the rest of the session -- deterministically,
   // on exactly the long runs the cap exists to serve.
-  const cursor = advanceChronicleCursor(
-    chronicleEvents.length,
-    chronicle.droppedCount(),
-    postedEventCount,
-  );
+  const cursor = advanceChronicleCursor(chronicleEvents.length, chronicle.droppedCount(), postedEventCount);
   const newChronicle = chronicleEvents.slice(cursor.startIndex);
   postedEventCount = cursor.captured;
 

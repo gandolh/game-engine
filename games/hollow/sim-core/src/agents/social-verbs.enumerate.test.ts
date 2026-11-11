@@ -159,15 +159,30 @@ describe("enumerateSocialActions / chooseSocialAction agree (behavior preservati
   // helpers past their hard gates, so between them the cases cover an empty
   // enumeration, a single candidate, and several multi-verb sets.
   const specs: readonly ActorSpec[] = [
-    { label: "inert (every gate closed, nothing on hand)", behavior: { greed: 0, aggression: 0, loyalty: 0, sociability: 0, curiosity: 0 } },
+    {
+      label: "inert (every gate closed, nothing on hand)",
+      behavior: { greed: 0, aggression: 0, loyalty: 0, sociability: 0, curiosity: 0 },
+    },
     { label: "starving thief", behavior: { greed: 1, aggression: 1, risk: 1 }, foodNeed: 0 },
-    { label: "rich philanthropist", behavior: { loyalty: 1, sociability: 1 }, goods: { [GOOD_MATERIALS]: 40, [GOOD_FOOD]: 40 } },
+    {
+      label: "rich philanthropist",
+      behavior: { loyalty: 1, sociability: 1 },
+      goods: { [GOOD_MATERIALS]: 40, [GOOD_FOOD]: 40 },
+    },
     { label: "community sharer", behavior: { loyalty: 1 }, goods: { [GOOD_MATERIALS]: 40 }, communityId: 7 },
     { label: "skilled teacher", behavior: { curiosity: 1, sociability: 1 }, materialSkill: 9 },
     { label: "trader (materials surplus, food deficit)", goods: { [GOOD_MATERIALS]: 40 }, foodNeed: 10 },
     { label: "belligerent", behavior: { aggression: 1, greed: 1, risk: 1 }, trust: 0, foodNeed: 5 },
     { label: "belligerent, trusted peers", behavior: { aggression: 1 }, trust: 1 },
-    { label: "everything at once", behavior: { greed: 1, aggression: 1, loyalty: 1, sociability: 1, curiosity: 1, risk: 1 }, goods: { [GOOD_MATERIALS]: 40, [GOOD_FOOD]: 40 }, materialSkill: 9, foodNeed: 5, communityId: 3, trust: 0 },
+    {
+      label: "everything at once",
+      behavior: { greed: 1, aggression: 1, loyalty: 1, sociability: 1, curiosity: 1, risk: 1 },
+      goods: { [GOOD_MATERIALS]: 40, [GOOD_FOOD]: 40 },
+      materialSkill: 9,
+      foodNeed: 5,
+      communityId: 3,
+      trust: 0,
+    },
   ];
 
   for (const spec of specs) {

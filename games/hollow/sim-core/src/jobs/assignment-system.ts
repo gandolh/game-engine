@@ -195,7 +195,10 @@ export class HollowJobAssignmentSystem implements System {
       case "caretaker":
         return ROLE_CARETAKER_LOYALTY_WEIGHT * loyalty + ROLE_CARETAKER_SOCIABILITY_WEIGHT * sociability;
       case "grave-digger":
-        return ROLE_CARE_FIT_SCALE * (ROLE_GRAVEDIGGER_INDUSTRIOUSNESS_WEIGHT * industriousness + ROLE_GRAVEDIGGER_LOYALTY_WEIGHT * loyalty);
+        return (
+          ROLE_CARE_FIT_SCALE *
+          (ROLE_GRAVEDIGGER_INDUSTRIOUSNESS_WEIGHT * industriousness + ROLE_GRAVEDIGGER_LOYALTY_WEIGHT * loyalty)
+        );
       case "medic":
         return ROLE_CARE_FIT_SCALE * (ROLE_MEDIC_CURIOSITY_WEIGHT * curiosity + ROLE_MEDIC_LOYALTY_WEIGHT * loyalty);
       case "unassigned":

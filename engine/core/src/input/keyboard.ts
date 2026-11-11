@@ -59,18 +59,16 @@ export class Keyboard {
     const win = this._ownerWindow(target);
     if (win === null) return;
 
-    const add = (
-      host: EventTarget | null | undefined,
-      type: string,
-      fn: EventListener,
-    ): void => {
+    const add = (host: EventTarget | null | undefined, type: string, fn: EventListener): void => {
       if (!host) return;
       host.addEventListener(type, fn);
-      this._focusLossTeardown.push(() => { host.removeEventListener(type, fn); });
+      this._focusLossTeardown.push(() => {
+        host.removeEventListener(type, fn);
+      });
     };
 
-    add(win, "blur", this._onFocusLoss);          // Alt-Tab, devtools, another monitor
-    add(win, "pagehide", this._onFocusLoss);      // mobile backgrounding / bfcache
+    add(win, "blur", this._onFocusLoss); // Alt-Tab, devtools, another monitor
+    add(win, "pagehide", this._onFocusLoss); // mobile backgrounding / bfcache
     add(win.document, "visibilitychange", this._onVisibilityChange); // tab switch
   }
 

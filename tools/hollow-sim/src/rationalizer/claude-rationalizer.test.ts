@@ -38,7 +38,15 @@ function makeRequest(overrides: Partial<RationalizerRequest> = {}): Rationalizer
     agentId: 1,
     tick: 100,
     genome: {
-      behavior: { greed: 0.5, aggression: 0.2, risk: 0.3, loyalty: 0.4, sociability: 0.5, curiosity: 0.2, industriousness: 0.6 },
+      behavior: {
+        greed: 0.5,
+        aggression: 0.2,
+        risk: 0.3,
+        loyalty: 0.4,
+        sociability: 0.5,
+        curiosity: 0.2,
+        industriousness: 0.6,
+      },
       aptitude: { food: 0.5, material: 0.4 },
       appearance: { height: 1, build: 1, skinTone: "skinLight", hairTone: "hairBlack" },
     },
@@ -120,7 +128,9 @@ describe("createClaudeRationalizer", () => {
   });
 
   it("delivers a well-formed answer through poll once the request resolves", async () => {
-    const create = vi.fn().mockResolvedValue(fakeMessage(JSON.stringify({ choiceIndex: 1, rationale: "the gift closes a debt" })));
+    const create = vi
+      .fn()
+      .mockResolvedValue(fakeMessage(JSON.stringify({ choiceIndex: 1, rationale: "the gift closes a debt" })));
     const rationalizer = createClaudeRationalizer({ apiKey: "test-key", client: makeClient(create) });
     const request = makeRequest();
 
@@ -146,7 +156,9 @@ describe("createClaudeRationalizer", () => {
     // Valid JSON, wrong shape (choiceIndex is a string) — a real model
     // deviating from the schema, or the schema being satisfied in a way
     // the sim's stricter validator still rejects.
-    const create = vi.fn().mockResolvedValue(fakeMessage(JSON.stringify({ choiceIndex: "not-an-index", rationale: "oops" })));
+    const create = vi
+      .fn()
+      .mockResolvedValue(fakeMessage(JSON.stringify({ choiceIndex: "not-an-index", rationale: "oops" })));
     const rationalizer = createClaudeRationalizer({ apiKey: "test-key", client: makeClient(create) });
 
     rationalizer.submit(makeRequest());
@@ -219,7 +231,9 @@ describe("createClaudeRationalizer", () => {
   });
 
   it("frees a concurrency slot once a request settles", async () => {
-    const create = vi.fn().mockResolvedValue(fakeMessage(JSON.stringify({ choiceIndex: null, rationale: "fine as-is" })));
+    const create = vi
+      .fn()
+      .mockResolvedValue(fakeMessage(JSON.stringify({ choiceIndex: null, rationale: "fine as-is" })));
     const rationalizer = createClaudeRationalizer({ apiKey: "test-key", maxInFlight: 1, client: makeClient(create) });
 
     rationalizer.submit(makeRequest({ agentId: 1 }));
@@ -250,7 +264,11 @@ describe("createClaudeRationalizer", () => {
 
   it("respects a configurable model, e.g. claude-sonnet-5", async () => {
     const create = vi.fn().mockResolvedValue(fakeMessage(JSON.stringify({ choiceIndex: null, rationale: "ok" })));
-    const rationalizer = createClaudeRationalizer({ apiKey: "test-key", model: "claude-sonnet-5", client: makeClient(create) });
+    const rationalizer = createClaudeRationalizer({
+      apiKey: "test-key",
+      model: "claude-sonnet-5",
+      client: makeClient(create),
+    });
     rationalizer.submit(makeRequest());
     await flush();
     const params = create.mock.calls[0]?.[0] as { model: string };
@@ -278,14 +296,23 @@ describe("createClaudeRationalizer", () => {
     const create = vi.fn().mockResolvedValue(fakeMessage(JSON.stringify({ choiceIndex: null, rationale: "ok" })));
     const rationalizer = createClaudeRationalizer({ apiKey: "test-key", client: makeClient(create) });
     rationalizer.submit(
-      makeRequest({ site: "governance-vote", decision: { norm: "shareRate", currentValue: 0.3, min: 0.05, max: 0.6, memberCount: 5 } }),
+      makeRequest({
+        site: "governance-vote",
+        decision: { norm: "shareRate", currentValue: 0.3, min: 0.05, max: 0.6, memberCount: 5 },
+      }),
     );
     await flush();
 
     const params = create.mock.calls[0]?.[0] as { messages: Array<{ content: string }> };
     const sentPayload = JSON.parse(params.messages[0]?.content ?? "") as Record<string, unknown>;
     expect(sentPayload["site"]).toBe("governance-vote");
-    expect(sentPayload["decision"]).toEqual({ norm: "shareRate", currentValue: 0.3, min: 0.05, max: 0.6, memberCount: 5 });
+    expect(sentPayload["decision"]).toEqual({
+      norm: "shareRate",
+      currentValue: 0.3,
+      min: 0.05,
+      max: 0.6,
+      memberCount: 5,
+    });
   });
 });
 

@@ -36,7 +36,6 @@ function runOnce(seed: number, ticksPerDay: number, maxDays: number): RunResult 
 }
 
 describe("sim determinism", () => {
-
   const TICKS_PER_DAY = 20;
   const MAX_DAYS = 30;
 
@@ -64,7 +63,6 @@ describe("sim determinism", () => {
   });
 
   it("different seeds generally produce different outcomes", () => {
-
     const a = runOnce(1, TICKS_PER_DAY, MAX_DAYS);
     const b = runOnce(999, TICKS_PER_DAY, MAX_DAYS);
     expect(JSON.stringify(b.finalStandings)).not.toBe(JSON.stringify(a.finalStandings));

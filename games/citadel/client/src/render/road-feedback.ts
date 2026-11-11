@@ -33,9 +33,7 @@ export function needsRoadConnection(type: string): boolean {
  * set to mark. Skips infrastructure and skips anything already `connected`.
  * Pure; given the snapshot's buildings, deterministic.
  */
-export function disconnectedBuildings(
-  buildings: readonly BuildingSnapshot[],
-): BuildingSnapshot[] {
+export function disconnectedBuildings(buildings: readonly BuildingSnapshot[]): BuildingSnapshot[] {
   const out: BuildingSnapshot[] = [];
   for (const b of buildings) {
     if (b.connected) continue;

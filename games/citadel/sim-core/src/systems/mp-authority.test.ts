@@ -24,12 +24,16 @@ function findGrass(t: TerrainGrid, w: number, h: number, sx: number, sy: number)
   for (let r = 0; r < 50; r++) {
     for (let dy = -r; dy <= r; dy++) {
       for (let dx = -r; dx <= r; dx++) {
-        const x = sx + dx, y = sy + dy;
+        const x = sx + dx,
+          y = sy + dy;
         if (x < 0 || y < 0 || x + w > t.width || y + h > t.height) continue;
         let ok = true;
         for (let yy = 0; yy < h && ok; yy++)
           for (let xx = 0; xx < w; xx++)
-            if (t.cells[(y + yy) * t.width + (x + xx)] !== TerrainType.Grass) { ok = false; break; }
+            if (t.cells[(y + yy) * t.width + (x + xx)] !== TerrainType.Grass) {
+              ok = false;
+              break;
+            }
         if (ok) return { x, y };
       }
     }
@@ -38,7 +42,12 @@ function findGrass(t: TerrainGrid, w: number, h: number, sx: number, sy: number)
 }
 
 /** Route the next command to player `id` (as the host's marker does), then run it. */
-function asPlayer(sim: CitadelSimResult, id: number, cmd: Parameters<typeof sim.commands.enqueue>[0], tick: number): void {
+function asPlayer(
+  sim: CitadelSimResult,
+  id: number,
+  cmd: Parameters<typeof sim.commands.enqueue>[0],
+  tick: number,
+): void {
   sim.commands.enqueue({ type: "setActivePlayer", payload: { id } });
   sim.commands.enqueue(cmd);
   sim.scheduler.tick({ tick });

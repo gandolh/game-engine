@@ -102,11 +102,11 @@ const SACK_ROW_PITCH = 5;
  * on the lattice — they break up the wooden runs without adding to anyone's neighbour count.
  */
 const SACK_LATTICE: ReadonlyArray<ReadonlyArray<string>> = [
-  ["mill",   "farm",       "farm",   "mill"],
-  ["bakery", "storehouse", "well",   "bakery"],
-  ["chapel", "house",      "house",  "market"],
-  ["house",  "watchpost",  "healer", "house"],
-  ["well",   "house",      "house",  "chapel"],
+  ["mill", "farm", "farm", "mill"],
+  ["bakery", "storehouse", "well", "bakery"],
+  ["chapel", "house", "house", "market"],
+  ["house", "watchpost", "healer", "house"],
+  ["well", "house", "house", "chapel"],
 ];
 
 /** Where the sack town's keep goes once the settlement earns Town tier. */
@@ -136,8 +136,7 @@ export function buildSackScenario(terrain: TerrainGrid): SackPlan {
   // tiles blocked — the run has a gap").
   const footprint = new Set<number>();
   const claim = (x: number, y: number, w: number, h: number): void => {
-    for (let dy = 0; dy < h; dy++)
-      for (let dx = 0; dx < w; dx++) footprint.add((y + dy) * terrain.width + (x + dx));
+    for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) footprint.add((y + dy) * terrain.width + (x + dx));
   };
 
   for (let row = 0; row < SACK_LATTICE.length; row++) {

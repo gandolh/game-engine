@@ -61,18 +61,14 @@ describe("buildGameSnapshot (no sim boot)", () => {
     expect(buildGameSnapshot(inputs({ mode: "run_lost" })).mode).toBe("run_lost");
 
     const combatSnap = { turn: 7 } as never;
-    const inCombat = buildGameSnapshot(
-      inputs({ mode: "combat", combat: { snapshot: () => combatSnap } }),
-    );
+    const inCombat = buildGameSnapshot(inputs({ mode: "combat", combat: { snapshot: () => combatSnap } }));
     expect(inCombat.mode).toBe("combat");
     // The builder must hand back exactly what combat.snapshot() returned.
     expect(inCombat.mode === "combat" && inCombat.combat).toBe(combatSnap);
   });
 
   it("describes level-up offers through the locale it was given", () => {
-    const snap = buildGameSnapshot(
-      inputs({ mode: "level_up", levelUpOffers: ["attack", "maxHp"] as never }),
-    );
+    const snap = buildGameSnapshot(inputs({ mode: "level_up", levelUpOffers: ["attack", "maxHp"] as never }));
     expect(snap.mode).toBe("level_up");
     if (snap.mode !== "level_up") throw new Error("unreachable");
     expect(snap.offers).toHaveLength(2);
@@ -81,8 +77,7 @@ describe("buildGameSnapshot (no sim boot)", () => {
   });
 
   it("shares one RunView shape across every mode", () => {
-    const keys = (m: SnapshotInputs["mode"]) =>
-      Object.keys(buildGameSnapshot(inputs({ mode: m })).run).sort();
+    const keys = (m: SnapshotInputs["mode"]) => Object.keys(buildGameSnapshot(inputs({ mode: m })).run).sort();
     expect(keys("map")).toEqual(keys("run_won"));
     expect(keys("map")).toEqual(keys("run_lost"));
   });

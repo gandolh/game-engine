@@ -155,12 +155,7 @@ export function serviceCatchment(
  * homes" placement warning. (Counts every house in the snapshot; in solo there
  * is one owner, so this matches the player's own coverage exactly.)
  */
-export function housesInRadius(
-  buildings: readonly BuildingSnapshot[],
-  cx: number,
-  cy: number,
-  radius: number,
-): number {
+export function housesInRadius(buildings: readonly BuildingSnapshot[], cx: number, cy: number, radius: number): number {
   let n = 0;
   for (const b of buildings) {
     if (b.type !== "house") continue;

@@ -72,7 +72,13 @@ function candidatesFor(ai: number, bi: number, A: Bounds, B: Bounds): Candidate[
       const gap = B.minX - A.maxX - 1;
       if (gap > 0) {
         const y0 = midStart(ov[0], ov[1], BRIDGE_WIDTH);
-        out.push({ a: ai, b: bi, dir: "E", gap, rect: { minX: A.maxX + 1, maxX: B.minX - 1, minY: y0, maxY: y0 + BRIDGE_WIDTH - 1 } });
+        out.push({
+          a: ai,
+          b: bi,
+          dir: "E",
+          gap,
+          rect: { minX: A.maxX + 1, maxX: B.minX - 1, minY: y0, maxY: y0 + BRIDGE_WIDTH - 1 },
+        });
       }
     }
   } else if (B.maxX < A.minX) {
@@ -82,7 +88,13 @@ function candidatesFor(ai: number, bi: number, A: Bounds, B: Bounds): Candidate[
       const gap = A.minX - B.maxX - 1;
       if (gap > 0) {
         const y0 = midStart(ov[0], ov[1], BRIDGE_WIDTH);
-        out.push({ a: ai, b: bi, dir: "W", gap, rect: { minX: B.maxX + 1, maxX: A.minX - 1, minY: y0, maxY: y0 + BRIDGE_WIDTH - 1 } });
+        out.push({
+          a: ai,
+          b: bi,
+          dir: "W",
+          gap,
+          rect: { minX: B.maxX + 1, maxX: A.minX - 1, minY: y0, maxY: y0 + BRIDGE_WIDTH - 1 },
+        });
       }
     }
   }
@@ -94,7 +106,13 @@ function candidatesFor(ai: number, bi: number, A: Bounds, B: Bounds): Candidate[
       const gap = B.minY - A.maxY - 1;
       if (gap > 0) {
         const x0 = midStart(ov[0], ov[1], BRIDGE_WIDTH);
-        out.push({ a: ai, b: bi, dir: "S", gap, rect: { minY: A.maxY + 1, maxY: B.minY - 1, minX: x0, maxX: x0 + BRIDGE_WIDTH - 1 } });
+        out.push({
+          a: ai,
+          b: bi,
+          dir: "S",
+          gap,
+          rect: { minY: A.maxY + 1, maxY: B.minY - 1, minX: x0, maxX: x0 + BRIDGE_WIDTH - 1 },
+        });
       }
     }
   } else if (B.maxY < A.minY) {
@@ -103,7 +121,13 @@ function candidatesFor(ai: number, bi: number, A: Bounds, B: Bounds): Candidate[
       const gap = A.minY - B.maxY - 1;
       if (gap > 0) {
         const x0 = midStart(ov[0], ov[1], BRIDGE_WIDTH);
-        out.push({ a: ai, b: bi, dir: "N", gap, rect: { minY: B.maxY + 1, maxY: A.minY - 1, minX: x0, maxX: x0 + BRIDGE_WIDTH - 1 } });
+        out.push({
+          a: ai,
+          b: bi,
+          dir: "N",
+          gap,
+          rect: { minY: B.maxY + 1, maxY: A.minY - 1, minX: x0, maxX: x0 + BRIDGE_WIDTH - 1 },
+        });
       }
     }
   }
@@ -145,7 +169,11 @@ class UnionFind {
   find(x: number): number {
     let r = x;
     while (this.parent[r] !== r) r = this.parent[r]!;
-    while (this.parent[x] !== r) { const nx = this.parent[x]!; this.parent[x] = r; x = nx; }
+    while (this.parent[x] !== r) {
+      const nx = this.parent[x]!;
+      this.parent[x] = r;
+      x = nx;
+    }
     return r;
   }
   union(a: number, b: number): boolean {
@@ -193,8 +221,7 @@ export function buildBridgeGraph(
   const edges: Array<[number, number]> = [];
   let components = n;
 
-  const wouldCrossBridge = (rect: RoadRect): boolean =>
-    placedRects.some((r) => rectsOverlap(rect, r));
+  const wouldCrossBridge = (rect: RoadRect): boolean => placedRects.some((r) => rectsOverlap(rect, r));
 
   for (const c of cands) {
     if (uf.find(c.a) === uf.find(c.b)) continue; // already connected
@@ -228,14 +255,22 @@ export function buildBridgeGraph(
 export function isConnected(n: number, edges: ReadonlyArray<[number, number]>): boolean {
   if (n === 0) return true;
   const adj: number[][] = Array.from({ length: n }, () => []);
-  for (const [a, b] of edges) { adj[a]!.push(b); adj[b]!.push(a); }
+  for (const [a, b] of edges) {
+    adj[a]!.push(b);
+    adj[b]!.push(a);
+  }
   const seen = new Uint8Array(n);
   const stack = [0];
   seen[0] = 1;
   let count = 1;
   while (stack.length) {
     const x = stack.pop()!;
-    for (const y of adj[x]!) if (!seen[y]) { seen[y] = 1; count++; stack.push(y); }
+    for (const y of adj[x]!)
+      if (!seen[y]) {
+        seen[y] = 1;
+        count++;
+        stack.push(y);
+      }
   }
   return count === n;
 }

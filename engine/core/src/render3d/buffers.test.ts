@@ -134,10 +134,7 @@ describe("packMaterials", () => {
     // odd material indices from the previous entry's zero padding → black.
     expect(FLOATS_PER_MATERIAL).toBe(4);
 
-    const packed = packMaterials([
-      { color: [1, 0, 0] },
-      { color: [0, 1, 0], emissive: true },
-    ]);
+    const packed = packMaterials([{ color: [1, 0, 0] }, { color: [0, 1, 0], emissive: true }]);
     expect(packed.length).toBe(2 * FLOATS_PER_MATERIAL);
 
     // Material 0: red, not emissive; Material 1: green, emissive — packed

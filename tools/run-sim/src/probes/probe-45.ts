@@ -1,4 +1,3 @@
-
 import { bootstrapSim, leaderboard } from "@farm/sim-core/sim-bootstrap";
 import { JsPathfinder } from "@farm/sim-core/world/js-pathfinder";
 import { isWithinReach } from "@farm/sim-core/systems/proximity";
@@ -104,7 +103,10 @@ for (const entry of eventFeed.recent()) {
           winnerQuality = winsMatch[2]?.toLowerCase() ?? null;
 
           for (const f of world.query("farmer")) {
-            if (f.farmer?.name === winnerName) { winnerId = f.id ?? null; break; }
+            if (f.farmer?.name === winnerName) {
+              winnerId = f.id ?? null;
+              break;
+            }
           }
         }
       }
@@ -115,7 +117,7 @@ for (const entry of eventFeed.recent()) {
         winnerId,
         winnerName,
         winnerQuality,
-        prize: 0, 
+        prize: 0,
         participants: [],
       });
       console.log(`[day ${entry.day}] FEED FESTIVAL LINE: "${text}"`);
@@ -154,29 +156,37 @@ if (festivalResults.length === 0) {
 }
 
 console.log("\n=== FARMER BELIEFS ON FESTIVAL DAYS ===");
-console.log(`  Festival-today belief observed on days: ${[...believedFestivalDays].sort((a, b) => a - b).join(", ") || "(none)"}`);
+console.log(
+  `  Festival-today belief observed on days: ${[...believedFestivalDays].sort((a, b) => a - b).join(", ") || "(none)"}`,
+);
 
 console.log("\n=== DAY-100 STANDINGS ===");
 for (const row of leaderboard(world)) {
-  const wins = (findFarmer(row.id)?.farmer?.festivalWins ?? 0);
-  console.log(`  ${row.name.padEnd(8)} ${row.personality.padEnd(12)} total=${Math.round(row.totalValue)} gold=${row.gold} festivalWins=${wins}`);
+  const wins = findFarmer(row.id)?.farmer?.festivalWins ?? 0;
+  console.log(
+    `  ${row.name.padEnd(8)} ${row.personality.padEnd(12)} total=${Math.round(row.totalValue)} gold=${row.gold} festivalWins=${wins}`,
+  );
 }
 
 console.log("\n=== ACCEPTANCE (brief 45 festivals) ===");
 const believedCount = believedFestivalDays.size;
 const resolvedCount = festivalResults.length;
 const resultsWithWinner = festivalResults.filter((r) => r.winnerId !== null).length;
-console.log(`  festival-today belief written on ${believedCount} day(s): ${[...believedFestivalDays].sort((a, b) => a - b).join(", ")}`);
+console.log(
+  `  festival-today belief written on ${believedCount} day(s): ${[...believedFestivalDays].sort((a, b) => a - b).join(", ")}`,
+);
 console.log(`  feed lines narrating festival results: ${feedFestivalLines}`);
 console.log(`  contests with a declared winner: ${resultsWithWinner}`);
 console.log(`  farmer-days at the festival podium: ${totalGatheringVisits}`);
 
-const pass =
-  believedCount >= 4 &&
-  feedFestivalLines >= 4;
+const pass = believedCount >= 4 && feedFestivalLines >= 4;
 
 console.log(`\n  ACCEPTANCE ${pass ? "MET ✓" : "NOT MET ✗"}  (need ≥4 belief days AND ≥4 feed lines)`);
 if (!pass) {
-  if (believedCount < 4) console.log(`  !! festivalToday belief written on only ${believedCount} day(s) — check FestivalSystem.writeBeliefs`);
-  if (feedFestivalLines < 4) console.log(`  !! Only ${feedFestivalLines} festival feed lines — check EventFeedSystem.captureFestival`);
+  if (believedCount < 4)
+    console.log(
+      `  !! festivalToday belief written on only ${believedCount} day(s) — check FestivalSystem.writeBeliefs`,
+    );
+  if (feedFestivalLines < 4)
+    console.log(`  !! Only ${feedFestivalLines} festival feed lines — check EventFeedSystem.captureFestival`);
 }

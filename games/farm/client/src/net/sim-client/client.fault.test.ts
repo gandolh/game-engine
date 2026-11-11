@@ -1,5 +1,3 @@
-
-
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { SimClient } from "./client";
 
@@ -23,8 +21,10 @@ function makeStubWebSocket(): StubWs {
     onclose: null,
     onerror: null,
     readyState: WebSocket.OPEN,
-    close() { this.readyState = WebSocket.CLOSED; },
-    send(_data: string) {  },
+    close() {
+      this.readyState = WebSocket.CLOSED;
+    },
+    send(_data: string) {},
     deliver(data: unknown) {
       const event = new MessageEvent("message", { data: JSON.stringify(data) });
       this.onmessage?.(event);
@@ -35,7 +35,9 @@ function makeStubWebSocket(): StubWs {
 
 function makeClient(): { client: SimClient; ws: StubWs } {
   const ws = makeStubWebSocket();
-  vi.stubGlobal("WebSocket", function() { return ws; });
+  vi.stubGlobal("WebSocket", function () {
+    return ws;
+  });
   const client = new SimClient("ws://test-stub");
   ws.onopen?.();
   return { client, ws };

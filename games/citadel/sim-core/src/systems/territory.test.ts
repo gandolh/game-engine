@@ -25,10 +25,11 @@ describe("Citadel 30 — territory", () => {
     sim.world.spawn({ building: { type: "town-hall", x: 30, y: 30, w: 3, h: 3, ownerId: 0 } });
     recomputeTerritory(sim.state, 5);
 
-    const cx = 31, cy = 31; // center of the 3×3 footprint at (30,30)
+    const cx = 31,
+      cy = 31; // center of the 3×3 footprint at (30,30)
     expect(lp.territory.size).toBeGreaterThan(0);
-    expect(lp.territory.has(cy * W + cx)).toBe(true);        // center
-    expect(lp.territory.has((cy + 4) * W + cx)).toBe(true);  // within radius 5
+    expect(lp.territory.has(cy * W + cx)).toBe(true); // center
+    expect(lp.territory.has((cy + 4) * W + cx)).toBe(true); // within radius 5
     expect(lp.territory.has((cy + 20) * W + cx)).toBe(false); // far outside
   });
 
@@ -65,14 +66,14 @@ describe("Citadel 30 — territory", () => {
     sim.world.spawn({ building: { type: "town-hall", x: 30, y: 30, w: 3, h: 3, ownerId: 0 } });
     recomputeTerritory(sim.state, 5);
 
-    expect(canBuildAt(sim.state, p0, 31, 31, 1, 1)).toBe(true);   // inside own territory
-    expect(canBuildAt(sim.state, p0, 55, 55, 1, 1)).toBe(false);  // far outside → rejected
-    expect(canBuildAt(sim.state, p0, -1, 31, 1, 1)).toBe(false);  // out of bounds
+    expect(canBuildAt(sim.state, p0, 31, 31, 1, 1)).toBe(true); // inside own territory
+    expect(canBuildAt(sim.state, p0, 55, 55, 1, 1)).toBe(false); // far outside → rejected
+    expect(canBuildAt(sim.state, p0, -1, 31, 1, 1)).toBe(false); // out of bounds
 
     // A rival claims tiles around (45,45).
     sim.state.players.push(makePlayerState(1));
     sim.world.spawn({ building: { type: "town-hall", x: 44, y: 44, w: 3, h: 3, ownerId: 1 } });
     recomputeTerritory(sim.state, 5);
-    expect(canBuildAt(sim.state, p0, 45, 45, 1, 1)).toBe(false);  // a rival's claim → blocked
+    expect(canBuildAt(sim.state, p0, 45, 45, 1, 1)).toBe(false); // a rival's claim → blocked
   });
 });

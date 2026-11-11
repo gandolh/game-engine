@@ -21,9 +21,12 @@ describe("resolveStaticRegion", () => {
   });
 
   it("floors the origin and ceils the size of an explicit region", () => {
-    expect(
-      resolveStaticRegion(4096, 4096, { originX: 32.9, originY: 16.1, width: 100.2, height: 50.0 }),
-    ).toEqual({ originX: 32, originY: 16, width: 101, height: 50 });
+    expect(resolveStaticRegion(4096, 4096, { originX: 32.9, originY: 16.1, width: 100.2, height: 50.0 })).toEqual({
+      originX: 32,
+      originY: 16,
+      width: 101,
+      height: 50,
+    });
   });
 });
 
@@ -33,8 +36,14 @@ describe("staticBlitRect — whole-world region is the pre-windowing identity", 
   it("maps the visible rect straight through (src == dst) for a full-world bake", () => {
     const blit = staticBlitRect(100, 80, 300, 240, full);
     expect(blit).toEqual({
-      srcX: 100, srcY: 80, srcW: 200, srcH: 160,
-      dstL: 100, dstT: 80, dstW: 200, dstH: 160,
+      srcX: 100,
+      srcY: 80,
+      srcW: 200,
+      srcH: 160,
+      dstL: 100,
+      dstT: 80,
+      dstW: 200,
+      dstH: 160,
     });
   });
 
@@ -43,8 +52,14 @@ describe("staticBlitRect — whole-world region is the pre-windowing identity", 
     // region clamp matches: a rect to the world edge stays src == dst.
     const blit = staticBlitRect(600, 460, 640, 480, full);
     expect(blit).toEqual({
-      srcX: 600, srcY: 460, srcW: 40, srcH: 20,
-      dstL: 600, dstT: 460, dstW: 40, dstH: 20,
+      srcX: 600,
+      srcY: 460,
+      srcW: 40,
+      srcH: 20,
+      dstL: 600,
+      dstT: 460,
+      dstW: 40,
+      dstH: 20,
     });
   });
 });
@@ -57,8 +72,14 @@ describe("staticBlitRect — windowed sub-region", () => {
     // Camera fully inside the window: src is window-local, dst is world.
     const blit = staticBlitRect(1050, 2050, 1150, 2150, region);
     expect(blit).toEqual({
-      srcX: 50, srcY: 50, srcW: 100, srcH: 100,
-      dstL: 1050, dstT: 2050, dstW: 100, dstH: 100,
+      srcX: 50,
+      srcY: 50,
+      srcW: 100,
+      srcH: 100,
+      dstL: 1050,
+      dstT: 2050,
+      dstW: 100,
+      dstH: 100,
     });
   });
 
@@ -69,16 +90,28 @@ describe("staticBlitRect — windowed sub-region", () => {
     const blit = staticBlitRect(1200, 2200, 1400, 2400, region);
     expect(blit).toEqual({
       // window right/bottom edge = 1256 / 2256
-      srcX: 200, srcY: 200, srcW: 56, srcH: 56,
-      dstL: 1200, dstT: 2200, dstW: 56, dstH: 56,
+      srcX: 200,
+      srcY: 200,
+      srcW: 56,
+      srcH: 56,
+      dstL: 1200,
+      dstT: 2200,
+      dstW: 56,
+      dstH: 56,
     });
   });
 
   it("clamps the leading edge too (visible rect starts before the window origin)", () => {
     const blit = staticBlitRect(900, 1900, 1100, 2100, region);
     expect(blit).toEqual({
-      srcX: 0, srcY: 0, srcW: 100, srcH: 100,
-      dstL: 1000, dstT: 2000, dstW: 100, dstH: 100,
+      srcX: 0,
+      srcY: 0,
+      srcW: 100,
+      srcH: 100,
+      dstL: 1000,
+      dstT: 2000,
+      dstW: 100,
+      dstH: 100,
     });
   });
 

@@ -30,35 +30,24 @@ import type { SimState } from "../sim-state";
 import { pushEvent } from "../sim-state";
 import { getProductionDef } from "../entities/building";
 
-export type SettlementTier =
-  | "Hamlet"
-  | "Village"
-  | "Town"
-  | "Citadel"
-  | "Fortress-City";
+export type SettlementTier = "Hamlet" | "Village" | "Town" | "Citadel" | "Fortress-City";
 
 /** Ordered from lowest to highest. */
-export const TIER_ORDER: readonly SettlementTier[] = [
-  "Hamlet",
-  "Village",
-  "Town",
-  "Citadel",
-  "Fortress-City",
-];
+export const TIER_ORDER: readonly SettlementTier[] = ["Hamlet", "Village", "Town", "Citadel", "Fortress-City"];
 
 /** Minimum tier required to place a building type.  Missing entry = no lock. */
 export const TIER_LOCK: Readonly<Record<string, SettlementTier>> = {
   // Siege / fortification buildings unlock at Town+.
-  keep:     "Town",
+  keep: "Town",
   garrison: "Town",
-  tower:    "Village",
-  wall:     "Village",
-  gate:     "Village",
+  tower: "Village",
+  wall: "Village",
+  gate: "Village",
   // Refining chains unlock at Village+.
-  sawmill:  "Village",
-  smith:    "Village",
-  quarry:   "Village",
-  mine:     "Village",
+  sawmill: "Village",
+  smith: "Village",
+  quarry: "Village",
+  mine: "Village",
 };
 
 /**
@@ -93,9 +82,9 @@ export interface TierGateThreshold {
 
 /** Threshold to REACH each tier. "Hamlet" has no threshold. */
 export const TIER_THRESHOLDS: Readonly<Partial<Record<SettlementTier, TierGateThreshold>>> = {
-  Village:         { minPop: 8,  minBuildings: 8,  minDefenseForBuildings: 0,  minPopForBuildings: 5  },
-  Town:            { minPop: 20, minBuildings: 15, minDefenseForBuildings: 0,  minPopForBuildings: 10 },
-  Citadel:         { minPop: 40, minBuildings: 25, minDefenseForBuildings: 20, minPopForBuildings: 20 },
+  Village: { minPop: 8, minBuildings: 8, minDefenseForBuildings: 0, minPopForBuildings: 5 },
+  Town: { minPop: 20, minBuildings: 15, minDefenseForBuildings: 0, minPopForBuildings: 10 },
+  Citadel: { minPop: 40, minBuildings: 25, minDefenseForBuildings: 20, minPopForBuildings: 20 },
   "Fortress-City": { minPop: 60, minBuildings: 40, minDefenseForBuildings: 50, minPopForBuildings: 35 },
 };
 
@@ -111,19 +100,16 @@ export const TIER_THRESHOLDS: Readonly<Partial<Record<SettlementTier, TierGateTh
  *        AND defense >= minDefenseForBuildings
  *        AND population >= minPopForBuildings).
  */
-export function computeTier(
-  population: number,
-  nonRoadBuildingCount: number,
-  defenseStrength: number,
-): SettlementTier {
+export function computeTier(population: number, nonRoadBuildingCount: number, defenseStrength: number): SettlementTier {
   let tier: SettlementTier = "Hamlet";
   for (const candidate of TIER_ORDER) {
     const threshold = TIER_THRESHOLDS[candidate];
     if (threshold === undefined) continue; // Hamlet — always satisfied
-    const popPath      = population >= threshold.minPop;
-    const buildingPath = nonRoadBuildingCount >= threshold.minBuildings
-                      && defenseStrength >= threshold.minDefenseForBuildings
-                      && population     >= threshold.minPopForBuildings;
+    const popPath = population >= threshold.minPop;
+    const buildingPath =
+      nonRoadBuildingCount >= threshold.minBuildings &&
+      defenseStrength >= threshold.minDefenseForBuildings &&
+      population >= threshold.minPopForBuildings;
     if (popPath || buildingPath) tier = candidate;
   }
   return tier;

@@ -24,9 +24,7 @@ describe("occluder walls", () => {
 describe("static layer exclusions", () => {
   it("bakes neither cliff faces nor occluder wall bands", () => {
     const world = new World<GameEntity>();
-    const occluderKeys = new Set(
-      OCCLUDER_WALLS.map((w) => `${w.tx},${w.ty},${w.rotation}`),
-    );
+    const occluderKeys = new Set(OCCLUDER_WALLS.map((w) => `${w.tx},${w.ty},${w.rotation}`));
     for (const s of iterStaticSprites(world)) {
       expect(s.frame.startsWith("tile/cliff-face")).toBe(false);
       const tx = Math.floor(s.x / TILE);
@@ -58,8 +56,8 @@ describe("pushOccluderSprites", () => {
 
     expect(pushed.length).toBe(OCCLUDER_WALLS.length + CLIFFS.length);
     for (const s of pushed) {
-      expect(s.layer).toBe(50); 
-      expect(s.sortY).toBe(s.y + TILE / 2); 
+      expect(s.layer).toBe(50);
+      expect(s.sortY).toBe(s.y + TILE / 2);
       expect(s.sortY!).toBeGreaterThanOrEqual(s.y);
     }
   });

@@ -29,7 +29,8 @@ const GAMES = [
 ] as const;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-const ab = (...args: string[]): string => execFileSync("agent-browser", ["--session", SESSION, ...args], { encoding: "utf8" }).trim();
+const ab = (...args: string[]): string =>
+  execFileSync("agent-browser", ["--session", SESSION, ...args], { encoding: "utf8" }).trim();
 
 async function up(port: number): Promise<boolean> {
   try {

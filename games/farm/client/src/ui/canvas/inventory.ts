@@ -151,18 +151,18 @@ export function createInventory(opts: InventoryOptions): Inventory {
   const { canvas, host, swapSlots, isOwner } = opts;
 
   const title = label("Inventory", { color: EDG.gold });
-  const hint = label(
-    "Drag items to rearrange - top row is the hotbar - E or Esc to close",
-    { color: EDG.slate },
-  );
+  const hint = label("Drag items to rearrange - top row is the hotbar - E or Esc to close", { color: EDG.slate });
   const gridBox = box({ direction: "column", gap: SLOT_GAP, align: "center" }, []);
   // Slot icons, selected borders, and the drag ghost paint via an OVERLAY custom node (last child →
   // on top of the grid during `renderTree`, filling the modal's inner box out of flow). Folds the
   // old separate drawIcons/drawGhost post-passes into the widget tree (engine-ui backlog item 1).
-  const iconsOverlay = custom((surface) => {
-    drawIconsInto(surface);
-    drawGhostInto(surface);
-  }, { overlay: true });
+  const iconsOverlay = custom(
+    (surface) => {
+      drawIconsInto(surface);
+      drawGhostInto(surface);
+    },
+    { overlay: true },
+  );
   const modal = panel({ direction: "column", gap: 8, align: "center", padding: 16 }, [
     title,
     gridBox,

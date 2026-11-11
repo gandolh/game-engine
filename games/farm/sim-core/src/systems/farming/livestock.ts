@@ -1,5 +1,3 @@
-
-
 import type { SimContext, System, World, Rng, With } from "@engine/core";
 import { bodyOf } from "@engine/core";
 import type { GameEntity, CropQuality } from "../../components";
@@ -12,13 +10,13 @@ import {
   bankProduct,
 } from "../../economy";
 
-const GOLD_CARE_THRESHOLD   = 0.82; 
+const GOLD_CARE_THRESHOLD = 0.82;
 const SILVER_CARE_THRESHOLD = 0.55;
 
 function computeProductQuality(care: number, rng: Rng): CropQuality {
   const roll = rng.nextFloat();
-  if (care >= GOLD_CARE_THRESHOLD && roll < care - 0.10) return "gold";
-  if (care >= SILVER_CARE_THRESHOLD && roll < care + 0.10) return "silver";
+  if (care >= GOLD_CARE_THRESHOLD && roll < care - 0.1) return "gold";
+  if (care >= SILVER_CARE_THRESHOLD && roll < care + 0.1) return "silver";
   return "normal";
 }
 
@@ -55,7 +53,7 @@ export class LivestockSystem implements System {
       if (f.id !== undefined) inventoryByOwner.set(f.id, f);
     }
 
-    const pens: With<GameEntity, "pen">[] = []; 
+    const pens: With<GameEntity, "pen">[] = [];
     for (const p of this.world.query("pen")) pens.push(p);
     pens.sort((a, b) => (a.id ?? 0) - (b.id ?? 0));
 
@@ -73,7 +71,7 @@ export class LivestockSystem implements System {
         bankProduct(owner.inventory, productKind, qty, quality);
         pen.care = Math.max(0, pen.care - CARE_DECAY_RATE);
       } else {
-        pen.care = Math.max(0, pen.care - CARE_DECAY_UNFED); 
+        pen.care = Math.max(0, pen.care - CARE_DECAY_UNFED);
       }
 
       pen.fedToday = false;

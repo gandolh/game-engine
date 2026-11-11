@@ -48,18 +48,59 @@ function iconNameFor(item: Item): string {
 /** The toolbar layout — category groups (mirrors the old DOM `#build-bar`). `label` backs the
  *  button's accessible name + hover text; the button itself renders `iconNameFor(item)`. */
 const GROUPS: ReadonlyArray<{ readonly label: string; readonly items: ReadonlyArray<Item> }> = [
-  { label: "Housing", items: [buildItem("House", "house"), buildItem("Store", "storehouse"), buildItem("Well", "well")] },
-  { label: "Food", items: [buildItem("Farm", "farm"), buildItem("Mill", "mill"), buildItem("Bakery", "bakery"), buildItem("Wood", "woodcutter")] },
-  { label: "Refine", items: [buildItem("Saw", "sawmill"), buildItem("Quarry", "quarry"), buildItem("Mine", "mine"), buildItem("Smith", "smith")] },
-  { label: "Service", items: [
-    buildItem("Hall", "town-hall"), buildItem("Chapel", "chapel"), buildItem("Market", "market"),
-    buildItem("Watch", "watchpost"), buildItem("Trade", "tradingpost"), buildItem("Healer", "healer"),
-    buildItem("Square", "public-square"),
-  ] },
-  { label: "Defense", items: [
-    toolItem("Wall", "wall"), buildItem("Gate", "gate"), buildItem("Tower", "tower"), buildItem("Garrison", "garrison"), buildItem("Keep", "keep"),
-  ] },
-  { label: "Tools", items: [toolItem("Road", "road"), toolItem("Upgrade", "upgrade"), toolItem("Demolish", "demolish"), toolItem("Cancel", "none")] },
+  {
+    label: "Housing",
+    items: [buildItem("House", "house"), buildItem("Store", "storehouse"), buildItem("Well", "well")],
+  },
+  {
+    label: "Food",
+    items: [
+      buildItem("Farm", "farm"),
+      buildItem("Mill", "mill"),
+      buildItem("Bakery", "bakery"),
+      buildItem("Wood", "woodcutter"),
+    ],
+  },
+  {
+    label: "Refine",
+    items: [
+      buildItem("Saw", "sawmill"),
+      buildItem("Quarry", "quarry"),
+      buildItem("Mine", "mine"),
+      buildItem("Smith", "smith"),
+    ],
+  },
+  {
+    label: "Service",
+    items: [
+      buildItem("Hall", "town-hall"),
+      buildItem("Chapel", "chapel"),
+      buildItem("Market", "market"),
+      buildItem("Watch", "watchpost"),
+      buildItem("Trade", "tradingpost"),
+      buildItem("Healer", "healer"),
+      buildItem("Square", "public-square"),
+    ],
+  },
+  {
+    label: "Defense",
+    items: [
+      toolItem("Wall", "wall"),
+      buildItem("Gate", "gate"),
+      buildItem("Tower", "tower"),
+      buildItem("Garrison", "garrison"),
+      buildItem("Keep", "keep"),
+    ],
+  },
+  {
+    label: "Tools",
+    items: [
+      toolItem("Road", "road"),
+      toolItem("Upgrade", "upgrade"),
+      toolItem("Demolish", "demolish"),
+      toolItem("Cancel", "none"),
+    ],
+  },
 ];
 
 /** The live placement state the bar reflects (supplied each frame by the host). */
@@ -107,7 +148,9 @@ const isBuild = (i: Item): i is Extract<Item, { kind: "build" }> => i.kind === "
 
 /** "4 wood, 2 stone" (or "" when free) — the material cost of a build type. */
 function costText(type: string): string {
-  return Object.entries(buildCost(type)).map(([g, q]) => `${q} ${g}`).join(", ");
+  return Object.entries(buildCost(type))
+    .map(([g, q]) => `${q} ${g}`)
+    .join(", ");
 }
 
 function canAfford(type: string, stock: Readonly<Record<string, number>>): boolean {
@@ -153,9 +196,7 @@ export function createBuildBar(actions: BuildBarActions): BuildBar {
       byNodeId.set(node.id, b);
       return node;
     });
-    const rows = chunk(buttons, ICONS_PER_ROW).map((row) =>
-      box({ direction: "row", gap: 3, align: "center" }, row),
-    );
+    const rows = chunk(buttons, ICONS_PER_ROW).map((row) => box({ direction: "row", gap: 3, align: "center" }, row));
     return box({ direction: "column", gap: 3, align: "start" }, [heading, ...rows]);
   });
 

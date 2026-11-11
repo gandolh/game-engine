@@ -85,7 +85,8 @@ export type ProblemView =
     };
 
 /** The client's answer to the pending problem, submitted via `submitAnswer`. */
-export type AnswerResponse = { readonly kind: "typed"; readonly value: number } | { readonly kind: "choice"; readonly index: number };
+export type AnswerResponse =
+  { readonly kind: "typed"; readonly value: number } | { readonly kind: "choice"; readonly index: number };
 
 /** The renderable state of any combatant (shared shape for warrior + enemy). */
 export interface CombatantView {

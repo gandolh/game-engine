@@ -176,10 +176,7 @@ export function createEventFeed(): EventFeed {
       visible.push(child as LabelNode);
     }
 
-    if (
-      visibleRows.children.length !== visible.length ||
-      visibleRows.children.some((c, i) => c !== visible[i])
-    ) {
+    if (visibleRows.children.length !== visible.length || visibleRows.children.some((c, i) => c !== visible[i])) {
       changed = true;
     }
     visibleRows.children = visible;

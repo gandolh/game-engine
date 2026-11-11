@@ -1,4 +1,10 @@
-export { personalityRegistry, registerPersonality, buildNeighborIndex, buildCorpseIndex, buildSickIndex } from "./registry";
+export {
+  personalityRegistry,
+  registerPersonality,
+  buildNeighborIndex,
+  buildCorpseIndex,
+  buildSickIndex,
+} from "./registry";
 export type {
   HollowDeliberationContext,
   HollowDeliberator,

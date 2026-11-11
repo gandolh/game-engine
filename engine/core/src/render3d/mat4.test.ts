@@ -92,10 +92,7 @@ describe("rotationZ", () => {
 
 describe("invert", () => {
   it("invert(m) then multiply ≈ identity", () => {
-    const m = multiply(
-      perspective(Math.PI / 3, 4 / 3, 0.5, 200),
-      lookAt([10, 4, 6], [0, 0, 0], [0, 0, 1]),
-    );
+    const m = multiply(perspective(Math.PI / 3, 4 / 3, 0.5, 200), lookAt([10, 4, 6], [0, 0, 0], [0, 0, 1]));
     const inv = invert(m);
     const shouldBeIdentity = multiply(inv, m);
     expectMatClose(shouldBeIdentity, identity(), 1e-3);

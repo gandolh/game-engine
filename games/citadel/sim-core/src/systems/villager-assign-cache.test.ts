@@ -36,15 +36,7 @@ const TICKS_PER_DAY = 20;
 // per sim instance) so both instances start bit-identical.
 // ---------------------------------------------------------------------------
 
-function addBuilding(
-  state: SimState,
-  type: string,
-  x: number,
-  y: number,
-  w = 2,
-  h = 2,
-  ownerId = 0,
-): number {
+function addBuilding(state: SimState, type: string, x: number, y: number, w = 2, h = 2, ownerId = 0): number {
   const entity = state.buildingWorld.spawn({ building: { type, x, y, w, h, ownerId } });
   const rs: BuildingRuntimeState = {
     outputBuffer: 0,
@@ -89,7 +81,13 @@ function addIdleVillager(state: SimState, homeX: number, homeY: number, ownerId 
  * Also sprinkles filler "road" entities (workerSlots=0, so never candidates)
  * to mirror the production shape (buildingWorld holds one entity per road tile).
  */
-function buildScenario(): { sim: CitadelSimResult; farmAId: number; farmBId: number; millId: number; chapelId: number } {
+function buildScenario(): {
+  sim: CitadelSimResult;
+  farmAId: number;
+  farmBId: number;
+  millId: number;
+  chapelId: number;
+} {
   const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, worldWidth: 96, worldHeight: 96 });
   const state = sim.state;
 

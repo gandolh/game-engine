@@ -130,7 +130,10 @@ export interface AnchorOptions {
  * good, amount…), with SCORE deliberately excluded — see this file's header.
  * Two options with the same key are the same decision.
  */
-export function candidateOptionKey(choice: { readonly kind: string; readonly data: Readonly<Record<string, unknown>> }): string {
+export function candidateOptionKey(choice: {
+  readonly kind: string;
+  readonly data: Readonly<Record<string, unknown>>;
+}): string {
   const keys = Object.keys(choice.data).sort();
   const payload = keys.map((k) => `${k}=${JSON.stringify(choice.data[k] ?? null)}`).join(",");
   return `${choice.kind}{${payload}}`;
@@ -192,10 +195,18 @@ export function validateRationalizerResponse(raw: unknown, offeredCount: number)
   const choiceIndex = body["choiceIndex"];
   if (choiceIndex === null) return { accepted: true, choiceIndex: null, rationale: trimmed };
   if (typeof choiceIndex !== "number") {
-    return { accepted: false, reason: "malformed", detail: `choiceIndex is ${typeof choiceIndex}, not a number or null` };
+    return {
+      accepted: false,
+      reason: "malformed",
+      detail: `choiceIndex is ${typeof choiceIndex}, not a number or null`,
+    };
   }
   if (!isIndexLike(choiceIndex)) {
-    return { accepted: false, reason: "non-integer-index", detail: `choiceIndex ${String(choiceIndex)} is not a non-negative integer` };
+    return {
+      accepted: false,
+      reason: "non-integer-index",
+      detail: `choiceIndex ${String(choiceIndex)} is not a non-negative integer`,
+    };
   }
   if (choiceIndex >= offeredCount) {
     return {

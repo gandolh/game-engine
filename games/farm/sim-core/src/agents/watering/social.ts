@@ -12,16 +12,12 @@ export const COMBAT_ENABLED = true;
 
 const FIGHT_AP_RESERVE = 30;
 
-export function deliberateRivalChallenge(
-  farmer: GameEntity,
-  peerId: number,
-  tick: number,
-): void {
+export function deliberateRivalChallenge(farmer: GameEntity, peerId: number, tick: number): void {
   if (!COMBAT_ENABLED) return;
   if (!farmer.farmer || farmer.id === undefined) return;
-  if (farmer.farmer.chaseTarget) return; 
+  if (farmer.farmer.chaseTarget) return;
   const trust = farmer.trust?.byId.get(peerId) ?? 0.5;
-  if (trust >= RIVAL_CUTOFF) return; 
+  if (trust >= RIVAL_CUTOFF) return;
 
   if ((farmer.ap?.current ?? 0) < FIGHT_AP_RESERVE) return;
   farmer.farmer.chaseTarget = { peerId, startTick: tick };
@@ -74,7 +70,7 @@ export function deliberateEarlyVillageVisit(farmer: GameEntity, priority: number
   const day = (farmer.beliefs?.data.currentDay as number | undefined) ?? 0;
   if (day > 1) return;
   if (farmer.farmer.currentRegion === "village") return;
-  if (farmer.intentions.queue.some(i => i.kind === "travel" && i.data.targetRegionId === "village")) return;
+  if (farmer.intentions.queue.some((i) => i.kind === "travel" && i.data.targetRegionId === "village")) return;
 
   farmer.intentions.queue.push({
     kind: "travel",
@@ -103,26 +99,25 @@ export function deliberateHireHelp(
   const apFraction = farmer.ap.max > 0 ? farmer.ap.current / farmer.ap.max : 1;
   if (apFraction > 0.4) return;
 
-  const HIRE_COST = 25; 
+  const HIRE_COST = 25;
   if (farmer.inventory.gold - HIRE_COST < reserve) return;
 
-  if (farmer.intentions.queue.some(i => i.kind === "hire-help")) return;
+  if (farmer.intentions.queue.some((i) => i.kind === "hire-help")) return;
   if (farmer.farmer.currentRegion !== "village") return;
-  void travelPriority; 
+  void travelPriority;
 
   farmer.intentions.queue.push({
     kind: "hire-help",
     data: {},
     priority,
   });
-  recordReason(farmer, `hire day-helper at tavern (AP ${farmer.ap.current}/${farmer.ap.max}, gold ${farmer.inventory.gold})`);
+  recordReason(
+    farmer,
+    `hire day-helper at tavern (AP ${farmer.ap.current}/${farmer.ap.max}, gold ${farmer.inventory.gold})`,
+  );
 }
 
-export function deliberateShrineVisit(
-  farmer: GameEntity,
-  priority: number,
-  travelPriority?: number,
-): void {
+export function deliberateShrineVisit(farmer: GameEntity, priority: number, travelPriority?: number): void {
   if (!farmer.intentions || !farmer.farmer || !farmer.ap || !farmer.beliefs) return;
   const day = (farmer.beliefs.data.currentDay as number | undefined) ?? 0;
   if (day === 0) return;
@@ -173,7 +168,7 @@ export function deliberateTavernGather(farmer: GameEntity, priority: number): vo
   if (phase !== "morning" && phase !== "work") return;
   const day = (farmer.beliefs.data.currentDay as number | undefined) ?? 0;
   if (day === 0) return;
-  const offset = ((farmer.id ?? 0) % TAVERN_VISIT_PERIOD);
+  const offset = (farmer.id ?? 0) % TAVERN_VISIT_PERIOD;
   if (day % TAVERN_VISIT_PERIOD !== offset) return;
   if ((farmer.ap?.current ?? 0) < 40) return;
   const sense = farmer.beliefs.data.plotWater as import("../../systems/farming/plot-sense").PlotWaterSense | undefined;
@@ -268,8 +263,7 @@ function festivalTemperament(farmer: GameEntity): { dryTolerance: number; staysE
  */
 export function isLingeringAtFestival(farmer: GameEntity): boolean {
   if (!farmer.beliefs || !farmer.transform) return false;
-  const festival = farmer.beliefs.data.festivalToday as
-    | { name: string; contestCrop: string } | null | undefined;
+  const festival = farmer.beliefs.data.festivalToday as { name: string; contestCrop: string } | null | undefined;
   if (!festival) return false;
   const phase = farmer.beliefs.data.phase as string | undefined;
   if (phase === "evening" && !festivalTemperament(farmer).staysEvening) return false;
@@ -280,8 +274,7 @@ export function isLingeringAtFestival(farmer: GameEntity): boolean {
 
 export function deliberateFestivalGather(farmer: GameEntity, priority: number): void {
   if (!farmer.intentions || !farmer.farmer || !farmer.beliefs) return;
-  const festival = farmer.beliefs.data.festivalToday as
-    | { name: string; contestCrop: string } | null | undefined;
+  const festival = farmer.beliefs.data.festivalToday as { name: string; contestCrop: string } | null | undefined;
   if (!festival) return;
   const phase = farmer.beliefs.data.phase as string | undefined;
   if (phase !== "morning" && phase !== "work") return;
@@ -347,12 +340,12 @@ export function deliberateCommissionBuild(
   if (!best) return;
   const [kind] = best;
 
-  if (farmer.intentions.queue.some(i => i.kind === "commission-build")) return;
+  if (farmer.intentions.queue.some((i) => i.kind === "commission-build")) return;
 
   const inCarpentry = farmer.farmer.currentRegion === "carpentry";
   if (!inCarpentry) {
     const wanted = travelPriority ?? priority + 1;
-    const existing = farmer.intentions.queue.find(i => i.kind === "travel" && i.data.targetRegionId === "carpentry");
+    const existing = farmer.intentions.queue.find((i) => i.kind === "travel" && i.data.targetRegionId === "carpentry");
     if (existing) {
       if (wanted < existing.priority) existing.priority = wanted;
     } else {

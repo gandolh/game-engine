@@ -17,13 +17,21 @@ export type ItemRef =
 
 export function itemKey(ref: ItemRef): string {
   switch (ref.kind) {
-    case "tool":     return `tool:${ref.tool}`;
-    case "seed":     return `seed:${ref.crop}`;
-    case "crop":     return `crop:${ref.crop}`;
-    case "fish":     return `fish:${ref.fish}`;
-    case "resource": return `resource:${ref.resource}`;
-    case "product":  return `product:${ref.product}`;
-    case "fruit":    return `fruit:${ref.fruit}`;
-    case "goldenBeans": return "goldenBeans";
+    case "tool":
+      return `tool:${ref.tool}`;
+    case "seed":
+      return `seed:${ref.crop}`;
+    case "crop":
+      return `crop:${ref.crop}`;
+    case "fish":
+      return `fish:${ref.fish}`;
+    case "resource":
+      return `resource:${ref.resource}`;
+    case "product":
+      return `product:${ref.product}`;
+    case "fruit":
+      return `fruit:${ref.fruit}`;
+    case "goldenBeans":
+      return "goldenBeans";
   }
 }

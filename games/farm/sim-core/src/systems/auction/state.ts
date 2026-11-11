@@ -28,8 +28,8 @@ export interface DutchState {
   startPrice: number;
   decrementPerTick: number;
   floor: number;
-  startTick: number | null; 
-  winner: { bidderId: number; paidPrice: number } | null; 
+  startTick: number | null;
+  winner: { bidderId: number; paidPrice: number } | null;
   participants: Set<number>;
   resolved: boolean;
 }
@@ -40,9 +40,9 @@ export interface EnglishState {
   startPrice: number;
   incrementPerTick: number;
   noBidTimeout: number;
-  startTick: number | null; 
-  leader: { bidderId: number; paidPrice: number } | null; 
-  lastBidTick: number | null; 
+  startTick: number | null;
+  leader: { bidderId: number; paidPrice: number } | null;
+  lastBidTick: number | null;
   participants: Set<number>;
   resolved: boolean;
 }

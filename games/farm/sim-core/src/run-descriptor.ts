@@ -1,5 +1,3 @@
-
-
 /**
  * Bounds a share link must satisfy (audit-42). `parseRun` checked only `> 0`, so
  * `#run=1-1-ffffffff` parsed to `ticksPerDay = 4294967295` and `main.ts` fed it straight into
@@ -23,9 +21,7 @@ export interface RunDescriptor {
 }
 
 export function serializeRun(desc: RunDescriptor): string {
-  return [desc.seed, desc.maxDays, desc.ticksPerDay]
-    .map((n) => (n >>> 0).toString(16))
-    .join("-");
+  return [desc.seed, desc.maxDays, desc.ticksPerDay].map((n) => (n >>> 0).toString(16)).join("-");
 }
 
 export function parseRun(hash: string): RunDescriptor | null {

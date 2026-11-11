@@ -142,7 +142,13 @@ function dispatchTick(bus: MessageBus): void {
  *  CLI's own `./chronicle` re-export, not the sim-core module directly. */
 function sendGift(bus: MessageBus, tick: number, seq: number): void {
   bus.send(
-    { performative: "inform", ontology: ONT_SOCIAL.GIFT, sender: seq, recipient: "broadcast", body: { tick, from: seq, to: seq + 1 } },
+    {
+      performative: "inform",
+      ontology: ONT_SOCIAL.GIFT,
+      sender: seq,
+      recipient: "broadcast",
+      body: { tick, from: seq, to: seq + 1 },
+    },
     tick,
   );
   dispatchTick(bus);
@@ -196,7 +202,11 @@ describe("lineageJson", () => {
     const entries: LineageEntry[] = [
       {
         id: 3,
-        genome: { behavior: {}, aptitude: {}, appearance: { height: 1, build: 1, skinTone: "skin", hairTone: "hairBlack" } },
+        genome: {
+          behavior: {},
+          aptitude: {},
+          appearance: { height: 1, build: 1, skinTone: "skin", hairTone: "hairBlack" },
+        },
         parents: null,
         birthTick: 0,
         deathTick: null,
@@ -205,7 +215,11 @@ describe("lineageJson", () => {
       },
       {
         id: 1,
-        genome: { behavior: {}, aptitude: {}, appearance: { height: 1, build: 1, skinTone: "skin", hairTone: "hairBlack" } },
+        genome: {
+          behavior: {},
+          aptitude: {},
+          appearance: { height: 1, build: 1, skinTone: "skin", hairTone: "hairBlack" },
+        },
         parents: null,
         birthTick: 0,
         deathTick: null,

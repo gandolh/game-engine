@@ -52,7 +52,10 @@ function makeOfferCard(index: number, actions: LevelUpScreenActions): OfferCard 
 export function createLevelUpScreen(actions: LevelUpScreenActions, strings: Strings): LevelUpScreen {
   const titleLbl = label(strings.levelUpTitle, { color: MATE_PAL.gold, scale: 3 });
   const cards: readonly OfferCard[] = Array.from({ length: OFFER_SLOTS }, (_, i) => makeOfferCard(i, actions));
-  const offerRow = box({ direction: "row", gap: 16 }, cards.map((c) => c.card));
+  const offerRow = box(
+    { direction: "row", gap: 16 },
+    cards.map((c) => c.card),
+  );
   const root = panel({ direction: "column", gap: 16, align: "center", padding: 24 }, [titleLbl, offerRow]);
 
   let changed = false;

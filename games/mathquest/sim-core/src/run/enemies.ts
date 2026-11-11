@@ -66,9 +66,23 @@ export const ENEMY_ARCHETYPES: Record<EnemyKind, EnemyArchetype> = {
   combat: { name: "Zmeu pui", maxHp: 24, intentBase: 5, intentRoll: 4, title: "puiul balaurului", sprite: "dragon" }, // intent 5..8; 3 hits, 2 unavoidable (10-16 dmg)
   // A Balaur (a multi-headed dragon of Romanian folklore) — the branching-map "hard branch" fight.
   // Default name/title match the zone-2 (mountains) roster row below — `enemyFor` overrides per zone.
-  elite: { name: "Balaur", maxHp: 26, intentBase: 5, intentRoll: 3, title: "balaurul cu multe capete", sprite: "balaur" }, // intent 5..7; 4 hits, 3 unavoidable (15-21 dmg)
+  elite: {
+    name: "Balaur",
+    maxHp: 26,
+    intentBase: 5,
+    intentRoll: 3,
+    title: "balaurul cu multe capete",
+    sprite: "balaur",
+  }, // intent 5..7; 4 hits, 3 unavoidable (15-21 dmg)
   // An elder Zmeu — the run's boss, always grade 4, always in the lair (zone-independent).
-  boss: { name: "Zmeu bătrân", maxHp: 32, intentBase: 5, intentRoll: 3, title: "stăpânul bârlogului", sprite: "dragon" }, // intent 5..7; 4 hits, 3 unavoidable (15-21 dmg)
+  boss: {
+    name: "Zmeu bătrân",
+    maxHp: 32,
+    intentBase: 5,
+    intentRoll: 3,
+    title: "stăpânul bârlogului",
+    sprite: "dragon",
+  }, // intent 5..7; 4 hits, 3 unavoidable (15-21 dmg)
 } as const;
 
 /** The boss's fixed fight grade (`run/map.ts`'s `generateMap` also pins the boss node's own
@@ -85,12 +99,8 @@ export const BOSS_GRADE: Grade = 4;
  * `name` (and `sprite`) stay identical across locales; only the epithet translates (module doc).
  */
 const ROSTER: {
-  readonly combat: Readonly<
-    Record<Zone, readonly [name: string, title: string, titleEn: string, sprite: EnemySprite]>
-  >;
-  readonly elite: Readonly<
-    Record<Zone, readonly [name: string, title: string, titleEn: string, sprite: EnemySprite]>
-  >;
+  readonly combat: Readonly<Record<Zone, readonly [name: string, title: string, titleEn: string, sprite: EnemySprite]>>;
+  readonly elite: Readonly<Record<Zone, readonly [name: string, title: string, titleEn: string, sprite: EnemySprite]>>;
 } = {
   combat: {
     0: ["Zmeu pui", "puiul balaurului", "the dragon's whelp", "dragon"], // forest

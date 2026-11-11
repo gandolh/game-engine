@@ -36,7 +36,10 @@ const INTERCEPT_SHAVE = 0.25;
 export class RaiderMovementSystem implements System {
   readonly name = "RaiderMovementSystem";
 
-  constructor(private readonly state: SimState, private readonly terrain: TerrainGrid) {}
+  constructor(
+    private readonly state: SimState,
+    private readonly terrain: TerrainGrid,
+  ) {}
 
   run(ctx: SimContext): void {
     if (ctx.tick % scaleTicks(MOVE_INTERVAL, this.state.ticksPerDay) !== 0) return;

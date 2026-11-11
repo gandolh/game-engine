@@ -48,7 +48,7 @@ class Mulberry32 implements Rng {
   }
 
   int(minInclusive: number, maxExclusive: number): number {
-    if (maxExclusive <= minInclusive) throw new Error('Rng.int: maxExclusive must be > minInclusive');
+    if (maxExclusive <= minInclusive) throw new Error("Rng.int: maxExclusive must be > minInclusive");
     return minInclusive + Math.floor(this.nextFloat() * (maxExclusive - minInclusive));
   }
 

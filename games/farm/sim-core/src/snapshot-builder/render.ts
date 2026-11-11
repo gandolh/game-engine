@@ -5,10 +5,7 @@ import type { MeetIndicatorSystem } from "../systems/social/meet-indicator";
 import type { EventFeedSystem } from "../systems/event-feed";
 import type { RunHistoryRow } from "../systems/messaging/run-history";
 import type { RivalrySystem } from "../systems/rivalry";
-import type {
-  RenderSnapshot,
-  SnapshotShock,
-} from "../snapshot";
+import type { RenderSnapshot, SnapshotShock } from "../snapshot";
 import { leaderboard } from "../sim-bootstrap";
 import { seasonForDay } from "../protocols";
 import { summarizeRun } from "../run-recap";
@@ -59,9 +56,10 @@ export function buildRenderSnapshot(
   const rivalries = buildRivalriesData(rivalrySystem);
   const relationships = buildRelationshipsData(world);
 
-  const recap = gameOver && finalSummary !== null
-    ? summarizeRun(runHistoryRows, eventFeed.recent(), finalSummary, rivalries)
-    : null;
+  const recap =
+    gameOver && finalSummary !== null
+      ? summarizeRun(runHistoryRows, eventFeed.recent(), finalSummary, rivalries)
+      : null;
   const playerInventory = buildPlayerInventory(world);
   const playerHotbar = buildPlayerHotbar(playerInventory);
 

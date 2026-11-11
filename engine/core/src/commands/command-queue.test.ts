@@ -43,7 +43,9 @@ describe("CommandSystem", () => {
   it("ignores commands with no handler", () => {
     const q = new CommandQueue<{ type: "known"; payload: number } | { type: "unknown"; payload: number }>();
     const sys = new CommandSystem(q);
-    sys.register("known", () => { /* ok */ });
+    sys.register("known", () => {
+      /* ok */
+    });
     q.enqueue({ type: "unknown", payload: 0 });
     // Should not throw
     expect(() => sys.run({ tick: 0 })).not.toThrow();

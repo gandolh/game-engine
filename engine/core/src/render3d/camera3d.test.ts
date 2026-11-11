@@ -29,7 +29,14 @@ describe("OrbitCamera.eye", () => {
 
   it("at pitch=+90deg sits directly above target along +z", () => {
     const cam = new OrbitCamera(
-      baseConfig({ target: [0, 0, 0], distance: 5, yaw: 0, pitch: Math.PI / 2, minPitch: -Math.PI / 2, maxPitch: Math.PI / 2 }),
+      baseConfig({
+        target: [0, 0, 0],
+        distance: 5,
+        yaw: 0,
+        pitch: Math.PI / 2,
+        minPitch: -Math.PI / 2,
+        maxPitch: Math.PI / 2,
+      }),
     );
     const e = cam.eye();
     expect(e[0]).toBeCloseTo(0, 4);

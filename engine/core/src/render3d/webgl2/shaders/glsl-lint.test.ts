@@ -43,33 +43,179 @@ const shaderFiles: string[] = globSync("**/*.glsl", { cwd: SHADER_DIR });
 // §3.6). Not exhaustive of every ES-family extension keyword, but covers
 // the set a shader author in this repo would plausibly collide with.
 const RESERVED = new Set<string>([
-  "attribute", "const", "uniform", "varying", "layout", "centroid", "flat", "smooth",
-  "break", "continue", "do", "for", "while", "switch", "case", "default", "if", "else",
-  "in", "out", "inout", "float", "int", "void", "bool", "true", "false", "invariant",
-  "discard", "return", "mat2", "mat3", "mat4", "mat2x2", "mat2x3", "mat2x4", "mat3x2",
-  "mat3x3", "mat3x4", "mat4x2", "mat4x3", "mat4x4", "vec2", "vec3", "vec4", "ivec2",
-  "ivec3", "ivec4", "bvec2", "bvec3", "bvec4", "uint", "uvec2", "uvec3", "uvec4", "lowp",
-  "mediump", "highp", "precision", "sampler2D", "sampler3D", "samplerCube",
-  "sampler2DShadow", "samplerCubeShadow", "sampler2DArray", "sampler2DArrayShadow",
-  "isampler2D", "isampler3D", "isamplerCube", "isampler2DArray", "usampler2D",
-  "usampler3D", "usamplerCube", "usampler2DArray", "struct",
-  "coherent", "volatile", "restrict", "readonly", "writeonly", "resource", "atomic_uint",
-  "noperspective", "patch", "sample", "subroutine", "common", "partition", "active",
-  "filter", "image1D", "image2D", "image3D", "imageCube", "iimage1D", "iimage2D",
-  "iimage3D", "iimageCube", "uimage1D", "uimage2D", "uimage3D", "uimageCube",
-  "image1DArray", "image2DArray", "iimage1DArray", "iimage2DArray", "uimage1DArray",
-  "uimage2DArray", "image2DMS", "iimage2DMS", "uimage2DMS", "image2DMSArray",
-  "iimage2DMSArray", "uimage2DMSArray", "image2DRect", "iimage2DRect", "uimage2DRect",
-  "imageBuffer", "iimageBuffer", "uimageBuffer", "sampler1D", "sampler1DShadow",
-  "sampler1DArray", "sampler1DArrayShadow", "isampler1D", "isampler1DArray",
-  "usampler1D", "usampler1DArray", "sampler2DRect", "sampler2DRectShadow",
-  "isampler2DRect", "usampler2DRect", "samplerBuffer", "isamplerBuffer",
-  "usamplerBuffer", "sampler2DMS", "isampler2DMS", "usampler2DMS", "sampler2DMSArray",
-  "isampler2DMSArray", "usampler2DMSArray", "samplerCubeArray", "samplerCubeArrayShadow",
-  "isamplerCubeArray", "usamplerCubeArray", "hvec2", "hvec3", "hvec4", "dvec2", "dvec3",
-  "dvec4", "fvec2", "fvec3", "fvec4", "sampler3DRect", "double", "long", "unsigned",
-  "superp", "template", "this", "goto", "inline", "noinline", "public", "static",
-  "extern", "external", "interface", "sizeof", "cast", "namespace", "using",
+  "attribute",
+  "const",
+  "uniform",
+  "varying",
+  "layout",
+  "centroid",
+  "flat",
+  "smooth",
+  "break",
+  "continue",
+  "do",
+  "for",
+  "while",
+  "switch",
+  "case",
+  "default",
+  "if",
+  "else",
+  "in",
+  "out",
+  "inout",
+  "float",
+  "int",
+  "void",
+  "bool",
+  "true",
+  "false",
+  "invariant",
+  "discard",
+  "return",
+  "mat2",
+  "mat3",
+  "mat4",
+  "mat2x2",
+  "mat2x3",
+  "mat2x4",
+  "mat3x2",
+  "mat3x3",
+  "mat3x4",
+  "mat4x2",
+  "mat4x3",
+  "mat4x4",
+  "vec2",
+  "vec3",
+  "vec4",
+  "ivec2",
+  "ivec3",
+  "ivec4",
+  "bvec2",
+  "bvec3",
+  "bvec4",
+  "uint",
+  "uvec2",
+  "uvec3",
+  "uvec4",
+  "lowp",
+  "mediump",
+  "highp",
+  "precision",
+  "sampler2D",
+  "sampler3D",
+  "samplerCube",
+  "sampler2DShadow",
+  "samplerCubeShadow",
+  "sampler2DArray",
+  "sampler2DArrayShadow",
+  "isampler2D",
+  "isampler3D",
+  "isamplerCube",
+  "isampler2DArray",
+  "usampler2D",
+  "usampler3D",
+  "usamplerCube",
+  "usampler2DArray",
+  "struct",
+  "coherent",
+  "volatile",
+  "restrict",
+  "readonly",
+  "writeonly",
+  "resource",
+  "atomic_uint",
+  "noperspective",
+  "patch",
+  "sample",
+  "subroutine",
+  "common",
+  "partition",
+  "active",
+  "filter",
+  "image1D",
+  "image2D",
+  "image3D",
+  "imageCube",
+  "iimage1D",
+  "iimage2D",
+  "iimage3D",
+  "iimageCube",
+  "uimage1D",
+  "uimage2D",
+  "uimage3D",
+  "uimageCube",
+  "image1DArray",
+  "image2DArray",
+  "iimage1DArray",
+  "iimage2DArray",
+  "uimage1DArray",
+  "uimage2DArray",
+  "image2DMS",
+  "iimage2DMS",
+  "uimage2DMS",
+  "image2DMSArray",
+  "iimage2DMSArray",
+  "uimage2DMSArray",
+  "image2DRect",
+  "iimage2DRect",
+  "uimage2DRect",
+  "imageBuffer",
+  "iimageBuffer",
+  "uimageBuffer",
+  "sampler1D",
+  "sampler1DShadow",
+  "sampler1DArray",
+  "sampler1DArrayShadow",
+  "isampler1D",
+  "isampler1DArray",
+  "usampler1D",
+  "usampler1DArray",
+  "sampler2DRect",
+  "sampler2DRectShadow",
+  "isampler2DRect",
+  "usampler2DRect",
+  "samplerBuffer",
+  "isamplerBuffer",
+  "usamplerBuffer",
+  "sampler2DMS",
+  "isampler2DMS",
+  "usampler2DMS",
+  "sampler2DMSArray",
+  "isampler2DMSArray",
+  "usampler2DMSArray",
+  "samplerCubeArray",
+  "samplerCubeArrayShadow",
+  "isamplerCubeArray",
+  "usamplerCubeArray",
+  "hvec2",
+  "hvec3",
+  "hvec4",
+  "dvec2",
+  "dvec3",
+  "dvec4",
+  "fvec2",
+  "fvec3",
+  "fvec4",
+  "sampler3DRect",
+  "double",
+  "long",
+  "unsigned",
+  "superp",
+  "template",
+  "this",
+  "goto",
+  "inline",
+  "noinline",
+  "public",
+  "static",
+  "extern",
+  "external",
+  "interface",
+  "sizeof",
+  "cast",
+  "namespace",
+  "using",
 ]);
 
 // Basic GLSL ES 3.00 type keywords used to anchor a declaration
@@ -78,18 +224,45 @@ const RESERVED = new Set<string>([
 // identifier (e.g. `vec4(0.0, 0.0, 0.0, 1.0)` — no space + name between
 // `vec4` and `(`).
 const TYPES = [
-  "float", "int", "uint", "bool", "void",
-  "vec2", "vec3", "vec4", "ivec2", "ivec3", "ivec4", "uvec2", "uvec3", "uvec4",
-  "bvec2", "bvec3", "bvec4",
-  "mat2", "mat3", "mat4", "mat2x2", "mat2x3", "mat2x4", "mat3x2", "mat3x3", "mat3x4",
-  "mat4x2", "mat4x3", "mat4x4",
-  "sampler2D", "sampler3D", "samplerCube", "sampler2DArray", "sampler2DShadow",
-  "samplerCubeShadow", "isampler2D", "usampler2D",
+  "float",
+  "int",
+  "uint",
+  "bool",
+  "void",
+  "vec2",
+  "vec3",
+  "vec4",
+  "ivec2",
+  "ivec3",
+  "ivec4",
+  "uvec2",
+  "uvec3",
+  "uvec4",
+  "bvec2",
+  "bvec3",
+  "bvec4",
+  "mat2",
+  "mat3",
+  "mat4",
+  "mat2x2",
+  "mat2x3",
+  "mat2x4",
+  "mat3x2",
+  "mat3x3",
+  "mat3x4",
+  "mat4x2",
+  "mat4x3",
+  "mat4x4",
+  "sampler2D",
+  "sampler3D",
+  "samplerCube",
+  "sampler2DArray",
+  "sampler2DShadow",
+  "samplerCubeShadow",
+  "isampler2D",
+  "usampler2D",
 ];
-const DECLARATION_RE = new RegExp(
-  `\\b(?:${TYPES.join("|")})\\s+([A-Za-z_]\\w*)\\s*(?=[;=,)([])`,
-  "g",
-);
+const DECLARATION_RE = new RegExp(`\\b(?:${TYPES.join("|")})\\s+([A-Za-z_]\\w*)\\s*(?=[;=,)([])`, "g");
 
 /** True iff `src`'s very first line (no leading blank line) is `#version 300 es`. */
 /**
@@ -112,16 +285,24 @@ function stripComments(src: string): string {
   while (i < src.length) {
     const two = src.slice(i, i + 2);
     if (two === "//") {
-      while (i < src.length && src[i] !== "\n") { out += " "; i += 1; }
+      while (i < src.length && src[i] !== "\n") {
+        out += " ";
+        i += 1;
+      }
     } else if (two === "/*") {
-      out += "  "; i += 2;
+      out += "  ";
+      i += 2;
       while (i < src.length && src.slice(i, i + 2) !== "*/") {
         out += src[i] === "\n" ? "\n" : " ";
         i += 1;
       }
-      if (i < src.length) { out += "  "; i += 2; }
+      if (i < src.length) {
+        out += "  ";
+        i += 2;
+      }
     } else {
-      out += src[i]; i += 1;
+      out += src[i];
+      i += 1;
     }
   }
   return out;
@@ -212,17 +393,20 @@ describe("GLSL lint guard — negative fixtures (must catch the failure)", () =>
 
   it("does NOT flag a colour literal appearing only in a comment", () => {
     // Regression guard for brief 07's other false positive.
-    const src = "#version 300 es\nprecision highp float;\n/* naturally evaluates to vec4(0,0,0,0) here */\nvoid main() {}\n";
+    const src =
+      "#version 300 es\nprecision highp float;\n/* naturally evaluates to vec4(0,0,0,0) here */\nvoid main() {}\n";
     expect(findColorLiterals(src)).toEqual([]);
   });
 
   it("still flags a colour literal in CODE even when comments are present", () => {
-    const src = "#version 300 es\nprecision highp float;\n// vec3(0.1, 0.2, 0.3) is fine in prose\nvoid main() { vec3 c = vec3(1.0, 0.42, 0.0); }\n";
+    const src =
+      "#version 300 es\nprecision highp float;\n// vec3(0.1, 0.2, 0.3) is fine in prose\nvoid main() { vec3 c = vec3(1.0, 0.42, 0.0); }\n";
     expect(findColorLiterals(src).length).toBeGreaterThan(0);
   });
 
   it("does NOT count a precision qualifier that only appears in a comment", () => {
-    const src = "#version 300 es\n// precision mediump float; (intentionally only a comment)\nout vec4 o;\nvoid main() { o = vec4(1.0); }\n";
+    const src =
+      "#version 300 es\n// precision mediump float; (intentionally only a comment)\nout vec4 o;\nvoid main() { o = vec4(1.0); }\n";
     expect(hasPrecisionQualifier(src)).toBe(false);
   });
 
@@ -247,10 +431,7 @@ describe("GLSL shaders — structural lint (regex-based, NOT a real parser/compi
 
     it(`${file} — line 1 is exactly "#version 300 es"`, () => {
       const src = readFileSync(join(SHADER_DIR, file), "utf8");
-      expect(
-        hasVersionLine(src),
-        `${file} must open with "#version 300 es" as its literal first line`,
-      ).toBe(true);
+      expect(hasVersionLine(src), `${file} must open with "#version 300 es" as its literal first line`).toBe(true);
     });
 
     if (isFragmentShader(file)) {

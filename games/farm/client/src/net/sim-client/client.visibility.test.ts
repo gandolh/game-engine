@@ -1,5 +1,3 @@
-
-
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { SimClient } from "./client";
 import type { RenderSnapshot, SnapshotSprite } from "@farm/sim-core/snapshot";
@@ -75,8 +73,10 @@ function makeStubWebSocket(): StubWs {
     onclose: null,
     onerror: null,
     readyState: WebSocket.OPEN,
-    close() { this.readyState = WebSocket.CLOSED; },
-    send(_data: string) {  },
+    close() {
+      this.readyState = WebSocket.CLOSED;
+    },
+    send(_data: string) {},
     deliver(data: unknown) {
       const event = new MessageEvent("message", { data: JSON.stringify(data) });
       this.onmessage?.(event);
@@ -91,7 +91,9 @@ function deliverSnapshot(ws: StubWs, snapshot: RenderSnapshot): void {
 
 function makeClient(): { client: SimClient; ws: StubWs } {
   const ws = makeStubWebSocket();
-  vi.stubGlobal("WebSocket", function() { return ws; });
+  vi.stubGlobal("WebSocket", function () {
+    return ws;
+  });
   const client = new SimClient("ws://test-stub");
 
   ws.onopen?.();
@@ -247,17 +249,14 @@ describe("SimClient — brief 82 teleport-distance clamp", () => {
   }
 
   it("lerps a short hop (<= 2 tiles): a 1-tile (16px) step glides to the midpoint", () => {
-
     expect(lerpedX(100, 116)).toBeCloseTo(108, 5);
   });
 
   it("snaps a long jump (> 2 tiles): a travel-sized move skips the lerp and shows current", () => {
-
     expect(lerpedX(100, 300)).toBe(300);
   });
 
   it("lerps right at the 2-tile boundary (32px): still glides, not snapped", () => {
-
     expect(lerpedX(100, 132)).toBeCloseTo(116, 5);
   });
 });

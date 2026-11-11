@@ -2,16 +2,41 @@ import type { GameEntity, CropKind } from "../components";
 import { recordReason, resetDecisionTrace } from "../components";
 import { registerPersonality, type DeliberateContext } from "./registry";
 import { ONT_MARKET, type MarketOffer } from "../protocols/market";
-import {
-  registerPeerTradeHooks,
-  type InitiatePeerTradeFn,
-} from "./peer-trade-registry";
+import { registerPeerTradeHooks, type InitiatePeerTradeFn } from "./peer-trade-registry";
 import { makeRespondPeerOffer, makeInitiatePeerTrade } from "./peer-trade-policy";
 import { CROP_SELL_PRICE, SEED_COST, CROP_SEASON } from "../economy";
 import { seasonForDay } from "../protocols/weather";
 import { deliberateBean } from "./bean-valuation";
 import { nonFarmFocus, gatherBias, TEMPERAMENT } from "./skill-valuation";
-import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateDecoration, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberateSkilledNonFarm, deliberatePlantNearby, deliberateBuildPen, deliberateBuyAnimal, deliberateTendPens, deliberateSellProducts, deliberatePlantOrchard, deliberateHarvestFruit, deliberateSellFruit, deliberateBuildGreenhouse, deliberateHireHelp, deliberateTavernGather, deliberateFestivalGather, FESTIVAL_FRONT_PRIORITY, deliberateHarborContract, deliberateWallLiquidation } from "./watering";
+import {
+  deliberateWatering,
+  deliberateRefillCan,
+  deliberateTill,
+  deliberateBuyTool,
+  deliberateResourceGather,
+  deliberateDecoration,
+  deliberateUpgrade,
+  deliberateResourceZoneVisit,
+  deliberateEarlyVillageVisit,
+  deliberateSleep,
+  deliberatePeriodicMarketVisit,
+  deliberateSkilledNonFarm,
+  deliberatePlantNearby,
+  deliberateBuildPen,
+  deliberateBuyAnimal,
+  deliberateTendPens,
+  deliberateSellProducts,
+  deliberatePlantOrchard,
+  deliberateHarvestFruit,
+  deliberateSellFruit,
+  deliberateBuildGreenhouse,
+  deliberateHireHelp,
+  deliberateTavernGather,
+  deliberateFestivalGather,
+  FESTIVAL_FRONT_PRIORITY,
+  deliberateHarborContract,
+  deliberateWallLiquidation,
+} from "./watering";
 import type { PlotWaterSense } from "../systems/farming/plot-sense";
 import type { TileFeature, FarmDecoration } from "../components";
 import type { HarborContract } from "../protocols/harbor";
@@ -67,10 +92,10 @@ export function deliberateHoarder(farmer: GameEntity, ctx: DeliberateContext): v
 
   deliberateEarlyVillageVisit(farmer, 8);
 
-  deliberateUpgrade(farmer, "hoe",     9);
-  deliberateUpgrade(farmer, "axe",     10);
+  deliberateUpgrade(farmer, "hoe", 9);
+  deliberateUpgrade(farmer, "axe", 10);
   deliberateUpgrade(farmer, "pickaxe", 11);
-  deliberateResourceZoneVisit(farmer, features, "tree",  12);
+  deliberateResourceZoneVisit(farmer, features, "tree", 12);
   deliberateResourceZoneVisit(farmer, features, "stone", 13);
 
   const day = (farmer.beliefs.data["currentDay"] as number | undefined) ?? 0;
@@ -88,7 +113,6 @@ export function deliberateHoarder(farmer: GameEntity, ctx: DeliberateContext): v
     chosen = preferred;
     chosenMode = "buy-seed";
   } else {
-
     for (const crop of Object.keys(farmer.inventory.seeds) as CropKind[]) {
       if (crop !== preferred && farmer.inventory.seeds[crop] >= 1) {
         chosen = crop;
@@ -222,16 +246,10 @@ const HOARDER_BUFFER_SEEDS = 2;
 const HOARDER_PEER_BUY_CEILING = 1.05;
 const HOARDER_PEER_SELL_FLOOR = 0.95;
 
-export const initiatePeerTradeHoarder: InitiatePeerTradeFn = (
-  farmer,
-  meet,
-  ctx,
-) => {
+export const initiatePeerTradeHoarder: InitiatePeerTradeFn = (farmer, meet, ctx) => {
   if (!farmer.inventory || farmer.id === undefined) return null;
-  const reserve =
-    (farmer.desires?.data["minGoldReserve"] as number | undefined) ?? 80;
-  const day =
-    (farmer.beliefs?.data["currentDay"] as number | undefined) ?? ctx.tick;
+  const reserve = (farmer.desires?.data["minGoldReserve"] as number | undefined) ?? 80;
+  const day = (farmer.beliefs?.data["currentDay"] as number | undefined) ?? ctx.tick;
 
   const crop: CropKind = "radish";
   const qty = HOARDER_INITIATE_QTY;

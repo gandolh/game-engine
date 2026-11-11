@@ -59,7 +59,13 @@ describe("placement (unit, no bootstrapSim)", () => {
   it("rejects a tier-locked building type and mutates nothing", () => {
     const state = makeState();
     const terrain = makeTerrain();
-    const ctx = createPlacementContext({ state, terrain, chargeBuildCost: false, enforceTerritory: false, multiplayer: false });
+    const ctx = createPlacementContext({
+      state,
+      terrain,
+      chargeBuildCost: false,
+      enforceTerritory: false,
+      multiplayer: false,
+    });
 
     // "wall" is Village-tier-locked (TIER_LOCK); a fresh Hamlet player can't place it.
     const r = placeOne(ctx, "wall", 5, 5);
@@ -75,7 +81,13 @@ describe("placement (unit, no bootstrapSim)", () => {
   it("places a building, then rejects a second placement on the same tiles as occupied", () => {
     const state = makeState();
     const terrain = makeTerrain();
-    const ctx = createPlacementContext({ state, terrain, chargeBuildCost: false, enforceTerritory: false, multiplayer: false });
+    const ctx = createPlacementContext({
+      state,
+      terrain,
+      chargeBuildCost: false,
+      enforceTerritory: false,
+      multiplayer: false,
+    });
 
     const ok = placeOne(ctx, "house", 10, 10); // 2×2, no tier lock, no terrain req
     expect(ok).toBe("ok");
@@ -92,7 +104,13 @@ describe("placement (unit, no bootstrapSim)", () => {
   it("rejects an out-of-bounds placement", () => {
     const state = makeState();
     const terrain = makeTerrain();
-    const ctx = createPlacementContext({ state, terrain, chargeBuildCost: false, enforceTerritory: false, multiplayer: false });
+    const ctx = createPlacementContext({
+      state,
+      terrain,
+      chargeBuildCost: false,
+      enforceTerritory: false,
+      multiplayer: false,
+    });
 
     const r = placeOne(ctx, "house", state.width - 1, state.height - 1); // 2×2 footprint runs off the edge
     expect(r).toBe("bounds");
@@ -102,7 +120,13 @@ describe("placement (unit, no bootstrapSim)", () => {
   it("rejects for cost when chargeBuildCost is on and the player is broke", () => {
     const state = makeState();
     const terrain = makeTerrain();
-    const ctx = createPlacementContext({ state, terrain, chargeBuildCost: true, enforceTerritory: false, multiplayer: false });
+    const ctx = createPlacementContext({
+      state,
+      terrain,
+      chargeBuildCost: true,
+      enforceTerritory: false,
+      multiplayer: false,
+    });
 
     const r = placeOne(ctx, "house", 4, 4);
     expect(r).toBe("cost");
@@ -112,9 +136,19 @@ describe("placement (unit, no bootstrapSim)", () => {
   it("placeDragged coalesces a fully tier-locked drag into one summary event", () => {
     const state = makeState();
     const terrain = makeTerrain();
-    const ctx = createPlacementContext({ state, terrain, chargeBuildCost: false, enforceTerritory: false, multiplayer: false });
+    const ctx = createPlacementContext({
+      state,
+      terrain,
+      chargeBuildCost: false,
+      enforceTerritory: false,
+      multiplayer: false,
+    });
 
-    const tiles = [{ x: 1, y: 1 }, { x: 2, y: 1 }, { x: 3, y: 1 }];
+    const tiles = [
+      { x: 1, y: 1 },
+      { x: 2, y: 1 },
+      { x: 3, y: 1 },
+    ];
     placeDragged(ctx, "wall", tiles); // Village-tier-locked, so every tile is rejected
     expect(state.events).toHaveLength(1);
     expect(state.events[0]).toContain("3 walls need Village tier");
@@ -143,7 +177,13 @@ describe("audit-10: rebakeWalkable patches in place instead of rebuilding the wh
   it("a 60-tile road drag performs ZERO full-grid rebuilds — only per-tile in-place patches", () => {
     const state = makeState(80, 80);
     const terrain = makeTerrain(80, 80);
-    const ctx = createPlacementContext({ state, terrain, chargeBuildCost: false, enforceTerritory: false, multiplayer: false });
+    const ctx = createPlacementContext({
+      state,
+      terrain,
+      chargeBuildCost: false,
+      enforceTerritory: false,
+      multiplayer: false,
+    });
 
     const afterBootstrapBake = ctx.walkable; // the ONE full rebuild (createPlacementContext)
 
@@ -167,7 +207,13 @@ describe("audit-10: rebakeWalkable patches in place instead of rebuilding the wh
   it("a single placeOne patches in place too (not just placeDragged's loop)", () => {
     const state = makeState(32, 32);
     const terrain = makeTerrain(32, 32);
-    const ctx = createPlacementContext({ state, terrain, chargeBuildCost: false, enforceTerritory: false, multiplayer: false });
+    const ctx = createPlacementContext({
+      state,
+      terrain,
+      chargeBuildCost: false,
+      enforceTerritory: false,
+      multiplayer: false,
+    });
     const afterBootstrapBake = ctx.walkable;
 
     expect(placeOne(ctx, "house", 10, 10)).toBe("ok");
@@ -188,11 +234,8 @@ describe("audit-10: rebakeWalkable patches in place instead of rebuilding the wh
    * which cell along the way.
    */
   function assertMatchesFullRebuildOracle(state: SimState, terrain: TerrainGrid, ctx: { walkable: Uint8Array }): void {
-    const oracle = rebuildWalkable(
-      state.width,
-      state.height,
-      state.occupancy,
-      (tx, ty) => isWalkableTile(state, terrain, tx, ty),
+    const oracle = rebuildWalkable(state.width, state.height, state.occupancy, (tx, ty) =>
+      isWalkableTile(state, terrain, tx, ty),
     );
     expect(Array.from(ctx.walkable)).toEqual(Array.from(oracle));
   }
@@ -200,10 +243,20 @@ describe("audit-10: rebakeWalkable patches in place instead of rebuilding the wh
   it("patched grid matches a full-rebuild oracle after a mixed placement batch", () => {
     const state = makeState(48, 48);
     const terrain = makeTerrain(48, 48);
-    const ctx = createPlacementContext({ state, terrain, chargeBuildCost: false, enforceTerritory: false, multiplayer: false });
+    const ctx = createPlacementContext({
+      state,
+      terrain,
+      chargeBuildCost: false,
+      enforceTerritory: false,
+      multiplayer: false,
+    });
 
     expect(placeOne(ctx, "house", 5, 5)).toBe("ok"); // 2×2, "buildable" mode
-    placeDragged(ctx, "road", [{ x: 10, y: 10 }, { x: 11, y: 10 }, { x: 12, y: 10 }]);
+    placeDragged(ctx, "road", [
+      { x: 10, y: 10 },
+      { x: 11, y: 10 },
+      { x: 12, y: 10 },
+    ]);
     expect(placeOne(ctx, "storehouse", 20, 20)).toBe("ok");
 
     assertMatchesFullRebuildOracle(state, terrain, ctx);
@@ -214,7 +267,13 @@ describe("audit-10: rebakeWalkable patches in place instead of rebuilding the wh
     const terrain = makeTerrain(16, 16);
     // Carve a single water tile at (8,8) — isWaterTile/isWalkableTile both key off this.
     terrain.cells[8 * 16 + 8] = TerrainType.Water;
-    const ctx = createPlacementContext({ state, terrain, chargeBuildCost: false, enforceTerritory: false, multiplayer: false });
+    const ctx = createPlacementContext({
+      state,
+      terrain,
+      chargeBuildCost: false,
+      enforceTerritory: false,
+      multiplayer: false,
+    });
 
     // A "road" command onto a water tile auto-decks into a bridge (placeOne's own rule).
     expect(placeOne(ctx, "road", 8, 8)).toBe("ok");
@@ -230,7 +289,13 @@ describe("audit-10: rebakeWalkable patches in place instead of rebuilding the wh
     const state = makeState(16, 16);
     const terrain = makeTerrain(16, 16);
     terrain.cells[8 * 16 + 8] = TerrainType.Water;
-    const ctx = createPlacementContext({ state, terrain, chargeBuildCost: false, enforceTerritory: false, multiplayer: false });
+    const ctx = createPlacementContext({
+      state,
+      terrain,
+      chargeBuildCost: false,
+      enforceTerritory: false,
+      multiplayer: false,
+    });
 
     expect(placeOne(ctx, "house", 2, 2)).toBe("ok");
     expect(placeOne(ctx, "road", 8, 8)).toBe("ok"); // becomes a bridge

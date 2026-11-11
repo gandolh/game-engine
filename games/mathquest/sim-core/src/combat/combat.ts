@@ -355,9 +355,7 @@ export function createCombat(opts: CombatOpts): Combat {
         const problem = state.pendingProblem;
         if (problem.kind !== "choice") return false; // no-op on a typed problem
         if (state.fiftyDisabled !== null) return false; // already used this problem
-        const wrongIndices = problem.choices
-          .map((_, i) => i)
-          .filter((i) => i !== problem.answerIndex);
+        const wrongIndices = problem.choices.map((_, i) => i).filter((i) => i !== problem.answerIndex);
         // Comparison always emits exactly 3 choices (1 answer + 2 wrong) — dropping exactly one
         // wrong index leaves the correct one + one wrong one, a true 50-50. A hypothetical topic
         // with MORE choices would need `count - 2` drops to keep this a true 50-50; not needed
@@ -407,8 +405,7 @@ export function createCombat(opts: CombatOpts): Combat {
       warrior: { hp: state.warriorHp, maxHp: warriorMaxHp, block: state.warriorBlock },
       enemy: enemyView,
       // Load-bearing: only the display-safe `ProblemView` crosses this boundary.
-      problem:
-        state.pendingProblem !== null ? toProblemView(state.pendingProblem, state.fiftyDisabled ?? []) : null,
+      problem: state.pendingProblem !== null ? toProblemView(state.pendingProblem, state.fiftyDisabled ?? []) : null,
       grade,
       teach: state.teach,
       hint: state.hintText,

@@ -1,9 +1,6 @@
-
-
 import type { DecorationKind } from "../components";
 
 export const ONT_COMMISSION = {
-
   BUILD: "commission-build",
 
   DONE: "commission-done",
@@ -12,7 +9,6 @@ export const ONT_COMMISSION = {
 export type CommissionOntology = (typeof ONT_COMMISSION)[keyof typeof ONT_COMMISSION];
 
 export interface CommissionBuildBody {
-
   kind: DecorationKind;
 }
 

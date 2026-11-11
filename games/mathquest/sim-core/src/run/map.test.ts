@@ -99,9 +99,7 @@ describe("generateMap — difficulty", () => {
   it("grades escalate with depth: each row's MINIMUM grade is non-decreasing, and the boss is grade 4", () => {
     for (let seed = 1; seed <= 15; seed++) {
       const map = generateMap(createRng(seed).fork("map"));
-      const rows = [...new Set(map.nodes.filter((n) => n.type !== "boss").map((n) => n.row))].sort(
-        (a, b) => a - b,
-      );
+      const rows = [...new Set(map.nodes.filter((n) => n.type !== "boss").map((n) => n.row))].sort((a, b) => a - b);
       let prevMin = 0;
       for (const row of rows) {
         const minGrade = Math.min(...map.nodes.filter((n) => n.row === row).map((n) => n.grade));

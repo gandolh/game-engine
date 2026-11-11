@@ -72,7 +72,13 @@ const COMMON_POOL: readonly Item[] = [
   { id: "scut-de-stejar", name: "Scut de stejar", nameEn: "Oak Shield", bonus: { block: 3 } },
   { id: "potiune-de-viata", name: "Poțiune de viață", nameEn: "Life Potion", bonus: { maxHp: 6 } },
   { id: "amuleta", name: "Amuletă", nameEn: "Amulet", bonus: { heal: 2 } },
-  { id: "pergament-indicii", name: "Pergament cu indicii", nameEn: "Scroll of Hints", bonus: {}, lifeline: { kind: "hint", charges: 2 } },
+  {
+    id: "pergament-indicii",
+    name: "Pergament cu indicii",
+    nameEn: "Scroll of Hints",
+    bonus: {},
+    lifeline: { kind: "hint", charges: 2 },
+  },
   { id: "ochi-ager", name: "Ochi ager", nameEn: "Keen Eye", bonus: {}, lifeline: { kind: "fifty", charges: 1 } },
 ];
 
@@ -82,7 +88,13 @@ const BETTER_POOL: readonly Item[] = [
   { id: "coif-de-fier", name: "Coif de fier", nameEn: "Iron Helm", bonus: { maxHp: 4, block: 2 } },
   { id: "manusi-de-jar", name: "Mănuși de jar", nameEn: "Ember Gloves", bonus: { atk: 3, heal: 1 } },
   { id: "talisman-vechi", name: "Talisman vechi", nameEn: "Old Talisman", bonus: { block: 2, heal: 2 } },
-  { id: "clopotel-fermecat", name: "Clopoțel fermecat", nameEn: "Enchanted Bell", bonus: {}, lifeline: { kind: "skip", charges: 1 } },
+  {
+    id: "clopotel-fermecat",
+    name: "Clopoțel fermecat",
+    nameEn: "Enchanted Bell",
+    bonus: {},
+    lifeline: { kind: "skip", charges: 1 },
+  },
 ];
 
 /** Probability a single draw comes from `BETTER_POOL` rather than `COMMON_POOL`, by tier —

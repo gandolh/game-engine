@@ -53,25 +53,13 @@ export function bakeStaticLayer(
     waterDepth(ctx, w, h, region);
   };
   client.onStaticLayer((msg) => {
-    renderer.bakeStaticLayer(
-      msg.sprites,
-      msg.worldWidthPx,
-      msg.worldHeightPx,
-      decorate,
-    );
+    renderer.bakeStaticLayer(msg.sprites, msg.worldWidthPx, msg.worldHeightPx, decorate);
 
     renderer.bakeWaterPattern("tile/ocean", "terrain", TILE, 3);
 
     if (supportsDepthMask(renderer)) {
       const maskData = buildDepthMask(WORLD_WIDTH, WORLD_HEIGHT);
-      renderer.setWaterDepthMask(
-        maskData,
-        WORLD_WIDTH,
-        WORLD_HEIGHT,
-        WORLD_WIDTH * TILE,
-        WORLD_HEIGHT * TILE,
-        TILE,
-      );
+      renderer.setWaterDepthMask(maskData, WORLD_WIDTH, WORLD_HEIGHT, WORLD_WIDTH * TILE, WORLD_HEIGHT * TILE, TILE);
     }
 
     ambient.init(msg.sprites, seed);

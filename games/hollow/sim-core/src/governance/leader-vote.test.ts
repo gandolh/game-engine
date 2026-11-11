@@ -18,7 +18,13 @@ import { NEED_BELONGING } from "../economy";
 import { CommunityRegistry } from "../community";
 import type { HollowDeliberationContext } from "../agents/registry";
 import type { SocialAgent } from "../agents/social-verbs";
-import { createStubRationalizer, RationalizerSeam, type Rationalizer, type RationalizerDecision, type RationalizerRequest } from "../rationalize";
+import {
+  createStubRationalizer,
+  RationalizerSeam,
+  type Rationalizer,
+  type RationalizerDecision,
+  type RationalizerRequest,
+} from "../rationalize";
 import { HollowGovernanceSystem, SHARE_RATE_VOTE_KIND, SHARE_RATE_VOTE_STANCES } from "./governance-system";
 
 type Agent = HollowEntity & { id: number };
@@ -125,9 +131,15 @@ describe("hollow-17 — the leader's shareRate vote through the rationalizer", (
     expect(req.site).toBe("governance-vote");
     expect(req.agentId).toBe(h.a.id);
     expect(req.standing).toMatchObject({ communityId: h.community.id, isLeader: true, memberCount: 3 });
-    expect(req.candidates.map((c) => c.kind)).toEqual([SHARE_RATE_VOTE_KIND, SHARE_RATE_VOTE_KIND, SHARE_RATE_VOTE_KIND]);
+    expect(req.candidates.map((c) => c.kind)).toEqual([
+      SHARE_RATE_VOTE_KIND,
+      SHARE_RATE_VOTE_KIND,
+      SHARE_RATE_VOTE_KIND,
+    ]);
     expect(req.candidates.map((c) => c.data["stance"])).toEqual([...SHARE_RATE_VOTE_STANCES]);
-    expect(req.candidates.every((c) => c.data["leaderId"] === h.a.id && c.data["communityId"] === h.community.id)).toBe(true);
+    expect(req.candidates.every((c) => c.data["leaderId"] === h.a.id && c.data["communityId"] === h.community.id)).toBe(
+      true,
+    );
     expect(req.candidates[req.bdiChoiceIndex]!.data["stance"]).toBe("own");
     expect(req.decision).toMatchObject({ norm: "shareRate", memberCount: 3 });
     // The voters A is weighed against are the community, not passers-by.

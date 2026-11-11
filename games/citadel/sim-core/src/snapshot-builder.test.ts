@@ -96,7 +96,13 @@ describe("audit-14: persistent buildingTiles index", () => {
   it("place -> demolish -> re-place on the same tiles matches a freshly-computed index", () => {
     const state = makeState();
     const terrain = makeTerrain();
-    const ctx = createPlacementContext({ state, terrain, chargeBuildCost: false, enforceTerritory: false, multiplayer: false });
+    const ctx = createPlacementContext({
+      state,
+      terrain,
+      chargeBuildCost: false,
+      enforceTerritory: false,
+      multiplayer: false,
+    });
 
     expect(placeOne(ctx, "storehouse", 5, 5)).toBe("ok"); // 3x2
     expect(placeOne(ctx, "farm", 10, 10)).toBe("ok"); // 3x3
@@ -133,7 +139,13 @@ describe("audit-14: persistent buildingTiles index", () => {
   it("a raw per-tile .delete() destroy (the army/fire/siege shape) keeps the index exact without going through removeBuildingTiles", () => {
     const state = makeState();
     const terrain = makeTerrain();
-    const ctx = createPlacementContext({ state, terrain, chargeBuildCost: false, enforceTerritory: false, multiplayer: false });
+    const ctx = createPlacementContext({
+      state,
+      terrain,
+      chargeBuildCost: false,
+      enforceTerritory: false,
+      multiplayer: false,
+    });
 
     expect(placeOne(ctx, "farm", 20, 20)).toBe("ok"); // 3x3
     const farm = findAt(state, 20, 20);
@@ -155,7 +167,13 @@ describe("audit-14: persistent buildingTiles index", () => {
   it("getBuildings/getVillagers read the re-placed building's NEW id, not a stale one", () => {
     const state = makeState();
     const terrain = makeTerrain();
-    const ctx = createPlacementContext({ state, terrain, chargeBuildCost: false, enforceTerritory: false, multiplayer: false });
+    const ctx = createPlacementContext({
+      state,
+      terrain,
+      chargeBuildCost: false,
+      enforceTerritory: false,
+      multiplayer: false,
+    });
 
     expect(placeOne(ctx, "house", 8, 8)).toBe("ok"); // 2x2
     const oldHouse = findAt(state, 8, 8);
@@ -172,9 +190,21 @@ describe("audit-14: persistent buildingTiles index", () => {
 
     state.villagerWorld.spawn({
       villager: {
-        id: 1, ownerId: 0, homeX: 8, homeY: 8, workX: 8, workY: 8,
-        storeX: 8, storeY: 8, fsm: "idle", pathX: [], pathY: [], pathStep: 0,
-        carryGood: null, carryAmount: 0, ticksAtWork: 0,
+        id: 1,
+        ownerId: 0,
+        homeX: 8,
+        homeY: 8,
+        workX: 8,
+        workY: 8,
+        storeX: 8,
+        storeY: 8,
+        fsm: "idle",
+        pathX: [],
+        pathY: [],
+        pathStep: 0,
+        carryGood: null,
+        carryAmount: 0,
+        ticksAtWork: 0,
       },
     });
 

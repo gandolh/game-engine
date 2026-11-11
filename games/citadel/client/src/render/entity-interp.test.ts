@@ -113,7 +113,10 @@ describe("EntityInterpolator", () => {
 
   it("prunes ids absent from the latest snapshot", () => {
     const interp = new EntityInterpolator();
-    interp.ingest([{ id: 1, x: 0, y: 0 }, { id: 2, x: 5, y: 5 }]);
+    interp.ingest([
+      { id: 1, x: 0, y: 0 },
+      { id: 2, x: 5, y: 5 },
+    ]);
     expect(interp.size).toBe(2);
     interp.ingest([{ id: 1, x: 1, y: 0 }]); // id 2 despawned
     expect(interp.size).toBe(1);
@@ -124,7 +127,7 @@ describe("EntityInterpolator", () => {
   it("an id that despawns then respawns is snapped, not smeared", () => {
     const interp = new EntityInterpolator();
     interp.ingest([{ id: 1, x: 0, y: 0 }]);
-    interp.ingest([]);                       // despawn → pruned
+    interp.ingest([]); // despawn → pruned
     interp.ingest([{ id: 1, x: 40, y: 40 }]); // reused id, far away → fresh, snap
     expect(interp.positionOf(1, 1, 40, 40)).toEqual({ x: 40, y: 40 });
   });
@@ -303,10 +306,10 @@ describe("snapshotPhase", () => {
   });
 
   it("is the elapsed fraction of the interval, NOT clamped above 1 (the buffer absorbs a gap)", () => {
-    expect(snapshotPhase(1000, 1000, 50)).toBe(0);   // just arrived
+    expect(snapshotPhase(1000, 1000, 50)).toBe(0); // just arrived
     expect(snapshotPhase(1025, 1000, 50)).toBe(0.5); // halfway
-    expect(snapshotPhase(1050, 1000, 50)).toBe(1);   // one interval elapsed
-    expect(snapshotPhase(1150, 1000, 50)).toBe(3);   // long gap → keeps climbing
-    expect(snapshotPhase(990, 1000, 50)).toBe(0);    // negative clamps to 0
+    expect(snapshotPhase(1050, 1000, 50)).toBe(1); // one interval elapsed
+    expect(snapshotPhase(1150, 1000, 50)).toBe(3); // long gap → keeps climbing
+    expect(snapshotPhase(990, 1000, 50)).toBe(0); // negative clamps to 0
   });
 });

@@ -39,7 +39,10 @@ function runDays(sim: CitadelSimResult, n: number, startTick = 0): ReturnType<Ci
 /** Find a clear w×h area on the terrain starting near (sx, sy). */
 function findClear(
   terrain: { width: number; height: number; cells: Uint8Array },
-  w: number, h: number, sx: number, sy: number,
+  w: number,
+  h: number,
+  sx: number,
+  sy: number,
 ): { x: number; y: number } {
   for (let r = 0; r < 40; r++) {
     for (let dy = -r; dy <= r; dy++) {
@@ -49,7 +52,10 @@ function findClear(
         let ok = true;
         for (let yy = 0; yy < h && ok; yy++)
           for (let xx = 0; xx < w; xx++)
-            if (!isWalkable(terrain, x + xx, y + yy)) { ok = false; break; }
+            if (!isWalkable(terrain, x + xx, y + yy)) {
+              ok = false;
+              break;
+            }
         if (ok) return { x, y };
       }
     }
@@ -271,8 +277,8 @@ describe("FireSystem — firebreaks", () => {
     const cy = Math.floor(terrain.height / 2);
 
     const hA = findClear(terrain, 2, 2, cx, cy);
-    const tower = findClear(terrain, 2, 2, cx + 4, cy);    // stone building
-    const hB = findClear(terrain, 2, 2, cx + 8, cy);       // should be fireproof via firebreak
+    const tower = findClear(terrain, 2, 2, cx + 4, cy); // stone building
+    const hB = findClear(terrain, 2, 2, cx + 8, cy); // should be fireproof via firebreak
 
     placeBatch(sim, [
       { type: "house", x: hA.x, y: hA.y },
@@ -325,10 +331,7 @@ describe("FireSystem — well mitigation", () => {
      * We verify: if sim A fires, sim B may or may not (reduced), but
      * sim B should NEVER have MORE fires than sim A.
      */
-    function buildDenseCluster(
-      terrain: CitadelSimResult["terrain"],
-      withWell: boolean,
-    ): CitadelSimResult {
+    function buildDenseCluster(terrain: CitadelSimResult["terrain"], withWell: boolean): CitadelSimResult {
       const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY });
       const cx = Math.floor(terrain.width / 2);
       const cy = Math.floor(terrain.height / 2);
@@ -355,15 +358,15 @@ describe("FireSystem — well mitigation", () => {
     const simNoWell = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY });
     const terrain = simNoWell.terrain;
 
-    const denseNoWell  = buildDenseCluster(terrain, false);
+    const denseNoWell = buildDenseCluster(terrain, false);
     const denseWithWell = buildDenseCluster(terrain, true);
 
     // Run 60 days each (dense integration test confirms fire within 60 days with this seed).
-    runDays(denseNoWell,   60, 1);
+    runDays(denseNoWell, 60, 1);
     runDays(denseWithWell, 60, 1);
 
     // Count fire-related events.
-    const fireEventsNoWell  = denseNoWell.state.events.filter((e) => /fire|burned/i.test(e)).length;
+    const fireEventsNoWell = denseNoWell.state.events.filter((e) => /fire|burned/i.test(e)).length;
     const fireEventsWithWell = denseWithWell.state.events.filter((e) => /fire|burned/i.test(e)).length;
 
     // No-well sim MUST have produced at least 1 fire (same seed + layout as integration test).
@@ -400,11 +403,8 @@ describe("DiseaseSystem — disease onset", () => {
       items.push({ type: "house", x: pos.x, y: pos.y });
     }
     const store = findClear(terrain, 3, 2, cx - 6, cy);
-    const farm  = findClear(terrain, 3, 3, cx - 10, cy);
-    items.push(
-      { type: "storehouse", x: store.x, y: store.y },
-      { type: "farm", x: farm.x, y: farm.y },
-    );
+    const farm = findClear(terrain, 3, 3, cx - 10, cy);
+    items.push({ type: "storehouse", x: store.x, y: store.y }, { type: "farm", x: farm.x, y: farm.y });
     placeBatch(sim, items);
     // Connect with a road.
     const roadTiles: Array<{ x: number; y: number }> = [];
@@ -438,9 +438,9 @@ describe("DiseaseSystem — disease onset", () => {
       const pos = findClear(terrain, 2, 2, cx + (i % 4) * 3, cy + Math.floor(i / 4) * 3);
       items.push({ type: "house", x: pos.x, y: pos.y });
     }
-    const store  = findClear(terrain, 3, 2, cx - 6, cy);
-    const farm   = findClear(terrain, 3, 3, cx - 10, cy);
-    const mill   = findClear(terrain, 2, 2, cx - 6, cy + 3);
+    const store = findClear(terrain, 3, 2, cx - 6, cy);
+    const farm = findClear(terrain, 3, 3, cx - 10, cy);
+    const mill = findClear(terrain, 2, 2, cx - 6, cy + 3);
     const bakery = findClear(terrain, 2, 2, cx - 6, cy - 3);
     items.push(
       { type: "storehouse", x: store.x, y: store.y },
@@ -514,9 +514,9 @@ describe("DiseaseSystem — healer mitigation", () => {
         const pos = findClear(terrain, 2, 2, cx + (i % 3) * 3, cy + Math.floor(i / 3) * 3);
         items.push({ type: "house", x: pos.x, y: pos.y });
       }
-      const store  = findClear(terrain, 3, 2, cx - 6, cy);
-      const farm   = findClear(terrain, 3, 3, cx - 10, cy);
-      const mill   = findClear(terrain, 2, 2, cx - 6, cy + 3);
+      const store = findClear(terrain, 3, 2, cx - 6, cy);
+      const farm = findClear(terrain, 3, 3, cx - 10, cy);
+      const mill = findClear(terrain, 2, 2, cx - 6, cy + 3);
       const bakery = findClear(terrain, 2, 2, cx - 6, cy - 3);
       items.push(
         { type: "storehouse", x: store.x, y: store.y },
@@ -537,13 +537,13 @@ describe("DiseaseSystem — healer mitigation", () => {
       return sim;
     }
 
-    const simNoHealer  = buildCrowded(false);
+    const simNoHealer = buildCrowded(false);
     const simWithHealer = buildCrowded(true);
 
-    runDays(simNoHealer,   40, 1);
+    runDays(simNoHealer, 40, 1);
     runDays(simWithHealer, 40, 1);
 
-    const deathsNoHealer  = simNoHealer.state.events.filter((e) => /died.*disease|disease.*died/i.test(e)).length;
+    const deathsNoHealer = simNoHealer.state.events.filter((e) => /died.*disease|disease.*died/i.test(e)).length;
     const deathsWithHealer = simWithHealer.state.events.filter((e) => /died.*disease|disease.*died/i.test(e)).length;
 
     // Healer should not INCREASE deaths.
@@ -597,12 +597,12 @@ describe("DiseaseSystem — strict mortality (force-triggered outbreak)", () => 
     // All buildings from the proven economy test layout.
     const buildings: Array<{ type: string; x: number; y: number }> = [
       { type: "storehouse", x: 10, y: 11 },
-      { type: "farm",       x: 14, y: 14 },
-      { type: "farm",       x: 18, y: 14 },
-      { type: "mill",       x: 22, y: 14 },
-      { type: "bakery",     x: 25, y: 14 },
-      { type: "house",      x: 28, y: 14 },
-      { type: "house",      x: 32, y: 14 },
+      { type: "farm", x: 14, y: 14 },
+      { type: "farm", x: 18, y: 14 },
+      { type: "mill", x: 22, y: 14 },
+      { type: "bakery", x: 25, y: 14 },
+      { type: "house", x: 28, y: 14 },
+      { type: "house", x: 32, y: 14 },
     ];
     if (withHealer) {
       // Healer placed near the houses but away from the food-chain cluster.
@@ -659,9 +659,9 @@ describe("DiseaseSystem — strict mortality (force-triggered outbreak)", () => 
       }
       return { before, after: localPlayer(sim.state).population };
     }
-    const noHealer  = measurePopLoss(false);
+    const noHealer = measurePopLoss(false);
     const withHealer = measurePopLoss(true);
-    const lossNoHealer  = noHealer.before - noHealer.after;
+    const lossNoHealer = noHealer.before - noHealer.after;
     const lossWithHealer = withHealer.before - withHealer.after;
     // Unmitigated MUST have killed at least 1 person.
     expect(lossNoHealer).toBeGreaterThan(0);
@@ -690,11 +690,7 @@ describe("FireSystem — dense town fires (integration)", () => {
     const cx = Math.floor(terrain.width / 2);
     const cy = Math.floor(terrain.height / 2);
 
-    const types = [
-      "house", "house", "bakery", "bakery",
-      "mill", "mill", "house", "storehouse",
-      "chapel", "market",
-    ];
+    const types = ["house", "house", "bakery", "bakery", "mill", "mill", "house", "storehouse", "chapel", "market"];
     const items: Array<{ type: string; x: number; y: number }> = [];
     for (let i = 0; i < types.length; i++) {
       const row = Math.floor(i / 4);
@@ -733,11 +729,7 @@ describe("FireSystem — dense town fires (integration)", () => {
     const { terrain } = sim;
     const cx = Math.floor(terrain.width / 2);
     const cy = Math.floor(terrain.height / 2);
-    const types = [
-      "house", "house", "bakery", "bakery",
-      "mill", "mill", "house", "storehouse",
-      "chapel", "market",
-    ];
+    const types = ["house", "house", "bakery", "bakery", "mill", "mill", "house", "storehouse", "chapel", "market"];
     const items: Array<{ type: string; x: number; y: number }> = [];
     for (let i = 0; i < types.length; i++) {
       const pos = findClear(terrain, 2, 2, cx + (i % 4) * 3, cy + Math.floor(i / 4) * 3);
@@ -791,7 +783,7 @@ describe("FireSystem — dense town fires (integration)", () => {
       return sim;
     }
 
-    const denseNoWell   = buildDense(false);
+    const denseNoWell = buildDense(false);
     const denseWithWell = buildDense(true);
 
     for (let t = 1; t <= 60 * TICKS_PER_DAY; t++) {
@@ -799,7 +791,7 @@ describe("FireSystem — dense town fires (integration)", () => {
       denseWithWell.scheduler.tick({ tick: t });
     }
 
-    const fireEventsNoWell  = denseNoWell.state.events.filter((e) => /fire|burned/i.test(e)).length;
+    const fireEventsNoWell = denseNoWell.state.events.filter((e) => /fire|burned/i.test(e)).length;
     const fireEventsWithWell = denseWithWell.state.events.filter((e) => /fire|burned/i.test(e)).length;
 
     // Well can only reduce or equal fire count, never increase.

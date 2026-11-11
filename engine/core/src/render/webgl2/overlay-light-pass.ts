@@ -120,11 +120,7 @@ export class OverlayLightPass {
 
     const gl = this.gl;
 
-    if (
-      this.bakeCanvas === null ||
-      this.bakeW !== drawingBufferWidth ||
-      this.bakeH !== drawingBufferHeight
-    ) {
+    if (this.bakeCanvas === null || this.bakeW !== drawingBufferWidth || this.bakeH !== drawingBufferHeight) {
       this.bakeCanvas = createOffscreen(drawingBufferWidth, drawingBufferHeight);
       const ctx = this.bakeCanvas.getContext("2d") as Ctx2D | null;
       if (!ctx) throw new Error("webgl2: OverlayLightPass offscreen 2d context unavailable");
@@ -153,10 +149,7 @@ export class OverlayLightPass {
     // `gl.blendFunc(ONE, ONE)` (additive) should be summing onto the scene.
     gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
     gl.bindTexture(gl.TEXTURE_2D, this.texture);
-    gl.texImage2D(
-      gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE,
-      this.bakeCanvas as TexImageSource,
-    );
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, this.bakeCanvas as TexImageSource);
     // Restore immediately. UNPACK_PREMULTIPLY_ALPHA_WEBGL is context-GLOBAL state:
     // leaving it set silently flips every OTHER pass's texture upload (the static
     // layer, water and the atlas all upload STRAIGHT alpha and premultiply in their

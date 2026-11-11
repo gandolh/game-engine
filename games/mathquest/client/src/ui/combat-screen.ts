@@ -53,7 +53,14 @@
  */
 import { box, button, label, panel } from "@engine/ui";
 import type { ButtonNode, ButtonState, ContainerNode, LabelNode, Rect, UINode, UISurface } from "@engine/ui";
-import type { CombatAction, CombatSnapshot, EnemySprite, LifelineCharges, LifelineKind, MathTopic } from "@mathquest/sim-core";
+import type {
+  CombatAction,
+  CombatSnapshot,
+  EnemySprite,
+  LifelineCharges,
+  LifelineKind,
+  MathTopic,
+} from "@mathquest/sim-core";
 import { LIFELINE_KINDS } from "@mathquest/sim-core";
 import { MATE_PAL } from "../render/mate-palette";
 import type { Strings } from "../strings";
@@ -242,10 +249,16 @@ export function createCombatScreen(actions: CombatScreenActions, strings: String
   const promptLbl = label("", { color: MATE_PAL.white, scale: 3 });
   // The framed question banner. A colour header strip (by topic) is painted over its top edge in
   // `drawFx`; its rect is read there, so keep the reference.
-  const promptBanner = panel({ direction: "column", align: "center", padding: { top: 14, left: 20, right: 20, bottom: 12 } }, [promptLbl]);
+  const promptBanner = panel(
+    { direction: "column", align: "center", padding: { top: 14, left: 20, right: 20, bottom: 12 } },
+    [promptLbl],
+  );
 
   const typedLbl = label(strings.typedPlaceholder, { color: MATE_PAL.cyan, scale: 3 });
-  const answerDisplay = panel({ direction: "row", align: "center", padding: { top: 6, left: 24, right: 24, bottom: 6 } }, [typedLbl]);
+  const answerDisplay = panel(
+    { direction: "row", align: "center", padding: { top: 6, left: 24, right: 24, bottom: 6 } },
+    [typedLbl],
+  );
 
   function digitBtn(d: number): ButtonNode {
     return button(String(d), { onActivate: () => actions.appendDigit(d), scale: 2 });
@@ -339,7 +352,11 @@ export function createCombatScreen(actions: CombatScreenActions, strings: String
   // The bottom command box: turn/result message line + phase content, full width (root stretches),
   // its content centred like a quiz-show panel.
   const messageLine = box({ direction: "row", gap: 16, align: "center" }, [turnLbl, playerCueLbl, enemyCueLbl]);
-  const commandBox = panel({ direction: "column", gap: 8, padding: 14, align: "center" }, [messageLine, dynamicArea, bannerArea]);
+  const commandBox = panel({ direction: "column", gap: 8, padding: 14, align: "center" }, [
+    messageLine,
+    dynamicArea,
+    bannerArea,
+  ]);
 
   const titleLbl = label(strings.title, { color: MATE_PAL.gold });
   const topBar = box({ direction: "row", align: "center", padding: { top: 8, left: 16, right: 16, bottom: 4 } }, [
@@ -366,8 +383,7 @@ export function createCombatScreen(actions: CombatScreenActions, strings: String
     if (setHpBar(enemyHpBar, snapshot.enemy.hp, snapshot.enemy.maxHp)) changed = true;
     enemyHpBar.fillColor = hpColor(snapshot.enemy.hp, snapshot.enemy.maxHp);
     if (setText(enemyHpLbl, `${snapshot.enemy.hp}/${snapshot.enemy.maxHp}`)) changed = true;
-    const intentText =
-      snapshot.phase === "await_action" ? `${strings.enemyIntentPrefix} ${snapshot.enemy.intent}` : "";
+    const intentText = snapshot.phase === "await_action" ? `${strings.enemyIntentPrefix} ${snapshot.enemy.intent}` : "";
     if (setText(enemyIntentLbl, intentText)) changed = true;
 
     if (setHpBar(warriorHpBar, snapshot.warrior.hp, snapshot.warrior.maxHp)) changed = true;
@@ -519,7 +535,12 @@ export function createCombatScreen(actions: CombatScreenActions, strings: String
         const btn = choiceBtns[i]!;
         if (btn.label.length === 0 || btn.rect.width === 0) continue;
         const eliminated = problem.disabledChoices.includes(i);
-        drawTileFrame(surface, btn.rect, eliminated ? MATE_PAL.crimson : TILE_COLORS[i % TILE_COLORS.length]!, eliminated);
+        drawTileFrame(
+          surface,
+          btn.rect,
+          eliminated ? MATE_PAL.crimson : TILE_COLORS[i % TILE_COLORS.length]!,
+          eliminated,
+        );
       }
     }
   }

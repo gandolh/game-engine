@@ -160,10 +160,7 @@ export function createGameOverPanel(actions: GameOverActions): GameOverPanel {
     }
 
     const winner = state.rows[0];
-    setText(
-      winnerLbl,
-      winner !== undefined ? `Winner: ${winner.name} (${winner.totalValue}g total value)` : "",
-    );
+    setText(winnerLbl, winner !== undefined ? `Winner: ${winner.name} (${winner.totalValue}g total value)` : "");
 
     const arcs = state.recap?.arcs ?? [];
     for (let i = 0; i < MAX_ARCS; i++) {

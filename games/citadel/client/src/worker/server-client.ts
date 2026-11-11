@@ -9,7 +9,13 @@
  * Wire-up: main.ts picks this when `?mp` is present; the dev Vite config proxies
  * `/sim` → ws://localhost:8788 (the citadel server).
  */
-import type { RenderSnapshot, WorkerInbound, WorkerOutbound, CitadelCommand, CitadelSave } from "@citadel/sim-core/snapshot";
+import type {
+  RenderSnapshot,
+  WorkerInbound,
+  WorkerOutbound,
+  CitadelCommand,
+  CitadelSave,
+} from "@citadel/sim-core/snapshot";
 
 function defaultServerUrl(): string {
   if (typeof location === "undefined") return "ws://localhost:8788";
@@ -77,7 +83,13 @@ export class CitadelServerClient {
    * a different world. Decision #14 (unimplemented) fixes that by shipping the grid
    * from the server. See wiki/citadel-mp-deprecated.md before reviving this.
    */
-  init(seed: number, ticksPerDay: number, _worldWidth?: number, _worldHeight?: number, _mode?: "cozy" | "challenge"): void {
+  init(
+    seed: number,
+    ticksPerDay: number,
+    _worldWidth?: number,
+    _worldHeight?: number,
+    _mode?: "cozy" | "challenge",
+  ): void {
     // MP: the server owns the ruleset; the client's mode preset does not apply here.
     this.send({ type: "init", seed, ticksPerDay });
   }

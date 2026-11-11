@@ -59,11 +59,11 @@ const ROW_PITCH = 5;
  * by food, not housing. `well`/`healer` are not wooden — free real estate on the lattice.
  */
 const LATTICE: ReadonlyArray<ReadonlyArray<string>> = [
-  ["mill",   "farm",       "farm",   "mill"],
-  ["bakery", "storehouse", "well",   "bakery"],
-  ["chapel", "house",      "house",  "market"],
-  ["house",  "watchpost",  "healer", "house"],
-  ["well",   "house",      "house",  "chapel"],
+  ["mill", "farm", "farm", "mill"],
+  ["bakery", "storehouse", "well", "bakery"],
+  ["chapel", "house", "house", "market"],
+  ["house", "watchpost", "healer", "house"],
+  ["well", "house", "house", "chapel"],
 ];
 
 const FOOTPRINTS: Readonly<Record<string, { w: number; h: number }>> = {
@@ -89,7 +89,10 @@ function findClear(terrain: TerrainGrid, w: number, h: number, sx: number, sy: n
         let ok = true;
         for (let yy = 0; yy < h && ok; yy++) {
           for (let xx = 0; xx < w; xx++) {
-            if (!isWalkable(terrain, x + xx, y + yy)) { ok = false; break; }
+            if (!isWalkable(terrain, x + xx, y + yy)) {
+              ok = false;
+              break;
+            }
           }
         }
         if (ok) return { x, y };
@@ -195,7 +198,10 @@ describe("the sharp raid path is REACHABLE, not just unchanged", () => {
         keepOrdered = true;
         sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: "keep", x: keep.x, y: keep.y } });
       }
-      if (lp.keepSacked) { sackedDay = sim.state.day; break; }
+      if (lp.keepSacked) {
+        sackedDay = sim.state.day;
+        break;
+      }
     }
 
     // Staged assertions: each names the link in the chain that broke, so a future failure

@@ -192,11 +192,15 @@ export function admissionJoinThreshold(admissionPolicy: number): number {
   const p = Math.max(0, Math.min(1, admissionPolicy));
   const d: number = COMMUNITY_DEFAULT_ADMISSION_POLICY;
   if (p <= d) {
-    return COMMUNITY_ADMISSION_OPEN_THRESHOLD +
-      (COMMUNITY_JOIN_TRUST_THRESHOLD - COMMUNITY_ADMISSION_OPEN_THRESHOLD) * (p / d);
+    return (
+      COMMUNITY_ADMISSION_OPEN_THRESHOLD +
+      (COMMUNITY_JOIN_TRUST_THRESHOLD - COMMUNITY_ADMISSION_OPEN_THRESHOLD) * (p / d)
+    );
   }
-  return COMMUNITY_JOIN_TRUST_THRESHOLD +
-    (COMMUNITY_ADMISSION_CLOSED_THRESHOLD - COMMUNITY_JOIN_TRUST_THRESHOLD) * ((p - d) / (1 - d));
+  return (
+    COMMUNITY_JOIN_TRUST_THRESHOLD +
+    (COMMUNITY_ADMISSION_CLOSED_THRESHOLD - COMMUNITY_JOIN_TRUST_THRESHOLD) * ((p - d) / (1 - d))
+  );
 }
 
 // --- belonging need coupling (reworked hollow-14c: hearth ATTENDANCE, not

@@ -142,16 +142,12 @@ describe("golden vectors (stability, not just reproducibility)", () => {
 
   it('createRng(1).fork("pathfinder") emits the pinned first 4 u32 values', () => {
     const child = createRng(1).fork("pathfinder");
-    expect(Array.from({ length: 4 }, () => child.nextU32())).toEqual([
-      1420510029, 2657208518, 1626069229, 394996453,
-    ]);
+    expect(Array.from({ length: 4 }, () => child.nextU32())).toEqual([1420510029, 2657208518, 1626069229, 394996453]);
   });
 
   it("a nested fork emits the pinned values — derivation ORDER is the fragile part", () => {
     const nested = createRng(7).fork("outer").fork("inner");
-    expect(Array.from({ length: 4 }, () => nested.nextU32())).toEqual([
-      3245074439, 2722241300, 237095765, 3583303008,
-    ]);
+    expect(Array.from({ length: 4 }, () => nested.nextU32())).toEqual([3245074439, 2722241300, 237095765, 3583303008]);
   });
 
   it("fork() consumes a draw from the PARENT stream", () => {

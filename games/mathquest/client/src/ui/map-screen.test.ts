@@ -183,7 +183,9 @@ describe("createMapScreen — render() smoke test", () => {
       warriorHp: 12,
     });
     surface.begin();
-    expect(() => screen.render(surface, midRun, startNode.next[0] ?? null, VIEW_W, VIEW_H, "ro", STRINGS_RO)).not.toThrow();
+    expect(() =>
+      screen.render(surface, midRun, startNode.next[0] ?? null, VIEW_W, VIEW_H, "ro", STRINGS_RO),
+    ).not.toThrow();
     surface.end();
   });
 
@@ -263,7 +265,10 @@ describe("localeSwitchCostsTheRun (playtest-07)", () => {
     const screen = createMapScreen();
     const surface = fakeSurface();
     for (const visitedIds of [[], [map.startIds[0]!]]) {
-      for (const [loc, str] of [["ro", STRINGS_RO], ["en", STRINGS_EN]] as const) {
+      for (const [loc, str] of [
+        ["ro", STRINGS_RO],
+        ["en", STRINGS_EN],
+      ] as const) {
         const run = baseRun(map, { visitedIds });
         expect(() => screen.render(surface, run, null, VIEW_W, VIEW_H, loc, str)).not.toThrow();
       }

@@ -123,8 +123,7 @@ export class StaticLayerPass {
   private readonly textureLimit: number;
 
   private program: WebGLProgram | null = null;
-  private uniforms: Record<(typeof VIEW_UNIFORM_NAMES)[number], WebGLUniformLocation | null> | null =
-    null;
+  private uniforms: Record<(typeof VIEW_UNIFORM_NAMES)[number], WebGLUniformLocation | null> | null = null;
 
   private texture: WebGLTexture | null = null;
   private textureW = 0;
@@ -356,7 +355,14 @@ export class StaticLayerPass {
     const image = p.source.produce(key, rect);
     if (!image) return false;
     const { gl } = this.ctx;
-    const texture = uploadImageTexture(gl, image, rect.width, rect.height, gl.CLAMP_TO_EDGE, `static-layer patch ${key}`);
+    const texture = uploadImageTexture(
+      gl,
+      image,
+      rect.width,
+      rect.height,
+      gl.CLAMP_TO_EDGE,
+      `static-layer patch ${key}`,
+    );
     p.live.set(key, { texture, rect });
     p.produced += 1;
     return true;

@@ -1,13 +1,4 @@
-import type {
-  Transform,
-  Sprite,
-  FsmState,
-  Beliefs,
-  Desires,
-  Intentions,
-  Personality,
-  AgentInbox,
-} from "@engine/core";
+import type { Transform, Sprite, FsmState, Beliefs, Desires, Intentions, Personality, AgentInbox } from "@engine/core";
 import type { FarmerFsmState, Farmer, Player } from "./farmer";
 import type { Plot } from "./crops";
 import type { Inventory, ActionPoints, ResourceInventory } from "./inventory";

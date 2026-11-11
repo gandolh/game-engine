@@ -97,20 +97,12 @@ export function createSiegeHud(): SiegeHud {
     defenseLbl,
     keepLbl,
   ]);
-  const hazardGroup = box({ direction: "row", gap: 10, align: "center" }, [
-    label("Hazards"),
-    fireLbl,
-    diseaseLbl,
-  ]);
+  const hazardGroup = box({ direction: "row", gap: 10, align: "center" }, [label("Hazards"), fireLbl, diseaseLbl]);
   // No wrapping region/heading label for the mode readout: its own text is already
   // self-descriptive ("Mode: Place house"), so a leading "Mode" label would just repeat the
   // word (mirrors villager-panel.ts's bare fsmLbl/cargoLbl, which skip a heading for the same
   // reason).
-  const root = panel({ direction: "row", gap: 16, align: "center" }, [
-    statusGroup,
-    hazardGroup,
-    modeLbl,
-  ]);
+  const root = panel({ direction: "row", gap: 16, align: "center" }, [statusGroup, hazardGroup, modeLbl]);
 
   let changed = false;
   let firstRefresh = true;

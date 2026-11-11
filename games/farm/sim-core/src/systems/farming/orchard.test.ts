@@ -1,11 +1,6 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { bootstrapSim, leaderboard, type FarmerSummary } from "../../sim-bootstrap";
-import {
-  ORCHARD_MATURATION_DAYS,
-  FRUIT_YIELD_PER_HARVEST,
-  bankFruit,
-  totalFruitCount,
-} from "../../economy";
+import { ORCHARD_MATURATION_DAYS, FRUIT_YIELD_PER_HARVEST, bankFruit, totalFruitCount } from "../../economy";
 import type { Inventory, GameEntity } from "../../components";
 
 const TICKS_PER_DAY = 10;
@@ -32,7 +27,8 @@ describe("OrchardSystem", () => {
       world.spawn({
         orchardTree: {
           kind,
-          tileX, tileY: 5,
+          tileX,
+          tileY: 5,
           regionId: "farm-cora",
           ownerId: farmerId,
           daysGrown: mature ? ORCHARD_MATURATION_DAYS : 0,
@@ -55,7 +51,7 @@ describe("OrchardSystem", () => {
     let tick = runDays(1, 0);
     cherryFirstFruit = matureCherry.orchardTree!.fruitReady;
     boardAfterDay1 = leaderboard(world);
-    matureCherry.orchardTree!.fruitReady = 0; 
+    matureCherry.orchardTree!.fruitReady = 0;
 
     tick = runDays(ORCHARD_MATURATION_DAYS - 1, tick);
     matureAtMaturationDay = growing.orchardTree!.mature;
@@ -85,7 +81,7 @@ describe("OrchardSystem", () => {
   });
 
   it("leaderboard counts mature orchards in assetValue", () => {
-    const entry = boardAfterDay1.find(e => e.id === farmerId);
+    const entry = boardAfterDay1.find((e) => e.id === farmerId);
     expect(entry).toBeDefined();
     expect(entry!.assetValue).toBeGreaterThan(0);
     expect(entry!.totalValue).toBeGreaterThan(entry!.gold);

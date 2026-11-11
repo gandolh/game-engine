@@ -11,7 +11,7 @@ import { PLAYER_SPEED } from "./player-control";
 
 const SLOT = { can: 0, hoe: 1, axe: 2, pickaxe: 3, rod: 4, radish: 5, wheat: 6, pumpkin: 7 } as const;
 
-const PIP = getRegion("farm-pip").center; 
+const PIP = getRegion("farm-pip").center;
 
 function setup(): {
   world: World<GameEntity>;
@@ -40,7 +40,15 @@ function setup(): {
       wateringCan: { charges: 10, maxCharges: 10 },
     },
     resources: { wood: 0, stone: 0, ironOre: 0, geodes: 0 },
-    player: { isPlayer: true, facing: "down", pendingMoveX: null, pendingMoveY: null, pendingAction: false, selectedSlot: 0, pendingActionTile: null },
+    player: {
+      isPlayer: true,
+      facing: "down",
+      pendingMoveX: null,
+      pendingMoveY: null,
+      pendingAction: false,
+      selectedSlot: 0,
+      pendingActionTile: null,
+    },
   });
   return {
     world,
@@ -50,12 +58,7 @@ function setup(): {
   };
 }
 
-function tick(
-  world: World<GameEntity>,
-  control: PlayerControlSystem,
-  act: ActSystem,
-  t = 0,
-): void {
+function tick(world: World<GameEntity>, control: PlayerControlSystem, act: ActSystem, t = 0): void {
   control.run({ tick: t } as never);
   act.run({ tick: t } as never);
 }
@@ -74,7 +77,6 @@ describe("PlayerControlSystem — movement", () => {
   });
 
   it("reaches ~1 tile after PLAYER_STEP_TICKS held ticks (speed parity)", () => {
-
     const { world, pip, control, act } = setup();
     pip.player!.pendingMoveX = "right";
     for (let t = 0; t < 3; t++) tick(world, control, act, t);
@@ -97,7 +99,6 @@ describe("PlayerControlSystem — movement", () => {
   });
 
   it("moves diagonally when both axes are held (axis-independent, not normalized)", () => {
-
     const { world, pip, control, act } = setup();
     pip.player!.pendingMoveX = "right";
     pip.player!.pendingMoveY = "down";
@@ -105,13 +106,14 @@ describe("PlayerControlSystem — movement", () => {
     expect(pip.transform!.x).toBeCloseTo(PIP.x + PLAYER_SPEED);
     expect(pip.transform!.y).toBeCloseTo(PIP.y + PLAYER_SPEED);
     expect(pip.farmer!.movedThisTick).toBe(true);
-    expect(pip.player!.facing).toBe("right"); 
+    expect(pip.player!.facing).toBe("right");
   });
 
   it("wall-slides: moving into a blocked X axis slides along Y instead", () => {
     const { world, pip, control, act } = setup();
 
-    const bx = PIP.x + 1, by = PIP.y;
+    const bx = PIP.x + 1,
+      by = PIP.y;
     world.spawn({
       transform: { x: bx, y: by, prevX: bx, prevY: by, rotation: 0 },
       tileFeature: { kind: "tree", tileX: bx, tileY: by, regionId: "farm-pip", ownerId: pip.id! },
@@ -128,11 +130,11 @@ describe("PlayerControlSystem — movement", () => {
     const { world, pip, control, act } = setup();
     pip.player!.pendingMoveX = "right";
     tick(world, control, act, 0);
-    tick(world, control, act, 1); 
+    tick(world, control, act, 1);
     const midX = pip.transform!.x;
 
     expect(midX).not.toBe(Math.round(midX));
-    pip.player!.pendingMoveX = null; 
+    pip.player!.pendingMoveX = null;
     tick(world, control, act, 2);
 
     expect(pip.transform!.x).toBeCloseTo(midX);
@@ -141,7 +143,6 @@ describe("PlayerControlSystem — movement", () => {
   });
 
   it("REGRESSION: rapid left→right reversal never teleports Pip backward", () => {
-
     const { world, pip, control, act } = setup();
     const positions: number[] = [pip.transform!.x];
 
@@ -151,7 +152,7 @@ describe("PlayerControlSystem — movement", () => {
     tick(world, control, act, 1);
     positions.push(pip.transform!.x);
 
-    pip.player!.pendingMoveX = "right"; 
+    pip.player!.pendingMoveX = "right";
     tick(world, control, act, 2);
     positions.push(pip.transform!.x);
     tick(world, control, act, 3);
@@ -165,7 +166,6 @@ describe("PlayerControlSystem — movement", () => {
   });
 
   it("press-stop-press the opposite way does not teleport backward", () => {
-
     const { world, pip, control, act } = setup();
     pip.player!.pendingMoveX = "left";
     tick(world, control, act, 0);
@@ -173,12 +173,12 @@ describe("PlayerControlSystem — movement", () => {
 
     expect(afterLeftX).toBeLessThan(PIP.x);
 
-    pip.player!.pendingMoveX = null; 
+    pip.player!.pendingMoveX = null;
     tick(world, control, act, 1);
 
     expect(pip.transform!.x).toBeCloseTo(afterLeftX);
 
-    pip.player!.pendingMoveX = "right"; 
+    pip.player!.pendingMoveX = "right";
     tick(world, control, act, 2);
 
     expect(pip.transform!.x).toBeCloseTo(afterLeftX + PLAYER_SPEED);
@@ -187,7 +187,8 @@ describe("PlayerControlSystem — movement", () => {
   it("does not move into a tile blocked by a tree feature", () => {
     const { world, pip, control, act } = setup();
 
-    const tx = PIP.x + 1, ty = PIP.y;
+    const tx = PIP.x + 1,
+      ty = PIP.y;
     world.spawn({
       transform: { x: tx, y: ty, prevX: tx, prevY: ty, rotation: 0 },
       tileFeature: { kind: "tree", tileX: tx, tileY: ty, regionId: "farm-pip", ownerId: pip.id! },
@@ -197,7 +198,7 @@ describe("PlayerControlSystem — movement", () => {
     for (let t = 0; t < 6; t++) tick(world, control, act, t);
 
     expect(pip.transform!.x).toBeLessThanOrEqual(PIP.x + 0.2 + 0.001);
-    expect(pip.player!.facing).toBe("right"); 
+    expect(pip.player!.facing).toBe("right");
   });
 
   it("does not move onto a non-walkable tile", () => {
@@ -206,7 +207,7 @@ describe("PlayerControlSystem — movement", () => {
     const farmRegion = getRegion("farm-pip");
     pip.transform!.x = farmRegion.center.x;
     pip.transform!.y = farmRegion.bounds.minY + 0.4;
-    pip.player!.pendingMoveY = "up"; 
+    pip.player!.pendingMoveY = "up";
     for (let t = 0; t < 6; t++) tick(world, control, act, t);
 
     expect(pip.transform!.y).toBeGreaterThanOrEqual(farmRegion.bounds.minY - 0.2 - 0.001);
@@ -221,10 +222,9 @@ describe("PlayerControlSystem — hotbar action", () => {
     pip.player!.facing = "right";
     pip.player!.pendingAction = true;
     tick(world, control, act);
-    const tx = PIP.x + 1, ty = PIP.y;
-    const plot = [...world.query("plot")].find(
-      (p) => p.plot.tileX === tx && p.plot.tileY === ty,
-    );
+    const tx = PIP.x + 1,
+      ty = PIP.y;
+    const plot = [...world.query("plot")].find((p) => p.plot.tileX === tx && p.plot.tileY === ty);
     expect(plot).toBeDefined();
     expect(plot!.plot.ownerId).toBe(pip.id);
     expect(plot!.plot.state.kind).toBe("empty");
@@ -232,7 +232,8 @@ describe("PlayerControlSystem — hotbar action", () => {
 
   it("plants the selected seed on an empty owned plot Pip faces", () => {
     const { world, pip, control, act } = setup();
-    const tx = PIP.x + 1, ty = PIP.y;
+    const tx = PIP.x + 1,
+      ty = PIP.y;
     world.spawn({
       transform: { x: tx, y: ty, prevX: tx, prevY: ty, rotation: 0 },
       plot: { ownerId: pip.id!, regionId: "farm-pip", tileX: tx, tileY: ty, state: { kind: "empty" } },
@@ -243,17 +244,29 @@ describe("PlayerControlSystem — hotbar action", () => {
     tick(world, control, act);
     const plot = [...world.query("plot")].find((p) => p.plot.tileX === tx && p.plot.tileY === ty)!;
     expect(plot.plot.state.kind).toBe("planted");
-    expect(pip.inventory!.seeds.radish).toBe(2); 
+    expect(pip.inventory!.seeds.radish).toBe(2);
   });
 
   it("waters a planted, unwatered plot Pip faces", () => {
     const { world, pip, control, act } = setup();
-    const tx = PIP.x + 1, ty = PIP.y;
+    const tx = PIP.x + 1,
+      ty = PIP.y;
     world.spawn({
       transform: { x: tx, y: ty, prevX: tx, prevY: ty, rotation: 0 },
       plot: {
-        ownerId: pip.id!, regionId: "farm-pip", tileX: tx, tileY: ty,
-        state: { kind: "planted", crop: "radish", daysGrowing: 0, readyAtDay: 2, weatherSum: 0, daysSinceWater: 1, wateredToday: false },
+        ownerId: pip.id!,
+        regionId: "farm-pip",
+        tileX: tx,
+        tileY: ty,
+        state: {
+          kind: "planted",
+          crop: "radish",
+          daysGrowing: 0,
+          readyAtDay: 2,
+          weatherSum: 0,
+          daysSinceWater: 1,
+          wateredToday: false,
+        },
       },
     });
     pip.player!.selectedSlot = SLOT.can;
@@ -263,12 +276,13 @@ describe("PlayerControlSystem — hotbar action", () => {
     const plot = [...world.query("plot")].find((p) => p.plot.tileX === tx && p.plot.tileY === ty)!;
     const state = plot.plot.state as Extract<typeof plot.plot.state, { kind: "planted" }>;
     expect(state.wateredToday).toBe(true);
-    expect(pip.inventory!.wateringCan!.charges).toBe(9); 
+    expect(pip.inventory!.wateringCan!.charges).toBe(9);
   });
 
   it("chops a tree Pip faces, awarding wood", () => {
     const { world, pip, control, act } = setup();
-    const tx = PIP.x + 1, ty = PIP.y;
+    const tx = PIP.x + 1,
+      ty = PIP.y;
     world.spawn({
       transform: { x: tx, y: ty, prevX: tx, prevY: ty, rotation: 0 },
       tileFeature: { kind: "tree", tileX: tx, tileY: ty, regionId: "farm-pip", ownerId: pip.id! },
@@ -278,7 +292,9 @@ describe("PlayerControlSystem — hotbar action", () => {
     pip.player!.pendingAction = true;
     tick(world, control, act);
     expect(pip.resources!.wood).toBeGreaterThan(0);
-    const stillThere = [...world.query("tileFeature")].some((f) => f.tileFeature.tileX === tx && f.tileFeature.tileY === ty);
+    const stillThere = [...world.query("tileFeature")].some(
+      (f) => f.tileFeature.tileX === tx && f.tileFeature.tileY === ty,
+    );
     expect(stillThere).toBe(false);
   });
 
@@ -286,24 +302,26 @@ describe("PlayerControlSystem — hotbar action", () => {
     const { world, pip, control, act } = setup();
     pip.player!.selectedSlot = SLOT.hoe;
 
-    pip.transform!.x = 19; pip.transform!.y = 19;
+    pip.transform!.x = 19;
+    pip.transform!.y = 19;
     pip.farmer!.currentRegion = "village";
     pip.player!.facing = "right";
     pip.player!.pendingAction = true;
     const before = [...world.query("plot")].length;
     tick(world, control, act);
     expect([...world.query("plot")].length).toBe(before);
-    expect(pip.player!.pendingAction).toBe(false); 
+    expect(pip.player!.pendingAction).toBe(false);
   });
 
   it("the selected slot decides the action: the hoe won't chop a tree", () => {
     const { world, pip, control, act } = setup();
-    const tx = PIP.x + 1, ty = PIP.y;
+    const tx = PIP.x + 1,
+      ty = PIP.y;
     world.spawn({
       transform: { x: tx, y: ty, prevX: tx, prevY: ty, rotation: 0 },
       tileFeature: { kind: "tree", tileX: tx, tileY: ty, regionId: "farm-pip", ownerId: pip.id! },
     });
-    pip.player!.selectedSlot = SLOT.hoe; 
+    pip.player!.selectedSlot = SLOT.hoe;
     pip.player!.facing = "right";
     pip.player!.pendingAction = true;
     tick(world, control, act);
@@ -317,17 +335,18 @@ describe("PlayerControlSystem — hotbar action", () => {
 
   it("won't plant a seed the player doesn't have", () => {
     const { world, pip, control, act } = setup();
-    const tx = PIP.x + 1, ty = PIP.y;
+    const tx = PIP.x + 1,
+      ty = PIP.y;
     world.spawn({
       transform: { x: tx, y: ty, prevX: tx, prevY: ty, rotation: 0 },
       plot: { ownerId: pip.id!, regionId: "farm-pip", tileX: tx, tileY: ty, state: { kind: "empty" } },
     });
-    pip.player!.selectedSlot = SLOT.wheat; 
+    pip.player!.selectedSlot = SLOT.wheat;
     pip.player!.facing = "right";
     pip.player!.pendingAction = true;
     tick(world, control, act);
     const plot = [...world.query("plot")].find((p) => p.plot.tileX === tx && p.plot.tileY === ty)!;
-    expect(plot.plot.state.kind).toBe("empty"); 
+    expect(plot.plot.state.kind).toBe("empty");
   });
 });
 
@@ -335,21 +354,22 @@ describe("PlayerControlSystem — click-to-act (pendingActionTile)", () => {
   it("(a) plants at the CLICKED tile when pendingActionTile is Chebyshev-≤1 from Pip", () => {
     const { world, pip, control, act } = setup();
 
-    const tx = PIP.x, ty = PIP.y + 1;
+    const tx = PIP.x,
+      ty = PIP.y + 1;
     world.spawn({
       transform: { x: tx, y: ty, prevX: tx, prevY: ty, rotation: 0 },
       plot: { ownerId: pip.id!, regionId: "farm-pip", tileX: tx, tileY: ty, state: { kind: "empty" } },
     });
     pip.player!.selectedSlot = SLOT.radish;
-    pip.player!.facing = "right"; 
+    pip.player!.facing = "right";
     pip.player!.pendingAction = true;
-    pip.player!.pendingActionTile = { x: tx, y: ty }; 
+    pip.player!.pendingActionTile = { x: tx, y: ty };
 
     tick(world, control, act);
 
     const plot = [...world.query("plot")].find((p) => p.plot.tileX === tx && p.plot.tileY === ty)!;
     expect(plot.plot.state.kind).toBe("planted");
-    expect(pip.inventory!.seeds.radish).toBe(2); 
+    expect(pip.inventory!.seeds.radish).toBe(2);
 
     expect(pip.player!.pendingActionTile).toBeNull();
   });
@@ -357,7 +377,8 @@ describe("PlayerControlSystem — click-to-act (pendingActionTile)", () => {
   it("(b) out-of-reach click (Chebyshev≥2) queues NO intent and clears pendingActionTile", () => {
     const { world, pip, control, act } = setup();
 
-    const tx = PIP.x + 3, ty = PIP.y;
+    const tx = PIP.x + 3,
+      ty = PIP.y;
     world.spawn({
       transform: { x: tx, y: ty, prevX: tx, prevY: ty, rotation: 0 },
       plot: { ownerId: pip.id!, regionId: "farm-pip", tileX: tx, tileY: ty, state: { kind: "empty" } },
@@ -365,7 +386,7 @@ describe("PlayerControlSystem — click-to-act (pendingActionTile)", () => {
     pip.player!.selectedSlot = SLOT.radish;
     pip.player!.facing = "down";
     pip.player!.pendingAction = true;
-    pip.player!.pendingActionTile = { x: tx, y: ty }; 
+    pip.player!.pendingActionTile = { x: tx, y: ty };
 
     tick(world, control, act);
 
@@ -380,7 +401,8 @@ describe("PlayerControlSystem — click-to-act (pendingActionTile)", () => {
   it("(c) REGRESSION: pendingAction with pendingActionTile=null uses the faced tile (E-key path)", () => {
     const { world, pip, control, act } = setup();
 
-    const tx = PIP.x + 1, ty = PIP.y;
+    const tx = PIP.x + 1,
+      ty = PIP.y;
     world.spawn({
       transform: { x: tx, y: ty, prevX: tx, prevY: ty, rotation: 0 },
       plot: { ownerId: pip.id!, regionId: "farm-pip", tileX: tx, tileY: ty, state: { kind: "empty" } },
@@ -388,7 +410,7 @@ describe("PlayerControlSystem — click-to-act (pendingActionTile)", () => {
     pip.player!.selectedSlot = SLOT.radish;
     pip.player!.facing = "right";
     pip.player!.pendingAction = true;
-    pip.player!.pendingActionTile = null; 
+    pip.player!.pendingActionTile = null;
 
     tick(world, control, act);
 
@@ -399,7 +421,6 @@ describe("PlayerControlSystem — click-to-act (pendingActionTile)", () => {
 });
 
 describe("PlayerControlSystem — fishing", () => {
-
   // Derive a fishing-isle edge tile (seed-generated positions, brief 93) whose
   // LEFT neighbour is open ocean and RIGHT neighbour is land: facing "left" =
   // water (fishes), facing "right" = land (won't fish).
@@ -435,12 +456,12 @@ describe("PlayerControlSystem — fishing", () => {
   it("won't fish when facing land (not open water)", () => {
     const { world, pip, control, act } = setup();
     standOnIsle(pip);
-    pip.player!.facing = "right"; 
+    pip.player!.facing = "right";
     const goldBefore = pip.inventory!.gold;
     pip.player!.pendingAction = true;
     tick(world, control, act);
     expect(pip.inventory!.gold).toBe(goldBefore);
-    expect(pip.player!.pendingAction).toBe(false); 
+    expect(pip.player!.pendingAction).toBe(false);
   });
 
   it("won't fish off the isle even facing water", () => {
@@ -457,7 +478,7 @@ describe("PlayerControlSystem — fishing", () => {
 });
 
 describe("PlayerControlSystem — port hop", () => {
-  const PORT = PORTS[0]!; 
+  const PORT = PORTS[0]!;
 
   function standOnDock(pip: GameEntity): void {
     pip.transform!.x = PORT.dock.x;
@@ -488,18 +509,18 @@ describe("PlayerControlSystem — port hop", () => {
     const { world, pip, control, act } = setup();
     standOnDock(pip);
     pip.player!.pendingAction = true;
-    tick(world, control, act); 
+    tick(world, control, act);
     expect(pip.farmer!.aboard).toBe(true);
 
     pip.player!.pendingMoveX = "left";
     tick(world, control, act, 1);
-    expect(pip.transform!.x).toBeLessThan(PORT.dock.x); 
+    expect(pip.transform!.x).toBeLessThan(PORT.dock.x);
   });
 
   it("on foot, Pip cannot step onto an ocean lane tile (only aboard)", () => {
     const { world, pip, control, act } = setup();
-    standOnDock(pip); 
-    pip.player!.pendingMoveX = "left"; 
+    standOnDock(pip);
+    pip.player!.pendingMoveX = "left";
     tick(world, control, act);
 
     expect(Math.round(pip.transform!.x)).toBe(PORT.dock.x);

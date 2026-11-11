@@ -117,7 +117,11 @@ describe("createExportPanel", () => {
     const entries: LineageEntry[] = [
       {
         id: 1,
-        genome: { behavior: {}, aptitude: {}, appearance: { height: 1, build: 1, skinTone: "skin", hairTone: "hairBrown" } },
+        genome: {
+          behavior: {},
+          aptitude: {},
+          appearance: { height: 1, build: 1, skinTone: "skin", hairTone: "hairBrown" },
+        },
         parents: null,
         birthTick: 0,
         deathTick: null,

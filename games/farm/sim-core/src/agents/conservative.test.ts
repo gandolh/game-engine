@@ -44,9 +44,7 @@ describe("deliberateConservative", () => {
     deliberateConservative(f);
     const queue = f.intentions!.queue;
     const sellIdx = queue.findIndex((i) => i.kind === "sell-shopkeeper");
-    const travelIdx = queue.findIndex(
-      (i) => i.kind === "travel" && i.data["targetRegionId"] === "village",
-    );
+    const travelIdx = queue.findIndex((i) => i.kind === "travel" && i.data["targetRegionId"] === "village");
     expect(sellIdx).toBeGreaterThan(-1);
     expect(travelIdx).toBeGreaterThan(-1);
     expect(travelIdx).toBeLessThan(sellIdx);
@@ -56,9 +54,7 @@ describe("deliberateConservative", () => {
     const f = makeFarmer({ crops: { radish: 3 }, region: "village" });
     deliberateConservative(f);
     const queue = f.intentions!.queue;
-    expect(
-      queue.some((i) => i.kind === "travel" && i.data["targetRegionId"] === "village"),
-    ).toBe(false);
+    expect(queue.some((i) => i.kind === "travel" && i.data["targetRegionId"] === "village")).toBe(false);
     expect(queue.some((i) => i.kind === "sell-shopkeeper")).toBe(true);
   });
 
@@ -66,9 +62,7 @@ describe("deliberateConservative", () => {
     const f = makeFarmer({ gold: 100, seeds: { radish: 1 }, reserve: 30 });
     deliberateConservative(f);
     expect(f.decisionTrace).toBeDefined();
-    expect(
-      f.decisionTrace!.reasons.some((r) => r.startsWith("plant radish:")),
-    ).toBe(true);
+    expect(f.decisionTrace!.reasons.some((r) => r.startsWith("plant radish:"))).toBe(true);
   });
 
   it("resets the reason buffer each deliberation tick (no carryover)", () => {
@@ -97,15 +91,11 @@ describe("deliberateConservative", () => {
     const queue = f.intentions!.queue;
 
     const buildIdx = queue.findIndex((i) => i.kind === "build-pen" && i.data["penKind"] === "coop");
-    const carpTravel = queue.find(
-      (i) => i.kind === "travel" && i.data["targetRegionId"] === "carpentry",
-    );
+    const carpTravel = queue.find((i) => i.kind === "travel" && i.data["targetRegionId"] === "carpentry");
     expect(buildIdx).toBeGreaterThan(-1);
     expect(carpTravel).toBeDefined();
-    expect(carpTravel!.priority).toBeLessThan(0); 
-    expect(
-      f.decisionTrace!.reasons.some((r) => r.startsWith("building coop")),
-    ).toBe(true);
+    expect(carpTravel!.priority).toBeLessThan(0);
+    expect(f.decisionTrace!.reasons.some((r) => r.startsWith("building coop"))).toBe(true);
   });
 
   it("commits a greenhouse build (build-greenhouse + carpentry travel) given a large surplus", () => {
@@ -120,15 +110,11 @@ describe("deliberateConservative", () => {
     const queue = f.intentions!.queue;
 
     const buildIdx = queue.findIndex((i) => i.kind === "build-greenhouse");
-    const carpTravel = queue.find(
-      (i) => i.kind === "travel" && i.data["targetRegionId"] === "carpentry",
-    );
+    const carpTravel = queue.find((i) => i.kind === "travel" && i.data["targetRegionId"] === "carpentry");
     expect(buildIdx).toBeGreaterThan(-1);
     expect(carpTravel).toBeDefined();
-    expect(carpTravel!.priority).toBeLessThan(0); 
-    expect(
-      f.decisionTrace!.reasons.some((r) => r.startsWith("build greenhouse")),
-    ).toBe(true);
+    expect(carpTravel!.priority).toBeLessThan(0);
+    expect(f.decisionTrace!.reasons.some((r) => r.startsWith("build greenhouse"))).toBe(true);
   });
 
   it("does NOT commit a greenhouse build when gold can't cover cost + reserve", () => {
@@ -137,12 +123,10 @@ describe("deliberateConservative", () => {
     f.beliefs!.data["hasGreenhouse"] = false;
     f.beliefs!.data["occupiedTiles"] = [];
     f.ap = { current: 80, max: 80, away: false, unrested: false, penaltyPending: false, penaltyCapacity: 0 };
-    f.resources = { wood: 0, stone: 0, ironOre: 0, geodes: 0 }; 
+    f.resources = { wood: 0, stone: 0, ironOre: 0, geodes: 0 };
 
     deliberateConservative(f);
-    expect(
-      f.intentions!.queue.some((i) => i.kind === "build-greenhouse"),
-    ).toBe(false);
+    expect(f.intentions!.queue.some((i) => i.kind === "build-greenhouse")).toBe(false);
   });
 
   it("does NOT commit a coop build when gold is below the surplus cushion", () => {
@@ -157,8 +141,6 @@ describe("deliberateConservative", () => {
 
     deliberateConservative(f);
 
-    expect(
-      f.intentions!.queue.some((i) => i.kind === "build-pen"),
-    ).toBe(false);
+    expect(f.intentions!.queue.some((i) => i.kind === "build-pen")).toBe(false);
   });
 });

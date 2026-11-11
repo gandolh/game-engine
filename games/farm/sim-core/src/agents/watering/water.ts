@@ -21,7 +21,7 @@ export function deliberateRefillCan(farmer: GameEntity, planWaterCount: number):
   } else {
     const sourceRegionId = nearestWaterSource(farmer);
     if (sourceRegionId) {
-      const def = REGIONS.find(r => r.id === sourceRegionId);
+      const def = REGIONS.find((r) => r.id === sourceRegionId);
       if (def) nearestSourceTile = def.center;
     }
   }
@@ -31,7 +31,7 @@ export function deliberateRefillCan(farmer: GameEntity, planWaterCount: number):
   const nearSource = isWithinReach(farmer.transform, nearestSourceTile.x, nearestSourceTile.y);
 
   if (!nearSource) {
-    if (!farmer.intentions.queue.some(i => i.kind === "travel" && i.data.targetTile)) {
+    if (!farmer.intentions.queue.some((i) => i.kind === "travel" && i.data.targetTile)) {
       farmer.intentions.queue.push({
         kind: "travel",
         data: { targetTile: { x: nearestSourceTile.x, y: nearestSourceTile.y } },
@@ -53,7 +53,7 @@ export function deliberateRefillCan(farmer: GameEntity, planWaterCount: number):
 export function deliberateWatering(farmer: GameEntity, style: WateringStyle): void {
   const sense = farmer.beliefs?.data.plotWater as PlotWaterSense | undefined;
   if (!sense || sense.due <= 0) return;
-  const urgent = sense.maxDrySoFar >= 2; 
+  const urgent = sense.maxDrySoFar >= 2;
   if (!urgent && sense.maxDrySoFar < style.dryThreshold) return;
 
   const cap = style.maxWaterPerDay ?? sense.due;
@@ -64,8 +64,8 @@ export function deliberateWatering(farmer: GameEntity, style: WateringStyle): vo
 
   const transform = farmer.transform;
 
-  const inReach = candidatePlots.filter(p => isWithinReach(transform, p.tileX, p.tileY));
-  const outOfReach = candidatePlots.filter(p => !isWithinReach(transform, p.tileX, p.tileY));
+  const inReach = candidatePlots.filter((p) => isWithinReach(transform, p.tileX, p.tileY));
+  const outOfReach = candidatePlots.filter((p) => !isWithinReach(transform, p.tileX, p.tileY));
 
   if (inReach.length > 0) {
     for (const p of inReach) {
@@ -77,7 +77,7 @@ export function deliberateWatering(farmer: GameEntity, style: WateringStyle): vo
     }
     if (outOfReach.length > 0) {
       const nearest = nearestTile(transform, outOfReach);
-      if (nearest && !farmer.intentions!.queue.some(i => i.kind === "travel" && i.data.targetTile)) {
+      if (nearest && !farmer.intentions!.queue.some((i) => i.kind === "travel" && i.data.targetTile)) {
         farmer.intentions!.queue.push({
           kind: "travel",
           data: { targetTile: { x: nearest.tileX, y: nearest.tileY } },
@@ -87,7 +87,7 @@ export function deliberateWatering(farmer: GameEntity, style: WateringStyle): vo
     }
   } else {
     const nearest = nearestTile(transform, candidatePlots);
-    if (nearest && !farmer.intentions!.queue.some(i => i.kind === "travel" && i.data.targetTile)) {
+    if (nearest && !farmer.intentions!.queue.some((i) => i.kind === "travel" && i.data.targetTile)) {
       farmer.intentions!.queue.push({
         kind: "travel",
         data: { targetTile: { x: nearest.tileX, y: nearest.tileY } },

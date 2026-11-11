@@ -170,10 +170,7 @@ export const ANTAG_VERBS = ["steal", "sabotage", "rumor", "attack"] as const;
 /** Sums a snapshot's cumulative `socialCounts` over the given verb list —
  *  used both directly (for a running total) and diffed between two samples
  *  (for a per-window delta, see `sampler.ts`). */
-export function sumSocialCounts(
-  socialCounts: Readonly<Record<string, number>>,
-  verbs: readonly string[],
-): number {
+export function sumSocialCounts(socialCounts: Readonly<Record<string, number>>, verbs: readonly string[]): number {
   let total = 0;
   for (const verb of verbs) total += socialCounts[verb] ?? 0;
   return total;

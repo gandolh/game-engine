@@ -1,9 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  serializeRun,
-  parseRun,
-  type RunDescriptor,
-} from "./run-descriptor";
+import { serializeRun, parseRun, type RunDescriptor } from "./run-descriptor";
 
 const FIRST: RunDescriptor = { seed: 0xc0ffee, maxDays: 100, ticksPerDay: 20 };
 const SAMPLES: RunDescriptor[] = [

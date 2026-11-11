@@ -37,9 +37,9 @@ function dayFrames(): Map<string, RasterizedRecipe> {
 }
 
 const GRID = 48; // normalized silhouette resolution — fine enough that small
-                 // top-structure detail (a lookout gallery, a mine headframe, a
-                 // roof cross) registers, so same-footprint types still separate;
-                 // still coarse/uniform-scaled enough to be size-independent.
+// top-structure detail (a lookout gallery, a mine headframe, a
+// roof cross) registers, so same-footprint types still separate;
+// still coarse/uniform-scaled enough to be size-independent.
 
 /** Downsample a rendered frame's opaque mask to a GRID×GRID occupancy grid (0/1).
  *  A cell is "on" if ANY source pixel mapping into it is opaque. Size-independent. */
@@ -127,7 +127,8 @@ describe("art-04 isometry (base-square, narrowing upward)", () => {
     const maxWidthInBand = (r: RasterizedRecipe, y0: number, y1: number): number => {
       let best = 0;
       for (let y = y0; y < y1; y++) {
-        let min = -1, max = -1;
+        let min = -1,
+          max = -1;
         for (let x = 0; x < r.width; x++) {
           if (r.rgba[(y * r.width + x) * 4 + 3]! === 0) continue;
           if (min < 0) min = x;

@@ -74,9 +74,7 @@ describe("createGlDevice3d", () => {
   it("throws a clear, catchable error when webgl2 is unavailable", () => {
     const canvas = new FakeCanvas(null);
     expect(() => createGlDevice3d(canvas as unknown as HTMLCanvasElement)).toThrow(/render3d/i);
-    expect(() => createGlDevice3d(canvas as unknown as HTMLCanvasElement)).toThrow(
-      /webgl2 context unavailable/i,
-    );
+    expect(() => createGlDevice3d(canvas as unknown as HTMLCanvasElement)).toThrow(/webgl2 context unavailable/i);
   });
 
   it("creates a GlDevice3d, enabling depth test + cull face, on success", () => {

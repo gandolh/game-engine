@@ -85,9 +85,7 @@ export class ParticleBatch {
       this.stagingData[base + 1] = v.y;
       this.stagingData[base + 2] = v.size;
       this.stagingData[base + 3] =
-        v.shape === "circle" ? SHAPE_ID_CIRCLE :
-        v.shape === "rect" ? SHAPE_ID_RECT :
-        SHAPE_ID_STAR;
+        v.shape === "circle" ? SHAPE_ID_CIRCLE : v.shape === "rect" ? SHAPE_ID_RECT : SHAPE_ID_STAR;
 
       this.stagingData[base + 4] = v.r / 255;
       this.stagingData[base + 5] = v.g / 255;

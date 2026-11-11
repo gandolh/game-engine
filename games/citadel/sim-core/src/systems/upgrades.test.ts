@@ -17,11 +17,7 @@ import { bootstrapSim } from "../sim-bootstrap";
 import { TerrainType, WORLD_WIDTH, WORLD_HEIGHT } from "../world/terrain";
 import type { TerrainGrid } from "../world/terrain";
 import type { CitadelCommand } from "../snapshot/index";
-import {
-  effectiveDefenseStrength,
-  getProductionDef,
-  PRODUCTION_DEFS,
-} from "../entities/building";
+import { effectiveDefenseStrength, getProductionDef, PRODUCTION_DEFS } from "../entities/building";
 
 const TPD = 20;
 
@@ -40,7 +36,10 @@ function findGrass(terrain: TerrainGrid, w: number, h: number, sx: number, sy: n
         for (let yy = 0; yy < h && ok; yy++)
           for (let xx = 0; xx < w; xx++) {
             const t = terrain.cells[(y + yy) * terrain.width + (x + xx)];
-            if (t !== TerrainType.Grass) { ok = false; break; }
+            if (t !== TerrainType.Grass) {
+              ok = false;
+              break;
+            }
           }
         if (ok) return { x, y };
       }

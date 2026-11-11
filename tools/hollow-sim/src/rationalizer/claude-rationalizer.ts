@@ -233,7 +233,11 @@ export function createClaudeRationalizer(opts: ClaudeRationalizerOptions): Ratio
       try {
         parsed = JSON.parse(textBlock.text);
       } catch {
-        deliver({ request, response: null, error: `provider text block was not valid JSON: ${textBlock.text.slice(0, 200)}` });
+        deliver({
+          request,
+          response: null,
+          error: `provider text block was not valid JSON: ${textBlock.text.slice(0, 200)}`,
+        });
         return;
       }
       deliver({ request, response: parsed });

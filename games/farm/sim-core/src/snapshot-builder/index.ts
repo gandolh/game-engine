@@ -1,4 +1,3 @@
-
 export { HIGHLIGHT_THRESHOLD, INTENTION_KIND_TO_GLYPH } from "./constants";
 export { buildObserverSnapshot, countEntities } from "./observer";
 export { buildLeaderboardRows, buildRelationshipsData, buildRivalriesData, buildWealthSeries } from "./panels";

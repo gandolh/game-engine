@@ -3,10 +3,7 @@ import { World } from "@engine/core";
 import { isFarmerMoving, buildStaticLayerSprites } from "./render-systems";
 import type { GameEntity } from "./components";
 
-function makeFarmerEntity(opts: {
-  personality: string;
-  traveling: boolean;
-}): GameEntity {
+function makeFarmerEntity(opts: { personality: string; traveling: boolean }): GameEntity {
   const baseFrame = `farmer/${opts.personality}`;
   return {
     sprite: {
@@ -58,7 +55,7 @@ describe("isFarmerMoving", () => {
   it("reverts to not-moving once the path clears", () => {
     const entity = makeFarmerEntity({ personality: "hoarder", traveling: true });
     expect(isFarmerMoving(entity)).toBe(true);
-    entity.farmer!.path = undefined; 
+    entity.farmer!.path = undefined;
     expect(isFarmerMoving(entity)).toBe(false);
   });
 });
@@ -94,9 +91,9 @@ describe("buildStaticLayerSprites (cached backdrop)", () => {
     expect(frames.has("tile/ocean")).toBe(false);
 
     expect(frames.has("tile/bridge-h")).toBe(false);
-    expect(frames.has("tile/wall")).toBe(true); 
-    expect(frames.has("tile/wall-wood")).toBe(true); 
-    expect(frames.has("tile/shore-sand")).toBe(true); 
+    expect(frames.has("tile/wall")).toBe(true);
+    expect(frames.has("tile/wall-wood")).toBe(true);
+    expect(frames.has("tile/shore-sand")).toBe(true);
     expect(frames.has("tile/fence-h")).toBe(false);
     expect(frames.has("tile/coral-fill")).toBe(true);
     expect(frames.has("tile/coral-edge")).toBe(true);

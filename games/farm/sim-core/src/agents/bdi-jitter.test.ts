@@ -1,4 +1,3 @@
-
 import { describe, it, expect } from "vitest";
 import { bakeBdiJitter } from "./bdi-jitter";
 import type { FarmerSpec } from "../world-setup";

@@ -86,13 +86,13 @@ describe("well prevention lever — coveredFraction scales onset probability", (
       return onsetCount / TRIALS;
     }
 
-    const rateNoWell = empiricalOnsetRate(false, 0xA11CE0);
-    const rateFullWell = empiricalOnsetRate(true, 0xA11CE1);
+    const rateNoWell = empiricalOnsetRate(false, 0xa11ce0);
+    const rateFullWell = empiricalOnsetRate(true, 0xa11ce1);
 
     // Binomial 4-5 sigma bands around the theoretical 0.48 / 0.24 (n=1000: sd
     // ~0.016 / ~0.014) — generous enough to never flake, tight enough to catch
     // a broken multiplier.
-    expect(rateNoWell).toBeGreaterThan(0.40);
+    expect(rateNoWell).toBeGreaterThan(0.4);
     expect(rateNoWell).toBeLessThan(0.56);
     expect(rateFullWell).toBeGreaterThan(0.16);
     expect(rateFullWell).toBeLessThan(0.32);
@@ -104,7 +104,7 @@ describe("well prevention lever — coveredFraction scales onset probability", (
 
   it("partial coverage (half the homes) sits between zero and full coverage", () => {
     const TRIALS = 1000;
-    const state = freshState(0xA11CE2);
+    const state = freshState(0xa11ce2);
     const p = state.players[0]!;
     // Two houses; the well only covers one of them (centred on house A, far from B).
     spawnHouse(state, 20, 20); // centre (21, 21) -- covered
@@ -124,7 +124,7 @@ describe("well prevention lever — coveredFraction scales onset probability", (
     }
     const rate = onsetCount / TRIALS;
     // coveredFraction = 0.5 -> onsetChance = 0.36 * (1 - 0.25) = 0.27.
-    expect(rate).toBeGreaterThan(0.20);
+    expect(rate).toBeGreaterThan(0.2);
     expect(rate).toBeLessThan(0.34);
   });
 
@@ -148,13 +148,13 @@ describe("well prevention lever — coveredFraction scales onset probability", (
       }
       return onsetCount / TRIALS;
     }
-    const rateNoWell = empiricalOnsetRate(false, 0xA11CE3);
-    const rateFarWell = empiricalOnsetRate(true, 0xA11CE4);
+    const rateNoWell = empiricalOnsetRate(false, 0xa11ce3);
+    const rateFarWell = empiricalOnsetRate(true, 0xa11ce4);
     // Both should land on the same ~0.48 theoretical rate (independent RNG
     // streams, so allow the same generous band rather than comparing directly).
-    expect(rateNoWell).toBeGreaterThan(0.40);
+    expect(rateNoWell).toBeGreaterThan(0.4);
     expect(rateNoWell).toBeLessThan(0.56);
-    expect(rateFarWell).toBeGreaterThan(0.40);
+    expect(rateFarWell).toBeGreaterThan(0.4);
     expect(rateFarWell).toBeLessThan(0.56);
   });
 });
@@ -251,12 +251,12 @@ describe("onset draw count — exactly one draw per un-deferred day", () => {
   it("advances the rng by exactly N draws over N days, with or without a well", () => {
     const DAYS = 25;
     const expectedDelta = (DAYS * STEP) >>> 0;
-    expect(onsetOnlyDrawDelta(false, DAYS, 0xD2A0)).toBe(expectedDelta);
-    expect(onsetOnlyDrawDelta(true, DAYS, 0xD2A1)).toBe(expectedDelta);
+    expect(onsetOnlyDrawDelta(false, DAYS, 0xd2a0)).toBe(expectedDelta);
+    expect(onsetOnlyDrawDelta(true, DAYS, 0xd2a1)).toBe(expectedDelta);
   });
 
   it("the defer gate short-circuits BEFORE any draw (zero draws while parked)", () => {
-    const state = freshState(0xD2A2);
+    const state = freshState(0xd2a2);
     const p = state.players[0]!;
     spawnHouse(state, 20, 20);
     p.population = 5;
@@ -354,16 +354,16 @@ describe("healer legibility — start/end event copy", () => {
   }
 
   it("cozy start: appends healer copy iff healerNear, base copy unchanged otherwise", () => {
-    const noHealer = onsetEvent(false, true, 0xF00D0);
-    const withHealer = onsetEvent(true, true, 0xF00D1);
+    const noHealer = onsetEvent(false, true, 0xf00d0);
+    const withHealer = onsetEvent(true, true, 0xf00d1);
     expect(noHealer).toContain("under the weather.");
     expect(noHealer).not.toContain("tending the sick");
     expect(withHealer).toContain("under the weather. The healer is tending the sick.");
   });
 
   it("sharp start: appends healer copy iff healerNear, keeps 'disease outbreak' substring intact", () => {
-    const noHealer = onsetEvent(false, false, 0xF00D2);
-    const withHealer = onsetEvent(true, false, 0xF00D3);
+    const noHealer = onsetEvent(false, false, 0xf00d2);
+    const withHealer = onsetEvent(true, false, 0xf00d3);
     expect(noHealer).toContain("disease outbreak!");
     expect(noHealer).not.toContain("A healer is nearby");
     expect(withHealer).toContain("disease outbreak!");
@@ -373,16 +373,16 @@ describe("healer legibility — start/end event copy", () => {
   });
 
   it("cozy end: swaps in a dedicated thank-you line iff healerNear, base copy unchanged otherwise", () => {
-    const noHealer = endEvent(false, true, 0xF00D4);
-    const withHealer = endEvent(true, true, 0xF00D5);
+    const noHealer = endEvent(false, true, 0xf00d4);
+    const withHealer = endEvent(true, true, 0xf00d5);
     expect(noHealer).toContain("back on its feet.");
     expect(noHealer).not.toContain("thank the healer");
     expect(withHealer).toContain("back on its feet — thank the healer.");
   });
 
   it("sharp end: appends healer copy iff healerNear, keeps 'disease outbreak ended' substring intact", () => {
-    const noHealer = endEvent(false, false, 0xF00D6);
-    const withHealer = endEvent(true, false, 0xF00D7);
+    const noHealer = endEvent(false, false, 0xf00d6);
+    const withHealer = endEvent(true, false, 0xf00d7);
     expect(noHealer).toContain("disease outbreak ended.");
     expect(noHealer).not.toContain("The healer helped");
     expect(withHealer).toContain("disease outbreak ended.");

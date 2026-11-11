@@ -11,10 +11,23 @@ import { computeWash } from "./atmosphere";
 
 function building(type: string, x: number, y: number, w: number, h: number): BuildingSnapshot {
   return {
-    type, x, y, w, h,
-    connected: true, outputBuffer: 0, workerCount: 1, occupancy: 1, ownerId: 0,
-    onFire: false, burning: false,
-    level: 1, lacksFaith: false, lacksSafety: false, lacksGoods: false, mood: 85,
+    type,
+    x,
+    y,
+    w,
+    h,
+    connected: true,
+    outputBuffer: 0,
+    workerCount: 1,
+    occupancy: 1,
+    ownerId: 0,
+    onFire: false,
+    burning: false,
+    level: 1,
+    lacksFaith: false,
+    lacksSafety: false,
+    lacksGoods: false,
+    mood: 85,
     wellServed: true,
   };
 }
@@ -49,7 +62,12 @@ export async function runCard(canvas: HTMLCanvasElement, terrain: TerrainGrid): 
     villager(4, x + 1, y + 4, "miller"),
   ];
   // Frame the town: the iso box round its tiles, with a margin.
-  const corners = [iso.tileCenterToIso(x - 2, y - 1), iso.tileCenterToIso(x + CORE_BOX_W, y - 1), iso.tileCenterToIso(x - 2, y + CORE_BOX_H + 3), iso.tileCenterToIso(x + CORE_BOX_W, y + CORE_BOX_H + 3)];
+  const corners = [
+    iso.tileCenterToIso(x - 2, y - 1),
+    iso.tileCenterToIso(x + CORE_BOX_W, y - 1),
+    iso.tileCenterToIso(x - 2, y + CORE_BOX_H + 3),
+    iso.tileCenterToIso(x + CORE_BOX_W, y + CORE_BOX_H + 3),
+  ];
   const minX = Math.min(...corners.map((c) => c.x));
   const maxX = Math.max(...corners.map((c) => c.x));
   const minY = Math.min(...corners.map((c) => c.y)) - 48; // room for the tallest roofs

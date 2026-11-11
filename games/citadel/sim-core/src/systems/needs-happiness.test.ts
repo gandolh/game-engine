@@ -18,15 +18,7 @@ import { NeedsHappinessSystem } from "./needs-happiness";
 
 const TICKS_PER_DAY = 20;
 
-function addBuilding(
-  state: SimState,
-  type: string,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  ownerId = 0,
-): number {
+function addBuilding(state: SimState, type: string, x: number, y: number, w: number, h: number, ownerId = 0): number {
   const entity = state.buildingWorld.spawn({ building: { type, x, y, w, h, ownerId } });
   const rs: BuildingRuntimeState = {
     outputBuffer: 0,
@@ -130,9 +122,9 @@ describe("NeedsHappinessSystem — per-house mood/coverage", () => {
     sim.stockpiles.grain = 10;
 
     const id = addBuilding(state, "house", 30, 30, 2, 2); // centre (31,31)
-    addBuilding(state, "chapel", 32, 30, 2, 2);    // centre (33,31) dist 2
+    addBuilding(state, "chapel", 32, 30, 2, 2); // centre (33,31) dist 2
     addBuilding(state, "watchpost", 30, 32, 2, 2); // centre (31,33) dist 2
-    addBuilding(state, "market", 32, 32, 2, 2);    // centre (33,33) dist 4
+    addBuilding(state, "market", 32, 32, 2, 2); // centre (33,33) dist 4
 
     // Phase B Chunk 1: mood now EASES toward its target (100) rather than
     // snapping; let it settle over several days to reach the cap.
@@ -212,7 +204,7 @@ describe("NeedsHappinessSystem — stateful asymmetric happiness (Phase B Chunk 
   it("a drop falls SLOWER than the same-magnitude recovery rises (recover > decay)", () => {
     // Same 20-point gap: how far does one day's ease move up vs down?
     const recoverStep = Math.round(80 + (100 - 80) * RECOVERY) - 80; // rise from 80→target 100
-    const decayStep = 100 - Math.round(100 + (80 - 100) * DECAY);    // fall from 100→target 80
+    const decayStep = 100 - Math.round(100 + (80 - 100) * DECAY); // fall from 100→target 80
     expect(recoverStep).toBeGreaterThan(decayStep);
   });
 

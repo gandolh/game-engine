@@ -17,10 +17,7 @@ function makeCarpenter(world: World<GameEntity>): GameEntity {
   });
 }
 
-function makeFarmer(
-  world: World<GameEntity>,
-  opts: { wood?: number } = {},
-): GameEntity {
+function makeFarmer(world: World<GameEntity>, opts: { wood?: number } = {}): GameEntity {
   return world.spawn({
     farmer: { name: "Atticus", currentRegion: "carpentry" as const, homeRegion: "farm-atticus" as const },
     fsm: { current: "ACT" as FarmerFsmState, enteredTick: 0 },
@@ -56,11 +53,11 @@ describe("CarpenterSystem", () => {
   });
 
   it("delivers a commissioned decoration after the build-time and escrows the wood", () => {
-    const farmer = makeFarmer(world, { wood: 5 }); 
+    const farmer = makeFarmer(world, { wood: 5 });
     commission(world, carpenter, farmer.id!, "scarecrow");
 
     sys.run({ tick: 0 } as never);
-    expect(farmer.resources!.wood).toBe(2); 
+    expect(farmer.resources!.wood).toBe(2);
     expect([...world.query("farmDecoration")].length).toBe(0);
     expect(carpenter.carpenter!.pending!.length).toBe(1);
 
@@ -74,10 +71,10 @@ describe("CarpenterSystem", () => {
   });
 
   it("rejects a commission when the farmer lacks the wood (no escrow, no build)", () => {
-    const farmer = makeFarmer(world, { wood: 1 }); 
+    const farmer = makeFarmer(world, { wood: 1 });
     commission(world, carpenter, farmer.id!, "scarecrow");
     sys.run({ tick: 0 } as never);
-    expect(farmer.resources!.wood).toBe(1); 
+    expect(farmer.resources!.wood).toBe(1);
     expect(carpenter.carpenter!.pending ?? []).toHaveLength(0);
   });
 
@@ -113,9 +110,7 @@ describe("CarpenterSystem", () => {
     for (let t = 1; t <= COMMISSION_BUILD_TICKS; t++) sys.run({ tick: t } as never);
 
     expect(farmer.resources!.wood).toBe(5);
-    expect(
-      [...world.query("farmDecoration")].filter((d) => d.farmDecoration!.ownerId === farmer.id),
-    ).toHaveLength(0);
+    expect([...world.query("farmDecoration")].filter((d) => d.farmDecoration!.ownerId === farmer.id)).toHaveLength(0);
   });
 
   it("end-to-end: a commission-build act drives a delivered structure", () => {

@@ -60,9 +60,9 @@ function terraceRing(inset: number, top: number, mat: MaterialKey): Mesh {
  * ground — with a timber hoist crane over it and cut stone blocks on the rim.
  */
 export function quarry(): MeshModel {
-  const rim = terraceRing(0.0, 0.55, "stone");    // outer rim (highest)
-  const step1 = terraceRing(0.3, 0.38, "stone");  // first terrace down
-  const step2 = terraceRing(0.58, 0.22, "pit");   // second terrace (darker)
+  const rim = terraceRing(0.0, 0.55, "stone"); // outer rim (highest)
+  const step1 = terraceRing(0.3, 0.38, "stone"); // first terrace down
+  const step2 = terraceRing(0.58, 0.22, "pit"); // second terrace (darker)
   const floor = translate(box([0.44, 0.44, 0.08], "pit"), [0.78, 0.78, 0]); // deep floor
   // Timber hoist crane spanning the pit.
   const postA = translate(cylinder(0.05, 1.25, 6, "timber"), [0.55, 1.0, 0]);
@@ -74,7 +74,10 @@ export function quarry(): MeshModel {
   const blockA = translate(box([0.28, 0.28, 0.22], "stone"), [0.12, 1.58, 0.55]);
   const blockB = translate(box([0.24, 0.24, 0.18], "stone"), [1.62, 0.16, 0.55]);
   return {
-    name: "bld/quarry", footprintW: 2, footprintD: 2, heightTiles: 1,
+    name: "bld/quarry",
+    footprintW: 2,
+    footprintD: 2,
+    heightTiles: 1,
     mesh: merge(rim, step1, step2, floor, postA, postB, beam, rope, hook, blockA, blockB),
   };
 }
@@ -84,13 +87,21 @@ export function mine(): MeshModel {
   const hut = translate(box([1.0, 1.4, 1.5], "stone"), [0.15, 0.25, 0]);
   const hutRoof = translate(gable([1.2, 1.6, 0.55], "y", "darkwood"), [0.05, 0.05, 1.5]);
   // Headframe: a tall square timber tower over the mouth, front-right.
-  const legAt: Vec3[] = [[1.2, 1.0, 0], [1.7, 1.0, 0], [1.2, 1.5, 0], [1.7, 1.5, 0]];
+  const legAt: Vec3[] = [
+    [1.2, 1.0, 0],
+    [1.7, 1.0, 0],
+    [1.2, 1.5, 0],
+    [1.7, 1.5, 0],
+  ];
   const legs = legAt.map((p) => translate(cylinder(0.06, 3.0, 6, "timber"), [p[0], p[1], 0]));
   const head = translate(box([0.62, 0.62, 0.34], "timber"), [1.14, 0.94, 3.0]);
   const wheel = translate(disc(0.22, 0.1, 10, "darkwood"), [1.78, 1.25, 2.75]);
   const mouth = translate(box([0.5, 0.5, 0.16], "darkwood"), [1.2, 1.0, 0]);
   return {
-    name: "bld/mine", footprintW: 2, footprintD: 2, heightTiles: 2,
+    name: "bld/mine",
+    footprintW: 2,
+    footprintD: 2,
+    heightTiles: 2,
     mesh: merge(hut, hutRoof, ...legs, head, wheel, mouth),
   };
 }

@@ -1,12 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  linear,
-  smoothstep,
-  easeOutQuad,
-  easeOutCubic,
-  easeOutBack,
-  easeOutElastic,
-} from "./easing";
+import { linear, smoothstep, easeOutQuad, easeOutCubic, easeOutBack, easeOutElastic } from "./easing";
 
 describe("easing functions", () => {
   it("all pin the endpoints 0→0 and 1→1", () => {

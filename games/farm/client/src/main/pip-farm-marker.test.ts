@@ -1,10 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { getRegion } from "@farm/sim-core/world/regions";
-import {
-  PIP_FARM_MARKER_ZOOM_THRESHOLD,
-  shouldShowPipFarmMarker,
-  pipFarmWorldAnchor,
-} from "./pip-farm-marker";
+import { PIP_FARM_MARKER_ZOOM_THRESHOLD, shouldShowPipFarmMarker, pipFarmWorldAnchor } from "./pip-farm-marker";
 import { TILE, DEFAULT_ZOOM } from "./config";
 import { MIN_ZOOM, MAX_ZOOM } from "@engine/core";
 

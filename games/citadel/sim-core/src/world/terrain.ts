@@ -229,7 +229,11 @@ export function riverColAtRow(seed: number, ty: number, w: number = WORLD_WIDTH,
  * align with the coherent edge gaps. Both are clamped a couple tiles inside the
  * border so a full-width river band stays on-map.
  */
-export function edgeWaterColumns(seed: number, w: number = WORLD_WIDTH, h: number = WORLD_HEIGHT): readonly [number, number] {
+export function edgeWaterColumns(
+  seed: number,
+  w: number = WORLD_WIDTH,
+  h: number = WORLD_HEIGHT,
+): readonly [number, number] {
   const { centerX, amplitude, freq, width } = riverParams(seed, w);
   const margin = Math.ceil(width) + 1;
   const lo = margin;
@@ -266,14 +270,7 @@ interface ResourceBlob {
  * byte-identical. Centers are kept a few tiles inside the border so most of each
  * blob lands on-map.
  */
-function placeBlobs(
-  rng: Rng,
-  count: number,
-  minR: number,
-  maxR: number,
-  w: number,
-  h: number,
-): ResourceBlob[] {
+function placeBlobs(rng: Rng, count: number, minR: number, maxR: number, w: number, h: number): ResourceBlob[] {
   const margin = 4;
   const blobs: ResourceBlob[] = [];
   for (let i = 0; i < count; i++) {
@@ -293,11 +290,7 @@ function placeBlobs(
  * Generate a deterministic 96×96 terrain grid from a seed.
  * Same seed → identical grid; different seeds → different grids.
  */
-export function generateTerrain(
-  seed: number,
-  width: number = WORLD_WIDTH,
-  height: number = WORLD_HEIGHT,
-): TerrainGrid {
+export function generateTerrain(seed: number, width: number = WORLD_WIDTH, height: number = WORLD_HEIGHT): TerrainGrid {
   const cells = new Uint8Array(width * height);
 
   // Separate noise instances for different layers
@@ -336,7 +329,7 @@ export function generateTerrain(
   // nearest grove. The counts below (5 groves / 3 veins) were tuned against
   // 96×96, so 96×96 is what they must stay relative to.
   const clusterRng = createRng(seed).fork("resource-clusters");
-  const areaScale = (width * height) / (RESOURCE_DENSITY_REFERENCE_AREA);
+  const areaScale = (width * height) / RESOURCE_DENSITY_REFERENCE_AREA;
   const forestCount = Math.max(3, Math.round(5 * areaScale));
   const stoneCount = Math.max(2, Math.round(3 * areaScale));
   const forestBlobs = placeBlobs(clusterRng, forestCount, 5, 9, width, height);

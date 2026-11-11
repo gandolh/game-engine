@@ -60,12 +60,7 @@ export function clampAlpha(t: number): number {
  * extrapolate" contract. `intervalMs <= 0` (no measured interval yet, or a
  * degenerate one) returns `1` rather than dividing by zero.
  */
-export function computeSnapshotAlpha(
-  nowMs: number,
-  arrivalMs: number,
-  intervalMs: number,
-  delayMs = 0,
-): number {
+export function computeSnapshotAlpha(nowMs: number, arrivalMs: number, intervalMs: number, delayMs = 0): number {
   if (intervalMs <= 0) return 1;
   return clampAlpha((nowMs - arrivalMs - delayMs) / intervalMs);
 }

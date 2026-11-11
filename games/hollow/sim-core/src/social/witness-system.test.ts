@@ -107,9 +107,9 @@ describe("HollowSocialWitnessSystem", () => {
       6,
     );
     // Distance decay: the connected-but-far witness is affected LESS than the near one...
-    expect(
-      0.5 - distantConnectedWitness.relationships!.byId.get(target.id)!,
-    ).toBeLessThan(0.5 - nearbyWitness.relationships!.byId.get(target.id)!);
+    expect(0.5 - distantConnectedWitness.relationships!.byId.get(target.id)!).toBeLessThan(
+      0.5 - nearbyWitness.relationships!.byId.get(target.id)!,
+    );
     // ...and the distant, unconnected witness isn't affected at all.
     expect(distantUnconnectedWitness.relationships!.byId.get(target.id) ?? 0.5).toBe(0.5);
     // Neither the spreader nor the target themselves are touched by this fold.
@@ -123,7 +123,9 @@ describe("HollowSocialWitnessSystem", () => {
     victim.inventory!.goods[GOOD_FOOD] = 10;
     const witness = h.spawn(1, 0); // within WITNESS_PROXIMITY_TILES
 
-    thief.intentions!.queue = [{ kind: "steal", data: { targetId: victim.id, good: GOOD_FOOD, amount: 5 }, priority: 1 }];
+    thief.intentions!.queue = [
+      { kind: "steal", data: { targetId: victim.id, good: GOOD_FOOD, amount: 5 }, priority: 1 },
+    ];
     h.step(0); // ACT executes the steal (forced-detected) and emits STEAL_DETECTED
     expect(victim.relationships!.byId.get(thief.id)!).toBeLessThan(0.5); // direct hit, same tick
     h.step(1); // witness folds the buffered STEAL_DETECTED

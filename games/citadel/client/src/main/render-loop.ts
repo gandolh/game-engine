@@ -30,12 +30,7 @@ import {
   wellServedPulse,
 } from "../render/citadel-fx";
 import { computeWash, dayFractionOf, nightFactorOf, emittersOf, lightPoolQuads } from "../render/atmosphere";
-import {
-  serviceTint,
-  serviceCatchment,
-  coverageByNeed,
-  uncoveredHouseTiles,
-} from "../render/coverage";
+import { serviceTint, serviceCatchment, coverageByNeed, uncoveredHouseTiles } from "../render/coverage";
 import { findSelected } from "../ui/selection";
 import { MINIMAP_FACE } from "../ui/minimap";
 import { CITADEL_THEME } from "../ui/citadel-theme";
@@ -44,7 +39,18 @@ import { canvas } from "./dom";
 import { camera, renderer, iso } from "./renderer-state";
 import { terrain } from "./terrain";
 import { placementState } from "./placement-wiring";
-import { renderToggles, particles, smoke, fire, appearAt, burningSince, villagerInterp, raiderInterp, weather, ambientCrowd } from "./fx";
+import {
+  renderToggles,
+  particles,
+  smoke,
+  fire,
+  appearAt,
+  burningSince,
+  villagerInterp,
+  raiderInterp,
+  weather,
+  ambientCrowd,
+} from "./fx";
 import { toasts, occupancyBadges } from "./hud-wiring";
 import {
   currentBuildings,
@@ -144,18 +150,36 @@ export function loop(): void {
   // computeLayout + a11y-mirror reconcile behind it (see the HUD submit block below).
   // renderTree + surface.begin/end still run EVERY frame (the UI layer is re-submitted each
   // frame). undefined on the first frame(s) before boot — treat that as "no HUD to lay out".
-  const hudContentChanged = hud?.refresh({
-    tier, day, season, population, popCap,
-    stockpiles, foodSurplus, happiness, paused, speed, isHost,
-  }) ?? false;
+  const hudContentChanged =
+    hud?.refresh({
+      tier,
+      day,
+      season,
+      population,
+      popCap,
+      stockpiles,
+      foodSurplus,
+      happiness,
+      paused,
+      speed,
+      isHost,
+    }) ?? false;
   // Chunk 1A (brief 106): the siege/hazard HUD (former Phase 4 + 4.5 DOM readouts) + the
   // placement-mode label (former #lbl-mode), now a SECOND in-canvas UI root. Same
   // refresh()-returns-layout-changed gating as the resource HUD above; its layout + draw runs
   // alongside the resource HUD's, further down (siegeHud may be undefined pre-boot).
-  const siegeContentChanged = siegeHud?.refresh({
-    threatLevel, nextRaidDay, defensiveStrength, keepPresent, keepSacked,
-    activeFires, outbreakActive, sickVillagers, modeText: modeLabelText,
-  }) ?? false;
+  const siegeContentChanged =
+    siegeHud?.refresh({
+      threatLevel,
+      nextRaidDay,
+      defensiveStrength,
+      keepPresent,
+      keepSacked,
+      activeFires,
+      outbreakActive,
+      sickVillagers,
+      modeText: modeLabelText,
+    }) ?? false;
 
   // --- Render clock (performance.now is main-thread only — never the sim).
   const nowMs = performance.now();
@@ -212,10 +236,7 @@ export function loop(): void {
       const fp = villagerInterp.positionOf(followId, interpPhase, fv.x, fv.y);
       const targetX = fp.x * TILE_SIZE + TILE_SIZE / 2;
       const targetY = fp.y * TILE_SIZE + TILE_SIZE / 2;
-      camera.setCenter(
-        expSmooth(camera.centerX, targetX, 6, dt),
-        expSmooth(camera.centerY, targetY, 6, dt),
-      );
+      camera.setCenter(expSmooth(camera.centerX, targetX, 6, dt), expSmooth(camera.centerY, targetY, 6, dt));
     }
   }
 
@@ -241,7 +262,15 @@ export function loop(): void {
   // is already on-window before its origin tile crosses the visible edge, so
   // nothing visibly pops in/out while panning. `worldUnitsX/Y` already bake in
   // zoom (`fitCameraToCanvas` divides by it), so zoom=1.
-  const visibleWindow = visibleTileWindow(iso, camera.centerX, camera.centerY, camera.worldUnitsX, camera.worldUnitsY, 1, WINDOW_PAD);
+  const visibleWindow = visibleTileWindow(
+    iso,
+    camera.centerX,
+    camera.centerY,
+    camera.worldUnitsX,
+    camera.worldUnitsY,
+    1,
+    WINDOW_PAD,
+  );
 
   pushScene(
     renderer,
@@ -331,7 +360,7 @@ export function loop(): void {
     // touches determinism; a ~2.4s period keeps it gentle, not attention-grabbing.
     const invited = uncoveredHouseTiles(currentBuildings);
     if (invited.length > 0) {
-      const lit = Math.sin((nowMs / 1000) * (Math.PI * 2 / 2.4)) > 0;
+      const lit = Math.sin((nowMs / 1000) * ((Math.PI * 2) / 2.4)) > 0;
       const pulseTiles = invited.map((t) => ({ tx: t.tx, ty: t.ty, edge: lit }));
       pushCatchment(renderer, iso, pulseTiles, EDG.cream);
     }

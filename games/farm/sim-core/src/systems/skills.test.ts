@@ -27,14 +27,13 @@ describe("skill curve (pure)", () => {
       prev = lv;
     }
     expect(skillLevel(SKILL_LEVEL_XP[MAX_SKILL_LEVEL - 1]!)).toBe(MAX_SKILL_LEVEL);
-    expect(skillLevel(1_000_000)).toBe(MAX_SKILL_LEVEL); 
+    expect(skillLevel(1_000_000)).toBe(MAX_SKILL_LEVEL);
   });
 
   it("each threshold lands exactly on its level boundary", () => {
     for (let level = 1; level <= MAX_SKILL_LEVEL; level++) {
       expect(skillLevel(SKILL_LEVEL_XP[level - 1]!)).toBe(level);
       if (level > 1) {
-
         expect(skillLevel(SKILL_LEVEL_XP[level - 1]! - 1)).toBe(level - 1);
       }
     }
@@ -62,7 +61,7 @@ describe("skill bonuses (pure, monotonic, gentle)", () => {
 
   it("fishing rarity bonus rises 0 → 0.30", () => {
     expect(fishingRarityBonus(0)).toBe(0);
-    expect(fishingRarityBonus(maxXp)).toBeCloseTo(0.30);
+    expect(fishingRarityBonus(maxXp)).toBeCloseTo(0.3);
   });
 
   it("mining rarity bonus rises 0 → 0.15", () => {
@@ -72,7 +71,7 @@ describe("skill bonuses (pure, monotonic, gentle)", () => {
 
   it("foraging gold multiplier rises 1.0 → 1.40", () => {
     expect(foragingGoldMultiplier(0)).toBe(1);
-    expect(foragingGoldMultiplier(maxXp)).toBeCloseTo(1.40);
+    expect(foragingGoldMultiplier(maxXp)).toBeCloseTo(1.4);
   });
 });
 
@@ -98,17 +97,24 @@ describe("grantSkillXp", () => {
 
 describe("farming skill measurably raises quality odds (deterministic)", () => {
   it("a high-farming farmer earns more Silver/Gold over the same plots + seed than a novice", () => {
-
     const N = 200;
     const novice = createRng(7).fork("crop-quality");
     const master = createRng(7).fork("crop-quality");
     let noviceUp = 0;
     let masterUp = 0;
 
-    const inputs = [3, 4, 2.4, 1, 0] as const; 
+    const inputs = [3, 4, 2.4, 1, 0] as const;
     for (let i = 0; i < N; i++) {
       const qN = computeQuality(inputs[0], inputs[1], inputs[2], inputs[3], inputs[4], novice, 0);
-      const qM = computeQuality(inputs[0], inputs[1], inputs[2], inputs[3], inputs[4], master, farmingQualityBonus(SKILL_LEVEL_XP[MAX_SKILL_LEVEL - 1]!));
+      const qM = computeQuality(
+        inputs[0],
+        inputs[1],
+        inputs[2],
+        inputs[3],
+        inputs[4],
+        master,
+        farmingQualityBonus(SKILL_LEVEL_XP[MAX_SKILL_LEVEL - 1]!),
+      );
       if (qN !== "normal") noviceUp++;
       if (qM !== "normal") masterUp++;
     }

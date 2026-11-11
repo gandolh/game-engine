@@ -23,14 +23,13 @@ export function deliberateBuildPen(
   const goldDue = wood >= recipe.woodCost ? recipe.goldCost - recipe.goldDiscount : recipe.goldCost;
   if (farmer.inventory.gold - goldDue < reserve) return;
 
-  if (farmer.intentions.queue.some(i => i.kind === "build-pen" && i.data.penKind === penKind)) return;
+  if (farmer.intentions.queue.some((i) => i.kind === "build-pen" && i.data.penKind === penKind)) return;
 
   const inCarpentry = farmer.farmer.currentRegion === "carpentry";
   if (!inCarpentry) {
     const wanted = travelPriority ?? priority + 1;
-    const existing = farmer.intentions.queue.find(i => i.kind === "travel" && i.data.targetRegionId === "carpentry");
+    const existing = farmer.intentions.queue.find((i) => i.kind === "travel" && i.data.targetRegionId === "carpentry");
     if (existing) {
-
       if (wanted < existing.priority) existing.priority = wanted;
     } else {
       farmer.intentions.queue.push({
@@ -67,14 +66,13 @@ export function deliberateBuyAnimal(
   const cost = ANIMAL_BUY_COST[animal];
   if (farmer.inventory.gold - cost < reserve) return;
 
-  if (farmer.intentions.queue.some(i => i.kind === "buy-animal" && i.data.animal === animal)) return;
-  const penCount = farmer.beliefs?.data["penCount_" + animal] as number | undefined ?? 0;
+  if (farmer.intentions.queue.some((i) => i.kind === "buy-animal" && i.data.animal === animal)) return;
+  const penCount = (farmer.beliefs?.data["penCount_" + animal] as number | undefined) ?? 0;
   if (penCount >= 3) return;
 
-  const atBuyRegion =
-    farmer.farmer.currentRegion === "village" || farmer.farmer.currentRegion === "carpentry";
+  const atBuyRegion = farmer.farmer.currentRegion === "village" || farmer.farmer.currentRegion === "carpentry";
   if (!atBuyRegion) {
-    if (!farmer.intentions.queue.some(i => i.kind === "travel" && i.data.targetRegionId === "village")) {
+    if (!farmer.intentions.queue.some((i) => i.kind === "travel" && i.data.targetRegionId === "village")) {
       farmer.intentions.queue.push({
         kind: "travel",
         data: { targetRegionId: "village" },
@@ -90,10 +88,7 @@ export function deliberateBuyAnimal(
   recordReason(farmer, `buy ${animal} (pen count ${penCount})`);
 }
 
-export function deliberateTendPens(
-  farmer: GameEntity,
-  priority: number,
-): void {
+export function deliberateTendPens(farmer: GameEntity, priority: number): void {
   if (!farmer.intentions || !farmer.farmer || farmer.id === undefined) return;
 
   const hasCoop = farmer.beliefs?.data["hasPen_coop"] as boolean | undefined;
@@ -108,9 +103,7 @@ export function deliberateTendPens(
   if (homeRegion && needsTend) {
     const ranch = ranchForFarm(homeRegion) ?? homeRegion;
     if (farmer.farmer.currentRegion !== ranch) {
-      const existing = farmer.intentions.queue.find(
-        i => i.kind === "travel" && i.data.targetRegionId === ranch,
-      );
+      const existing = farmer.intentions.queue.find((i) => i.kind === "travel" && i.data.targetRegionId === ranch);
       const wanted = priority + 1;
       if (existing) {
         if (wanted < existing.priority) existing.priority = wanted;
@@ -125,7 +118,7 @@ export function deliberateTendPens(
   }
 
   if (hasCoop && !coopFed) {
-    if (!farmer.intentions.queue.some(i => i.kind === "tend" && i.data.penKind === "coop")) {
+    if (!farmer.intentions.queue.some((i) => i.kind === "tend" && i.data.penKind === "coop")) {
       farmer.intentions.queue.push({
         kind: "tend",
         data: { penKind: "coop" },
@@ -135,7 +128,7 @@ export function deliberateTendPens(
     }
   }
   if (hasBarn && !barnFed) {
-    if (!farmer.intentions.queue.some(i => i.kind === "tend" && i.data.penKind === "barn")) {
+    if (!farmer.intentions.queue.some((i) => i.kind === "tend" && i.data.penKind === "barn")) {
       farmer.intentions.queue.push({
         kind: "tend",
         data: { penKind: "barn" },

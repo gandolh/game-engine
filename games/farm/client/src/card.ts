@@ -39,7 +39,19 @@ export async function runCard(canvas: HTMLCanvasElement): Promise<void> {
   const sprites: Sprite[] = [];
   const put = (atlasId: string, frame: string, x: number, baseY: number, layer: number, flipX = false): void => {
     const { w, h } = frameSize(atlasId, frame);
-    sprites.push({ x, y: baseY - h / 2, width: w, height: h, frame, atlasId, rotation: 0, layer, alpha: 1, sortY: baseY, flipX });
+    sprites.push({
+      x,
+      y: baseY - h / 2,
+      width: w,
+      height: h,
+      frame,
+      atlasId,
+      rotation: 0,
+      layer,
+      alpha: 1,
+      sortY: baseY,
+      flipX,
+    });
   };
 
   for (let ty = 0; ty < H; ty++) {
@@ -47,7 +59,8 @@ export async function runCard(canvas: HTMLCanvasElement): Promise<void> {
   }
   const crops = ["crop/wheat/mature", "crop/pumpkin/mature", "crop/corn/mature", "crop/radish/mature"];
   for (let ty = 6; ty <= 7; ty++) {
-    for (let tx = 2; tx <= 6; tx++) put("crops", crops[(ty + tx) % crops.length]!, tx * TILE + TILE / 2, ty * TILE + TILE - 1, 1);
+    for (let tx = 2; tx <= 6; tx++)
+      put("crops", crops[(ty + tx) % crops.length]!, tx * TILE + TILE / 2, ty * TILE + TILE - 1, 1);
   }
   put("buildings", "structure/home", 9.5 * TILE, 4 * TILE, 2);
   put("buildings", "structure/tree", 2.5 * TILE, 3.6 * TILE, 2);

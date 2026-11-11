@@ -28,8 +28,26 @@ describe("snapshot occupancy invariant", () => {
       { type: "placeBuilding", payload: { buildingType: "house", x: 10, y: 6 } },
       { type: "placeBuilding", payload: { buildingType: "house", x: 14, y: 6 } },
       roadRow(10, 13, 17),
-      { type: "placeRoad", payload: { tiles: [{ x: 11, y: 8 }, { x: 11, y: 9 }] } },
-      { type: "placeRoad", payload: { tiles: [{ x: 15, y: 7 }, { x: 15, y: 8 }, { x: 15, y: 9 }, { x: 15, y: 10 }] } },
+      {
+        type: "placeRoad",
+        payload: {
+          tiles: [
+            { x: 11, y: 8 },
+            { x: 11, y: 9 },
+          ],
+        },
+      },
+      {
+        type: "placeRoad",
+        payload: {
+          tiles: [
+            { x: 15, y: 7 },
+            { x: 15, y: 8 },
+            { x: 15, y: 9 },
+            { x: 15, y: 10 },
+          ],
+        },
+      },
       { type: "placeBuilding", payload: { buildingType: "farm", x: 18, y: 10 } },
     ];
     for (const c of cmds) sim.commands.enqueue(c);

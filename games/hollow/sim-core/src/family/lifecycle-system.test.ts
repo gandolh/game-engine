@@ -34,7 +34,11 @@ function spawnAgent(
   } satisfies HollowEntity) as Agent;
   lineage.record({
     id: e.id,
-    genome: { behavior: {}, aptitude: {}, appearance: { height: 1, build: 1, skinTone: "skin", hairTone: "hairBlack" } },
+    genome: {
+      behavior: {},
+      aptitude: {},
+      appearance: { height: 1, build: 1, skinTone: "skin", hairTone: "hairBlack" },
+    },
     parents: null,
     birthTick: 0,
   });

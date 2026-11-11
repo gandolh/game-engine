@@ -121,10 +121,7 @@ export function createResourceHud(actions: ResourceHudActions): ResourceHud {
   //     count label needs a per-frame handle.
   const goodChips = GOODS.map((g) => {
     const textNode = label(`${g.name} 0`, { color: g.color });
-    const chip = box({ direction: "row", gap: 3, align: "center" }, [
-      icon(g.good, GOOD_ICON_RAMPS[g.good]),
-      textNode,
-    ]);
+    const chip = box({ direction: "row", gap: 3, align: "center" }, [icon(g.good, GOOD_ICON_RAMPS[g.good]), textNode]);
     return { good: g.good, name: g.name, isBread: g.good === "bread", node: textNode, chip };
   });
 
@@ -150,12 +147,7 @@ export function createResourceHud(actions: ResourceHudActions): ResourceHud {
     ...goodChips.map((c) => c.chip),
   ]);
 
-  const controls = box({ direction: "row", gap: 6, align: "center" }, [
-    pauseBtn,
-    speed1Btn,
-    speed2Btn,
-    speed4Btn,
-  ]);
+  const controls = box({ direction: "row", gap: 6, align: "center" }, [pauseBtn, speed1Btn, speed2Btn, speed4Btn]);
 
   /**
    * TWO ROWS, not one (playtest-02, 2026-09-20).

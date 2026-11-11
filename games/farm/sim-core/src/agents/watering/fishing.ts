@@ -3,12 +3,7 @@ import { recordReason } from "../../components";
 import { isFishingIsle } from "../../world/regions";
 import { fishingCastTiles } from "./shared";
 
-export function deliberateFishing(
-  farmer: GameEntity,
-  period: number,
-  casts: number,
-  priority: number,
-): void {
+export function deliberateFishing(farmer: GameEntity, period: number, casts: number, priority: number): void {
   if (!farmer.intentions || !farmer.beliefs || !farmer.farmer || !farmer.ap) return;
   const day = (farmer.beliefs.data.currentDay as number | undefined) ?? 0;
   if (day === 0) return;
@@ -23,9 +18,7 @@ export function deliberateFishing(
       const castTiles = fishingCastTiles();
       const cast = t
         ? [...castTiles].sort(
-            (a, b) =>
-              (Math.abs(a.x - t.x) + Math.abs(a.y - t.y)) -
-              (Math.abs(b.x - t.x) + Math.abs(b.y - t.y)),
+            (a, b) => Math.abs(a.x - t.x) + Math.abs(a.y - t.y) - (Math.abs(b.x - t.x) + Math.abs(b.y - t.y)),
           )[0]!
         : castTiles[0]!;
       farmer.intentions.queue.push({

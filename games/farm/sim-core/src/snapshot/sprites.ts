@@ -1,6 +1,4 @@
-
 export interface SnapshotSprite {
-
   id: number | null;
 
   x: number;
@@ -40,7 +38,6 @@ export interface SnapshotMeet {
 }
 
 export interface SnapshotEvent {
-
   tick: number;
 
   day: number;

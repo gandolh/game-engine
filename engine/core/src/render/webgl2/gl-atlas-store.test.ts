@@ -52,7 +52,12 @@ function makeFakeGl() {
   return { gl: gl as unknown as WebGL2RenderingContext, raw: gl, deletedTextures };
 }
 
-function fakeAtlas(id: string, width: number, height: number, frames: Record<string, { x: number; y: number; w: number; h: number }>): LoadedAtlasImage {
+function fakeAtlas(
+  id: string,
+  width: number,
+  height: number,
+  frames: Record<string, { x: number; y: number; w: number; h: number }>,
+): LoadedAtlasImage {
   return {
     manifest: { id, imageUrl: "", width, height, frames } as unknown as LoadedAtlasImage["manifest"],
     bitmap: {} as unknown as ImageBitmap,

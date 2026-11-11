@@ -80,7 +80,6 @@ describe("DayClockSystem festival exposure", () => {
     }
 
     expect(typeof sim.dayClock.daysUntilFestival).toBe("number");
-
   });
 });
 
@@ -100,19 +99,13 @@ describe("rankSubmissions (pure contest ranking)", () => {
   });
 
   it("breaks a quality tie by more units of that quality", () => {
-    const ranked = rankSubmissions([
-      sub(1, "Atticus", "gold", 1),
-      sub(2, "Hannah", "gold", 10),
-    ]);
+    const ranked = rankSubmissions([sub(1, "Atticus", "gold", 1), sub(2, "Hannah", "gold", 10)]);
 
     expect(ranked[0]!.name).toBe("Hannah");
   });
 
   it("breaks a full quality+count tie by lower farmer id (total order, deterministic)", () => {
-    const ranked = rankSubmissions([
-      sub(5, "Otto", "silver", 3),
-      sub(2, "Hannah", "silver", 3),
-    ]);
+    const ranked = rankSubmissions([sub(5, "Otto", "silver", 3), sub(2, "Hannah", "silver", 3)]);
     expect(ranked[0]!.id).toBe(2);
   });
 
@@ -148,9 +141,7 @@ describe("FestivalSystem (live) — a festival fires, awards a winner, narrates"
     const winner = winners[0]!;
     expect(winner.farmer!.festivalWins).toBe(1);
 
-    const feedLine = sim.eventFeed
-      .recent()
-      .find((e) => e.text.startsWith(FESTIVALS.spring.name));
+    const feedLine = sim.eventFeed.recent().find((e) => e.text.startsWith(FESTIVALS.spring.name));
     expect(feedLine).toBeTruthy();
     expect(feedLine!.text).toContain(winner.farmer!.name);
   });

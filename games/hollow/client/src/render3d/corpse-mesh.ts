@@ -39,11 +39,7 @@ const HEAD_OVERLAP = 0.85;
 /** Builds the corpse's static mesh — upload ONCE (see this module's header);
  *  the app instances/tints it once per live corpse. */
 export function buildCorpseMesh(): Mesh {
-  const body = translate(box([BODY_LEN, BODY_WIDTH, BODY_HEIGHT], "corpseShroud"), [
-    -BODY_LEN / 2,
-    -BODY_WIDTH / 2,
-    0,
-  ]);
+  const body = translate(box([BODY_LEN, BODY_WIDTH, BODY_HEIGHT], "corpseShroud"), [-BODY_LEN / 2, -BODY_WIDTH / 2, 0]);
   const head = translate(box([HEAD_LEN, HEAD_WIDTH, HEAD_HEIGHT], "corpseShroud"), [
     -BODY_LEN / 2 - HEAD_LEN * HEAD_OVERLAP,
     -HEAD_WIDTH / 2,

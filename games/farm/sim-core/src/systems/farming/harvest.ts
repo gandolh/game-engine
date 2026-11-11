@@ -4,7 +4,7 @@ import { DECORATION_RECIPE, MAX_DECORATION_BOOST } from "../../components";
 import { bankHarvest, GROWTH_DAYS } from "../../economy";
 import { farmingQualityBonus, grantSkillXp } from "../skills";
 
-export const HARVEST_FARMING_XP = 2; 
+export const HARVEST_FARMING_XP = 2;
 
 export function computeQuality(
   daysGrowing: number,
@@ -13,19 +13,19 @@ export function computeQuality(
   daysSinceWater: number,
   decorationBoost: number,
   rng: Rng,
-  farmingBonus = 0, 
+  farmingBonus = 0,
 ): CropQuality {
   const dryDays = daysSinceWater;
-  const waterScore = Math.max(0, 1 - dryDays * 0.4); 
+  const waterScore = Math.max(0, 1 - dryDays * 0.4);
   const growthScore = Math.min(1, daysGrowing / Math.max(1, growthDays));
-  const weatherScore = daysGrowing > 0 ? Math.min(1, (weatherSum / daysGrowing) / 1.2) : 0.5;
+  const weatherScore = daysGrowing > 0 ? Math.min(1, weatherSum / daysGrowing / 1.2) : 0.5;
 
   const husbandry = waterScore * 0.5 + growthScore * 0.3 + weatherScore * 0.2;
   const effectiveHusbandry = Math.min(1, husbandry + decorationBoost * 0.3 + farmingBonus);
 
   const roll = rng.nextFloat();
 
-  const GOLD_THRESHOLD   = 0.82;
+  const GOLD_THRESHOLD = 0.82;
   const SILVER_THRESHOLD = 0.52;
 
   if (effectiveHusbandry >= GOLD_THRESHOLD && roll < effectiveHusbandry - 0.1) {
@@ -93,10 +93,7 @@ export class HarvestSystem implements System {
     }
   }
 
-  private findOwnerDay(
-    ownerId: number,
-    farmersById: Map<number, GameEntity>,
-  ): number | undefined {
+  private findOwnerDay(ownerId: number, farmersById: Map<number, GameEntity>): number | undefined {
     const f = farmersById.get(ownerId);
     if (!f || !f.beliefs) return undefined;
     return f.beliefs.data.currentDay as number | undefined;

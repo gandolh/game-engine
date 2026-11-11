@@ -6,11 +6,7 @@ export interface PeerTradeContext {
   tick: number;
 }
 
-export type InitiatePeerTradeFn = (
-  farmer: GameEntity,
-  meet: MeetBody,
-  ctx: PeerTradeContext,
-) => OfferSeedBody | null;
+export type InitiatePeerTradeFn = (farmer: GameEntity, meet: MeetBody, ctx: PeerTradeContext) => OfferSeedBody | null;
 
 export type RespondPeerOfferFn = (
   farmer: GameEntity,
@@ -19,11 +15,7 @@ export type RespondPeerOfferFn = (
   ctx: PeerTradeContext,
 ) => { decision: "accept" | "decline"; reason?: string };
 
-export type InitiateBeanGiftFn = (
-  farmer: GameEntity,
-  meet: MeetBody,
-  ctx: PeerTradeContext,
-) => OfferBeanBody | null;
+export type InitiateBeanGiftFn = (farmer: GameEntity, meet: MeetBody, ctx: PeerTradeContext) => OfferBeanBody | null;
 
 interface PeerTradeHooks {
   initiate?: InitiatePeerTradeFn;
@@ -40,10 +32,7 @@ interface PeerTradeHooks {
 // deliberator fn. Label preserves the original duplicate-registration message.
 const registry = createRegistry<PeerTradeHooks>("Peer-trade hooks");
 
-export function registerPeerTradeHooks(
-  personality: string,
-  hooks: PeerTradeHooks,
-): void {
+export function registerPeerTradeHooks(personality: string, hooks: PeerTradeHooks): void {
   registry.register(personality, hooks);
 }
 

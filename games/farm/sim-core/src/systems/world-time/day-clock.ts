@@ -1,10 +1,5 @@
 import type { SimContext, System, MessageBus } from "@engine/core";
-import {
-  PERFORMATIVE,
-  ONT_SIMULATION,
-  type DayStartBody,
-  type PhaseStartBody,
-} from "../../protocols";
+import { PERFORMATIVE, ONT_SIMULATION, type DayStartBody, type PhaseStartBody } from "../../protocols";
 import { phaseForTick, type DayPhase } from "../day-phase";
 import {
   festivalForDay,

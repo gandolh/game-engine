@@ -1,5 +1,3 @@
-
-
 import { describe, it, expect } from "vitest";
 import { dramaScore, actBandForDay, type DramaCtx } from "./drama";
 
@@ -23,7 +21,6 @@ describe("actBandForDay", () => {
   });
 
   it("generalises to maxDays=50", () => {
-
     expect(actBandForDay(1, 50)).toBe("establishment");
     expect(actBandForDay(15, 50)).toBe("establishment");
 
@@ -35,8 +32,8 @@ describe("actBandForDay", () => {
   });
 
   it("handles day 0 and degenerate maxDays gracefully", () => {
-    expect(actBandForDay(0, 100)).toBe("establishment"); 
-    expect(actBandForDay(5, 0)).toBe("climax");           
+    expect(actBandForDay(0, 100)).toBe("establishment");
+    expect(actBandForDay(5, 0)).toBe("climax");
   });
 });
 
@@ -83,8 +80,15 @@ describe("dramaScore", () => {
 
   it("score is always clamped to [0, 1]", () => {
     const kinds: Array<import("./drama").DramaEventKind> = [
-      "trade", "auction", "shock", "crop-death", "accept",
-      "rivalry", "alliance", "rank-flip", "race-on",
+      "trade",
+      "auction",
+      "shock",
+      "crop-death",
+      "accept",
+      "rivalry",
+      "alliance",
+      "rank-flip",
+      "race-on",
     ];
     for (const kind of kinds) {
       for (const day of [1, 50, 100]) {

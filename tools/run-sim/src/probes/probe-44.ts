@@ -1,4 +1,3 @@
-
 import { bootstrapSim, leaderboard } from "@farm/sim-core/sim-bootstrap";
 import { JsPathfinder } from "@farm/sim-core/world/js-pathfinder";
 import { isWithinReach } from "@farm/sim-core/systems/proximity";
@@ -60,7 +59,10 @@ for (let tick = 0; tick < totalTicks; tick++) {
   scheduler.tick({ tick });
   const day = Math.floor(tick / TICKS_PER_DAY);
   const frac = (tick % TICKS_PER_DAY) / TICKS_PER_DAY;
-  if (day !== lastDay) { lastDay = day; visitedThisDay.clear(); }
+  if (day !== lastDay) {
+    lastDay = day;
+    visitedThisDay.clear();
+  }
 
   for (const c of world.query("carpenter")) {
     const len = c.carpenter.pending?.length ?? 0;
@@ -125,13 +127,19 @@ for (const t of world.query("tavern", "transform")) tavernReachable = true;
 
 console.log("\n=== DAY-100 STANDINGS ===");
 for (const row of leaderboard(world)) {
-  console.log(`  ${row.name.padEnd(8)} ${row.personality.padEnd(12)} total=${Math.round(row.totalValue)} gold=${row.gold}`);
+  console.log(
+    `  ${row.name.padEnd(8)} ${row.personality.padEnd(12)} total=${Math.round(row.totalValue)} gold=${row.gold}`,
+  );
 }
 
 console.log("\n=== ACCEPTANCE (brief 44 living world) ===");
-console.log(`  decorations delivered (all sources): ${commissionsDelivered} (${[...commissionsBy].map(([n, c]) => `${n}:${c}`).join(", ") || "none"})`);
+console.log(
+  `  decorations delivered (all sources): ${commissionsDelivered} (${[...commissionsBy].map(([n, c]) => `${n}:${c}`).join(", ") || "none"})`,
+);
 console.log(`  REAL carpenter commissions (order→build→deliver): ${realCommissionsAccepted}`);
-console.log(`  blacksmith upgrades (consumed materials): ${upgrades} (${[...upgradesBy].map(([n, c]) => `${n}:${c}`).join(", ") || "none"})`);
+console.log(
+  `  blacksmith upgrades (consumed materials): ${upgrades} (${[...upgradesBy].map(([n, c]) => `${n}:${c}`).join(", ") || "none"})`,
+);
 console.log(`  day-helper hires: ${hires} (${[...hiresBy].map(([n, c]) => `${n}:${c}`).join(", ") || "none"})`);
 console.log(`  tavern gathering visits (evening): ${tavernVisits}`);
 console.log(`  tavern reachable/present: ${tavernReachable}`);
@@ -140,4 +148,6 @@ const exampleGossip = [...gossipSeen].slice(-1)[0];
 console.log(`  example gossip: ${exampleGossip ?? "(none)"}`);
 
 const pass = realCommissionsAccepted >= 1 && tavernReachable && gossipSeen.size >= 1;
-console.log(`\n  ACCEPTANCE ${pass ? "MET" : "NOT MET"} (need >=1 REAL carpenter commission AND tavern present AND a gossip line)`);
+console.log(
+  `\n  ACCEPTANCE ${pass ? "MET" : "NOT MET"} (need >=1 REAL carpenter commission AND tavern present AND a gossip line)`,
+);

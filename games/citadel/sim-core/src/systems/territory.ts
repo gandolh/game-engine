@@ -28,7 +28,12 @@ export function recomputeTerritory(state: SimState, radius: number): void {
   for (const p of state.players) p.territory.clear();
   for (const entity of state.buildingWorld.query("building")) {
     let p: PlayerState | undefined;
-    for (const q of state.players) { if (q.id === entity.building.ownerId) { p = q; break; } }
+    for (const q of state.players) {
+      if (q.id === entity.building.ownerId) {
+        p = q;
+        break;
+      }
+    }
     if (p === undefined) continue;
     const b = entity.building;
     const cx = b.x + Math.floor(b.w / 2);
@@ -70,9 +75,9 @@ export function canBuildAt(state: SimState, p: PlayerState, x: number, y: number
       if (tx < 0 || ty < 0 || tx >= W || ty >= H) return false;
       const idx = ty * W + tx;
       const claim = tileClaimedBy(state, idx);
-      if (claim === p.id) continue;       // already ours
-      if (claim !== -1) return false;     // a rival's claim — never buildable
-      if (firstBuild) continue;           // anchor: any unclaimed tile
+      if (claim === p.id) continue; // already ours
+      if (claim !== -1) return false; // a rival's claim — never buildable
+      if (firstBuild) continue; // anchor: any unclaimed tile
       // unclaimed tile: allowed only if 4-adjacent to our own territory
       const adj =
         (ty > 0 && p.territory.has((ty - 1) * W + tx)) ||
@@ -88,7 +93,10 @@ export function canBuildAt(state: SimState, p: PlayerState, x: number, y: number
 export class TerritorySystem implements System {
   readonly name = "TerritorySystem";
 
-  constructor(private readonly state: SimState, private readonly radius: number) {}
+  constructor(
+    private readonly state: SimState,
+    private readonly radius: number,
+  ) {}
 
   run(_ctx: SimContext): void {
     // Recompute on building-change. Runs BEFORE RoadConnectivitySystem (same

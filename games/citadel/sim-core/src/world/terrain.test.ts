@@ -319,7 +319,10 @@ describe("solvability guarantee (Phase I)", () => {
       for (let dy = 0; dy < CORE_BOX_H; dy++) {
         for (let dx = 0; dx < CORE_BOX_W; dx++) {
           const t = grid.cells[(a!.y + dy) * grid.width + (a!.x + dx)]!;
-          expect(t === TerrainType.Water || t === TerrainType.Rough, `seed ${seed}: box tile (${a!.x + dx},${a!.y + dy}) not buildable`).toBe(false);
+          expect(
+            t === TerrainType.Water || t === TerrainType.Rough,
+            `seed ${seed}: box tile (${a!.x + dx},${a!.y + dy}) not buildable`,
+          ).toBe(false);
         }
       }
     }
@@ -335,28 +338,24 @@ describe("solvability guarantee (Phase I)", () => {
 });
 
 describe("solvability repair determinism", () => {
-  it(
-    "same seed → byte-identical cells across repeated generateTerrain calls, for seeds known to trigger repair",
-    () => {
-      // We don't know which seeds trigger a paint, so we scan a deterministic range;
-      // the assertion (same seed twice → identical grid) covers the repair path
-      // regardless, since repairSolvability runs unconditionally inside
-      // generateTerrain. Under the distance bound (#25) roughly 1 seed in 20 now
-      // triggers a stone repair at the default size, so 50 seeds still exercises it.
-      //
-      // 50, not 100: the default world is 192×192 since brief 110, so each
-      // generateTerrain does 4× the work of the 96×96 one this test was written
-      // against, and 100 seeds × 2 grids overran the 20s budget.
-      const SEEDS = 50;
+  it("same seed → byte-identical cells across repeated generateTerrain calls, for seeds known to trigger repair", () => {
+    // We don't know which seeds trigger a paint, so we scan a deterministic range;
+    // the assertion (same seed twice → identical grid) covers the repair path
+    // regardless, since repairSolvability runs unconditionally inside
+    // generateTerrain. Under the distance bound (#25) roughly 1 seed in 20 now
+    // triggers a stone repair at the default size, so 50 seeds still exercises it.
+    //
+    // 50, not 100: the default world is 192×192 since brief 110, so each
+    // generateTerrain does 4× the work of the 96×96 one this test was written
+    // against, and 100 seeds × 2 grids overran the 20s budget.
+    const SEEDS = 50;
 
-      for (let seed = 0; seed < SEEDS; seed++) {
-        const a = generateTerrain(seed);
-        const b = generateTerrain(seed);
-        expect(a.cells).toEqual(b.cells);
-      }
-    },
-    60000,
-  );
+    for (let seed = 0; seed < SEEDS; seed++) {
+      const a = generateTerrain(seed);
+      const b = generateTerrain(seed);
+      expect(a.cells).toEqual(b.cells);
+    }
+  }, 60000);
 
   it("different seeds among the repair-prone range still diverge", () => {
     const a = generateTerrain(13);
@@ -383,12 +382,7 @@ describe("solvability repair determinism", () => {
  * `repairSolvability`, independently, so the test does not just re-run the code
  * it is checking.
  */
-function nearestResourceDistance(
-  cells: Uint8Array,
-  width: number,
-  height: number,
-  type: TerrainType,
-): number {
+function nearestResourceDistance(cells: Uint8Array, width: number, height: number, type: TerrainType): number {
   const anchor = findCoreBox(cells, width, height);
   if (anchor === null) return -1;
   const start = (anchor.y + Math.floor(CORE_BOX_H / 2)) * width + (anchor.x + Math.floor(CORE_BOX_W / 2));
@@ -401,7 +395,12 @@ function nearestResourceDistance(
       if (cells[idx] === type) return dist[idx]!;
       const x = idx % width;
       const y = (idx - x) / width;
-      for (const [nx, ny] of [[x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]] as const) {
+      for (const [nx, ny] of [
+        [x - 1, y],
+        [x + 1, y],
+        [x, y - 1],
+        [x, y + 1],
+      ] as const) {
         if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
         const n = ny * width + nx;
         if (dist[n]! >= 0) continue;

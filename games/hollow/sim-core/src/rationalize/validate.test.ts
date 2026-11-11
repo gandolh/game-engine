@@ -31,7 +31,11 @@ function makeRequest(overrides: Partial<RationalizerRequest> = {}): Rationalizer
     site: "social",
     agentId: 1,
     tick: 100,
-    genome: { behavior: {}, aptitude: {}, appearance: { height: 1, build: 1, skinTone: "skin", hairTone: "hairBlack" } },
+    genome: {
+      behavior: {},
+      aptitude: {},
+      appearance: { height: 1, build: 1, skinTone: "skin", hairTone: "hairBlack" },
+    },
     beliefs: {},
     needs: {},
     relationships: [],
@@ -53,7 +57,10 @@ describe("candidateFingerprint", () => {
   });
 
   it("changes when a target changes", () => {
-    const moved: ScoredChoice[] = [{ ...CANDIDATES[0]!, data: { targetId: 5, good: "food", amount: 5 } }, ...CANDIDATES.slice(1)];
+    const moved: ScoredChoice[] = [
+      { ...CANDIDATES[0]!, data: { targetId: 5, good: "food", amount: 5 } },
+      ...CANDIDATES.slice(1),
+    ];
     expect(candidateFingerprint(moved)).not.toBe(candidateFingerprint(CANDIDATES));
   });
 

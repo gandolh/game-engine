@@ -13,9 +13,7 @@ import { ONT_SHOP, type ShopSellBody } from "../protocols/shop";
 import { PERFORMATIVE } from "../protocols/performatives";
 import type { ShopOffer } from "../agents/shop-slate";
 
-function makeOffer(
-  partial: Partial<ShopOffer> & Pick<ShopOffer, "crop" | "unitPrice" | "remaining">,
-): ShopOffer {
+function makeOffer(partial: Partial<ShopOffer> & Pick<ShopOffer, "crop" | "unitPrice" | "remaining">): ShopOffer {
   return {
     offerId: partial.offerId ?? `o-${partial.crop}-${partial.unitPrice}-${partial.remaining}`,
     kind: "sell",
@@ -96,8 +94,7 @@ describe("ActSystem buy-seed (emits ONT_SHOP.SELL)", () => {
 
     sys.run({ tick: 1 });
     bus.flush();
-    const body = bus.drain().find((m) => m.ontology === ONT_SHOP.SELL)!
-      .body as unknown as ShopSellBody;
+    const body = bus.drain().find((m) => m.ontology === ONT_SHOP.SELL)!.body as unknown as ShopSellBody;
     expect(body.quantity).toBe(1);
   });
 
@@ -145,7 +142,7 @@ describe("ActSystem buy-seed end-to-end through the shopkeeper", () => {
     dispatch.run({ tick: 2 });
     shop.run({ tick: 2 });
 
-    expect(farmer.inventory!.gold).toBe(35); 
+    expect(farmer.inventory!.gold).toBe(35);
     expect(farmer.inventory!.seeds.radish).toBe(3);
     expect(radishOffer.remaining).toBe(7);
   });
@@ -156,9 +153,12 @@ describe("ActSystem upgrade-tool (blacksmith validates materials)", () => {
   let bus: MessageBus;
   let sys: ActSystem;
 
-  function blacksmithFarmer(
-    opts: { gold?: number; tier?: "wooden" | "stone"; stone?: number; ironOre?: number },
-  ): GameEntity {
+  function blacksmithFarmer(opts: {
+    gold?: number;
+    tier?: "wooden" | "stone";
+    stone?: number;
+    ironOre?: number;
+  }): GameEntity {
     const tier = opts.tier ?? "wooden";
     return world.spawn({
       farmer: { name: "Smith", currentRegion: "blacksmith" as const },
@@ -188,8 +188,8 @@ describe("ActSystem upgrade-tool (blacksmith validates materials)", () => {
     sys.run({ tick: 0 });
     const hoe = farmer.inventory!.tools!.find((t) => t.kind === "hoe")!;
     expect(hoe.tier).toBe("stone");
-    expect(farmer.resources!.stone).toBe(3); 
-    expect(farmer.inventory!.gold).toBe(85); 
+    expect(farmer.resources!.stone).toBe(3);
+    expect(farmer.inventory!.gold).toBe(85);
   });
 
   it("rejects the upgrade when the farmer has no ore (no mutation)", () => {
@@ -197,8 +197,8 @@ describe("ActSystem upgrade-tool (blacksmith validates materials)", () => {
     farmer.intentions!.queue.push({ kind: "upgrade-tool", data: { toolKind: "hoe" }, priority: 0 });
     sys.run({ tick: 0 });
     const hoe = farmer.inventory!.tools!.find((t) => t.kind === "hoe")!;
-    expect(hoe.tier).toBe("wooden"); 
-    expect(farmer.inventory!.gold).toBe(100); 
+    expect(hoe.tier).toBe("wooden");
+    expect(farmer.inventory!.gold).toBe(100);
   });
 
   it("stone→iron consumes iron ore", () => {
@@ -207,8 +207,8 @@ describe("ActSystem upgrade-tool (blacksmith validates materials)", () => {
     sys.run({ tick: 0 });
     const hoe = farmer.inventory!.tools!.find((t) => t.kind === "hoe")!;
     expect(hoe.tier).toBe("iron");
-    expect(farmer.resources!.ironOre).toBe(1); 
-    expect(farmer.inventory!.gold).toBe(75); 
+    expect(farmer.resources!.ironOre).toBe(1);
+    expect(farmer.inventory!.gold).toBe(75);
   });
 });
 
@@ -251,8 +251,8 @@ describe("ActSystem hire-help (tavern day-helper)", () => {
     const farmer = villageFarmer({ gold: 100, day: 5, apCurrent: 10 });
     farmer.intentions!.queue.push({ kind: "hire-help", data: {}, priority: 0 });
     sys.run({ tick: 0 });
-    expect(farmer.inventory!.gold).toBe(75); 
-    expect(farmer.ap!.current).toBe(10 + HELPER_AP_BOOST); 
+    expect(farmer.inventory!.gold).toBe(75);
+    expect(farmer.ap!.current).toBe(10 + HELPER_AP_BOOST);
     expect(farmer.farmer!.helperHiredDay).toBe(5);
   });
 
@@ -266,8 +266,8 @@ describe("ActSystem hire-help (tavern day-helper)", () => {
     farmer.fsm!.current = "ACT" as FarmerFsmState;
     farmer.intentions!.queue.push({ kind: "hire-help", data: {}, priority: 0 });
     sys.run({ tick: 1 });
-    expect(farmer.inventory!.gold).toBe(goldAfterFirst); 
-    expect(farmer.ap!.current).toBe(apAfterFirst); 
+    expect(farmer.inventory!.gold).toBe(goldAfterFirst);
+    expect(farmer.ap!.current).toBe(apAfterFirst);
   });
 
   it("clamps the same-day boost to maxApForDay + margin (no snowball)", () => {
@@ -289,7 +289,7 @@ describe("ActSystem hire-help (tavern day-helper)", () => {
     farmer.intentions!.queue.push({ kind: "hire-help", data: {}, priority: 0 });
     sys.run({ tick: 0 });
     expect(farmer.inventory!.gold).toBe(100);
-    expect(farmer.ap!.current).toBe(10); 
+    expect(farmer.ap!.current).toBe(10);
     expect(farmer.farmer!.helperHiredDay).toBeUndefined();
   });
 
@@ -298,7 +298,7 @@ describe("ActSystem hire-help (tavern day-helper)", () => {
     farmer.intentions!.queue.push({ kind: "hire-help", data: {}, priority: 0 });
     sys.run({ tick: 0 });
     expect(farmer.inventory!.gold).toBe(10);
-    expect(farmer.ap!.current).toBe(10); 
+    expect(farmer.ap!.current).toBe(10);
     expect(farmer.farmer!.helperHiredDay).toBeUndefined();
   });
 });
@@ -354,7 +354,7 @@ describe("ActSystem pray-at-shrine (interactive shrine)", () => {
     const farmer = shrineFarmer({ region: "shrine", day, apCurrent: cap - 3, apMax: cap });
     farmer.intentions!.queue.push({ kind: "pray-at-shrine", data: {}, priority: 0 });
     sys.run({ tick: 0 });
-    expect(farmer.ap!.current).toBe(cap); 
+    expect(farmer.ap!.current).toBe(cap);
     expect(farmer.ap!.current).toBeLessThanOrEqual(maxApForDay(day));
   });
 
@@ -367,13 +367,12 @@ describe("ActSystem pray-at-shrine (interactive shrine)", () => {
   });
 
   it("is a no-op while still on cooldown (< SHRINE_COOLDOWN_DAYS since last prayer)", () => {
-
     const day = 5 + (SHRINE_COOLDOWN_DAYS - 1);
     const farmer = shrineFarmer({ region: "shrine", day, apCurrent: 20, prayedDay: 5 });
     farmer.intentions!.queue.push({ kind: "pray-at-shrine", data: {}, priority: 0 });
     sys.run({ tick: 0 });
     expect(farmer.ap!.current).toBe(20);
-    expect(farmer.farmer!.shrinePrayedDay).toBe(5); 
+    expect(farmer.farmer!.shrinePrayedDay).toBe(5);
   });
 
   it("prays again once the cooldown has elapsed", () => {

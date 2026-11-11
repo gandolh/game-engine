@@ -7,24 +7,43 @@ import type { Season } from "../protocols/weather";
 const SEASONS: Season[] = ["spring", "summer", "autumn", "winter"];
 
 describe("seasonalTreeFrame — 4-way foliage remap", () => {
-
   const cases: Array<[string, Record<Season, string>]> = [
-    ["structure/tree", {
-      spring: "structure/tree-blossom", summer: "structure/tree",
-      autumn: "structure/tree-autumn", winter: "structure/tree-bare",
-    }],
-    ["structure/bush", {
-      spring: "structure/bush-blossom", summer: "structure/bush",
-      autumn: "structure/bush-autumn", winter: "structure/bush-bare",
-    }],
-    ["structure/fruit-tree", {
-      spring: "structure/fruit-tree-blossom", summer: "structure/fruit-tree",
-      autumn: "structure/fruit-tree-autumn", winter: "structure/fruit-tree-bare",
-    }],
-    ["structure/big-tree", {
-      spring: "structure/big-tree-blossom", summer: "structure/big-tree",
-      autumn: "structure/big-tree-autumn", winter: "structure/big-tree-bare",
-    }],
+    [
+      "structure/tree",
+      {
+        spring: "structure/tree-blossom",
+        summer: "structure/tree",
+        autumn: "structure/tree-autumn",
+        winter: "structure/tree-bare",
+      },
+    ],
+    [
+      "structure/bush",
+      {
+        spring: "structure/bush-blossom",
+        summer: "structure/bush",
+        autumn: "structure/bush-autumn",
+        winter: "structure/bush-bare",
+      },
+    ],
+    [
+      "structure/fruit-tree",
+      {
+        spring: "structure/fruit-tree-blossom",
+        summer: "structure/fruit-tree",
+        autumn: "structure/fruit-tree-autumn",
+        winter: "structure/fruit-tree-bare",
+      },
+    ],
+    [
+      "structure/big-tree",
+      {
+        spring: "structure/big-tree-blossom",
+        summer: "structure/big-tree",
+        autumn: "structure/big-tree-autumn",
+        winter: "structure/big-tree-bare",
+      },
+    ],
   ];
 
   for (const [base, expected] of cases) {

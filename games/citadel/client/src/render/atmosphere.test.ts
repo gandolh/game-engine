@@ -4,22 +4,29 @@
  */
 import { describe, it, expect } from "vitest";
 import { CITADEL_PAL as EDG } from "./citadel-palette";
-import {
-  dayFractionOf,
-  nightFactorOf,
-  computeWash,
-  emittersOf,
-  lightPoolQuads,
-  LIGHT_EMITTERS,
-} from "./atmosphere";
+import { dayFractionOf, nightFactorOf, computeWash, emittersOf, lightPoolQuads, LIGHT_EMITTERS } from "./atmosphere";
 import type { BuildingSnapshot } from "@citadel/sim-core";
 
 function mkBuilding(type: string, x = 0, y = 0, w = 1, h = 1): BuildingSnapshot {
   return {
-    type, x, y, w, h,
-    connected: true, outputBuffer: 0, workerCount: 0, occupancy: 0, ownerId: 0,
-    onFire: false, burning: false, level: 1,
-    lacksFaith: true, lacksSafety: true, lacksGoods: true, mood: 40, wellServed: false,
+    type,
+    x,
+    y,
+    w,
+    h,
+    connected: true,
+    outputBuffer: 0,
+    workerCount: 0,
+    occupancy: 0,
+    ownerId: 0,
+    onFire: false,
+    burning: false,
+    level: 1,
+    lacksFaith: true,
+    lacksSafety: true,
+    lacksGoods: true,
+    mood: 40,
+    wellServed: false,
   };
 }
 

@@ -12,9 +12,7 @@ import { DEFAULT_FONT, type UiFont } from "./fonts";
  * Async because `createImageBitmap` is the only portable RGBA→bitmap path; the bake itself
  * (the deterministic part) is synchronous and lives in {@link bakeFontAtlas}.
  */
-export async function makeBakedFontAtlas(
-  baked: BakedFont = bakeFontAtlas(),
-): Promise<LoadedAtlasImage> {
+export async function makeBakedFontAtlas(baked: BakedFont = bakeFontAtlas()): Promise<LoadedAtlasImage> {
   // Copy into an ImageData-backed buffer. The bake's array may be typed as
   // Uint8ClampedArray<ArrayBufferLike>; ImageData wants a plain ArrayBuffer-backed one.
   const image = new ImageData(baked.width, baked.height);

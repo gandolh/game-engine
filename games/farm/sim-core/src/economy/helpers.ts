@@ -15,7 +15,7 @@ export function cropInventoryValue(inv: Inventory): number {
       const q = quality[cropKey]!;
       total += q.normal * basePrice * QUALITY_MULTIPLIER.normal;
       total += q.silver * basePrice * QUALITY_MULTIPLIER.silver;
-      total += q.gold   * basePrice * QUALITY_MULTIPLIER.gold;
+      total += q.gold * basePrice * QUALITY_MULTIPLIER.gold;
     } else {
       total += totalUnits * basePrice * QUALITY_MULTIPLIER.normal;
     }
@@ -65,7 +65,7 @@ export function productInventoryValue(inv: Inventory): number {
     const base = PRODUCT_SELL_PRICE[kind];
     total += q.normal * base * QUALITY_MULTIPLIER.normal;
     total += q.silver * base * QUALITY_MULTIPLIER.silver;
-    total += q.gold   * base * QUALITY_MULTIPLIER.gold;
+    total += q.gold * base * QUALITY_MULTIPLIER.gold;
   }
   return total;
 }
@@ -77,7 +77,7 @@ export function fruitInventoryValue(inv: Inventory): number {
     const base = FRUIT_SELL_PRICE[kind];
     total += q.normal * base * QUALITY_MULTIPLIER.normal;
     total += q.silver * base * QUALITY_MULTIPLIER.silver;
-    total += q.gold   * base * QUALITY_MULTIPLIER.gold;
+    total += q.gold * base * QUALITY_MULTIPLIER.gold;
   }
   return total;
 }
@@ -130,8 +130,8 @@ export function debitCropDetailed(
   if (inv.cropQuality?.[crop]) {
     const q = inv.cropQuality[crop]!;
     const order: CropQuality[] = preferQuality
-      ? [preferQuality, "silver", "normal", "gold"].filter((v, i, a) => a.indexOf(v) === i) as CropQuality[]
-      : ["silver", "normal", "gold"] as CropQuality[];
+      ? ([preferQuality, "silver", "normal", "gold"].filter((v, i, a) => a.indexOf(v) === i) as CropQuality[])
+      : (["silver", "normal", "gold"] as CropQuality[]);
     for (const tier of order) {
       if (remaining <= 0) break;
       const d = Math.min(remaining, q[tier]);

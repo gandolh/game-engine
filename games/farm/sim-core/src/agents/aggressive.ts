@@ -2,21 +2,43 @@ import type { GameEntity, CropKind } from "../components";
 import { recordReason, resetDecisionTrace } from "../components";
 import { registerPersonality, type DeliberateContext } from "./registry";
 import { ONT_MARKET, type MarketOffer } from "../protocols/market";
-import {
-  registerPeerTradeHooks,
-  type InitiateBeanGiftFn,
-} from "./peer-trade-registry";
+import { registerPeerTradeHooks, type InitiateBeanGiftFn } from "./peer-trade-registry";
 import { makeRespondPeerOffer, makeInitiatePeerTrade } from "./peer-trade-policy";
 import { CROP_SELL_PRICE, SEED_COST, CROP_SEASON } from "../economy";
 import { seasonForDay } from "../protocols/weather";
 import { deliberateBean } from "./bean-valuation";
 import { nonFarmFocus, gatherBias, TEMPERAMENT } from "./skill-valuation";
-import { deliberateWatering, deliberateRefillCan, deliberateTill, deliberateBuyTool, deliberateResourceGather, deliberateUpgrade, deliberateResourceZoneVisit, deliberateEarlyVillageVisit, deliberateSleep, deliberatePeriodicMarketVisit, deliberateMillVisit, deliberateSkilledNonFarm, deliberatePlantNearby, deliberateTendPens, deliberateSellProducts, deliberateHarvestFruit, deliberateSellFruit, deliberateCommissionBuild, deliberateHireHelp, deliberateTavernGather, deliberateFestivalGather, FESTIVAL_FRONT_PRIORITY, deliberateHarborContract, deliberateWallLiquidation } from "./watering";
+import {
+  deliberateWatering,
+  deliberateRefillCan,
+  deliberateTill,
+  deliberateBuyTool,
+  deliberateResourceGather,
+  deliberateUpgrade,
+  deliberateResourceZoneVisit,
+  deliberateEarlyVillageVisit,
+  deliberateSleep,
+  deliberatePeriodicMarketVisit,
+  deliberateMillVisit,
+  deliberateSkilledNonFarm,
+  deliberatePlantNearby,
+  deliberateTendPens,
+  deliberateSellProducts,
+  deliberateHarvestFruit,
+  deliberateSellFruit,
+  deliberateCommissionBuild,
+  deliberateHireHelp,
+  deliberateTavernGather,
+  deliberateFestivalGather,
+  FESTIVAL_FRONT_PRIORITY,
+  deliberateHarborContract,
+  deliberateWallLiquidation,
+} from "./watering";
 import type { HarborContract } from "../protocols/harbor";
 import type { PlotWaterSense } from "../systems/farming/plot-sense";
 import type { TileFeature, FarmDecoration } from "../components";
 
-const UNDERCUT_THRESHOLD = 0.9; 
+const UNDERCUT_THRESHOLD = 0.9;
 
 function chooseTargetCrop(
   farmer: GameEntity,
@@ -32,8 +54,8 @@ function chooseTargetCrop(
   const isBadWeather = weather === "storm" || weather === "rainy";
 
   const order: CropKind[] = isBadWeather
-    ? allCrops.filter(c => CROP_SEASON[c] === season).reverse()
-    : allCrops.filter(c => CROP_SEASON[c] === season);
+    ? allCrops.filter((c) => CROP_SEASON[c] === season).reverse()
+    : allCrops.filter((c) => CROP_SEASON[c] === season);
 
   const candidates = order.length > 0 ? order : allCrops;
 
@@ -117,7 +139,6 @@ export function deliberateAggressive(farmer: GameEntity, ctx: DeliberateContext)
       }
     }
     if (anyToSell && !inVillage) {
-
       farmer.intentions.queue.unshift({
         kind: "travel",
         data: { targetRegionId: "village" },
@@ -210,7 +231,10 @@ export function deliberateAggressive(farmer: GameEntity, ctx: DeliberateContext)
               },
               priority: 5,
             });
-            recordReason(farmer, `buy wall ${offer.crop} x${offer.quantity}: ${offer.pricePerUnit} < ${Math.round(threshold)}`);
+            recordReason(
+              farmer,
+              `buy wall ${offer.crop} x${offer.quantity}: ${offer.pricePerUnit} < ${Math.round(threshold)}`,
+            );
           }
         }
       }
@@ -269,8 +293,8 @@ export function deliberateAggressive(farmer: GameEntity, ctx: DeliberateContext)
 
 registerPersonality("aggressive", deliberateAggressive);
 
-const AGGR_PEER_BUY_CEILING = 0.95; 
-const AGGR_PEER_SELL_FLOOR = 1.0;   
+const AGGR_PEER_BUY_CEILING = 0.95;
+const AGGR_PEER_SELL_FLOOR = 1.0;
 
 export const respondToPeerOfferAggressive = makeRespondPeerOffer({
   buyCeiling: AGGR_PEER_BUY_CEILING,
@@ -296,11 +320,7 @@ export const respondCropOfferAggressive = makeRespondPeerOffer({
   reserveDefault: 10,
 });
 
-export const initiateBeanGiftAggressive: InitiateBeanGiftFn = (
-  farmer,
-  meet,
-  _ctx,
-) => {
+export const initiateBeanGiftAggressive: InitiateBeanGiftFn = (farmer, meet, _ctx) => {
   const trust = farmer.trust?.byId.get(meet.peerId) ?? 0.5;
   if (trust < 0.6) return null;
   return { offerId: `bean-${farmer.id}-${meet.peerId}`, quantity: 1 };

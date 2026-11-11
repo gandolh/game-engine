@@ -86,7 +86,7 @@ function road(): PixelRecipe {
     // `wood`/`woodDark`) + occasional `bark` mortar gaps, from a stable hash.
     // 3+ hue-shifted value bands: tan (light) → clay → wood → woodDark (dark).
     const hsh = (x * 7 + y * 13) & 7;
-    const body = hsh === 0 ? "%" : ((x + y) & 1) === 0 ? (hsh & 2) === 0 ? "t" : "r" : (hsh & 1) === 0 ? "w" : "W";
+    const body = hsh === 0 ? "%" : ((x + y) & 1) === 0 ? ((hsh & 2) === 0 ? "t" : "r") : (hsh & 1) === 0 ? "w" : "W";
     if (edgeDist === 0) {
       // Softened warm rim: dithered `woodDark` so a straight-run abutment reads
       // as a soft broken warm seam, not a doubled hard line — but a network end
@@ -144,13 +144,14 @@ function bridge(): PixelRecipe {
  * so it is authored small (a single tile) and sampled up. Pure of `sway`.
  */
 function flame(name: string, sway: number): PixelRecipe {
-  const W = 16, H = 24;
+  const W = 16,
+    H = 24;
   const g = new Grid(W, H);
   const cx = W / 2;
   // Teardrop: wide rounded base tapering to a leaning tip. For each row, a
   // half-width that grows from the tip (top) to ~2/3 down then shrinks to the base.
   for (let y = 0; y < H; y++) {
-    const t = y / (H - 1);                 // 0 tip … 1 base
+    const t = y / (H - 1); // 0 tip … 1 base
     // bulge profile: narrow at the very top, widest ~70% down, rounding to base.
     const prof = Math.sin(Math.min(1, t * 1.15) * Math.PI);
     const half = Math.max(0, Math.round(prof * (W / 2 - 1)));
@@ -163,10 +164,13 @@ function flame(name: string, sway: number): PixelRecipe {
       // Warm ramp: yellow hot core → gold → orange → crimson cooler edge; the
       // upper third (tip) skews hotter (yellow/gold), the base skews to orange/crimson.
       let ch: string;
-      if (t < 0.35) ch = f < 0.6 ? "y" : "O";               // tip: yellow core, gold edge
-      else if (f < 0.35) ch = "y";                           // inner core stays hot
-      else if (f < 0.7) ch = "O";                            // gold mid
-      else ch = t > 0.7 ? "e" : "o";                         // orange body, crimson base edge
+      if (t < 0.35)
+        ch = f < 0.6 ? "y" : "O"; // tip: yellow core, gold edge
+      else if (f < 0.35)
+        ch = "y"; // inner core stays hot
+      else if (f < 0.7)
+        ch = "O"; // gold mid
+      else ch = t > 0.7 ? "e" : "o"; // orange body, crimson base edge
       g.set(x, y, ch);
     }
   }

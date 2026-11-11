@@ -1,13 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  placeIslands,
-  bspLeaves,
-  gapOk,
-  GAP,
-  COVERAGE_MIN,
-  COVERAGE_MAX,
-  type RegionSpec,
-} from "./island-placement";
+import { placeIslands, bspLeaves, gapOk, GAP, COVERAGE_MIN, COVERAGE_MAX, type RegionSpec } from "./island-placement";
 import { createRng } from "@engine/core";
 import { WORLD_WIDTH, WORLD_HEIGHT, type RegionId } from "./regions";
 
@@ -26,12 +18,37 @@ function buildSpecs(): RegionSpec[] {
   }
   // 31 special/landmark regions with a spread of target areas.
   const specialIds = [
-    "village", "blacksmith", "carpentry", "mill", "forest-north", "quarry-north",
-    "forest-south", "quarry-south", "mushroom-grove", "ice-pond", "well-north",
-    "well-south", "shrine", "waterfall", "heritage-stones", "heritage-ruin",
-    "heritage-statue", "fishing-isle", "fishing-isle-2", "harbor", "camp",
-    "weather-station", "volcano", "casino", "big-tree", "ring",
-    "extra-a", "extra-b", "extra-c", "extra-d", "extra-e",
+    "village",
+    "blacksmith",
+    "carpentry",
+    "mill",
+    "forest-north",
+    "quarry-north",
+    "forest-south",
+    "quarry-south",
+    "mushroom-grove",
+    "ice-pond",
+    "well-north",
+    "well-south",
+    "shrine",
+    "waterfall",
+    "heritage-stones",
+    "heritage-ruin",
+    "heritage-statue",
+    "fishing-isle",
+    "fishing-isle-2",
+    "harbor",
+    "camp",
+    "weather-station",
+    "volcano",
+    "casino",
+    "big-tree",
+    "ring",
+    "extra-a",
+    "extra-b",
+    "extra-c",
+    "extra-d",
+    "extra-e",
   ];
   for (const id of specialIds) {
     specs.push({ id: id as RegionId, kind: "landmark", area: 300, minSide: 8 });

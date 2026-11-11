@@ -1,4 +1,3 @@
-
 import { bootstrapSim, leaderboard } from "@farm/sim-core/sim-bootstrap";
 import { JsPathfinder } from "@farm/sim-core/world/js-pathfinder";
 import { totalProductCount, totalFruitCount } from "@farm/sim-core/economy";

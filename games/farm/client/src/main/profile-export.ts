@@ -94,7 +94,7 @@ export function setupProfileExport(deps: ProfileExportDeps): () => void {
     "padding: 6px 10px",
     "font: 12px/1 ui-monospace, monospace",
     `color: ${EDG.white}`,
-    "background: rgba(24, 20, 37, 0.78)", 
+    "background: rgba(24, 20, 37, 0.78)",
     `border: 1px solid ${EDG.silver}`,
     "border-radius: 4px",
     "cursor: pointer",

@@ -1,9 +1,4 @@
-import type {
-  SimContext,
-  System,
-  World,
-  AgentMessage,
-} from "@engine/core";
+import type { SimContext, System, World, AgentMessage } from "@engine/core";
 import { OfferLedger } from "@engine/core/agent";
 import type { GameEntity, CropKind } from "../../components";
 import { findById } from "../entity-helpers";
@@ -68,7 +63,7 @@ export class EncounterTradeSystem implements System {
     for (const farmer of farmers) {
       if (!farmer.inbox) continue;
       const inbox = farmer.inbox.messages;
-      for (let i = inbox.length - 1; i >= 0; i--) { 
+      for (let i = inbox.length - 1; i >= 0; i--) {
         const msg = inbox[i];
         if (!msg) continue;
         if (!ENCOUNTER_ONTOLOGIES.has(msg.ontology)) continue;
@@ -102,29 +97,13 @@ export class EncounterTradeSystem implements System {
         this.handleMeet(farmer, msg.body as unknown as MeetBody, ctx);
         return;
       case ONT_ENCOUNTER.OFFER_SEED:
-        this.handleOffer(
-          farmer,
-          msg.body as unknown as OfferSeedBody,
-          msg.sender,
-          ctx,
-          "seed",
-        );
+        this.handleOffer(farmer, msg.body as unknown as OfferSeedBody, msg.sender, ctx, "seed");
         return;
       case ONT_ENCOUNTER.OFFER_CROP:
-        this.handleOffer(
-          farmer,
-          msg.body as unknown as OfferCropBody,
-          msg.sender,
-          ctx,
-          "crop",
-        );
+        this.handleOffer(farmer, msg.body as unknown as OfferCropBody, msg.sender, ctx, "crop");
         return;
       case ONT_ENCOUNTER.OFFER_BEAN:
-        this.handleBeanGift(
-          farmer,
-          msg.body as unknown as OfferBeanBody,
-          msg.sender,
-        );
+        this.handleBeanGift(farmer, msg.body as unknown as OfferBeanBody, msg.sender);
         return;
       case ONT_ENCOUNTER.ACCEPT:
         this.handleAccept(farmer, msg.body as unknown as AcceptBody, msg.sender);
@@ -135,11 +114,7 @@ export class EncounterTradeSystem implements System {
     }
   }
 
-  private handleMeet(
-    farmer: GameEntity,
-    meet: MeetBody,
-    ctx: SimContext,
-  ): void {
+  private handleMeet(farmer: GameEntity, meet: MeetBody, ctx: SimContext): void {
     if (farmer.id === undefined) return;
 
     const personality = farmer.personality?.kind;
@@ -168,30 +143,20 @@ export class EncounterTradeSystem implements System {
       if (cropOffer) this.sendOffer(farmer.id, meet.peerId, cropOffer, "crop", ctx.tick);
     }
 
-    if (farmer.id > meet.peerId) return; 
+    if (farmer.id > meet.peerId) return;
     if (!hooks.initiate) return;
     const offer = hooks.initiate(farmer, meet, { tick: ctx.tick });
     if (!offer) return;
     this.sendOffer(farmer.id, meet.peerId, offer, "seed", ctx.tick);
   }
 
-  private sendOffer(
-    fromId: number,
-    toId: number,
-    offer: OfferSeedBody,
-    commodity: TradeCommodity,
-    tick: number,
-  ): void {
+  private sendOffer(fromId: number, toId: number, offer: OfferSeedBody, commodity: TradeCommodity, tick: number): void {
     if (this.ledger.has(offer.offerId)) return;
 
     const peer = findById(this.world, toId, "farmer", "inbox");
     if (!peer || !peer.inbox) return;
 
-    this.ledger.add(
-      offer.offerId,
-      { offer, senderId: fromId, recipientId: toId, commodity },
-      tick,
-    );
+    this.ledger.add(offer.offerId, { offer, senderId: fromId, recipientId: toId, commodity }, tick);
 
     peer.inbox.messages.push({
       performative: PERFORMATIVE.PROPOSE,
@@ -213,11 +178,7 @@ export class EncounterTradeSystem implements System {
     if (sender === "world" || typeof sender !== "number") return;
 
     if (!this.ledger.has(offer.offerId)) {
-      this.ledger.add(
-        offer.offerId,
-        { offer, senderId: sender, recipientId: farmer.id, commodity },
-        ctx.tick,
-      );
+      this.ledger.add(offer.offerId, { offer, senderId: sender, recipientId: farmer.id, commodity }, ctx.tick);
     }
 
     const personality = farmer.personality?.kind;
@@ -244,22 +205,12 @@ export class EncounterTradeSystem implements System {
       this.sendAccept(farmer.id, sender, offer.offerId, ctx.tick);
       applyTrustDelta(farmer, sender, DEFAULT_TRUST_CONFIG.acceptDelta);
     } else {
-      this.sendDecline(
-        farmer.id,
-        sender,
-        offer.offerId,
-        result.reason ?? "declined",
-        ctx.tick,
-      );
+      this.sendDecline(farmer.id, sender, offer.offerId, result.reason ?? "declined", ctx.tick);
       this.ledger.remove(offer.offerId);
     }
   }
 
-  private handleBeanGift(
-    farmer: GameEntity,
-    body: OfferBeanBody,
-    sender: number | "world",
-  ): void {
+  private handleBeanGift(farmer: GameEntity, body: OfferBeanBody, sender: number | "world"): void {
     if (farmer.id === undefined) return;
     if (sender === "world" || typeof sender !== "number") return;
     const giver = findById(this.world, sender, "farmer", "inbox");
@@ -273,11 +224,7 @@ export class EncounterTradeSystem implements System {
     applyTrustDelta(farmer, sender, GIFT_TRUST_DELTA);
   }
 
-  private handleAccept(
-    farmer: GameEntity,
-    body: AcceptBody,
-    sender: number | "world",
-  ): void {
+  private handleAccept(farmer: GameEntity, body: AcceptBody, sender: number | "world"): void {
     const pending = this.ledger.get(body.offerId);
     if (!pending) return;
     if (farmer.id === undefined) return;
@@ -344,12 +291,7 @@ export class EncounterTradeSystem implements System {
     }
   }
 
-  private sendAccept(
-    fromId: number,
-    toId: number,
-    offerId: string,
-    tick: number,
-  ): void {
+  private sendAccept(fromId: number, toId: number, offerId: string, tick: number): void {
     const recipient = findById(this.world, toId, "farmer", "inbox");
     if (!recipient || !recipient.inbox) return;
     const body: AcceptBody = { offerId };
@@ -362,13 +304,7 @@ export class EncounterTradeSystem implements System {
     });
   }
 
-  private sendDecline(
-    fromId: number,
-    toId: number,
-    offerId: string,
-    reason: string,
-    tick: number,
-  ): void {
+  private sendDecline(fromId: number, toId: number, offerId: string, reason: string, tick: number): void {
     const recipient = findById(this.world, toId, "farmer", "inbox");
     if (!recipient || !recipient.inbox) return;
     const body: DeclineBody = { offerId, reason };

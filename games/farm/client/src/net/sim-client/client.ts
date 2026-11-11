@@ -1,5 +1,3 @@
-
-
 import type {
   SimInbound,
   SimOutbound,
@@ -84,7 +82,7 @@ export class SimClient {
       try {
         msg = JSON.parse(event.data as string) as SimOutbound;
       } catch {
-        return; 
+        return;
       }
       if (msg.type === "static-layer") {
         this.staticLayerCallback?.(msg);
@@ -113,7 +111,6 @@ export class SimClient {
       } else if (msg.type === "profile") {
         this.profileCallback?.(msg.tick, msg.report);
       } else if (msg.type === "attach") {
-
         this.isOwner = msg.owner;
         this.attachCallback?.(msg.owner);
       } else if (msg.type === "rejected") {
@@ -126,7 +123,6 @@ export class SimClient {
             `${msg.field !== undefined ? `, field "${msg.field}"` : ""}): ${msg.message}`,
         );
       } else if (msg.type === "fault") {
-
         // Terminal: the server halted the run mid-tick rather than advance
         // onto a world state no clean tick could have produced (see
         // decisions.md, "Farm sim-host tick-fault policy"). No further
@@ -144,7 +140,6 @@ export class SimClient {
       this.connectionLostCallback?.();
     };
     this.ws.onerror = () => {
-
       this.connectionLostCallback?.();
     };
 
@@ -215,7 +210,6 @@ export class SimClient {
   }
 
   terminate(): void {
-
     if (this.docListener !== null && typeof document !== "undefined") {
       document.removeEventListener("visibilitychange", this.docListener);
       this.docListener = null;
@@ -268,12 +262,7 @@ export class SimClient {
   freezeInterp(frames: number): void {
     if (frames <= 0) return;
     const now = performance.now();
-    const rawAlpha = computeSnapshotAlpha(
-      now,
-      this.lastSnapshotArrivalMs,
-      this.msPerTick,
-      this.renderDelayMs,
-    );
+    const rawAlpha = computeSnapshotAlpha(now, this.lastSnapshotArrivalMs, this.msPerTick, this.renderDelayMs);
     this.hitstopAlpha = smoothstep(rawAlpha);
     this.hitstopFramesLeft = frames;
   }
@@ -293,12 +282,7 @@ export class SimClient {
     } else {
       const now = performance.now();
 
-      const rawAlpha = computeSnapshotAlpha(
-        now,
-        this.lastSnapshotArrivalMs,
-        this.msPerTick,
-        this.renderDelayMs,
-      );
+      const rawAlpha = computeSnapshotAlpha(now, this.lastSnapshotArrivalMs, this.msPerTick, this.renderDelayMs);
       alpha = smoothstep(rawAlpha);
     }
 
@@ -310,7 +294,6 @@ export class SimClient {
       const s = src[i]!;
       let dst = out[i];
       if (dst === undefined) {
-
         dst = { ...s };
         out[i] = dst;
       } else {
@@ -319,7 +302,6 @@ export class SimClient {
       if (s.interpolate && s.id !== null && prev !== null) {
         const p = this.prevById.get(s.id);
         if (p !== undefined) {
-
           const dx = s.x - p.x;
           const dy = s.y - p.y;
           if (dx * dx + dy * dy <= MAX_LERP_DIST_SQ) {

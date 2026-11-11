@@ -1,5 +1,3 @@
-
-
 import type { SimContext, System, World, Rng, MessageBus } from "@engine/core";
 import type { GameEntity } from "../../components";
 import { applyTrustDelta } from "../cognition/trust";
@@ -75,12 +73,7 @@ export class CombatSystem implements System {
     return false;
   }
 
-  startBout(
-    initiatorId: number,
-    targetId: number,
-    context: CombatContext,
-    tick: number,
-  ): boolean {
+  startBout(initiatorId: number, targetId: number, context: CombatContext, tick: number): boolean {
     if (initiatorId === targetId) return false;
     if (this.isFighting(initiatorId) || this.isFighting(targetId)) return false;
     const a = this.findFarmer(initiatorId);
@@ -190,7 +183,14 @@ export class CombatSystem implements System {
     const a = this.findFarmer(bout.aId);
     const b = this.findFarmer(bout.bId);
     if (!a || !b || !a.health || !b.health) {
-      this.endBout(bout, { context: bout.context, winnerId: null, loserId: null, koed: false, fledId: null, looted: 0 });
+      this.endBout(bout, {
+        context: bout.context,
+        winnerId: null,
+        loserId: null,
+        koed: false,
+        fledId: null,
+        looted: 0,
+      });
       return;
     }
 
@@ -227,9 +227,7 @@ export class CombatSystem implements System {
     const apCost = bat ? AP_PER_SWING.bat : AP_PER_SWING.fist;
     if (!attacker.ap || attacker.ap.current < apCost) return false;
     attacker.ap.current -= apCost;
-    const dmg = bat
-      ? fork.int(BAT_DAMAGE.lo, BAT_DAMAGE.hi)
-      : fork.int(FIST_DAMAGE.lo, FIST_DAMAGE.hi);
+    const dmg = bat ? fork.int(BAT_DAMAGE.lo, BAT_DAMAGE.hi) : fork.int(FIST_DAMAGE.lo, FIST_DAMAGE.hi);
     if (defender.health) defender.health.current = Math.max(0, defender.health.current - dmg);
     return true;
   }
@@ -239,7 +237,7 @@ export class CombatSystem implements System {
     if (bout.context === "ring") {
       this.applyRingOutcome(winner, loser);
     } else {
-      looted = lootGoods(winner, loser); 
+      looted = lootGoods(winner, loser);
       this.applyWitnessPenalties(bout.initiatorId, loser, looted > 0);
     }
     this.endBout(bout, {
@@ -252,13 +250,7 @@ export class CombatSystem implements System {
     });
   }
 
-  private resolveExhaustion(
-    bout: Bout,
-    a: GameEntity,
-    b: GameEntity,
-    aCanSwing: boolean,
-    bCanSwing: boolean,
-  ): void {
+  private resolveExhaustion(bout: Bout, a: GameEntity, b: GameEntity, aCanSwing: boolean, bCanSwing: boolean): void {
     // MUTUAL EXHAUSTION IS A DRAW, in either context (audit-46).
     //
     // Hoisted ABOVE the ring branch because that branch already assumes exactly one side is out
@@ -313,7 +305,7 @@ export class CombatSystem implements System {
 
     // (The street mutual-exhaustion draw that used to live here is now the hoisted check above,
     // which covers both contexts.)
-    bout.nextSwingTick += this.swingInterval; 
+    bout.nextSwingTick += this.swingInterval;
   }
 
   private applyRingOutcome(winner: GameEntity, loser: GameEntity): void {
@@ -353,7 +345,13 @@ export class CombatSystem implements System {
     if (b?.fsm) b.fsm.current = "WAIT_DAY";
     this.bouts.delete(pairKey(bout.aId, bout.bId));
     this.bus.send(
-      { performative: "inform", ontology: ONT_COMBAT.RESULT, sender: "world", recipient: "broadcast", body: result as unknown as Record<string, unknown> },
+      {
+        performative: "inform",
+        ontology: ONT_COMBAT.RESULT,
+        sender: "world",
+        recipient: "broadcast",
+        body: result as unknown as Record<string, unknown>,
+      },
       this.currentTick,
     );
   }

@@ -106,14 +106,7 @@ export class HollowReproductionSystem implements System {
 
   run(ctx: SimContext): void {
     const byId = new Map<number, ReproductionEntity>();
-    for (const e of this.world.query(
-      "agent",
-      "needs",
-      "beliefs",
-      "lifecycle",
-      "genome",
-      "inventory",
-    )) {
+    for (const e of this.world.query("agent", "needs", "beliefs", "lifecycle", "genome", "inventory")) {
       const entity = e as ReproductionEntity;
       byId.set(entity.id, entity);
     }
@@ -219,9 +212,6 @@ export class HollowReproductionSystem implements System {
   }
 
   private emit(ontology: string, body: Record<string, unknown>, tick: number): void {
-    this.bus.send(
-      { performative: PERFORMATIVE.INFORM, ontology, sender: "world", recipient: "broadcast", body },
-      tick,
-    );
+    this.bus.send({ performative: PERFORMATIVE.INFORM, ontology, sender: "world", recipient: "broadcast", body }, tick);
   }
 }

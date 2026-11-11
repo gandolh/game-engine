@@ -1,14 +1,7 @@
-
-
 import { describe, it, expect, beforeEach } from "vitest";
 import { World } from "@engine/core";
 import type { GameEntity } from "../components";
-import {
-  RivalrySystem,
-  RIVAL_CUTOFF,
-  RIVAL_REARM,
-  ALLIANCE_TRUST_THRESHOLD,
-} from "./rivalry";
+import { RivalrySystem, RIVAL_CUTOFF, RIVAL_REARM, ALLIANCE_TRUST_THRESHOLD } from "./rivalry";
 
 function makeFarmer(world: World<GameEntity>, name: string): GameEntity {
   return world.spawn({
@@ -49,11 +42,11 @@ describe("RivalrySystem — directional rivalry labeling", () => {
   it("labels a one-sided rivalry when my trust drops below the cutoff", () => {
     const alice = makeFarmer(world, "Alice");
     const bob = makeFarmer(world, "Bob");
-    setTrust(alice, bob, RIVAL_CUTOFF - 0.05); 
+    setTrust(alice, bob, RIVAL_CUTOFF - 0.05);
     rivalry.run({ tick: 0 });
 
     const rivalries = rivalry.activeRivalries();
-    expect(rivalries).toHaveLength(1); 
+    expect(rivalries).toHaveLength(1);
     expect(rivalries[0]!.aId).toBe(alice.id);
     expect(rivalries[0]!.bId).toBe(bob.id);
     expect(rivalries[0]!.score).toBeLessThan(RIVAL_CUTOFF);

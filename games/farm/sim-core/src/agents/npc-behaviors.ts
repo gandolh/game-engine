@@ -1,5 +1,3 @@
-
-
 import type { World } from "@engine/core";
 import type { GameEntity } from "../components";
 import { getRegion, type RegionId } from "../world/regions";

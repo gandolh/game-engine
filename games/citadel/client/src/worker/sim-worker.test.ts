@@ -30,7 +30,9 @@ beforeAll(async () => {
   vi.useFakeTimers();
   // Mock postMessage BEFORE the handler runs (the module wires self.onmessage at import; the
   // first postMessage happens later, inside a dispatched handler).
-  self.postMessage = ((m: WorkerOutbound) => { posted.push(m); }) as typeof self.postMessage;
+  self.postMessage = ((m: WorkerOutbound) => {
+    posted.push(m);
+  }) as typeof self.postMessage;
   await import("./sim-worker");
   const handler = self.onmessage as unknown as (e: { data: WorkerInbound }) => void;
   dispatch = (msg) => handler({ data: msg });

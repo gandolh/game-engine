@@ -45,7 +45,12 @@ function diamondsBoxing(iso: IsoProjection, w: number, h: number, r: StaticRegio
   for (let ty = 0; ty < h; ty++) {
     for (let tx = 0; tx < w; tx++) {
       const c = iso.tileCenterToIso(tx, ty);
-      if (c.x + ISO_HW > r.originX && c.x - ISO_HW < r.originX + r.width && c.y + ISO_HH > r.originY && c.y - ISO_HH < r.originY + r.height) {
+      if (
+        c.x + ISO_HW > r.originX &&
+        c.x - ISO_HW < r.originX + r.width &&
+        c.y + ISO_HH > r.originY &&
+        c.y - ISO_HH < r.originY + r.height
+      ) {
         const top = iso.tileDiamond(tx, ty)[0]!;
         out.add(`${top.x},${top.y}`);
       }
@@ -112,7 +117,10 @@ describe("Citadel's terrain bake on patches", () => {
     const c = iso.tileCenterToIso(10, 10);
     // The rect sits inside tile 10; floor/ceil of its corners give 10..11, padded by one.
     expect(regionTiles(iso, { originX: c.x - 1, originY: c.y - 1, width: 2, height: 2 })).toEqual({
-      minTx: 9, minTy: 9, maxTx: 12, maxTy: 12,
+      minTx: 9,
+      minTy: 9,
+      maxTx: 12,
+      maxTy: 12,
     });
   });
 });

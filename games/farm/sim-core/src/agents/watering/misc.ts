@@ -21,12 +21,12 @@ export function deliberateSleep(farmer: GameEntity): void {
   if (!homeRegion) return;
   if (farmer.farmer.currentRegion === homeRegion && !farmer.farmer.path) return;
 
-  if (farmer.intentions.queue.some(i => i.kind === "travel" && i.data.targetRegionId === homeRegion)) return;
+  if (farmer.intentions.queue.some((i) => i.kind === "travel" && i.data.targetRegionId === homeRegion)) return;
 
   farmer.intentions.queue.push({
     kind: "travel",
     data: { targetRegionId: homeRegion },
-    priority: -1, 
+    priority: -1,
   });
   recordReason(farmer, `head home (${phase})`);
 }

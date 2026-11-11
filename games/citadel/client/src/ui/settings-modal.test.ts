@@ -4,19 +4,8 @@
  * tree is plain objects; no renderer or DOM needed).
  */
 import { describe, it, expect, beforeEach } from "vitest";
-import type {
-  CheckboxNode,
-  SliderNode,
-  ButtonNode,
-  ContainerNode,
-  UINode,
-} from "@engine/ui";
-import {
-  matchesSearch,
-  nextTabIndex,
-  SettingsModal,
-  type SettingsModalConfig,
-} from "./settings-modal";
+import type { CheckboxNode, SliderNode, ButtonNode, ContainerNode, UINode } from "@engine/ui";
+import { matchesSearch, nextTabIndex, SettingsModal, type SettingsModalConfig } from "./settings-modal";
 
 describe("matchesSearch", () => {
   it("matches everything on an empty / whitespace query", () => {

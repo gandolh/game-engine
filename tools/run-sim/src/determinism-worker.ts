@@ -1,5 +1,3 @@
-
-
 import { parentPort } from "node:worker_threads";
 import { runOnce, type RunResult } from "./run-core";
 import { makePathfinder } from "./pathfinder";

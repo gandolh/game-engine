@@ -40,7 +40,15 @@ import { computeWash, nightFactorOf, emittersOf, lightPoolQuads } from "./atmosp
 
 /** Per-type art height in tiles — MUST match the authored recipe heights. */
 const SHOWCASE_HEIGHT_TILES: Record<string, number> = {
-  keep: 3, tower: 3, mill: 3, garrison: 2, chapel: 2, "town-hall": 2, healer: 2, mine: 2, watchpost: 2,
+  keep: 3,
+  tower: 3,
+  mill: 3,
+  garrison: 2,
+  chapel: 2,
+  "town-hall": 2,
+  healer: 2,
+  mine: 2,
+  watchpost: 2,
 };
 export function showcaseHeightTiles(type: string): number {
   return SHOWCASE_HEIGHT_TILES[type] ?? 1;
@@ -48,8 +56,13 @@ export function showcaseHeightTiles(type: string): number {
 
 /** Per-type footprint (w,h) in tiles — mirrors the recipe footprints. */
 const SHOWCASE_FOOTPRINT: Record<string, readonly [number, number]> = {
-  farm: [3, 3], storehouse: [3, 2], tradingpost: [3, 2], garrison: [3, 2],
-  keep: [3, 3], "town-hall": [3, 3], well: [1, 1],
+  farm: [3, 3],
+  storehouse: [3, 2],
+  tradingpost: [3, 2],
+  garrison: [3, 2],
+  keep: [3, 3],
+  "town-hall": [3, 3],
+  well: [1, 1],
 };
 function showcaseFootprint(type: string): readonly [number, number] {
   return SHOWCASE_FOOTPRINT[type] ?? [2, 2];
@@ -89,10 +102,23 @@ export interface ShowcaseLayout {
 /** A neutral, non-burning, connected synthetic building at a tile. */
 function makeBuilding(type: string, x: number, y: number, w: number, h: number, burning = false): BuildingSnapshot {
   return {
-    type, x, y, w, h,
-    connected: true, outputBuffer: 0, workerCount: 1, occupancy: 1, ownerId: 0,
-    onFire: burning, burning,
-    level: 1, lacksFaith: false, lacksSafety: false, lacksGoods: false, mood: 80,
+    type,
+    x,
+    y,
+    w,
+    h,
+    connected: true,
+    outputBuffer: 0,
+    workerCount: 1,
+    occupancy: 1,
+    ownerId: 0,
+    onFire: burning,
+    burning,
+    level: 1,
+    lacksFaith: false,
+    lacksSafety: false,
+    lacksGoods: false,
+    mood: 80,
     wellServed: false,
   };
 }
@@ -159,7 +185,8 @@ function firstOverlapIn(items: readonly ShowcaseItem[]): [ShowcaseItem, Showcase
  *  the framed view doesn't crop the units below the building lattice. */
 function padBounds(iso: IsoProjection, b: Aabb, villagers: readonly VillagerSnapshot[]): Aabb {
   let { x: minX, y: minY } = b;
-  let maxX = b.x + b.width, maxY = b.y + b.height;
+  let maxX = b.x + b.width,
+    maxY = b.y + b.height;
   for (const v of villagers) {
     const p = iso.tileCenterToIso(v.x, v.y);
     minX = Math.min(minX, p.x - ISO_TILE_W);
@@ -171,7 +198,10 @@ function padBounds(iso: IsoProjection, b: Aabb, villagers: readonly VillagerSnap
 
 /** The union iso-px bounding box of every placed item (for camera framing). */
 export function showcaseBounds(layout: ShowcaseLayout): Aabb {
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  let minX = Infinity,
+    minY = Infinity,
+    maxX = -Infinity,
+    maxY = -Infinity;
   for (const it of layout.items) {
     minX = Math.min(minX, it.aabb.x);
     minY = Math.min(minY, it.aabb.y);
@@ -217,8 +247,19 @@ const LAYER_ISO_OVERLAY = 2;
 
 /** Every villager job — a showcase row so each role silhouette is visible. */
 const SHOWCASE_JOBS: readonly string[] = [
-  "farmer", "woodcutter", "sawyer", "smith", "priest", "healer",
-  "watchman", "soldier", "trader", "miller", "quarryman", "miner", "idle",
+  "farmer",
+  "woodcutter",
+  "sawyer",
+  "smith",
+  "priest",
+  "healer",
+  "watchman",
+  "soldier",
+  "trader",
+  "miller",
+  "quarryman",
+  "miner",
+  "idle",
 ];
 
 /**
@@ -312,16 +353,27 @@ export async function runShowcase(
       for (const it of layout.items) {
         const b = it.building;
         const d = iso.isoFootprintDiamondBox(b.x, b.y, b.w, b.h, 0);
-        renderer.push(quadToSprite(
-          { x: d.x, y: d.y, width: d.width, height: d.height, tintRgba: packTint(EDG.slate, 0x66), frame: "fx/diamond" },
-          LAYER_ISO_OVERLAY,
-        ));
+        renderer.push(
+          quadToSprite(
+            {
+              x: d.x,
+              y: d.y,
+              width: d.width,
+              height: d.height,
+              tintRgba: packTint(EDG.slate, 0x66),
+              frame: "fx/diamond",
+            },
+            LAYER_ISO_OVERLAY,
+          ),
+        );
         // Vertical ruler up the near corner (a thin 1px column the full sprite height).
         const box = iso.isoFootprintBox(b.x, b.y, b.w, b.h, showcaseHeightTiles(b.type));
-        renderer.push(quadToSprite(
-          { x: box.x + box.width / 2, y: box.y, width: 1, height: box.height, tintRgba: packTint(EDG.yellow, 0x99) },
-          LAYER_ISO_OVERLAY,
-        ));
+        renderer.push(
+          quadToSprite(
+            { x: box.x + box.width / 2, y: box.y, width: 1, height: box.height, tintRgba: packTint(EDG.yellow, 0x99) },
+            LAYER_ISO_OVERLAY,
+          ),
+        );
       }
     }
 
@@ -345,6 +397,9 @@ export async function runShowcase(
 
   return {
     toggles,
-    stop: () => { stopped = true; cancelAnimationFrame(raf); },
+    stop: () => {
+      stopped = true;
+      cancelAnimationFrame(raf);
+    },
   };
 }

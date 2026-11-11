@@ -1,13 +1,13 @@
 import type { CropKind } from "../../components";
 
 export const SHOP_BUY_PRICE: Record<CropKind, number> = {
-  radish:          6,
-  wheat:           10,
-  carrot:          8,
-  tomato:          13,
-  corn:            16,
-  pumpkin:         19,
-  grape:           24,
+  radish: 6,
+  wheat: 10,
+  carrot: 8,
+  tomato: 13,
+  corn: 16,
+  pumpkin: 19,
+  grape: 24,
   "winter-squash": 13,
 };
 

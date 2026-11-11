@@ -18,7 +18,10 @@ const SEED = 12345;
 const TICKS_PER_DAY = 1200;
 
 function types(sim: CitadelSimResult): string[] {
-  return sim.getBuildings().map((b) => b.type).sort();
+  return sim
+    .getBuildings()
+    .map((b) => b.type)
+    .sort();
 }
 
 describe("seedTown", () => {

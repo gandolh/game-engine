@@ -5,20 +5,10 @@
  * the quadToSprite helper that wraps a QuadSpec for the sprite-batch.
  */
 import { CITADEL_PAL as EDG } from "./citadel-palette";
-import {
-  rgbOf,
-} from "@engine/core";
+import { rgbOf } from "@engine/core";
 import type { Sprite } from "@engine/core/render";
-import {
-  TerrainType,
-  TILE_SIZE,
-} from "@citadel/sim-core";
-import type {
-  BuildingSnapshot,
-  VillagerSnapshot,
-  RaiderSnapshot,
-  VillagerJob,
-} from "@citadel/sim-core";
+import { TerrainType, TILE_SIZE } from "@citadel/sim-core";
+import type { BuildingSnapshot, VillagerSnapshot, RaiderSnapshot, VillagerJob } from "@citadel/sim-core";
 import {
   BUILDING_SPRITE_TYPES,
   buildingFrameName,
@@ -141,20 +131,20 @@ export const ALL_VILLAGER_JOBS: readonly VillagerJob[] = [
  *   idle       — silver (neutral / unassigned)
  */
 export const VILLAGER_JOB_COLORS: Record<VillagerJob, string> = {
-  farmer:     EDG.greenMid,
-  miller:     EDG.cream,
-  baker:      EDG.tan,
+  farmer: EDG.greenMid,
+  miller: EDG.cream,
+  baker: EDG.tan,
   woodcutter: EDG.wood,
-  quarryman:  EDG.slate,
-  miner:      EDG.ink,
-  sawyer:     EDG.greenDark,
-  smith:      EDG.crimson,
-  priest:     EDG.white,
-  trader:     EDG.gold,
-  watchman:   EDG.blue,
-  soldier:    EDG.navy,
-  healer:     EDG.cyan,
-  idle:       EDG.silver,
+  quarryman: EDG.slate,
+  miner: EDG.ink,
+  sawyer: EDG.greenDark,
+  smith: EDG.crimson,
+  priest: EDG.white,
+  trader: EDG.gold,
+  watchman: EDG.blue,
+  soldier: EDG.navy,
+  healer: EDG.cyan,
+  idle: EDG.silver,
 };
 
 export const FALLBACK_BUILDING_COLOR = EDG.steel;
@@ -189,7 +179,7 @@ export function spriteAlphaOf(tintRgba: number | undefined, baseAlpha = 1): numb
 export function packTint(hex: string, alpha = 0xff): number {
   const [r, g, b] = rgbOf(hex);
   // >>> 0 keeps the result an unsigned 32-bit int.
-  return (((r << 24) | (g << 16) | (b << 8) | (alpha & 0xff)) >>> 0);
+  return ((r << 24) | (g << 16) | (b << 8) | (alpha & 0xff)) >>> 0;
 }
 
 // ---------------------------------------------------------------------------
@@ -310,11 +300,12 @@ export function buildingQuad(b: BuildingSnapshot, clockMs?: number, nightFactor 
     // At dusk/night an eligible building swaps to its warm-window-glow `@lit`
     // frame (the strongest cozy cue) — but never while burning (fire read wins).
     const lit = !b.burning && nightFactor > 0.45 && LIT_BUILDING_SET.has(b.type);
-    const frame = b.type === "mill" && clockMs !== undefined
-      ? millFrameAt(clockMs)
-      : lit
-        ? buildingLitFrameName(b.type)
-        : buildingFrameName(b.type);
+    const frame =
+      b.type === "mill" && clockMs !== undefined
+        ? millFrameAt(clockMs)
+        : lit
+          ? buildingLitFrameName(b.type)
+          : buildingFrameName(b.type);
     return {
       x: px,
       y: py,
@@ -397,9 +388,7 @@ export function villagerQuad(v: VillagerSnapshot, clockMs?: number): QuadSpec {
   // `vil/person` body for jobs with no accessory) so a farmer/smith/priest reads
   // by silhouette, not just tint. Static fallback keeps the plain base frame.
   const nameFor = villagerNameForJob(v.job);
-  const frame = clockMs !== undefined
-    ? unitFrameAt(clockMs, nameFor, 900, (v.id % 5) * 180)
-    : nameFor(0);
+  const frame = clockMs !== undefined ? unitFrameAt(clockMs, nameFor, 900, (v.id % 5) * 180) : nameFor(0);
   return { x: cx - size / 2, y: cy - size / 2, width: size, height: size, tintRgba: packTint(hex), frame };
 }
 
@@ -430,10 +419,10 @@ export function raiderQuad(r: RaiderSnapshot, clockMs?: number): QuadSpec {
   const base = TILE_SIZE * (0.4 + Math.min(0.6, r.strength / 60));
   // Per-tier aspect: weak is narrow, strong is broad, elite is tall.
   const aspect: Record<RaiderTier, { wx: number; hy: number; hex: string }> = {
-    weak:   { wx: 0.7, hy: 0.85, hex: EDG.red },
-    normal: { wx: 1.0, hy: 1.0,  hex: EDG.red },
-    strong: { wx: 1.3, hy: 1.0,  hex: EDG.red },
-    elite:  { wx: 1.15, hy: 1.3, hex: EDG.crimson },
+    weak: { wx: 0.7, hy: 0.85, hex: EDG.red },
+    normal: { wx: 1.0, hy: 1.0, hex: EDG.red },
+    strong: { wx: 1.3, hy: 1.0, hex: EDG.red },
+    elite: { wx: 1.15, hy: 1.3, hex: EDG.crimson },
   };
   const a = aspect[tier];
   const w = base * a.wx;
@@ -442,9 +431,7 @@ export function raiderQuad(r: RaiderSnapshot, clockMs?: number): QuadSpec {
   const cy = r.y * TILE_SIZE + TILE_SIZE / 2;
   // Idle-sway / walk-cycle (render-only), staggered per raider so a marching
   // warband doesn't move in perfect unison.
-  const frame = clockMs !== undefined
-    ? unitFrameAt(clockMs, raiderFrameName, 820, (r.id % 5) * 160)
-    : RAIDER_FRAME;
+  const frame = clockMs !== undefined ? unitFrameAt(clockMs, raiderFrameName, 820, (r.id % 5) * 160) : RAIDER_FRAME;
   return { x: cx - w / 2, y: cy - h / 2, width: w, height: h, tintRgba: packTint(a.hex), frame };
 }
 

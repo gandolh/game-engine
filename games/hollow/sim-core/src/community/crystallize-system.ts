@@ -149,8 +149,7 @@ export class HollowCommunitySystem implements System {
         const others = priorMembers.filter((m) => m !== memberId);
         if (others.length === 0) continue;
         const avg =
-          others.reduce((sum, otherId) => sum + relationshipScore(member.relationships, otherId), 0) /
-          others.length;
+          others.reduce((sum, otherId) => sum + relationshipScore(member.relationships, otherId), 0) / others.length;
         if (avg < this.leaveTrustThreshold) toRemove.push(memberId);
       }
       for (const memberId of toRemove) {
@@ -302,11 +301,7 @@ export class HollowCommunitySystem implements System {
           if (e) e.communityId = keepId;
         }
 
-        this.emit(
-          ONT_COMMUNITY.MERGED,
-          { keptId: keepId, absorbedId: otherId, memberIds: merged, tick },
-          tick,
-        );
+        this.emit(ONT_COMMUNITY.MERGED, { keptId: keepId, absorbedId: otherId, memberIds: merged, tick }, tick);
         break; // `a`'s participation in a merge this pass ends here — at
         // most one merge per community per check interval (see class doc).
       }
@@ -344,9 +339,8 @@ export class HollowCommunitySystem implements System {
         // no causal effect. `admissionJoinThreshold` is hinged on the default, so a community that
         // never voted its norm away from neutral demands exactly `joinTrustThreshold` as before.
         const policy = community.norms.admissionPolicy ?? COMMUNITY_DEFAULT_ADMISSION_POLICY;
-        const threshold = policy === COMMUNITY_DEFAULT_ADMISSION_POLICY
-          ? this.joinTrustThreshold
-          : admissionJoinThreshold(policy);
+        const threshold =
+          policy === COMMUNITY_DEFAULT_ADMISSION_POLICY ? this.joinTrustThreshold : admissionJoinThreshold(policy);
         if (combined >= threshold) {
           this.registry.addMember(community.id, candidateId);
           candidate.communityId = community.id;

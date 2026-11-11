@@ -9,7 +9,6 @@ function makeState(gliding = false, elapsedSec = 0): { gliding: boolean; elapsed
 }
 
 describe("default zoom activates viewport culling (brief 84)", () => {
-
   const CULL_MARGIN = 32;
   const worldPxW = WORLD_WIDTH * TILE;
   const worldPxH = WORLD_HEIGHT * TILE;
@@ -26,7 +25,6 @@ describe("default zoom activates viewport culling (brief 84)", () => {
   }
 
   it("DEFAULT_ZOOM is > 1 so the viewport is smaller than the whole world", () => {
-
     expect(DEFAULT_ZOOM).toBeGreaterThan(1);
     const cam = new Camera2D(CAMERA_CONFIG);
     cam.setZoom(DEFAULT_ZOOM);
@@ -60,7 +58,7 @@ describe("stepFocusGlide", () => {
   it("(b) focusChanged with a far target → gliding=true, center between prev and target, converges", () => {
     const prev = { x: 0, y: 0 };
     const raw = { x: 200, y: 200 };
-    const sx = 2; 
+    const sx = 2;
 
     const state = makeState(false, 0);
     const r0 = stepFocusGlide(prev, raw, true, 0.016, sx, state);
@@ -90,7 +88,6 @@ describe("stepFocusGlide", () => {
   });
 
   it("(c) force-lock after 0.6s even if target keeps moving (elapsedSec cap)", () => {
-
     const state = makeState(true, 0);
     const prev = { x: 0, y: 0 };
 
@@ -101,7 +98,6 @@ describe("stepFocusGlide", () => {
     let steps = 0;
 
     while (gliding && steps < 1000) {
-
       const raw = { x: cx + 300, y: cy + 300 };
       const s = makeState(gliding, elapsedSec);
       const res = stepFocusGlide({ x: cx, y: cy }, raw, false, 0.016, 1, s);
@@ -110,7 +106,7 @@ describe("stepFocusGlide", () => {
       gliding = res.gliding;
       elapsedSec = res.elapsedSec;
       steps += 1;
-      void prev; 
+      void prev;
     }
 
     expect(steps).toBeLessThan(100);
@@ -120,7 +116,6 @@ describe("stepFocusGlide", () => {
   it("(d) pan-drag analog: repeated calls with focusChanged=false always lock 1:1", () => {
     const raw = { x: 55, y: 77 };
     for (let i = 0; i < 10; i += 1) {
-
       const state = makeState(false, 0);
       const result = stepFocusGlide({ x: 10, y: 20 }, raw, false, 0.016, 2, state);
       expect(result.center.x).toBe(raw.x);

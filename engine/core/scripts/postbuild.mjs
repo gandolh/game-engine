@@ -82,8 +82,12 @@ for (const shader of walk(srcDir, (n) => n.endsWith(".glsl"))) {
   assets++;
 }
 
-console.log(`[postbuild] rewrote ${rewrites} relative specifiers across ${codeFiles.length} files; copied ${assets} shader asset(s).`);
+console.log(
+  `[postbuild] rewrote ${rewrites} relative specifiers across ${codeFiles.length} files; copied ${assets} shader asset(s).`,
+);
 if (unresolved.size > 0) {
-  console.log(`[postbuild] left ${unresolved.size} non-resolvable specifier(s) untouched (bundler-only assets, expected):`);
+  console.log(
+    `[postbuild] left ${unresolved.size} non-resolvable specifier(s) untouched (bundler-only assets, expected):`,
+  );
   for (const u of unresolved) console.log(`  - ${u}`);
 }

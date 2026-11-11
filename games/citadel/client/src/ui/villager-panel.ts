@@ -89,13 +89,7 @@ export function createVillagerPanel(): VillagerPanel {
   // overran the old `width: 200` — containers don't clip, so it spilled past the panel background.
   // 288 fits the longest job at scale 2 with margin; every other (scale-1) row fits easily.
   // (engine-ui backlog item 3, 2026-07-22: re-check fixed widths against the wider bitmap font.)
-  const root = panel({ direction: "column", gap: 6, width: 288 }, [
-    header,
-    jobLbl,
-    fsmLbl,
-    cargoLbl,
-    hintLbl,
-  ]);
+  const root = panel({ direction: "column", gap: 6, width: 288 }, [header, jobLbl, fsmLbl, cargoLbl, hintLbl]);
 
   let changed = false;
   let firstRefresh = true;

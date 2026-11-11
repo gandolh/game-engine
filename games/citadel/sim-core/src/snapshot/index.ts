@@ -150,17 +150,17 @@ export interface RenderSnapshot {
   // Citadel 32: in-flight PvP armies (empty in solo)
   readonly armies: readonly ArmySnapshot[];
   readonly threatLevel: number;
-  readonly nextRaidDay: number;          // approximate day of next raid (-1 if unscheduled)
+  readonly nextRaidDay: number; // approximate day of next raid (-1 if unscheduled)
   readonly defensiveStrength: number;
   readonly keepPresent: boolean;
   readonly keepSacked: boolean;
   // Phase 4.5: hazards
   readonly sickVillagers: number;
   readonly outbreakActive: boolean;
-  readonly activeFires: number;          // count of burning buildings
+  readonly activeFires: number; // count of burning buildings
   // Phase 5: settlement tier
-  readonly tier: string;                 // e.g. "Hamlet", "Village", "Town", … (current; can demote)
-  readonly peakTier: string;             // highest tier ever reached; gates build/upgrade buttons
+  readonly tier: string; // e.g. "Hamlet", "Village", "Town", … (current; can demote)
+  readonly peakTier: string; // highest tier ever reached; gates build/upgrade buttons
   // Citadel 09: total goods held in the tithe relief reserve (0 if no tithe accrued).
   readonly reliefReserve: number;
   /**
@@ -237,13 +237,16 @@ export interface CitadelSave {
 }
 
 /** Citadel 36: ephemeral relay messages — NEVER stamped into the command log. */
-export interface RosterEntry { readonly playerId: number; readonly alive: boolean }
+export interface RosterEntry {
+  readonly playerId: number;
+  readonly alive: boolean;
+}
 
 // Messages sent from Worker / server → main thread
 export type WorkerOutbound =
   | { type: "snapshot"; snapshot: RenderSnapshot }
-  | { type: "ready" }                              // emitted once after bootstrap
-  | { type: "save-data"; save: CitadelSave }       // Phase 5: save response
+  | { type: "ready" } // emitted once after bootstrap
+  | { type: "save-data"; save: CitadelSave } // Phase 5: save response
   // Citadel 36: ephemeral social layer (relayed, OFF the command log)
   | { type: "roster"; players: readonly RosterEntry[] }
   | { type: "presence"; playerId: number; cursorX: number; cursorY: number; tool: string }
@@ -263,13 +266,20 @@ export type WorkerInbound =
   // "challenge" = sharp threats (cozyThreats:false), no seeded alive-core (seedTown:false),
   // no threat-defer. The SIM never sees a mode enum (decision #19); only the worker
   // translates it. Omitted ⇒ "cozy" (the forgiving default). The MP server ignores it.
-  | { type: "init"; seed: number; ticksPerDay: number; worldWidth?: number; worldHeight?: number; mode?: "cozy" | "challenge" }
+  | {
+      type: "init";
+      seed: number;
+      ticksPerDay: number;
+      worldWidth?: number;
+      worldHeight?: number;
+      mode?: "cozy" | "challenge";
+    }
   | { type: "pause" }
   | { type: "resume" }
   | { type: "speed"; multiplier: number }
   | { type: "command"; command: CitadelCommand }
-  | { type: "request-save" }                       // Phase 5: request a save blob
-  | { type: "load-save"; save: CitadelSave }        // Phase 5: load from save
+  | { type: "request-save" } // Phase 5: request a save blob
+  | { type: "load-save"; save: CitadelSave } // Phase 5: load from save
   // Citadel 36: ephemeral social layer (relayed, NEVER enqueued into the log)
   | { type: "presence"; cursorX: number; cursorY: number; tool: string }
   | { type: "emote"; emote: string };

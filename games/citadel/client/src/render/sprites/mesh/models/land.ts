@@ -11,7 +11,12 @@ export function farm(): MeshModel {
     rows.push(translate(box([2.7, 0.22, 0.1], "greenroof"), [0.15, y, 0.1]));
   }
   // Four short corner fence posts to frame the plot.
-  const postAt = [[0.12, 0.12], [2.76, 0.12], [0.12, 2.76], [2.76, 2.76]] as const;
+  const postAt = [
+    [0.12, 0.12],
+    [2.76, 0.12],
+    [0.12, 2.76],
+    [2.76, 2.76],
+  ] as const;
   const posts = postAt.map(([x, y]) => translate(cylinder(0.06, 0.34, 6, "timber"), [x, y, 0]));
   return { name: "bld/farm", footprintW: 3, footprintD: 3, heightTiles: 1, mesh: merge(soil, ...rows, ...posts) };
 }

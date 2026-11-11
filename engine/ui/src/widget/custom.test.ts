@@ -41,10 +41,13 @@ describe("custom node (escape hatch)", () => {
     const order: string[] = [];
     let seenAlpha = -1;
     const first = custom(() => void order.push("first"), { width: 10, height: 10 });
-    const second = custom((_s, _r, alpha) => {
-      order.push("second");
-      seenAlpha = alpha;
-    }, { width: 10, height: 10 });
+    const second = custom(
+      (_s, _r, alpha) => {
+        order.push("second");
+        seenAlpha = alpha;
+      },
+      { width: 10, height: 10 },
+    );
 
     const root = panel({ direction: "column", gap: 0 }, [first, second]);
     root.opacity = 0.5;

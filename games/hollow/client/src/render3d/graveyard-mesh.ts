@@ -35,10 +35,11 @@ const FENCE_POST_H = 0.4;
 const FENCE_HALF_EXTENT = 1.1;
 
 function fencePost(dx: number, dy: number): Mesh {
-  return translate(
-    box([FENCE_POST_SIZE, FENCE_POST_SIZE, FENCE_POST_H], "woodDark"),
-    [dx - FENCE_POST_SIZE / 2, dy - FENCE_POST_SIZE / 2, 0],
-  );
+  return translate(box([FENCE_POST_SIZE, FENCE_POST_SIZE, FENCE_POST_H], "woodDark"), [
+    dx - FENCE_POST_SIZE / 2,
+    dy - FENCE_POST_SIZE / 2,
+    0,
+  ]);
 }
 
 /** Builds the graveyard's static mesh — upload ONCE (see this module's

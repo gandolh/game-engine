@@ -31,7 +31,11 @@ const FRAME = { x: 10, y: 20, w: 30, h: 40 };
 function makeAtlas(id = "ui"): LoadedAtlasImage {
   return {
     manifest: {
-      id, imageUrl: "", width: ATLAS_W, height: ATLAS_H, frames: { g: FRAME },
+      id,
+      imageUrl: "",
+      width: ATLAS_W,
+      height: ATLAS_H,
+      frames: { g: FRAME },
     } as unknown as LoadedAtlasImage["manifest"],
     bitmap: { __tag: "bitmap" } as unknown as ImageBitmap,
     frameRect: (name: string) => {
@@ -73,19 +77,28 @@ interface Recorded {
 function makeBatch(): { batch: SpriteBatch; rec: Recorded } {
   const rec: Recorded = { added: [], calls: [], ranges: [], view: undefined };
   const batch = {
-    get count(): number { return rec.added.length; },
+    get count(): number {
+      return rec.added.length;
+    },
     add(inst: GlSpriteInstance): number {
       // The pass reuses ONE scratch instance object, so snapshot it.
       rec.added.push({ ...inst });
       return rec.added.length - 1;
     },
-    setView(v: unknown): void { rec.view = v; rec.calls.push("setView"); },
-    beginPass(): void { rec.calls.push("beginPass"); },
+    setView(v: unknown): void {
+      rec.view = v;
+      rec.calls.push("setView");
+    },
+    beginPass(): void {
+      rec.calls.push("beginPass");
+    },
     drawRange(_gl: unknown, texture: unknown, first: number, count: number): void {
       rec.calls.push("drawRange");
       rec.ranges.push({ texture, first, count });
     },
-    endPass(): void { rec.calls.push("endPass"); },
+    endPass(): void {
+      rec.calls.push("endPass");
+    },
   } as unknown as SpriteBatch;
   return { batch, rec };
 }
@@ -171,9 +184,7 @@ describe("UiQuadPass#pack tint", () => {
   });
 
   it("feeds a palette colour into the per-instance tint (what the CPU tint cache emulated)", () => {
-    const { rec } = packed([
-      { x: 0, y: 0, width: 8, height: 8, atlasId: "ui", frame: "g", color: EDG.gold },
-    ]);
+    const { rec } = packed([{ x: 0, y: 0, width: 8, height: 8, atlasId: "ui", frame: "g", color: EDG.gold }]);
     const [r, g, b] = rgbOf(EDG.gold);
     expect(rec.added[0]!.r).toBeCloseTo(r / 255, 10);
     expect(rec.added[0]!.g).toBeCloseTo(g / 255, 10);
@@ -181,9 +192,7 @@ describe("UiQuadPass#pack tint", () => {
   });
 
   it("puts the quad's alpha in the tint alpha — the shader's tex.a * tint.a is the CPU globalAlpha", () => {
-    const { rec } = packed([
-      { x: 0, y: 0, width: 8, height: 8, atlasId: "ui", frame: "g", alpha: 0.25 },
-    ]);
+    const { rec } = packed([{ x: 0, y: 0, width: 8, height: 8, atlasId: "ui", frame: "g", alpha: 0.25 }]);
     expect(rec.added[0]!.a).toBe(0.25);
   });
 });
@@ -244,11 +253,14 @@ describe("UiQuadPass#pack group coalescing", () => {
     const store = makeStore(["ui"]);
     const { batch, rec: drawRec } = makeBatch();
     pass.draw(GL, batch, screenSpaceView(640, 480));
-    expect(drawRec.ranges.map((r) => [r.first, r.count])).toEqual([[0, 1], [1, 2], [3, 1]]);
+    expect(drawRec.ranges.map((r) => [r.first, r.count])).toEqual([
+      [0, 1],
+      [1, 2],
+      [3, 1],
+    ]);
     // ...and the bindings alternate white -> sheet -> white, proving the second
     // background was NOT merged back into the first group.
-    expect(drawRec.ranges.map((r) => (r.texture as { __tex: string }).__tex))
-      .toEqual(["white", "ui", "white"]);
+    expect(drawRec.ranges.map((r) => (r.texture as { __tex: string }).__tex)).toEqual(["white", "ui", "white"]);
     expect(store.whiteTexture()).toBeTruthy();
   });
 
@@ -261,8 +273,22 @@ describe("UiQuadPass#pack group coalescing", () => {
     // Three world sprites already in the shared instance buffer.
     for (let i = 0; i < 3; i += 1) {
       batch.add({
-        x: 0, y: 0, w: 1, h: 1, u0: 0, v0: 0, u1: 1, v1: 1,
-        rotation: 0, flipX: 0, r: 1, g: 1, b: 1, a: 1, swayPhase: 0, swayAmp: 0,
+        x: 0,
+        y: 0,
+        w: 1,
+        h: 1,
+        u0: 0,
+        v0: 0,
+        u1: 1,
+        v1: 1,
+        rotation: 0,
+        flipX: 0,
+        r: 1,
+        g: 1,
+        b: 1,
+        a: 1,
+        swayPhase: 0,
+        swayAmp: 0,
       });
     }
 
@@ -303,9 +329,7 @@ describe("UiQuadPass#draw", () => {
     const { batch, rec } = makeBatch();
     pass.draw(GL, batch, screenSpaceView(640, 480));
 
-    expect(rec.calls).toEqual([
-      "setView", "beginPass", "drawRange", "drawRange", "drawRange", "endPass",
-    ]);
+    expect(rec.calls).toEqual(["setView", "beginPass", "drawRange", "drawRange", "drawRange", "endPass"]);
   });
 
   it("re-issues the screen-space view before drawing, because the world view was set earlier", () => {
@@ -340,8 +364,14 @@ describe("UiQuadPass#draw", () => {
  * rules. This is the acceptance evidence for sweep-04: "the same rect, the same
  * source, the same colour", checked against the production rasterizer.
  */
-function recordCpuDraw(quad: UIQuad, dpr: number): {
-  dest: number[]; src: number[] | null; fillStyle: string | null; alpha: number;
+function recordCpuDraw(
+  quad: UIQuad,
+  dpr: number,
+): {
+  dest: number[];
+  src: number[] | null;
+  fillStyle: string | null;
+  alpha: number;
 } {
   let dest: number[] = [];
   let src: number[] | null = null;

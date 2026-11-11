@@ -31,11 +31,7 @@ export interface ChronicleCursor {
  * @param dropped     `chronicle.droppedCount()` right now
  * @param posted      cumulative count this consumer has already posted
  */
-export function advanceChronicleCursor(
-  liveLength: number,
-  dropped: number,
-  posted: number,
-): ChronicleCursor {
+export function advanceChronicleCursor(liveLength: number, dropped: number, posted: number): ChronicleCursor {
   const captured = dropped + liveLength;
   // Anything already evicted can never be posted. Start from whichever is
   // later: our last post, or the oldest event still retained.

@@ -1,5 +1,3 @@
-
-
 import type { SimContext, System, World, MessageBus } from "@engine/core";
 import type { GameEntity } from "../../components";
 import { isWithinReach } from "../proximity";
@@ -70,11 +68,10 @@ export class ChaseSystem implements System {
     const ty = Math.round(target.transform!.y);
     const queue = chaser.intentions!.queue;
     const front = queue[0];
-    const isChaseTravel =
-      front?.kind === "travel" && front.data.chasePursuit === true;
+    const isChaseTravel = front?.kind === "travel" && front.data.chasePursuit === true;
     if (isChaseTravel) {
       const t = front.data.targetTile as { x: number; y: number } | undefined;
-      if (t && t.x === tx && t.y === ty) return; 
+      if (t && t.x === tx && t.y === ty) return;
 
       delete chaser.farmer!.path;
       queue.shift();
@@ -82,7 +79,7 @@ export class ChaseSystem implements System {
     queue.unshift({
       kind: "travel",
       data: { targetTile: { x: tx, y: ty }, chasePursuit: true },
-      priority: -1, 
+      priority: -1,
     });
   }
 

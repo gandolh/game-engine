@@ -19,7 +19,12 @@ import { ResourceWorld } from "../world";
 import { HollowSocialActSystem } from "./act-system";
 import { HollowFeudSystem, type FeudSystemOptions } from "./feud-system";
 import { ONT_FEUD } from "../protocols";
-import { FEUD_START_THRESHOLD, FEUD_INCREMENT_ATTACK, FEUD_RECONCILE_THRESHOLD, FEUD_DECAY_PER_TICK } from "./feud-constants";
+import {
+  FEUD_START_THRESHOLD,
+  FEUD_INCREMENT_ATTACK,
+  FEUD_RECONCILE_THRESHOLD,
+  FEUD_DECAY_PER_TICK,
+} from "./feud-constants";
 
 type Agent = HollowEntity & { id: number };
 
@@ -129,7 +134,9 @@ describe("HollowFeudSystem", () => {
     const victim = h.spawn(0, 0);
     victim.inventory!.goods[GOOD_FOOD] = 10;
 
-    thief.intentions!.queue = [{ kind: "steal", data: { targetId: victim.id, good: GOOD_FOOD, amount: 5 }, priority: 1 } as Intention];
+    thief.intentions!.queue = [
+      { kind: "steal", data: { targetId: victim.id, good: GOOD_FOOD, amount: 5 }, priority: 1 } as Intention,
+    ];
     h.step(0);
     h.step(1);
 
@@ -154,7 +161,9 @@ describe("HollowFeudSystem", () => {
 
     // The saboteur now GIFTs the victim a genuine peace gesture.
     attacker.inventory!.goods["material"] = 10;
-    attacker.intentions!.queue = [{ kind: "gift", data: { targetId: victim.id, good: "material", amount: 10 }, priority: 1 } as Intention];
+    attacker.intentions!.queue = [
+      { kind: "gift", data: { targetId: victim.id, good: "material", amount: 10 }, priority: 1 } as Intention,
+    ];
     h.step(2); // ACT emits GIFT
     h.step(3); // feud.run() applies the buffered gift as a reconciliation
 

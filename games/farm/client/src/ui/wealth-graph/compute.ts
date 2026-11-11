@@ -12,10 +12,7 @@ export interface ChartBounds {
   bottom: number;
 }
 
-export function computePoints(
-  series: SnapshotWealthSeries[],
-  bounds: ChartBounds,
-): ChartPoint[][] {
+export function computePoints(series: SnapshotWealthSeries[], bounds: ChartBounds): ChartPoint[][] {
   if (series.length === 0) return [];
 
   let maxDay = 1;
@@ -39,7 +36,6 @@ export function computePoints(
 }
 
 export interface WealthCrossing {
-
   day: number;
   aId: number;
   bId: number;
@@ -62,9 +58,7 @@ export function detectCrossings(series: SnapshotWealthSeries[]): WealthCrossing[
       for (const row of a.rows) aByDay.set(row.day, row.gold);
       for (const row of b.rows) bByDay.set(row.day, row.gold);
 
-      const days = [...new Set([...aByDay.keys(), ...bByDay.keys()])].sort(
-        (x, y) => x - y,
-      );
+      const days = [...new Set([...aByDay.keys(), ...bByDay.keys()])].sort((x, y) => x - y);
 
       for (let k = 0; k + 1 < days.length; k++) {
         const d0 = days[k]!;
@@ -73,18 +67,13 @@ export function detectCrossings(series: SnapshotWealthSeries[]): WealthCrossing[
         const bg0 = bByDay.get(d0);
         const ag1 = aByDay.get(d1);
         const bg1 = bByDay.get(d1);
-        if (
-          ag0 === undefined ||
-          bg0 === undefined ||
-          ag1 === undefined ||
-          bg1 === undefined
-        ) {
+        if (ag0 === undefined || bg0 === undefined || ag1 === undefined || bg1 === undefined) {
           continue;
         }
         const diff0 = ag0 - bg0;
         const diff1 = ag1 - bg1;
-        if (diff0 === 0 || diff1 === 0) continue; 
-        if ((diff0 > 0 && diff1 > 0) || (diff0 < 0 && diff1 < 0)) continue; 
+        if (diff0 === 0 || diff1 === 0) continue;
+        if ((diff0 > 0 && diff1 > 0) || (diff0 < 0 && diff1 < 0)) continue;
 
         const denom = diff0 - diff1;
         const t = denom === 0 ? 0.5 : diff0 / denom;

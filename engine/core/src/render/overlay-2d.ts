@@ -50,8 +50,8 @@ export class Overlay2D {
     // Mirror the base canvas's CSS position.
     const baseStyle = baseCanvas.style;
     overlay.style.position = baseStyle.position || "absolute";
-    overlay.style.left     = baseStyle.left   || "0";
-    overlay.style.top      = baseStyle.top    || "0";
+    overlay.style.left = baseStyle.left || "0";
+    overlay.style.top = baseStyle.top || "0";
 
     // Never intercept pointer/touch/wheel events.
     overlay.style.pointerEvents = "none";
@@ -101,13 +101,13 @@ export class Overlay2D {
     // Keep CSS dimensions in sync so the two canvases share the same client box.
     const cssW = `${clientW}px`;
     const cssH = `${clientH}px`;
-    if (this.overlayCanvas.style.width  !== cssW) this.overlayCanvas.style.width  = cssW;
+    if (this.overlayCanvas.style.width !== cssW) this.overlayCanvas.style.width = cssW;
     if (this.overlayCanvas.style.height !== cssH) this.overlayCanvas.style.height = cssH;
 
     // Only resize the backing store when dimensions actually change to avoid
     // unnecessary clears and layout thrash.
     if (this.overlayCanvas.width !== desiredW || this.overlayCanvas.height !== desiredH) {
-      this.overlayCanvas.width  = desiredW;
+      this.overlayCanvas.width = desiredW;
       this.overlayCanvas.height = desiredH;
     }
 

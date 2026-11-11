@@ -25,7 +25,6 @@ import {
 } from "./constants";
 
 export interface ShopkeeperSystemOptions {
-
   auctionEveryDays?: number;
 
   auctionReservePrice?: number;

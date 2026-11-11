@@ -1,5 +1,3 @@
-
-
 import type { CropQuality } from "../../components";
 
 export interface Submission {

@@ -16,12 +16,26 @@ import { litMeshModels } from "./lit";
 
 /** Every base building modelled as a mesh (keyed by the `bld/<type>` frame name). */
 export const MESH_MODELS: readonly MeshModel[] = [
-  house(), healer(),
-  bakery(), woodcutter(), sawmill(), smith(),
-  chapel(), market(), publicSquare(), townHall(), well(),
-  storehouse(), tradingpost(),
-  mill(), quarry(), mine(),
-  watchpost(), tower(), garrison(), keep(),
+  house(),
+  healer(),
+  bakery(),
+  woodcutter(),
+  sawmill(),
+  smith(),
+  chapel(),
+  market(),
+  publicSquare(),
+  townHall(),
+  well(),
+  storehouse(),
+  tradingpost(),
+  mill(),
+  quarry(),
+  mine(),
+  watchpost(),
+  tower(),
+  garrison(),
+  keep(),
   farm(),
 ];
 

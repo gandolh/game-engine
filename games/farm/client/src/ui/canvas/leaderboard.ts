@@ -89,12 +89,7 @@ function buildRow(): RowNodes {
   const personalityLbl = label("", { color: EDG.mauve });
   const totalLbl = label("0g", { color: EDG.gold });
 
-  const root = box({ direction: "row", gap: 6, align: "center" }, [
-    rankLbl,
-    nameLbl,
-    personalityLbl,
-    totalLbl,
-  ]);
+  const root = box({ direction: "row", gap: 6, align: "center" }, [rankLbl, nameLbl, personalityLbl, totalLbl]);
 
   return {
     root,
@@ -169,9 +164,7 @@ export function createLeaderboard(): Leaderboard {
         } else {
           const t = nodes.bump.elapsed / BUMP_DURATION_S;
           const bump =
-            t < 0.5
-              ? easeOutBack(t * 2) * (BUMP_PEAK_SCALE - 1)
-              : (1 - (t - 0.5) * 2) * (BUMP_PEAK_SCALE - 1);
+            t < 0.5 ? easeOutBack(t * 2) * (BUMP_PEAK_SCALE - 1) : (1 - (t - 0.5) * 2) * (BUMP_PEAK_SCALE - 1);
           nodes.totalLbl.scale = 1 + bump;
         }
       }

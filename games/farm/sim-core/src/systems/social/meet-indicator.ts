@@ -13,7 +13,7 @@ export interface MeetIndicatorEntry {
 export class MeetIndicatorSystem implements System {
   readonly name = "MeetIndicatorSystem";
 
-  private readonly indicators = new Map<string, MeetIndicatorEntry>(); 
+  private readonly indicators = new Map<string, MeetIndicatorEntry>();
 
   constructor(private readonly world: World<GameEntity>) {}
 

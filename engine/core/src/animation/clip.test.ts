@@ -18,9 +18,7 @@ describe("AnimationClip", () => {
   });
 
   it("throws on non-positive durations", () => {
-    expect(
-      () => new AnimationClip({ name: "x", loop: true, frames: [{ frame: "a", durationMs: 0 }] }),
-    ).toThrow();
+    expect(() => new AnimationClip({ name: "x", loop: true, frames: [{ frame: "a", durationMs: 0 }] })).toThrow();
   });
 
   it("sums total duration", () => {
@@ -43,7 +41,7 @@ describe("AnimationClip", () => {
 
   it("wraps past total duration when looping and reports loops", () => {
     const c = walk();
-    const s = c.sampleAt(350); 
+    const s = c.sampleAt(350);
     expect(s.frameName).toBe("a");
     expect(s.loopsCompleted).toBe(1);
     expect(s.finished).toBe(false);
@@ -96,14 +94,14 @@ describe("AnimationClip frame events", () => {
 
   it("fires an event when the half-open window crosses its time", () => {
     const c = clip(true);
-    expect(c.eventsBetween(100, 200)).toEqual(["right"]); 
-    expect(c.eventsBetween(160, 200)).toEqual([]); 
+    expect(c.eventsBetween(100, 200)).toEqual(["right"]);
+    expect(c.eventsBetween(160, 200)).toEqual([]);
   });
 
   it("is half-open: (prev, cur], so the boundary fires once", () => {
     const c = clip(true);
-    expect(c.eventsBetween(140, 150)).toEqual(["right"]); 
-    expect(c.eventsBetween(150, 160)).toEqual([]); 
+    expect(c.eventsBetween(140, 150)).toEqual(["right"]);
+    expect(c.eventsBetween(150, 160)).toEqual([]);
   });
 
   it("handles loop wrap (event at 0 recurs each cycle)", () => {

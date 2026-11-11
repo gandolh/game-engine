@@ -1,4 +1,3 @@
-
 export type SkillKind = "farming" | "foraging" | "fishing" | "mining";
 
 export const SKILL_KINDS: readonly SkillKind[] = ["farming", "foraging", "fishing", "mining"];

@@ -39,9 +39,12 @@ export function projectToScreen(world: Vec3, viewProj: Mat4, width: number, heig
   const x = world[0];
   const y = world[1];
   const z = world[2];
-  const cx = (viewProj[0] as number) * x + (viewProj[4] as number) * y + (viewProj[8] as number) * z + (viewProj[12] as number);
-  const cy = (viewProj[1] as number) * x + (viewProj[5] as number) * y + (viewProj[9] as number) * z + (viewProj[13] as number);
-  const cw = (viewProj[3] as number) * x + (viewProj[7] as number) * y + (viewProj[11] as number) * z + (viewProj[15] as number);
+  const cx =
+    (viewProj[0] as number) * x + (viewProj[4] as number) * y + (viewProj[8] as number) * z + (viewProj[12] as number);
+  const cy =
+    (viewProj[1] as number) * x + (viewProj[5] as number) * y + (viewProj[9] as number) * z + (viewProj[13] as number);
+  const cw =
+    (viewProj[3] as number) * x + (viewProj[7] as number) * y + (viewProj[11] as number) * z + (viewProj[15] as number);
 
   if (cw < MIN_W) return { x: 0, y: 0, visible: false };
 

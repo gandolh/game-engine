@@ -51,7 +51,18 @@ describe("Citadel Phase 2 — economy", () => {
       { atTick: 0, cmd: { type: "placeBuilding", payload: { buildingType: "house", x: 10, y: 6 } } },
       { atTick: 0, cmd: roadRow(10, 13, 17) },
       // Road connecting house to storehouse (col 11 from row 8..9)
-      { atTick: 0, cmd: { type: "placeRoad", payload: { tiles: [{ x: 11, y: 8 }, { x: 11, y: 9 }] } } },
+      {
+        atTick: 0,
+        cmd: {
+          type: "placeRoad",
+          payload: {
+            tiles: [
+              { x: 11, y: 8 },
+              { x: 11, y: 9 },
+            ],
+          },
+        },
+      },
       { atTick: 0, cmd: { type: "placeBuilding", payload: { buildingType: "farm", x: 18, y: 10 } } },
     ];
     // Run long enough: pioneer spawns at day 2, walks to farm (~10 ticks), hauls by tick ~50.
@@ -160,17 +171,17 @@ describe("Citadel Phase 2 — economy", () => {
   it("outputBufferCap scales with output and floors at the cycle count", () => {
     expect(outputBufferCap(3)).toBe(15); // 3 × 5 cycles
     expect(outputBufferCap(2)).toBe(10);
-    expect(outputBufferCap(0)).toBe(5);  // floored to 1 × 5
+    expect(outputBufferCap(0)).toBe(5); // floored to 1 × 5
   });
 
   it("bufferThrottleFactor ramps from full rate to the floor, never 0", () => {
     // Phase H: below the knee (60% fill) output runs flat-out; above it ramps
     // linearly down toward the 0.6 productivity floor as the buffer fills. Never 0.
     const cap = 10;
-    expect(bufferThrottleFactor(0, cap)).toBe(1);      // empty → full rate
-    expect(bufferThrottleFactor(6, cap)).toBe(1);      // at the knee → still full
+    expect(bufferThrottleFactor(0, cap)).toBe(1); // empty → full rate
+    expect(bufferThrottleFactor(6, cap)).toBe(1); // at the knee → still full
     expect(bufferThrottleFactor(10, cap)).toBeCloseTo(0.6, 10); // full → floor
-    expect(bufferThrottleFactor(8, cap)).toBeCloseTo(0.8, 10);  // halfway up the ramp
+    expect(bufferThrottleFactor(8, cap)).toBeCloseTo(0.8, 10); // halfway up the ramp
     // Monotonic non-increasing across the range, and never below the floor.
     let prev = Infinity;
     for (let b = 0; b <= cap; b++) {
@@ -196,8 +207,8 @@ describe("Citadel Phase 2 — economy", () => {
     });
     state.buildingState.set(entity.id!, {
       outputBuffer: 0,
-      workerCount: 1,        // a real worker → it would produce
-      connected: true,       // connected → not gated on connectivity
+      workerCount: 1, // a real worker → it would produce
+      connected: true, // connected → not gated on connectivity
       productionTick: -1000, // cycle already elapsed
       level: 1,
     });

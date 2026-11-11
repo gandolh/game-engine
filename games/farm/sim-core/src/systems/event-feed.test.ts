@@ -32,12 +32,7 @@ function makeWall(world: World<GameEntity>): GameEntity {
   });
 }
 
-function push(
-  entity: GameEntity,
-  ontology: string,
-  sender: number | "world",
-  body: Record<string, unknown>,
-): void {
+function push(entity: GameEntity, ontology: string, sender: number | "world", body: Record<string, unknown>): void {
   entity.inbox!.messages.push({
     performative: PERFORMATIVE.INFORM,
     ontology,
@@ -126,13 +121,12 @@ describe("EventFeedSystem", () => {
 
     const feed = new EventFeedSystem(world, fakeClock(1));
     feed.run({ tick: 1 });
-    feed.run({ tick: 2 }); 
+    feed.run({ tick: 2 });
 
     expect(feed.recent()).toHaveLength(1);
   });
 
   it("orders events captured in the same tick deterministically by key", () => {
-
     const a = makeFarmer(world, "Cora");
     const b = makeFarmer(world, "Otto");
     const wall = makeWall(world);
@@ -278,15 +272,15 @@ describe("EventFeedSystem", () => {
     const hist = fakeHistory(historyRows);
 
     const feed = new EventFeedSystem(world, fakeClock(9), undefined, hist);
-    feed.run({ tick: 100 }); 
+    feed.run({ tick: 100 });
 
     let entries = feed.recent();
     const rankFlip9 = entries.find((e) => e.key.startsWith("rankflip:"));
-    expect(rankFlip9).toBeUndefined(); 
+    expect(rankFlip9).toBeUndefined();
 
     const feed2 = new EventFeedSystem(world, fakeClock(10), undefined, hist);
 
-    feed2.run({ tick: 100 });  
+    feed2.run({ tick: 100 });
 
     const histRows2: RunHistoryRow[] = [
       { day: 1, farmerId: farmerA.id!, gold: 200, rank: 1 },
@@ -298,18 +292,20 @@ describe("EventFeedSystem", () => {
 
     let currentDay = 1;
     const clock: DayClockSystem = {
-      get day() { return currentDay; },
+      get day() {
+        return currentDay;
+      },
       maxDays: 100,
     } as unknown as DayClockSystem;
 
     const feed3 = new EventFeedSystem(world, clock, undefined, hist2);
-    feed3.run({ tick: 10 }); 
+    feed3.run({ tick: 10 });
 
     entries = feed3.recent();
     expect(entries.find((e) => e.key.startsWith("rankflip:"))).toBeUndefined();
 
     currentDay = 2;
-    feed3.run({ tick: 20 }); 
+    feed3.run({ tick: 20 });
 
     entries = feed3.recent();
     const flip = entries.find((e) => e.key.startsWith("rankflip:"));

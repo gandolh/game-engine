@@ -2,13 +2,7 @@ import { describe, it, expect } from "vitest";
 import type { Inventory, ResourceInventory } from "../../components";
 import { ZERO_CROPS } from "../../economy";
 import { zeroFish } from "../../components";
-import {
-  HOTBAR_SIZE,
-  TOTAL_SLOTS,
-  defaultItemSlots,
-  syncItemSlots,
-  resolveItem,
-} from "./items";
+import { HOTBAR_SIZE, TOTAL_SLOTS, defaultItemSlots, syncItemSlots, resolveItem } from "./items";
 
 function makeInventory(over: Partial<Inventory> = {}): Inventory {
   return {

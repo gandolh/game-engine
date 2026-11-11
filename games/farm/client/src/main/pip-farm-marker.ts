@@ -119,14 +119,7 @@ export function drawPipFarmMarker(
   const labelWidth = measureText(MARKER_LABEL);
   const labelY = diamondCenterY - DIAMOND_HALF - LABEL_GAP - 8 - LABEL_PAD_Y * 2;
   const labelX = screen.x - labelWidth / 2;
-  surface.rect(
-    labelX - LABEL_PAD_X,
-    labelY,
-    labelWidth + LABEL_PAD_X * 2,
-    8 + LABEL_PAD_Y * 2,
-    EDG.ink,
-    0.85,
-  );
+  surface.rect(labelX - LABEL_PAD_X, labelY, labelWidth + LABEL_PAD_X * 2, 8 + LABEL_PAD_Y * 2, EDG.ink, 0.85);
   drawText(surface, MARKER_LABEL, labelX, labelY + LABEL_PAD_Y, { color: EDG.cream });
 }
 
@@ -146,8 +139,7 @@ export interface PipFarmMarker {
 /** Build the Pip's-farm marker node. The draw reads the frame bound by the most recent
  *  {@link PipFarmMarker.setFrame}; before the first `setFrame` it is a no-op. */
 export function createPipFarmMarker(): PipFarmMarker {
-  let frame: { camera: Camera2D; canvas: HTMLCanvasElement; zoom: number; nowMs: number } | null =
-    null;
+  let frame: { camera: Camera2D; canvas: HTMLCanvasElement; zoom: number; nowMs: number } | null = null;
   const root = custom((surface) => {
     if (frame !== null) {
       drawPipFarmMarker(surface, frame.camera, frame.canvas, frame.zoom, frame.nowMs);

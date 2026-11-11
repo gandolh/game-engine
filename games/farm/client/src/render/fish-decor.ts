@@ -1,16 +1,19 @@
-
-
 import type { RendererLike } from "@engine/core";
 import { CORAL, LAYER } from "@farm/sim-core/render-systems";
 import { isWalkable, WORLD_WIDTH, WORLD_HEIGHT } from "@farm/sim-core/world/regions";
 import { TILE } from "@engine/core/render";
 
-interface View { left: number; right: number; top: number; bottom: number; }
+interface View {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+}
 
 const rand = (min: number, max: number): number => min + Math.random() * (max - min);
 const pick = <T>(arr: readonly T[]): T | null => (arr.length ? arr[(Math.random() * arr.length) | 0]! : null);
 
-const UNDERWATER_TINT = 0xb4ccea_ff; 
+const UNDERWATER_TINT = 0xb4ccea_ff;
 const BASE_ALPHA = 0.72;
 
 const FISH_KINDS = [
@@ -22,12 +25,21 @@ const FISH_KINDS = [
 
 const FORMATION = [
   { x: 0, y: 0 },
-  { x: -9, y: -6 }, { x: -9, y: 6 },
-  { x: -18, y: -2 }, { x: -18, y: 3 },
-  { x: -18, y: -11 }, { x: -27, y: -7 }, { x: -27, y: 8 },
+  { x: -9, y: -6 },
+  { x: -9, y: 6 },
+  { x: -18, y: -2 },
+  { x: -18, y: 3 },
+  { x: -18, y: -11 },
+  { x: -27, y: -7 },
+  { x: -27, y: 8 },
 ] as const;
 
-interface Reef { x: number; y: number; rx: number; ry: number; }
+interface Reef {
+  x: number;
+  y: number;
+  rx: number;
+  ry: number;
+}
 let reefs: Reef[] | null = null;
 function getReefs(): Reef[] {
   if (reefs === null) {
@@ -41,23 +53,38 @@ function getReefs(): Reef[] {
       if (seen.has(start)) continue;
       const stack = [start];
       seen.add(start);
-      let sumX = 0, sumY = 0, n = 0;
-      let minTx = Infinity, maxTx = -Infinity, minTy = Infinity, maxTy = -Infinity;
+      let sumX = 0,
+        sumY = 0,
+        n = 0;
+      let minTx = Infinity,
+        maxTx = -Infinity,
+        minTy = Infinity,
+        maxTy = -Infinity;
       while (stack.length) {
         const k = stack.pop()!;
         const tx = k % WORLD_WIDTH;
         const ty = (k - tx) / WORLD_WIDTH;
-        sumX += tx; sumY += ty; n++;
+        sumX += tx;
+        sumY += ty;
+        n++;
         if (tx < minTx) minTx = tx;
         if (tx > maxTx) maxTx = tx;
         if (ty < minTy) minTy = ty;
         if (ty > maxTy) maxTy = ty;
-        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+        for (const [dx, dy] of [
+          [1, 0],
+          [-1, 0],
+          [0, 1],
+          [0, -1],
+        ] as const) {
           const nk = key(tx + dx, ty + dy);
-          if (coralSet.has(nk) && !seen.has(nk)) { seen.add(nk); stack.push(nk); }
+          if (coralSet.has(nk) && !seen.has(nk)) {
+            seen.add(nk);
+            stack.push(nk);
+          }
         }
       }
-      if (n < 4) continue; 
+      if (n < 4) continue;
       reefs.push({
         x: (sumX / n + 0.5) * TILE,
         y: (sumY / n + 0.5) * TILE,
@@ -70,20 +97,20 @@ function getReefs(): Reef[] {
 }
 
 interface School {
-  kind: number;       
+  kind: number;
   reef: Reef;
-  theta: number;      
-  thetaSpeed: number; 
-  age: number;        
-  life: number;       
-  phase: number;      
-  prevX: number;      
+  theta: number;
+  thetaSpeed: number;
+  age: number;
+  life: number;
+  phase: number;
+  prevX: number;
 }
 
 const MAX_SCHOOLS = 3;
 const schools: School[] = [];
 let spawnCd = 1;
-const FADE = 2.5; 
+const FADE = 2.5;
 
 function spawnSchool(): School | null {
   const reef = pick(getReefs());
@@ -101,12 +128,7 @@ function spawnSchool(): School | null {
   };
 }
 
-export function pushFishSchools(
-  renderer: Pick<RendererLike, "push">,
-  nowMs: number,
-  dt: number,
-  view: View,
-): void {
+export function pushFishSchools(renderer: Pick<RendererLike, "push">, nowMs: number, dt: number, view: View): void {
   if (schools.length < MAX_SCHOOLS) {
     spawnCd -= dt;
     if (spawnCd <= 0) {
@@ -119,7 +141,10 @@ export function pushFishSchools(
   for (let si = schools.length - 1; si >= 0; si--) {
     const s = schools[si]!;
     s.age += dt;
-    if (s.age >= s.life) { schools.splice(si, 1); continue; }
+    if (s.age >= s.life) {
+      schools.splice(si, 1);
+      continue;
+    }
     s.theta += s.thetaSpeed * dt;
 
     const breathe = 1 + 0.12 * Math.sin(nowMs * 0.0006 + s.phase);
@@ -133,22 +158,28 @@ export function pushFishSchools(
 
     for (let i = 0; i < FORMATION.length; i++) {
       const f = FORMATION[i]!;
-      const fx = cx + (facingLeft ? -f.x : f.x); 
+      const fx = cx + (facingLeft ? -f.x : f.x);
       const fy = cy + f.y + Math.sin(nowMs * 0.004 + s.phase + i * 0.9) * 2.5;
 
       const tx = Math.floor(fx / TILE);
       const ty = Math.floor(fy / TILE);
-      if (tx < 0 || ty < 0 || tx >= WORLD_WIDTH || ty >= WORLD_HEIGHT || isWalkable(tx, ty)) continue; 
+      if (tx < 0 || ty < 0 || tx >= WORLD_WIDTH || ty >= WORLD_HEIGHT || isWalkable(tx, ty)) continue;
       if (fx < view.left - TILE || fx > view.right + TILE || fy < view.top - TILE || fy > view.bottom + TILE) continue;
 
       const depthPulse = 0.88 + 0.12 * Math.sin(nowMs * 0.0012 + i);
 
       const frame = (Math.floor(nowMs / 180 + i * 0.5) & 1) === 0 ? kind.a : kind.b;
       renderer.push({
-        x: fx, y: fy, width: TILE, height: TILE,
-        frame, atlasId: "props",
-        rotation: 0, layer: LAYER.REEF_FISH, alpha: BASE_ALPHA * fade * depthPulse,
-        flipX: facingLeft, 
+        x: fx,
+        y: fy,
+        width: TILE,
+        height: TILE,
+        frame,
+        atlasId: "props",
+        rotation: 0,
+        layer: LAYER.REEF_FISH,
+        alpha: BASE_ALPHA * fade * depthPulse,
+        flipX: facingLeft,
         tintRgba: UNDERWATER_TINT,
       });
     }

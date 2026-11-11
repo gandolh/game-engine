@@ -9,10 +9,7 @@
 import type { System, SimContext } from "../sim/scheduler";
 import type { Command, CommandQueue } from "./command-queue";
 
-export type CommandHandler<C extends Command = Command> = (
-  cmd: C,
-  ctx: SimContext,
-) => void;
+export type CommandHandler<C extends Command = Command> = (cmd: C, ctx: SimContext) => void;
 
 export class CommandSystem<C extends Command = Command> implements System {
   readonly name = "CommandSystem";
@@ -25,10 +22,7 @@ export class CommandSystem<C extends Command = Command> implements System {
    * Register a handler for a specific command type.
    * Only one handler per type; calling again replaces the previous one.
    */
-  register<T extends C["type"]>(
-    type: T,
-    handler: CommandHandler<Extract<C, { type: T }>>,
-  ): this {
+  register<T extends C["type"]>(type: T, handler: CommandHandler<Extract<C, { type: T }>>): this {
     // Cast: handler is compatible at runtime because we only call it
     // when cmd.type === type.
     this.handlers.set(type, handler as CommandHandler<Command>);

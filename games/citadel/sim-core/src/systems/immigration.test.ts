@@ -94,10 +94,21 @@ function seedVillagers(state: SimState, n: number): void {
   for (let i = 0; i < n; i++) {
     state.villagerWorld.spawn({
       villager: {
-        id: state.nextVillagerId++, ownerId: p.id,
-        homeX: 40, homeY: 40, workX: 40, workY: 40, storeX: 40, storeY: 40,
-        fsm: "idle", pathX: [], pathY: [], pathStep: 0,
-        carryGood: null, carryAmount: 0, ticksAtWork: 0,
+        id: state.nextVillagerId++,
+        ownerId: p.id,
+        homeX: 40,
+        homeY: 40,
+        workX: 40,
+        workY: 40,
+        storeX: 40,
+        storeY: 40,
+        fsm: "idle",
+        pathX: [],
+        pathY: [],
+        pathStep: 0,
+        carryGood: null,
+        carryAmount: 0,
+        ticksAtWork: 0,
       },
     });
   }
@@ -131,9 +142,9 @@ describe("ImmigrationSystem — the break-even deadlock recovers, starvation sta
     const state = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY }).state;
     const p = state.players[0]!;
     spawnUnstaffed(state, "bakery", 40, 40); // the connected, idle producer a settler staffs
-    seedVillagers(state, 6);                  // the attractor value one bakery feeds
-    p.popCap = 18;                            // housing headroom (2 more houses' worth)
-    p.happiness = 60;                         // above the low-morale departure threshold
+    seedVillagers(state, 6); // the attractor value one bakery feeds
+    p.popCap = 18; // housing headroom (2 more houses' worth)
+    p.happiness = 60; // above the low-morale departure threshold
     p.stockpiles.bread = 0;
 
     const trace = driveImmigration(state, 44, 0); // break-even (surplus 0), 44 days
@@ -152,8 +163,8 @@ describe("ImmigrationSystem — the break-even deadlock recovers, starvation sta
     const state = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY }).state;
     const p = state.players[0]!;
     spawnUnstaffed(state, "bakery", 40, 40); // an idle producer AND housing headroom exist —
-    seedVillagers(state, 6);                  // the ONLY thing missing is food. The trickle
-    p.popCap = 18;                            // must not paper over that (starve stays lethal).
+    seedVillagers(state, 6); // the ONLY thing missing is food. The trickle
+    p.popCap = 18; // must not paper over that (starve stays lethal).
     p.happiness = 60;
     p.stockpiles.bread = 0;
 

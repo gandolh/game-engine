@@ -1,22 +1,21 @@
-
 import { describe, it, expect } from "vitest";
 import { frameToAtlasId } from "./render-systems";
 
 const ALL_RECIPE_PREFIXES: Record<string, string> = {
-  "farmer":     "characters",
-  "npc":        "characters",
-  "structure":  "buildings",
-  "tile":       "terrain",
-  "crop":       "crops",
-  "decoration": "props",
-  "fish":       "items-ui",
-  "tool":       "items-ui",
-  "indicator":  "items-ui",
-  "debug":      "items-ui",
+  farmer: "characters",
+  npc: "characters",
+  structure: "buildings",
+  tile: "terrain",
+  crop: "crops",
+  decoration: "props",
+  fish: "items-ui",
+  tool: "items-ui",
+  indicator: "items-ui",
+  debug: "items-ui",
 
-  "animal":     "characters",
-  "product":    "items-ui",
-  "fruit":      "items-ui",
+  animal: "characters",
+  product: "items-ui",
+  fruit: "items-ui",
 };
 
 describe("frameToAtlasId (runtime atlas routing)", () => {

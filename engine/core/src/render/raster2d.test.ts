@@ -32,7 +32,6 @@ describe("compareSprite", () => {
   });
 
   it("uses sortY over y as the depth key when present", () => {
-
     const face = sprite({ layer: 50, y: 8, sortY: 16 });
     const character = sprite({ layer: 50, y: 12 });
     expect(compareSprite(character, face)).toBeLessThan(0);
@@ -40,7 +39,6 @@ describe("compareSprite", () => {
   });
 
   it("compares sortY against the other sprite's plain y when only one has it", () => {
-
     const face = sprite({ layer: 50, y: 8, sortY: 16 });
     const characterInFront = sprite({ layer: 50, y: 24 });
     expect(compareSprite(face, characterInFront)).toBeLessThan(0);

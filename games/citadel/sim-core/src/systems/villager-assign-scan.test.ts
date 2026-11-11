@@ -29,8 +29,14 @@ import { VillagerSystem } from "./villager-system";
 // ---------------------------------------------------------------------------
 const OLD_GLUT_WORKER_DAYS = 8;
 const OLD_TIERS: Array<[boolean, boolean, boolean]> = [
-  [true, true, true], [true, false, true], [true, true, false], [true, false, false],
-  [false, true, true], [false, false, true], [false, true, false], [false, false, false],
+  [true, true, true],
+  [true, false, true],
+  [true, true, false],
+  [true, false, false],
+  [false, true, true],
+  [false, false, true],
+  [false, true, false],
+  [false, false, false],
 ];
 
 function oldAssign(state: SimState, v: VillagerComponent): boolean {
@@ -63,14 +69,21 @@ function oldAssign(state: SimState, v: VillagerComponent): boolean {
         const typeStaffed = staffedTypes.has(entity.building.type);
         if (wantUnstaffedType !== !typeStaffed) continue;
         if (
-          skipGlut && typeStaffed && def.outputGood !== undefined && owner !== undefined &&
+          skipGlut &&
+          typeStaffed &&
+          def.outputGood !== undefined &&
+          owner !== undefined &&
           owner.stockpiles[def.outputGood] >= OLD_GLUT_WORKER_DAYS * Math.max(1, owner.population)
-        ) continue;
+        )
+          continue;
         const b = entity.building;
         const cx = b.x + Math.floor(b.w / 2);
         const cy = b.y + Math.floor(b.h / 2);
         const d = Math.abs(cx - v.homeX) + Math.abs(cy - v.homeY);
-        if (d < bestDist) { bestDist = d; bestId = id; }
+        if (d < bestDist) {
+          bestDist = d;
+          bestId = id;
+        }
       }
       if (bestId !== -1) {
         const rs = state.buildingState.get(bestId);
@@ -155,7 +168,12 @@ function instrumentBuildingQuery(sim: CitadelSimResult): { count: () => number; 
       },
     };
   };
-  return { count: () => visits, stop: () => { target[Symbol.iterator] = original; } };
+  return {
+    count: () => visits,
+    stop: () => {
+      target[Symbol.iterator] = original;
+    },
+  };
 }
 
 describe("VillagerSystem — per-tick assign() scan volume (audit-09)", () => {
@@ -197,9 +215,9 @@ describe("VillagerSystem — per-tick assign() scan volume (audit-09)", () => {
     // eslint-disable-next-line no-console
     console.log(
       `[audit-09] B=${B}, villagers=${IDLE_VILLAGERS}, ` +
-      `MEASURED old-code visits for one tick's worth of attempts=${oldPerTickVisits}, ` +
-      `new cold-cache first-idle-tick visits=${firstTickVisits}, ` +
-      `new steady-state (backed-off) tick visits=${secondTickVisits}`,
+        `MEASURED old-code visits for one tick's worth of attempts=${oldPerTickVisits}, ` +
+        `new cold-cache first-idle-tick visits=${firstTickVisits}, ` +
+        `new steady-state (backed-off) tick visits=${secondTickVisits}`,
     );
 
     // The measured old-code figure is itself the every-tick-forever cost (the

@@ -59,7 +59,11 @@ export function transformOf(camera: Camera2D, canvasW: number, canvasH: number):
  * relative to the canvas top-left) to world px. Pure inverse of the GPU
  * renderer's world→screen transform.
  */
-export function screenToWorld(t: CameraTransform, screenX: number, screenY: number): { worldX: number; worldY: number } {
+export function screenToWorld(
+  t: CameraTransform,
+  screenX: number,
+  screenY: number,
+): { worldX: number; worldY: number } {
   const sx = t.canvasW / t.worldUnitsX;
   const sy = t.canvasH / t.worldUnitsY;
   const left = t.centerX - t.worldUnitsX / 2;
@@ -76,7 +80,12 @@ export function screenToWorld(t: CameraTransform, screenX: number, screenY: numb
  * diamond projection to the tile under the cursor. This is the placement /
  * ghost / drag-paint / click-select pick path.
  */
-export function screenToTile(iso: IsoProjection, t: CameraTransform, screenX: number, screenY: number): { tx: number; ty: number } {
+export function screenToTile(
+  iso: IsoProjection,
+  t: CameraTransform,
+  screenX: number,
+  screenY: number,
+): { tx: number; ty: number } {
   const { worldX, worldY } = screenToWorld(t, screenX, screenY);
   return iso.isoToTile(worldX, worldY);
 }
@@ -87,7 +96,10 @@ export function screenToTile(iso: IsoProjection, t: CameraTransform, screenX: nu
  * store (`effectiveDpr()`, see `@engine/core/render`'s `dpr.ts`). Lives here
  * so placement-state and the renderer agree on the transform.
  */
-export function eventToDevicePx(e: { clientX: number; clientY: number }, canvas: HTMLCanvasElement): { sx: number; sy: number } {
+export function eventToDevicePx(
+  e: { clientX: number; clientY: number },
+  canvas: HTMLCanvasElement,
+): { sx: number; sy: number } {
   const dpr = effectiveDpr();
   const rect = canvas.getBoundingClientRect();
   return {

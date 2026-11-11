@@ -1,4 +1,3 @@
-
 import { describe, it, expect } from "vitest";
 import { RECIPES } from "./index";
 import { ACTION_TEMPLATES, PERSONALITY_SUBS, applyPersonalitySubs } from "./templates";
@@ -19,10 +18,7 @@ describe("farmer action poses are visually distinct per personality", () => {
         for (let j = i + 1; j < AI_PERSONALITIES.length; j++) {
           const a = AI_PERSONALITIES[i]!;
           const b = AI_PERSONALITIES[j]!;
-          expect(
-            poseGrid(a, action),
-            `${a} and ${b} ${action} frames must differ`,
-          ).not.toBe(poseGrid(b, action));
+          expect(poseGrid(a, action), `${a} and ${b} ${action} frames must differ`).not.toBe(poseGrid(b, action));
         }
       }
     });
@@ -46,10 +42,7 @@ describe("farmer action poses are visually distinct per personality", () => {
         const subsOnly = applyPersonalitySubs(template, subs);
         const generated = poseGrid(p, action).split("\n");
         for (let y = 4; y < subsOnly.length; y++) {
-          expect(
-            generated[y],
-            `${p}/${action} body row ${y} altered by the hat overlay`,
-          ).toBe(subsOnly[y]);
+          expect(generated[y], `${p}/${action} body row ${y} altered by the hat overlay`).toBe(subsOnly[y]);
         }
       }
     }

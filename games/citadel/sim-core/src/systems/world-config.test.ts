@@ -27,7 +27,10 @@ function findGrass(terrain: TerrainGrid, w: number, h: number, sx: number, sy: n
         let ok = true;
         for (let yy = 0; yy < h && ok; yy++)
           for (let xx = 0; xx < w; xx++) {
-            if (terrain.cells[(y + yy) * terrain.width + (x + xx)] !== TerrainType.Grass) { ok = false; break; }
+            if (terrain.cells[(y + yy) * terrain.width + (x + xx)] !== TerrainType.Grass) {
+              ok = false;
+              break;
+            }
           }
         if (ok) return { x, y };
       }
@@ -56,7 +59,8 @@ describe("Citadel 29 — configurable world + town-hall", () => {
   });
 
   it("sizes every grid-backed allocation + the pathfinder to a configured 256×256 world", () => {
-    const W = 256, H = 256;
+    const W = 256,
+      H = 256;
     const sim = bootstrapSim({ seed: 1, ticksPerDay: TICKS_PER_DAY, worldWidth: W, worldHeight: H });
     expect(sim.state.width).toBe(W);
     expect(sim.state.height).toBe(H);
@@ -70,7 +74,10 @@ describe("Citadel 29 — configurable world + town-hall", () => {
     // connected grass strip — a corner-to-corner path can be legitimately blocked
     // by the river that bisects the map, which is not what this asserts).
     const passable = (x: number, y: number): boolean =>
-      x >= 0 && y >= 0 && x < W && y < H &&
+      x >= 0 &&
+      y >= 0 &&
+      x < W &&
+      y < H &&
       sim.terrain.cells[y * W + x] !== TerrainType.Water &&
       sim.terrain.cells[y * W + x] !== TerrainType.Rough;
     const strip = findGrass(sim.terrain, 4, 1, Math.floor(W / 2), Math.floor(H / 2));
@@ -84,7 +91,8 @@ describe("Citadel 29 — configurable world + town-hall", () => {
   });
 
   it("town-hall is a non-tier-locked CIVIC building in solo — placeable, NO keep anchor", () => {
-    const W = 256, H = 256;
+    const W = 256,
+      H = 256;
     const sim = bootstrapSim({ seed: 1, ticksPerDay: TICKS_PER_DAY, worldWidth: W, worldHeight: H });
     const lp = localPlayer(sim.state);
     // Solo: one player, Hamlet tier, no anchor yet.
@@ -108,7 +116,8 @@ describe("Citadel 29 — configurable world + town-hall", () => {
   });
 
   it("town-hall sets the owner's keep anchor in MULTIPLAYER (the match anchor)", () => {
-    const W = 256, H = 256;
+    const W = 256,
+      H = 256;
     const sim = bootstrapSim({ seed: 1, ticksPerDay: TICKS_PER_DAY, worldWidth: W, worldHeight: H, multiplayer: true });
     sim.state.players.push(makePlayerState(1));
     const lp = localPlayer(sim.state);
@@ -132,7 +141,8 @@ describe("Citadel 29 — configurable world + town-hall", () => {
     // never scheduled a raid against them. Meanwhile the snapshot's `keepPresent` re-evaluated
     // the same predicate every tick, so it flipped to true the moment a second peer joined:
     // the founder was told "Keep: standing" while being permanently raid-immune.
-    const W = 256, H = 256;
+    const W = 256,
+      H = 256;
     const sim = bootstrapSim({ seed: 1, ticksPerDay: TICKS_PER_DAY, worldWidth: W, worldHeight: H, multiplayer: true });
     const lp = localPlayer(sim.state);
     expect(sim.state.players.length).toBe(1); // the founding peer, alone
@@ -160,7 +170,8 @@ describe("Citadel 29 — configurable world + town-hall", () => {
     //                  keepPosition, and the raid clock with it);
     //   world dims     decide bounds (a 256×256 save replayed on the 96×96 default silently DROPS
     //                  every command beyond tile 95 as out-of-bounds — it was unreplayable).
-    const W = 256, H = 256;
+    const W = 256,
+      H = 256;
     const sim = bootstrapSim({ seed: 1, ticksPerDay: TICKS_PER_DAY, worldWidth: W, worldHeight: H, multiplayer: true });
     // Deliberately place BEYOND tile 95, where a 96×96 replay would reject it.
     const spot = findGrass(sim.terrain, 3, 3, Math.floor(W / 2), Math.floor(H / 2));
@@ -185,7 +196,8 @@ describe("Citadel 29 — configurable world + town-hall", () => {
   });
 
   it("a pre-brief-108 save (no `multiplayer` field) replays as solo — the bootstrap default", () => {
-    const W = 96, H = 96;
+    const W = 96,
+      H = 96;
     const sim = bootstrapSim({ seed: 1, ticksPerDay: TICKS_PER_DAY, worldWidth: W, worldHeight: H });
     const spot = findGrass(sim.terrain, 3, 3, 40, 40);
     sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: "town-hall", x: spot.x, y: spot.y } });

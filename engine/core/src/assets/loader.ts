@@ -19,10 +19,7 @@ export function resolveAssetUrl(url: string, baseUrl = "/"): string {
   return `${base}${url}`;
 }
 
-export async function loadAtlasImage(
-  manifest: AtlasManifest,
-  baseUrl = "/",
-): Promise<LoadedAtlasImage> {
+export async function loadAtlasImage(manifest: AtlasManifest, baseUrl = "/"): Promise<LoadedAtlasImage> {
   const imageUrl = resolveAssetUrl(manifest.imageUrl, baseUrl);
   const response = await fetch(imageUrl);
   if (!response.ok) {

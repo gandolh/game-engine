@@ -31,11 +31,7 @@ export interface StaticRegion {
  * pre-windowing bake exactly. Origins are floored and sizes ceiled so the
  * texture is integer-pixel-sized.
  */
-export function resolveStaticRegion(
-  worldWidth: number,
-  worldHeight: number,
-  region?: StaticRegion,
-): StaticRegion {
+export function resolveStaticRegion(worldWidth: number, worldHeight: number, region?: StaticRegion): StaticRegion {
   if (region) {
     return {
       originX: Math.floor(region.originX),

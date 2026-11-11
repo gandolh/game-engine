@@ -1,10 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { ONT_RATIONALIZE } from "@hollow/sim-core/observe";
 import type { ChronicleEvent } from "@hollow/sim-core/observe";
-import {
-  summarizeRationalizerDecisions,
-  formatRationalizerSummary,
-} from "./rationalizer-summary";
+import { summarizeRationalizerDecisions, formatRationalizerSummary } from "./rationalizer-summary";
 
 /** One flat `rationalize.decision` chronicle row, shaped exactly as
  *  `captureRationalizerDecisions` pushes it (no `body` wrapper). */
@@ -27,9 +24,7 @@ function decision(over: Partial<Record<string, unknown>> = {}): ChronicleEvent {
 describe("summarizeRationalizerDecisions", () => {
   it("returns null when the run used no seam, so a RATIONALIZER=off summary prints nothing", () => {
     expect(summarizeRationalizerDecisions([])).toBeNull();
-    expect(
-      summarizeRationalizerDecisions([{ tick: 1, ontology: "social.gift" } as ChronicleEvent]),
-    ).toBeNull();
+    expect(summarizeRationalizerDecisions([{ tick: 1, ontology: "social.gift" } as ChronicleEvent])).toBeNull();
   });
 
   it("counts every outcome and reports adoption as a percentage of consultations", () => {
@@ -100,9 +95,7 @@ describe("formatRationalizerSummary", () => {
       decision(),
       decision(),
     ])!;
-    expect(formatRationalizerSummary(s)[0]).toBe(
-      "  rationalizer — 4 consultation(s), 1 adopted (25.0%)",
-    );
+    expect(formatRationalizerSummary(s)[0]).toBe("  rationalizer — 4 consultation(s), 1 adopted (25.0%)");
   });
 
   it("warns explicitly when nothing was adopted — the exact case that once read as a broken seam", () => {

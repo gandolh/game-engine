@@ -113,9 +113,7 @@ export type WorkerInbound =
   | WorkerUseLifelineMessage
   | WorkerNewRunMessage;
 
-export type WorkerOutbound =
-  | { type: "ready" }
-  | { type: "snapshot"; snapshot: GameSnapshot };
+export type WorkerOutbound = { type: "ready" } | { type: "snapshot"; snapshot: GameSnapshot };
 
 let sim: ReturnType<typeof bootstrapMathquestSim> | null = null;
 

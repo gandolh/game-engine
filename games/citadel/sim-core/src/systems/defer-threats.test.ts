@@ -30,7 +30,10 @@ const DEFER = 6; // threats begin at the 6th non-road building (cold-open value)
 /** Find a clear w×h area on the terrain starting near (sx, sy). */
 function findClear(
   terrain: { width: number; height: number; cells: Uint8Array },
-  w: number, h: number, sx: number, sy: number,
+  w: number,
+  h: number,
+  sx: number,
+  sy: number,
 ): { x: number; y: number } {
   for (let r = 0; r < 40; r++) {
     for (let dy = -r; dy <= r; dy++) {
@@ -40,7 +43,10 @@ function findClear(
         let ok = true;
         for (let yy = 0; yy < h && ok; yy++)
           for (let xx = 0; xx < w; xx++)
-            if (!isWalkable(terrain, x + xx, y + yy)) { ok = false; break; }
+            if (!isWalkable(terrain, x + xx, y + yy)) {
+              ok = false;
+              break;
+            }
         if (ok) return { x, y };
       }
     }
@@ -122,7 +128,8 @@ describe("deferThreatsUntilBuildings — cold-open threat defer", () => {
       sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: type, x: pos.x, y: pos.y } });
       n++;
     }
-    sim.scheduler.tick({ tick: t }); t++;
+    sim.scheduler.tick({ tick: t });
+    t++;
     expect(countNonRoadBuildings(sim.state, lp.id)).toBeGreaterThanOrEqual(DEFER);
 
     // Gate flipped: the raid clock arms now that the town has grown past the core.
@@ -176,7 +183,10 @@ describe("deferThreatsUntilBuildings default (0) — baseline unchanged", () => 
     let sacked = false;
     for (let tick = 0; tick < 60 * TICKS_PER_DAY; tick++) {
       sim.scheduler.tick({ tick });
-      if (lp.keepSacked) { sacked = true; break; }
+      if (lp.keepSacked) {
+        sacked = true;
+        break;
+      }
     }
     expect(sacked).toBe(true);
     expect(lp.gameOver).toBe(true);
@@ -197,7 +207,10 @@ describe("deferThreatsUntilBuildings default (0) — baseline unchanged", () => 
       let sackTick = -1;
       for (let tick = 0; tick < 60 * TICKS_PER_DAY; tick++) {
         sim.scheduler.tick({ tick });
-        if (lp.keepSacked) { sackTick = tick; break; }
+        if (lp.keepSacked) {
+          sackTick = tick;
+          break;
+        }
       }
       return sackTick;
     };
@@ -218,7 +231,10 @@ describe("deferThreatsUntilBuildings default (0) — baseline unchanged", () => 
 describe("deferThreatsUntilBuildings — save/load round-trip", () => {
   it("deferThreatsUntilBuildings survives save/load: the reloaded sim still suppresses threats below the gate", () => {
     const sim = bootstrapSim({
-      seed: SEED, ticksPerDay: TICKS_PER_DAY, seedTown: true, deferThreatsUntilBuildings: DEFER,
+      seed: SEED,
+      ticksPerDay: TICKS_PER_DAY,
+      seedTown: true,
+      deferThreatsUntilBuildings: DEFER,
     });
     const lp = localPlayer(sim.state);
     const t = runDays(sim, 10, 0);

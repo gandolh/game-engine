@@ -142,9 +142,6 @@ export class HollowPairBondSystem implements System {
   }
 
   private emit(ontology: string, body: Record<string, unknown>, tick: number): void {
-    this.bus.send(
-      { performative: PERFORMATIVE.INFORM, ontology, sender: "world", recipient: "broadcast", body },
-      tick,
-    );
+    this.bus.send({ performative: PERFORMATIVE.INFORM, ontology, sender: "world", recipient: "broadcast", body }, tick);
   }
 }

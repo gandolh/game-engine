@@ -206,7 +206,14 @@ export function slicePatches(
   const out: { col: number; row: number; x: number; y: number; w: number; h: number }[] = [];
   for (let key = 0; key < grid.cols * grid.rows; key++) {
     const r = patchRect(grid, key);
-    out.push({ col: key % grid.cols, row: Math.floor(key / grid.cols), x: r.originX, y: r.originY, w: r.width, h: r.height });
+    out.push({
+      col: key % grid.cols,
+      row: Math.floor(key / grid.cols),
+      x: r.originX,
+      y: r.originY,
+      w: r.width,
+      h: r.height,
+    });
   }
   return out;
 }
@@ -237,7 +244,9 @@ export function validatePatchManifest(m: unknown): PatchManifest {
     const q = (p ?? {}) as Record<string, unknown>;
     if (typeof q.file !== "string" || q.file === "") return fail(`patch ${i} has no file`);
     if (q.x !== e.x || q.y !== e.y || q.w !== e.w || q.h !== e.h) {
-      fail(`patch ${i} is ${String(q.x)},${String(q.y)} ${String(q.w)}×${String(q.h)}, expected ${e.x},${e.y} ${e.w}×${e.h}`);
+      fail(
+        `patch ${i} is ${String(q.x)},${String(q.y)} ${String(q.w)}×${String(q.h)}, expected ${e.x},${e.y} ${e.w}×${e.h}`,
+      );
     }
     return { file: q.file, x: e.x, y: e.y, w: e.w, h: e.h };
   });

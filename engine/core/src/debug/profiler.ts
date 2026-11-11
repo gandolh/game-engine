@@ -1,7 +1,5 @@
-
-
 export interface MetricStats {
-  count: number; 
+  count: number;
   mean: number;
   min: number;
   max: number;
@@ -14,20 +12,20 @@ export type ProfileReport = Record<string, MetricStats>;
 
 interface Ring {
   readonly buf: Float64Array;
-  head: number;   
-  size: number;   
-  total: number;  
+  head: number;
+  size: number;
+  total: number;
   last: number;
 }
 
-const DEFAULT_CAPACITY = 240; 
+const DEFAULT_CAPACITY = 240;
 
 export class Profiler {
-  enabled: boolean; 
+  enabled: boolean;
 
   private readonly capacity: number;
   private readonly rings = new Map<string, Ring>();
-  private scratch: Float64Array; 
+  private scratch: Float64Array;
 
   constructor(opts: { enabled?: boolean; capacity?: number } = {}) {
     this.enabled = opts.enabled ?? false;

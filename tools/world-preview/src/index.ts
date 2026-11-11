@@ -3,13 +3,7 @@ import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PNG } from "pngjs";
 import { bootstrapSim } from "@farm/sim-core/sim-bootstrap";
-import {
-  WORLD_WIDTH,
-  WORLD_HEIGHT,
-  REGIONS,
-  regionAt,
-  isWalkable,
-} from "@farm/sim-core/world/regions";
+import { WORLD_WIDTH, WORLD_HEIGHT, REGIONS, regionAt, isWalkable } from "@farm/sim-core/world/regions";
 import type { AtlasManifest } from "@engine/core";
 import type { GameEntity } from "@farm/sim-core/components";
 import { PREFIX_TO_SHEET } from "@farm/atlas-recipes";
@@ -37,7 +31,9 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(__dirname, "../../..");
 const atlasDir = resolve(repoRoot, "games/farm/client/public/atlas");
 
-interface AtlasIndex { sheets: Array<{ id: string; manifestUrl: string; imageUrl: string }> }
+interface AtlasIndex {
+  sheets: Array<{ id: string; manifestUrl: string; imageUrl: string }>;
+}
 const atlasIndex = JSON.parse(readFileSync(resolve(atlasDir, "index.json"), "utf8")) as AtlasIndex;
 const sheetManifests = new Map<string, AtlasManifest>();
 const sheetPngs = new Map<string, PNG>();
@@ -67,13 +63,7 @@ function clearToColor(r: number, g: number, b: number, a: number): void {
   }
 }
 
-function blitFrame(
-  atlas: PNG,
-  frame: Frame,
-  dstX: number,
-  dstY: number,
-  rotation = 0,
-): void {
+function blitFrame(atlas: PNG, frame: Frame, dstX: number, dstY: number, rotation = 0): void {
   const quarterTurns = Math.round(rotation / (Math.PI / 2)) & 3;
   const swap = quarterTurns === 1 || quarterTurns === 3;
   const dw = swap ? frame.h : frame.w;
@@ -113,9 +103,7 @@ function blitFrame(
         const da = (out.data[dstIdx + 3] ?? 0) / 255;
         const outA = sa + da * (1 - sa);
         if (outA === 0) continue;
-        out.data[dstIdx] = Math.round(
-          (atlas.data[srcIdx]! * sa + (out.data[dstIdx] ?? 0) * da * (1 - sa)) / outA,
-        );
+        out.data[dstIdx] = Math.round((atlas.data[srcIdx]! * sa + (out.data[dstIdx] ?? 0) * da * (1 - sa)) / outA);
         out.data[dstIdx + 1] = Math.round(
           (atlas.data[srcIdx + 1]! * sa + (out.data[dstIdx + 1] ?? 0) * da * (1 - sa)) / outA,
         );
@@ -172,7 +160,7 @@ function computeFences(): FenceTile[] {
   return out;
 }
 
-clearToColor(24, 20, 37, 255); 
+clearToColor(24, 20, 37, 255);
 for (let ty = 0; ty < WORLD_HEIGHT; ty++) {
   for (let tx = 0; tx < WORLD_WIDTH; tx++) {
     const frame = backdropFrame(tx, ty);
@@ -204,7 +192,6 @@ for (const e of world.query("sprite", "transform")) {
 }
 sprites.sort((a, b) => a.layer - b.layer);
 for (const s of sprites) {
-
   try {
     const sid = frameSheetId(s.frame);
     const sm = sheetManifests.get(sid);

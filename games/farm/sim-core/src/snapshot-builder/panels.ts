@@ -2,12 +2,7 @@ import type { World } from "@engine/core";
 import type { GameEntity } from "../components";
 import type { FarmerSummary } from "../sim-bootstrap";
 import type { LeaderboardRow } from "../snapshot/ui-types";
-import type {
-  FinalStandingRow,
-  RelationshipMatrixData,
-  SnapshotRivalry,
-  SnapshotWealthSeries,
-} from "../snapshot";
+import type { FinalStandingRow, RelationshipMatrixData, SnapshotRivalry, SnapshotWealthSeries } from "../snapshot";
 import type { RunHistoryRow } from "../systems/messaging/run-history";
 import type { RivalrySystem } from "../systems/rivalry";
 import { MAX_WEALTH_ROWS } from "./constants";
@@ -57,7 +52,7 @@ export function buildRelationshipsData(world: World<GameEntity>): RelationshipMa
     trust[from.id] = {};
     for (const to of farmerList) {
       if (from.id === to.id) {
-        trust[from.id]![to.id] = 1.0; 
+        trust[from.id]![to.id] = 1.0;
       } else {
         trust[from.id]![to.id] = from.entity.trust?.byId.get(to.id) ?? 0.5;
       }
@@ -67,9 +62,7 @@ export function buildRelationshipsData(world: World<GameEntity>): RelationshipMa
   return { farmers, trust };
 }
 
-export function buildRivalriesData(
-  rivalrySystem: RivalrySystem | undefined,
-): SnapshotRivalry[] {
+export function buildRivalriesData(rivalrySystem: RivalrySystem | undefined): SnapshotRivalry[] {
   if (!rivalrySystem) return [];
   const out: SnapshotRivalry[] = [];
 

@@ -70,7 +70,9 @@ describe("audit-43 #2 — malformed frames neither throw nor change state", () =
       const before = host.simResult!.state.commandLog.length;
       const dayBefore = host.simResult!.state.day;
 
-      expect(() => { host.handleInbound(peer0, frame as WorkerInbound); }).not.toThrow();
+      expect(() => {
+        host.handleInbound(peer0, frame as WorkerInbound);
+      }).not.toThrow();
 
       expect(host.simResult!.state.commandLog.length).toBe(before);
       expect(host.simResult!.state.day).toBe(dayBefore);
@@ -84,10 +86,14 @@ describe("audit-43 #2 — malformed frames neither throw nor change state", () =
     const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     host.simResult!.scheduler.add({
       name: "exploding-test-system",
-      run: () => { throw new Error("boom"); },
+      run: () => {
+        throw new Error("boom");
+      },
     });
 
-    expect(() => { host.step(); }).not.toThrow();
+    expect(() => {
+      host.step();
+    }).not.toThrow();
     expect(errSpy).toHaveBeenCalled();
     errSpy.mockRestore();
   });
@@ -120,7 +126,8 @@ describe("audit-43 #3 — an oversized drag is refused before it reaches the tic
     const { host, peer0 } = bootedHost();
     const before = host.simResult!.state.commandLog.length;
     host.handleInbound(peer0, {
-      type: "command", command: { type: "placeRoad", payload: { tiles: "everywhere" } },
+      type: "command",
+      command: { type: "placeRoad", payload: { tiles: "everywhere" } },
     } as unknown as WorkerInbound);
     host.step();
     expect(host.simResult!.state.commandLog.length).toBe(before);

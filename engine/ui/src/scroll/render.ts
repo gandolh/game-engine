@@ -19,11 +19,7 @@ import type { ScrollViewportNode } from "./node";
  * The caller is responsible for calling `surface.begin()/end()` around the full UI frame
  * (this function does NOT open/close the surface).
  */
-export function renderScrollViewport(
-  surface: UISurface,
-  vp: ScrollViewportNode,
-  theme: Theme = DEFAULT_THEME,
-): void {
+export function renderScrollViewport(surface: UISurface, vp: ScrollViewportNode, theme: Theme = DEFAULT_THEME): void {
   const { x: vpX, y: vpY, width: vpW, height: vpH } = vp.rect;
   const ox = vpX - vp.scrollOffset.x;
   const oy = vpY - vp.scrollOffset.y;

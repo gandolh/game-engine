@@ -5,7 +5,13 @@
  * Phase 1: adds sendCommand() for place/demolish building commands.
  * Phase 5: adds requestSave() and loadSave() for save/load via command-log replay.
  */
-import type { RenderSnapshot, WorkerInbound, WorkerOutbound, CitadelCommand, CitadelSave } from "@citadel/sim-core/snapshot";
+import type {
+  RenderSnapshot,
+  WorkerInbound,
+  WorkerOutbound,
+  CitadelCommand,
+  CitadelSave,
+} from "@citadel/sim-core/snapshot";
 
 export class CitadelSimClient {
   private readonly worker: Worker;
@@ -39,7 +45,13 @@ export class CitadelSimClient {
    * client/sim size disagreement unrepresentable (brief 110). Omit to take the
    * sim's defaults.
    */
-  init(seed: number, ticksPerDay: number, worldWidth?: number, worldHeight?: number, mode?: "cozy" | "challenge"): void {
+  init(
+    seed: number,
+    ticksPerDay: number,
+    worldWidth?: number,
+    worldHeight?: number,
+    mode?: "cozy" | "challenge",
+  ): void {
     this.send({
       type: "init",
       seed,

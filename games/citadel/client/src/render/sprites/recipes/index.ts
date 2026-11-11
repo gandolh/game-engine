@@ -17,9 +17,17 @@ import { FX_RECIPES, FRAME_DIAMOND, FLAME_FRAME_COUNT, flameFrameName } from "./
 
 export { MILL_FRAME_COUNT, millFrameName, buildingLitFrameName, LIT_BUILDING_TYPES } from "./buildings";
 export {
-  UNIT_RECIPES, FRAME_VILLAGER, FRAME_RAIDER, FRAME_PEDESTRIAN,
-  UNIT_FRAME_COUNT, unitFrameAt, villagerFrameName, raiderFrameName,
-  ROLE_ACCESSORY_JOBS, villagerRoleFrameName, villagerNameForJob,
+  UNIT_RECIPES,
+  FRAME_VILLAGER,
+  FRAME_RAIDER,
+  FRAME_PEDESTRIAN,
+  UNIT_FRAME_COUNT,
+  unitFrameAt,
+  villagerFrameName,
+  raiderFrameName,
+  ROLE_ACCESSORY_JOBS,
+  villagerRoleFrameName,
+  villagerNameForJob,
 } from "./units";
 export { FRAME_DIAMOND, FRAME_ROAD, FRAME_BRIDGE, FLAME_FRAME_COUNT, flameFrameName } from "./fx";
 
@@ -51,9 +59,7 @@ export function buildingFrameName(type: string): string {
  * they're extra frames of an existing type — so `@`-suffixed names are excluded.
  */
 export const BUILDING_SPRITE_TYPES: ReadonlySet<string> = new Set(
-  MESH_MODELS
-    .map((m) => m.name.slice(BUILDING_FRAME_PREFIX.length))
-    .filter((type) => !type.includes("@")),
+  MESH_MODELS.map((m) => m.name.slice(BUILDING_FRAME_PREFIX.length)).filter((type) => !type.includes("@")),
 );
 
 /**
@@ -62,7 +68,7 @@ export const BUILDING_SPRITE_TYPES: ReadonlySet<string> = new Set(
  * 90° sweep. Render-only (the caller passes performance.now) — never the sim.
  */
 export function millFrameAt(clockMs: number, periodMs = 2400): string {
-  const phase = ((clockMs % periodMs) + periodMs) % periodMs / periodMs; // 0..1
+  const phase = (((clockMs % periodMs) + periodMs) % periodMs) / periodMs; // 0..1
   const i = Math.floor(phase * MILL_FRAME_COUNT) % MILL_FRAME_COUNT;
   return millFrameName(i);
 }

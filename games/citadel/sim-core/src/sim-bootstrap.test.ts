@@ -67,8 +67,7 @@ describe("CitadelSim Phase 1 — determinism & placement", () => {
     const run2 = runWithCommands(COMMAND_LOG, TOTAL_TICKS);
 
     // Sort by position for stable comparison
-    const sort = (bs: typeof run1.buildings) =>
-      [...bs].sort((a, b) => a.x - b.x || a.y - b.y);
+    const sort = (bs: typeof run1.buildings) => [...bs].sort((a, b) => a.x - b.x || a.y - b.y);
 
     expect(sort(run1.buildings)).toEqual(sort(run2.buildings));
   });

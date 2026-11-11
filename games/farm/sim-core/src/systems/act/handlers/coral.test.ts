@@ -42,7 +42,9 @@ describe("coral act handlers", () => {
 
   it("board/disembark also work at a port dock (port network)", () => {
     const portDock = PORTS[0]!.dock;
-    const at = makeFarmer({ transform: { x: portDock.x, y: portDock.y, prevX: portDock.x, prevY: portDock.y, rotation: 0 } });
+    const at = makeFarmer({
+      transform: { x: portDock.x, y: portDock.y, prevX: portDock.x, prevY: portDock.y, rotation: 0 },
+    });
     handleBoardBoat(at);
     expect(at.farmer!.aboard).toBe(true);
     handleReturnToShore(at);
@@ -57,7 +59,7 @@ describe("coral act handlers", () => {
     const rng = createRng(0xc0ffee).fork("fish");
     handleFishCoral(f, 100, rng);
     const fish = f.inventory.fish!;
-    expect(fish["coral-trout"] + fish.lobster).toBe(1); 
+    expect(fish["coral-trout"] + fish.lobster).toBe(1);
     expect(fish.minnow + fish.bass + fish.salmon).toBe(0);
     const expectedKind = fish.lobster === 1 ? "lobster" : "coral-trout";
     expect(f.inventory.gold).toBe(FISH_VALUE[expectedKind]);
@@ -66,7 +68,6 @@ describe("coral act handlers", () => {
   });
 
   it("fish-coral no-ops when NOT aboard or not on a reef", () => {
-
     const notReef = makeFarmer({
       transform: { x: dock.x, y: dock.y, prevX: dock.x, prevY: dock.y, rotation: 0 },
       farmer: { name: "T", currentRegion: "fishing-isle", aboard: true },
@@ -110,7 +111,6 @@ describe("coral act handlers", () => {
   });
 
   it("increments coralCastsDone in beliefs at execution time, keyed to the current day (item 27)", () => {
-
     const f = makeFarmer({
       transform: { x: reef.x, y: reef.y, prevX: reef.x, prevY: reef.y, rotation: 0 },
       farmer: { name: "T", currentRegion: "fishing-isle", aboard: true },

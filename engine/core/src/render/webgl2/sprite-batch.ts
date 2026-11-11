@@ -268,14 +268,77 @@ export class SpriteBatch {
    *  by drawRange. Must be called with the target VAO already bound. */
   private _setupInstanceAttribs(byteOffset: number): void {
     const gl = this.gl;
-    setupAttrib(gl, { location: LOC.pos, size: 2, type: gl.FLOAT, stride: STRIDE_BYTES, offset: byteOffset + 0, divisor: 1 });
-    setupAttrib(gl, { location: LOC.size, size: 2, type: gl.FLOAT, stride: STRIDE_BYTES, offset: byteOffset + 8, divisor: 1 });
-    setupAttrib(gl, { location: LOC.uvMin, size: 2, type: gl.FLOAT, stride: STRIDE_BYTES, offset: byteOffset + 16, divisor: 1 });
-    setupAttrib(gl, { location: LOC.uvMax, size: 2, type: gl.FLOAT, stride: STRIDE_BYTES, offset: byteOffset + 24, divisor: 1 });
-    setupAttrib(gl, { location: LOC.rotation, size: 1, type: gl.FLOAT, stride: STRIDE_BYTES, offset: byteOffset + 32, divisor: 1 });
-    setupAttrib(gl, { location: LOC.flipX, size: 1, type: gl.FLOAT, stride: STRIDE_BYTES, offset: byteOffset + 36, divisor: 1 });
-    setupAttrib(gl, { location: LOC.tint, size: 4, type: gl.FLOAT, stride: STRIDE_BYTES, offset: byteOffset + 40, divisor: 1 });
-    setupAttrib(gl, { location: LOC.swayPhase, size: 1, type: gl.FLOAT, stride: STRIDE_BYTES, offset: byteOffset + 56, divisor: 1 });
-    setupAttrib(gl, { location: LOC.swayAmp, size: 1, type: gl.FLOAT, stride: STRIDE_BYTES, offset: byteOffset + 60, divisor: 1 });
+    setupAttrib(gl, {
+      location: LOC.pos,
+      size: 2,
+      type: gl.FLOAT,
+      stride: STRIDE_BYTES,
+      offset: byteOffset + 0,
+      divisor: 1,
+    });
+    setupAttrib(gl, {
+      location: LOC.size,
+      size: 2,
+      type: gl.FLOAT,
+      stride: STRIDE_BYTES,
+      offset: byteOffset + 8,
+      divisor: 1,
+    });
+    setupAttrib(gl, {
+      location: LOC.uvMin,
+      size: 2,
+      type: gl.FLOAT,
+      stride: STRIDE_BYTES,
+      offset: byteOffset + 16,
+      divisor: 1,
+    });
+    setupAttrib(gl, {
+      location: LOC.uvMax,
+      size: 2,
+      type: gl.FLOAT,
+      stride: STRIDE_BYTES,
+      offset: byteOffset + 24,
+      divisor: 1,
+    });
+    setupAttrib(gl, {
+      location: LOC.rotation,
+      size: 1,
+      type: gl.FLOAT,
+      stride: STRIDE_BYTES,
+      offset: byteOffset + 32,
+      divisor: 1,
+    });
+    setupAttrib(gl, {
+      location: LOC.flipX,
+      size: 1,
+      type: gl.FLOAT,
+      stride: STRIDE_BYTES,
+      offset: byteOffset + 36,
+      divisor: 1,
+    });
+    setupAttrib(gl, {
+      location: LOC.tint,
+      size: 4,
+      type: gl.FLOAT,
+      stride: STRIDE_BYTES,
+      offset: byteOffset + 40,
+      divisor: 1,
+    });
+    setupAttrib(gl, {
+      location: LOC.swayPhase,
+      size: 1,
+      type: gl.FLOAT,
+      stride: STRIDE_BYTES,
+      offset: byteOffset + 56,
+      divisor: 1,
+    });
+    setupAttrib(gl, {
+      location: LOC.swayAmp,
+      size: 1,
+      type: gl.FLOAT,
+      stride: STRIDE_BYTES,
+      offset: byteOffset + 60,
+      divisor: 1,
+    });
   }
 }

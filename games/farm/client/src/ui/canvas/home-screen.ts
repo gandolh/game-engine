@@ -135,7 +135,8 @@ export function createHomeScreen(actions: HomeScreenActions, opts: HomeScreenOpt
    */
   const rivalCount = DEFAULT_FARMER_SPECS.filter((f) => f.player !== true).length;
   const subtitleLbl = label(
-    opts.subtitle ?? `Play as Pip and farm alongside ${rivalCount} BDI rivals - plant, trade, and outwit them across 100 days.`,
+    opts.subtitle ??
+      `Play as Pip and farm alongside ${rivalCount} BDI rivals - plant, trade, and outwit them across 100 days.`,
     { color: EDG.steel },
   );
   const controlsLbl = label(opts.controlsHint ?? "WASD/arrows to move, E to act, Space to recenter on yourself.", {
@@ -179,11 +180,7 @@ export function createHomeScreen(actions: HomeScreenActions, opts: HomeScreenOpt
   // which silently broke the moment the font changed and the panel's height moved. Reserving a
   // slot and reading its rect keeps the input glued to the row whatever the text metrics do.
   const seedSlot = box({ width: SEED_INPUT_WIDTH, height: SEED_INPUT_HEIGHT });
-  const seedRow = box({ direction: "row", gap: 10, align: "center" }, [
-    seedLabelLbl,
-    seedSlot,
-    randomizeBtn,
-  ]);
+  const seedRow = box({ direction: "row", gap: 10, align: "center" }, [seedLabelLbl, seedSlot, randomizeBtn]);
 
   const startBtn = button(opts.startLabel ?? "Start", {
     onActivate: () => actions.onStart(currentSeed()),

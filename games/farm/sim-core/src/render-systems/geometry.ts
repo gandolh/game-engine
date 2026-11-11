@@ -15,17 +15,17 @@ import { PORTS } from "../world/ports";
 import { TILE } from "@engine/core/render";
 
 export const TALL_ISLANDS: ReadonlyArray<{ region: RegionId; rows: 1 | 2 }> = [
-  { region: "heritage-ruin",  rows: 1 }, 
-  { region: "waterfall",      rows: 2 }, 
-  { region: "shrine",         rows: 1 }, 
-  { region: "quarry-north",   rows: 1 }, 
+  { region: "heritage-ruin", rows: 1 },
+  { region: "waterfall", rows: 2 },
+  { region: "shrine", rows: 1 },
+  { region: "quarry-north", rows: 1 },
 ];
 
 export interface CliffTile {
   tx: number;
   ty: number;
   frame: string;
-  row: number; 
+  row: number;
 }
 
 function cliffVariant(tx: number, ty: number): "a" | "b" {
@@ -78,8 +78,7 @@ export function edgeFrame(region: RegionId): string {
 
 function computeFences(): readonly FenceTile[] {
   const out: FenceTile[] = [];
-  const isLandRegion = (x: number, y: number): boolean =>
-    regionAt(x, y) !== null;
+  const isLandRegion = (x: number, y: number): boolean => regionAt(x, y) !== null;
   for (const region of REGIONS) {
     if (region.kind !== "farm") continue;
     const { minX, minY, maxX, maxY } = region.bounds;
@@ -118,13 +117,12 @@ function computeWalls(): readonly WallTile[] {
   for (let ty = 0; ty < WORLD_HEIGHT; ty++) {
     for (let tx = 0; tx < WORLD_WIDTH; tx++) {
       const region = regionAt(tx, ty);
-      if (region === null) continue; 
+      if (region === null) continue;
       const frame = edgeFrame(region);
       for (const [dx, dy, rotation] of dirs) {
         const nx = tx + dx;
         const ny = ty + dy;
-          const neighborIsOcean =
-          nx < 0 || ny < 0 || nx >= WORLD_WIDTH || ny >= WORLD_HEIGHT || !isWalkable(nx, ny);
+        const neighborIsOcean = nx < 0 || ny < 0 || nx >= WORLD_WIDTH || ny >= WORLD_HEIGHT || !isWalkable(nx, ny);
         if (neighborIsOcean) out.push({ tx, ty, rotation, frame });
       }
     }
@@ -150,13 +148,11 @@ function computeShores(): readonly ShoreTile[] {
   ];
   for (let ty = 0; ty < WORLD_HEIGHT; ty++) {
     for (let tx = 0; tx < WORLD_WIDTH; tx++) {
-
       if (regionAt(tx, ty) === null) continue;
       for (const [dx, dy, rotation] of dirs) {
         const nx = tx + dx;
         const ny = ty + dy;
-        const neighborIsOcean =
-          nx < 0 || ny < 0 || nx >= WORLD_WIDTH || ny >= WORLD_HEIGHT || !isWalkable(nx, ny);
+        const neighborIsOcean = nx < 0 || ny < 0 || nx >= WORLD_WIDTH || ny >= WORLD_HEIGHT || !isWalkable(nx, ny);
         if (neighborIsOcean) out.push({ tx, ty, rotation });
       }
     }
@@ -173,9 +169,14 @@ export const SAND_SHORES: readonly ShoreTile[] = SHORES.filter((s) => {
 
 export function isBridge(tx: number, ty: number): boolean {
   if (!isWalkable(tx, ty)) return false;
-  if (regionAt(tx, ty) !== null) return false; 
+  if (regionAt(tx, ty) !== null) return false;
 
-  for (const [dx, dy] of [[0, -1], [1, 0], [0, 1], [-1, 0]] as const) {
+  for (const [dx, dy] of [
+    [0, -1],
+    [1, 0],
+    [0, 1],
+    [-1, 0],
+  ] as const) {
     const nx = tx + dx;
     const ny = ty + dy;
     const off = nx < 0 || ny < 0 || nx >= WORLD_WIDTH || ny >= WORLD_HEIGHT;
@@ -194,7 +195,7 @@ function computeBridges(): readonly BridgeTile[] {
   }
   const oceanOrDeck = (x: number, y: number): boolean => {
     const off = x < 0 || y < 0 || x >= WORLD_WIDTH || y >= WORLD_HEIGHT;
-    if (off || !isWalkable(x, y)) return true; 
+    if (off || !isWalkable(x, y)) return true;
     return deck.has(key(x, y));
   };
   let changed = true;
@@ -203,7 +204,7 @@ function computeBridges(): readonly BridgeTile[] {
     for (let ty = 0; ty < WORLD_HEIGHT; ty++) {
       for (let tx = 0; tx < WORLD_WIDTH; tx++) {
         if (deck.has(key(tx, ty))) continue;
-        if (!isWalkable(tx, ty) || regionAt(tx, ty) !== null) continue; 
+        if (!isWalkable(tx, ty) || regionAt(tx, ty) !== null) continue;
         const hSpan = oceanOrDeck(tx - 1, ty) && oceanOrDeck(tx + 1, ty);
         const vSpan = oceanOrDeck(tx, ty - 1) && oceanOrDeck(tx, ty + 1);
         if (hSpan || vSpan) {
@@ -219,7 +220,11 @@ function computeBridges(): readonly BridgeTile[] {
     let n = 0;
     let x = tx + dx;
     let y = ty + dy;
-    while (deck.has(key(x, y))) { n++; x += dx; y += dy; }
+    while (deck.has(key(x, y))) {
+      n++;
+      x += dx;
+      y += dy;
+    }
     return n;
   };
   for (const k of deck) {
@@ -231,7 +236,7 @@ function computeBridges(): readonly BridgeTile[] {
 
     const vExt = deckRun(tx, ty, 0, -1) + deckRun(tx, ty, 0, 1);
     const hExt = deckRun(tx, ty, -1, 0) + deckRun(tx, ty, 1, 0);
-    const runsVertical = vExt !== hExt ? vExt > hExt : (vertical && !horizontal);
+    const runsVertical = vExt !== hExt ? vExt > hExt : vertical && !horizontal;
 
     const back = runsVertical ? deckRun(tx, ty, 0, -1) : deckRun(tx, ty, -1, 0);
     const fwd = runsVertical ? deckRun(tx, ty, 0, 1) : deckRun(tx, ty, 1, 0);
@@ -243,9 +248,7 @@ function computeBridges(): readonly BridgeTile[] {
 
 export const BRIDGES: readonly BridgeTile[] = computeBridges();
 
-export const BRIDGE_SET: ReadonlySet<number> = new Set(
-  BRIDGES.map((b) => b.ty * WORLD_WIDTH + b.tx),
-);
+export const BRIDGE_SET: ReadonlySet<number> = new Set(BRIDGES.map((b) => b.ty * WORLD_WIDTH + b.tx));
 
 function computeCliffs(): readonly CliffTile[] {
   type CliffPos = { tx: number; ty: number; row: number };
@@ -262,7 +265,10 @@ function computeCliffs(): readonly CliffTile[] {
     for (let tx = minX; tx <= maxX; tx++) {
       let lowestLandY = -1;
       for (let ty = maxY; ty >= minY; ty--) {
-        if (regionAt(tx, ty) === region) { lowestLandY = ty; break; }
+        if (regionAt(tx, ty) === region) {
+          lowestLandY = ty;
+          break;
+        }
       }
       if (lowestLandY < 0) continue; // no land in this column
       for (let row = 0; row < rows; row++) {
@@ -278,7 +284,7 @@ function computeCliffs(): readonly CliffTile[] {
   const cliffSet = new Set(allPositions.map((p) => cliffKey(p.tx, p.ty)));
   const out: CliffTile[] = [];
   for (const { tx, ty, row } of allPositions) {
-    const hasLeft  = cliffSet.has(cliffKey(tx - 1, ty));
+    const hasLeft = cliffSet.has(cliffKey(tx - 1, ty));
     const hasRight = cliffSet.has(cliffKey(tx + 1, ty));
     let frame: string;
     if (!hasLeft) {
@@ -295,9 +301,7 @@ function computeCliffs(): readonly CliffTile[] {
 
 export const CLIFFS: readonly CliffTile[] = computeCliffs();
 
-export const CLIFF_SET: ReadonlySet<number> = new Set(
-  CLIFFS.map((c) => c.ty * WORLD_WIDTH + c.tx),
-);
+export const CLIFF_SET: ReadonlySet<number> = new Set(CLIFFS.map((c) => c.ty * WORLD_WIDTH + c.tx));
 
 export const OCEAN_TILES: ReadonlyArray<{ tx: number; ty: number }> = (() => {
   const out: Array<{ tx: number; ty: number }> = [];
@@ -311,15 +315,14 @@ export const OCEAN_TILES: ReadonlyArray<{ tx: number; ty: number }> = (() => {
 
 export const COAST_DEPTH_MAX = 4;
 const OCEAN_DEPTH: Int16Array = (() => {
-  const depth = new Int16Array(WORLD_WIDTH * WORLD_HEIGHT); 
+  const depth = new Int16Array(WORLD_WIDTH * WORLD_HEIGHT);
   const queue: number[] = [];
 
   for (let ty = 0; ty < WORLD_HEIGHT; ty++) {
     for (let tx = 0; tx < WORLD_WIDTH; tx++) {
-      if (isWalkable(tx, ty)) continue; 
+      if (isWalkable(tx, ty)) continue;
       const touchesLand =
-        isWalkable(tx, ty - 1) || isWalkable(tx, ty + 1) ||
-        isWalkable(tx - 1, ty) || isWalkable(tx + 1, ty);
+        isWalkable(tx, ty - 1) || isWalkable(tx, ty + 1) || isWalkable(tx - 1, ty) || isWalkable(tx + 1, ty);
       if (touchesLand) {
         depth[ty * WORLD_WIDTH + tx] = 1;
         queue.push(ty * WORLD_WIDTH + tx);
@@ -341,10 +344,10 @@ const OCEAN_DEPTH: Int16Array = (() => {
     ];
     for (const ni of nbrs) {
       if (ni < 0) continue;
-      if (depth[ni] !== 0) continue;        
+      if (depth[ni] !== 0) continue;
       const nx = ni % WORLD_WIDTH;
       const ny = (ni - nx) / WORLD_WIDTH;
-      if (isWalkable(nx, ny)) continue;      
+      if (isWalkable(nx, ny)) continue;
       depth[ni] = d + 1;
       queue.push(ni);
     }
@@ -359,17 +362,16 @@ export function oceanDepthAt(tx: number, ty: number): number {
 
 export const GRADIENT_DEPTH_MAX = 14;
 const OCEAN_GRADIENT: Float32Array = (() => {
-  const grad = new Float32Array(WORLD_WIDTH * WORLD_HEIGHT); 
+  const grad = new Float32Array(WORLD_WIDTH * WORLD_HEIGHT);
   const queue: number[] = [];
 
   for (let ty = 0; ty < WORLD_HEIGHT; ty++) {
     for (let tx = 0; tx < WORLD_WIDTH; tx++) {
-      if (isWalkable(tx, ty)) continue; 
+      if (isWalkable(tx, ty)) continue;
       const touchesLand =
-        isWalkable(tx, ty - 1) || isWalkable(tx, ty + 1) ||
-        isWalkable(tx - 1, ty) || isWalkable(tx + 1, ty);
+        isWalkable(tx, ty - 1) || isWalkable(tx, ty + 1) || isWalkable(tx - 1, ty) || isWalkable(tx + 1, ty);
       if (touchesLand) {
-        grad[ty * WORLD_WIDTH + tx] = 1; 
+        grad[ty * WORLD_WIDTH + tx] = 1;
         queue.push(ty * WORLD_WIDTH + tx);
       }
     }
@@ -389,10 +391,10 @@ const OCEAN_GRADIENT: Float32Array = (() => {
     ];
     for (const ni of nbrs) {
       if (ni < 0) continue;
-      if (grad[ni] !== 0) continue; 
+      if (grad[ni] !== 0) continue;
       const nx = ni % WORLD_WIDTH;
       const ny = (ni - nx) / WORLD_WIDTH;
-      if (isWalkable(nx, ny)) continue; 
+      if (isWalkable(nx, ny)) continue;
       grad[ni] = d + 1;
       queue.push(ni);
     }
@@ -414,13 +416,10 @@ export const COASTLINE_BUBBLE_TILES: ReadonlyArray<{ tx: number; ty: number }> =
   const out: Array<{ tx: number; ty: number }> = [];
   for (let ty = 0; ty < WORLD_HEIGHT; ty++) {
     for (let tx = 0; tx < WORLD_WIDTH; tx++) {
-      if (isWalkable(tx, ty)) continue; 
+      if (isWalkable(tx, ty)) continue;
       if (CLIFF_SET.has(ty * WORLD_WIDTH + tx)) continue;
       const touchesLand =
-        isWalkable(tx, ty - 1) ||
-        isWalkable(tx, ty + 1) ||
-        isWalkable(tx - 1, ty) ||
-        isWalkable(tx + 1, ty);
+        isWalkable(tx, ty - 1) || isWalkable(tx, ty + 1) || isWalkable(tx - 1, ty) || isWalkable(tx + 1, ty);
       if (touchesLand) out.push({ tx, ty });
     }
   }
@@ -433,7 +432,7 @@ function computeCoral(): readonly CoralTile[] {
   const candidates: Array<{ tx: number; ty: number }> = [];
   for (let ty = 0; ty < WORLD_HEIGHT; ty++) {
     for (let tx = 0; tx < WORLD_WIDTH; tx++) {
-      if (isWalkable(tx, ty)) continue; 
+      if (isWalkable(tx, ty)) continue;
       let nearLand = false;
       for (let dy = -1; dy <= 1 && !nearLand; dy++) {
         for (let dx = -1; dx <= 1; dx++) {
@@ -463,10 +462,14 @@ function computeCoral(): readonly CoralTile[] {
     const seedTile = candidates[Math.floor(rand() * candidates.length)]!;
     const size = 10 + Math.floor(rand() * 8);
     const frontier = new Map<number, { tx: number; ty: number }>();
-    const dist2 = (t: { tx: number; ty: number }) =>
-      (t.tx - seedTile.tx) ** 2 + (t.ty - seedTile.ty) ** 2;
+    const dist2 = (t: { tx: number; ty: number }) => (t.tx - seedTile.tx) ** 2 + (t.ty - seedTile.ty) ** 2;
     const addNeighbours = (t: { tx: number; ty: number }) => {
-      for (const [dx, dy] of [[0, -1], [1, 0], [0, 1], [-1, 0]] as const) {
+      for (const [dx, dy] of [
+        [0, -1],
+        [1, 0],
+        [0, 1],
+        [-1, 0],
+      ] as const) {
         const nx = t.tx + dx;
         const ny = t.ty + dy;
         const nk = key(nx, ny);
@@ -476,7 +479,7 @@ function computeCoral(): readonly CoralTile[] {
       }
     };
     const sk = key(seedTile.tx, seedTile.ty);
-    if (taken.has(sk)) continue; 
+    if (taken.has(sk)) continue;
     taken.add(sk);
     addNeighbours(seedTile);
     let placed = 1;
@@ -486,7 +489,11 @@ function computeCoral(): readonly CoralTile[] {
       let bestD = Infinity;
       for (const [fk, ft] of frontier) {
         const d = dist2(ft);
-        if (d < bestD) { bestD = d; bestK = fk; best = ft; }
+        if (d < bestD) {
+          bestD = d;
+          bestK = fk;
+          best = ft;
+        }
       }
       frontier.delete(bestK);
       if (best === null || taken.has(bestK)) continue;
@@ -520,11 +527,22 @@ function computeCoral(): readonly CoralTile[] {
     }
 
     if (openCount === 2) {
-      if (!up && !left) { out.push({ tx, ty, frame: "tile/coral-corner", rotation: 0 }); continue; }
-      if (!up && !right) { out.push({ tx, ty, frame: "tile/coral-corner", rotation: HALF_PI }); continue; }
-      if (!down && !right) { out.push({ tx, ty, frame: "tile/coral-corner", rotation: 2 * HALF_PI }); continue; }
-      if (!down && !left) { out.push({ tx, ty, frame: "tile/coral-corner", rotation: 3 * HALF_PI }); continue; }
-
+      if (!up && !left) {
+        out.push({ tx, ty, frame: "tile/coral-corner", rotation: 0 });
+        continue;
+      }
+      if (!up && !right) {
+        out.push({ tx, ty, frame: "tile/coral-corner", rotation: HALF_PI });
+        continue;
+      }
+      if (!down && !right) {
+        out.push({ tx, ty, frame: "tile/coral-corner", rotation: 2 * HALF_PI });
+        continue;
+      }
+      if (!down && !left) {
+        out.push({ tx, ty, frame: "tile/coral-corner", rotation: 3 * HALF_PI });
+        continue;
+      }
     }
     const rotation = !up ? 0 : !right ? HALF_PI : !down ? 2 * HALF_PI : 3 * HALF_PI;
     out.push({ tx, ty, frame: "tile/coral-edge", rotation });
@@ -612,12 +630,12 @@ export const BIG_STRUCTURES: ReadonlyArray<BigStructure> = [
 
   bakedOnRegion("structure/big-tree", "big-tree", 0, 0, 48, 64),
 
-  bakedAt("decoration/slot-machine", 73, 117, 16, 32),   
+  bakedAt("decoration/slot-machine", 73, 117, 16, 32),
   bakedAt("decoration/slot-machine", 75, 117, 16, 32),
-  bakedAt("decoration/roulette", 77, 119, 32, 32),        
-  bakedAt("decoration/blackjack-table", 73, 122, 32, 24), 
-  bakedAt("decoration/dice-table", 80, 119, 32, 24),      
-  bakedAt("decoration/shell-game", 78, 124, 32, 24),      
+  bakedAt("decoration/roulette", 77, 119, 32, 32),
+  bakedAt("decoration/blackjack-table", 73, 122, 32, 24),
+  bakedAt("decoration/dice-table", 80, 119, 32, 24),
+  bakedAt("decoration/shell-game", 78, 124, 32, 24),
 
   bakedOnRegion("decoration/ring-post", "ring", -3, -2, 16, 32),
   bakedOnRegion("decoration/ring-post", "ring", 3, -2, 16, 32),
@@ -629,15 +647,13 @@ export const BIG_STRUCTURES: ReadonlyArray<BigStructure> = [
   // Per-farm cottage base (maxX-2, maxY-1). This tile is pinned as forced-core
   // land by anchors.ts (forcedCoreTiles), so the organic mask never carves it
   // out — no mask-aware snap needed here.
-  ...REGIONS.filter((r) => r.kind === "farm").map(
-    (r): BigStructure => ({
-      frame: farmCottageFrame(r.id),
-      baseTileX: r.bounds.maxX - 2,
-      baseTileY: r.bounds.maxY - 1,
-      wPx: 32,
-      hPx: 48,
-    }),
-  ),
+  ...REGIONS.filter((r) => r.kind === "farm").map((r): BigStructure => ({
+    frame: farmCottageFrame(r.id),
+    baseTileX: r.bounds.maxX - 2,
+    baseTileY: r.bounds.maxY - 1,
+    wPx: 32,
+    hPx: 48,
+  })),
 ];
 
 export interface FishingStaticTile {

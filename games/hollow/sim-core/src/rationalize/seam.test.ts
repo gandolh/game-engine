@@ -160,21 +160,21 @@ describe("anchoring — an ILLEGAL answer is rejected and the BDI default is use
     });
     const on = run(hostile);
     expect(on.decisions.length).toBeGreaterThan(0);
-    expect((countBy(on.decisions, "reason")["index-out-of-range"] ?? 0)).toBeGreaterThan(0);
+    expect(countBy(on.decisions, "reason")["index-out-of-range"] ?? 0).toBeGreaterThan(0);
     expect(on.trace).toBe(off.trace);
   });
 
   it("non-integer index", () => {
     const hostile = createStubRationalizer({ respond: () => ({ choiceIndex: 1.5, rationale: "half a verb" }) });
     const on = run(hostile);
-    expect((countBy(on.decisions, "reason")["non-integer-index"] ?? 0)).toBeGreaterThan(0);
+    expect(countBy(on.decisions, "reason")["non-integer-index"] ?? 0).toBeGreaterThan(0);
     expect(on.trace).toBe(off.trace);
   });
 
   it("wrong shape (prose instead of a structured answer)", () => {
     const hostile = createStubRationalizer({ respond: () => "I would steal from the miller." });
     const on = run(hostile);
-    expect((countBy(on.decisions, "reason")["malformed"] ?? 0)).toBeGreaterThan(0);
+    expect(countBy(on.decisions, "reason")["malformed"] ?? 0).toBeGreaterThan(0);
     expect(on.trace).toBe(off.trace);
   });
 
@@ -210,7 +210,7 @@ describe("anchoring — an ILLEGAL answer is rejected and the BDI default is use
   it("provider error (timeout / transport failure)", () => {
     const failing = createStubRationalizer({ failWith: () => "timeout" });
     const on = run(failing);
-    expect((countBy(on.decisions, "reason")["provider-error"] ?? 0)).toBeGreaterThan(0);
+    expect(countBy(on.decisions, "reason")["provider-error"] ?? 0).toBeGreaterThan(0);
     expect(on.trace).toBe(off.trace);
   });
 
@@ -243,7 +243,17 @@ describe("the seam is live — a disagreeing stub really changes the run", () =>
     // Anchoring still holds for every adopted choice: the verb actually
     // taken is one the enumerated set offered. Since hollow-17 the same
     // provider also answers leaders' votes, whose only kind is the vote.
-    const enumerable = new Set(["steal", "sabotage", "attack", "rumor", "gift", "share", "help_labor", "teach", "trade"]);
+    const enumerable = new Set([
+      "steal",
+      "sabotage",
+      "attack",
+      "rumor",
+      "gift",
+      "share",
+      "help_labor",
+      "teach",
+      "trade",
+    ]);
     for (const d of on.decisions) {
       if (d.site === "social") expect(enumerable.has(d.chosenKind)).toBe(true);
       else expect(d.chosenKind).toBe("share-rate-vote");

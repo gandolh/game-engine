@@ -5,24 +5,20 @@ import { REGIONS, forEachLandTile } from "../../world/regions";
 import { isWithinReach } from "../../systems/proximity";
 import { nearestTile } from "./shared";
 
-export function deliberateBuyTool(
-  farmer: GameEntity,
-  toolKind: ToolKind,
-  priority: number,
-): void {
+export function deliberateBuyTool(farmer: GameEntity, toolKind: ToolKind, priority: number): void {
   if (!farmer.intentions || !farmer.inventory || !farmer.farmer) return;
   const tools = farmer.inventory.tools ?? [];
-  const hasUsable = tools.some(t => t.kind === toolKind && t.durability > 0);
+  const hasUsable = tools.some((t) => t.kind === toolKind && t.durability > 0);
   if (hasUsable) return;
 
   const price = TOOL_PRICE["wooden"];
   if (farmer.inventory.gold < price) return;
 
-  if (farmer.intentions.queue.some(i => i.kind === "buy-tool" && i.data.toolKind === toolKind)) return;
+  if (farmer.intentions.queue.some((i) => i.kind === "buy-tool" && i.data.toolKind === toolKind)) return;
 
   const inVillage = farmer.farmer.currentRegion === "village";
   if (!inVillage) {
-    if (!farmer.intentions.queue.some(i => i.kind === "travel" && i.data.targetRegionId === "village")) {
+    if (!farmer.intentions.queue.some((i) => i.kind === "travel" && i.data.targetRegionId === "village")) {
       farmer.intentions.queue.push({
         kind: "travel",
         data: { targetRegionId: "village" },
@@ -45,10 +41,10 @@ export function deliberateTill(
   priority: number,
 ): void {
   if (!farmer.farmer?.homeRegion || !farmer.intentions || farmer.id === undefined) return;
-  const hoe = (farmer.inventory?.tools ?? []).find(t => t.kind === "hoe" && t.durability > 0);
-  if (!hoe) return; 
+  const hoe = (farmer.inventory?.tools ?? []).find((t) => t.kind === "hoe" && t.durability > 0);
+  if (!hoe) return;
 
-  const farmDef = REGIONS.find(r => r.id === farmer.farmer!.homeRegion);
+  const farmDef = REGIONS.find((r) => r.id === farmer.farmer!.homeRegion);
   if (!farmDef || farmDef.kind !== "farm") return;
 
   // Only offer mask-land tiles (forEachLandTile skips carved-out ocean tiles).
@@ -66,12 +62,12 @@ export function deliberateTill(
   if (candidates.length === 0) return;
 
   const transform = farmer.transform;
-  const inReach = candidates.filter(p => isWithinReach(transform, p.tileX, p.tileY));
-  const outOfReach = candidates.filter(p => !isWithinReach(transform, p.tileX, p.tileY));
+  const inReach = candidates.filter((p) => isWithinReach(transform, p.tileX, p.tileY));
+  const outOfReach = candidates.filter((p) => !isWithinReach(transform, p.tileX, p.tileY));
 
   if (inReach.length === 0) {
     const nearest = nearestTile(transform, candidates);
-    if (nearest && !farmer.intentions.queue.some(i => i.kind === "travel" && i.data.targetTile)) {
+    if (nearest && !farmer.intentions.queue.some((i) => i.kind === "travel" && i.data.targetTile)) {
       farmer.intentions.queue.push({
         kind: "travel",
         data: { targetTile: { x: nearest.tileX, y: nearest.tileY } },
@@ -95,7 +91,7 @@ export function deliberateTill(
 
   if (outOfReach.length > 0) {
     const nearestOut = nearestTile(transform, outOfReach);
-    if (nearestOut && !farmer.intentions.queue.some(i => i.kind === "travel" && i.data.targetTile)) {
+    if (nearestOut && !farmer.intentions.queue.some((i) => i.kind === "travel" && i.data.targetTile)) {
       farmer.intentions.queue.push({
         kind: "travel",
         data: { targetTile: { x: nearestOut.tileX, y: nearestOut.tileY } },
@@ -107,18 +103,14 @@ export function deliberateTill(
   if (count > 0) recordReason(farmer, `till ${count} new plot${count > 1 ? "s" : ""}`);
 }
 
-export function deliberateUpgrade(
-  farmer: GameEntity,
-  toolKind: ToolKind,
-  priority: number,
-): void {
+export function deliberateUpgrade(farmer: GameEntity, toolKind: ToolKind, priority: number): void {
   if (!farmer.intentions || !farmer.inventory || !farmer.farmer) return;
   const tools = farmer.inventory.tools ?? [];
   const tierOrder: Record<string, number> = { wooden: 0, stone: 1, iron: 2 };
   const best = tools
-    .filter(t => t.kind === toolKind)
+    .filter((t) => t.kind === toolKind)
     .sort((a, b) => (tierOrder[b.tier] ?? 0) - (tierOrder[a.tier] ?? 0))[0];
-  if (!best || best.tier === "iron") return; 
+  if (!best || best.tier === "iron") return;
 
   const upgradeCost: Record<string, number> = { stone: 15, iron: 25 };
   const nextTier = best.tier === "wooden" ? "stone" : "iron";
@@ -126,11 +118,11 @@ export function deliberateUpgrade(
   const reserve = (farmer.desires?.data.minGoldReserve as number | undefined) ?? 20;
   if (farmer.inventory.gold < cost + reserve) return;
 
-  if (farmer.intentions.queue.some(i => i.kind === "upgrade-tool" && i.data.toolKind === toolKind)) return;
+  if (farmer.intentions.queue.some((i) => i.kind === "upgrade-tool" && i.data.toolKind === toolKind)) return;
 
   const inBlacksmith = farmer.farmer.currentRegion === "blacksmith";
   if (!inBlacksmith) {
-    if (!farmer.intentions.queue.some(i => i.kind === "travel" && i.data.targetRegionId === "blacksmith")) {
+    if (!farmer.intentions.queue.some((i) => i.kind === "travel" && i.data.targetRegionId === "blacksmith")) {
       farmer.intentions.queue.push({
         kind: "travel",
         data: { targetRegionId: "blacksmith" },

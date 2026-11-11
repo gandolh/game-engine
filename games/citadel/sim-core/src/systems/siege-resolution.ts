@@ -122,15 +122,10 @@ export function computeDefensiveStrength(state: SimState, p: PlayerState, cozy =
  *
  * Fully deterministic: same seed + same inputs → same result.
  */
-export function resolveSiege(
-  raidStrength: number,
-  defenseStrength: number,
-  rng: Rng,
-  morale = 100,
-): SiegeResult {
+export function resolveSiege(raidStrength: number, defenseStrength: number, rng: Rng, morale = 100): SiegeResult {
   const ratio = defenseStrength / Math.max(1, raidStrength);
   // Morale below 100 nudges every outcome toward the defender (up to +0.25 repel).
-  const moraleBonus = (100 - clamp(morale, 0, 100)) / 100 * 0.25;
+  const moraleBonus = ((100 - clamp(morale, 0, 100)) / 100) * 0.25;
   const roll = rng.nextFloat(); // single seeded draw — the fork is now load-bearing.
 
   // High defense (ratio ≥ 1.5): mostly repel.
@@ -325,7 +320,10 @@ export class SiegeResolutionSystem implements System {
    */
   private readonly cozy: boolean;
 
-  constructor(private readonly state: SimState, opts: { cozy?: boolean } = {}) {
+  constructor(
+    private readonly state: SimState,
+    opts: { cozy?: boolean } = {},
+  ) {
     this.cozy = opts.cozy ?? true;
   }
 
@@ -342,7 +340,10 @@ export class SiegeResolutionSystem implements System {
       const toRemove: number[] = [];
       for (let i = 0; i < p.raiders.length; i++) {
         const raider = p.raiders[i]!;
-        if (raider.resolved) { toRemove.push(i); continue; }
+        if (raider.resolved) {
+          toRemove.push(i);
+          continue;
+        }
 
         // Brief 113 (cozy departure): a raider that has already pilfered and
         // is walking back off the map is not "at siege" anymore — skip morale

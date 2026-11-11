@@ -52,11 +52,15 @@ function makeFarmer(overrides: {
       revision: 0,
     },
     intentions: { queue: [] },
-    ap: { current: overrides.ap ?? 30, max: overrides.apMax ?? 100, penaltyPending: false, penaltyCapacity: 0, away: false },
+    ap: {
+      current: overrides.ap ?? 30,
+      max: overrides.apMax ?? 100,
+      penaltyPending: false,
+      penaltyCapacity: 0,
+      away: false,
+    },
     inventory: { gold: 100, crops: {} as never, seeds: {} as never },
-    ...(overrides.personality !== undefined
-      ? { personality: { kind: overrides.personality as never } }
-      : {}),
+    ...(overrides.personality !== undefined ? { personality: { kind: overrides.personality as never } } : {}),
   };
 }
 
@@ -76,7 +80,6 @@ describe("deliberateShrineVisit — reachability guard", () => {
   });
 
   it("does NOT queue pray-at-shrine when farmer is on a non-walkable / ocean tile", () => {
-
     const farmer = makeFarmer({ tx: 0, ty: 0 });
     deliberateShrineVisit(farmer, 10);
     const intent = farmer.intentions!.queue.find((i) => i.kind === "pray-at-shrine");
@@ -84,7 +87,6 @@ describe("deliberateShrineVisit — reachability guard", () => {
   });
 
   it("queues travel + pray-at-shrine for a connected farmer NOT yet at shrine", () => {
-
     const farmer = makeFarmer({ region: "village", tx: VILLAGE.x, ty: VILLAGE.y });
     deliberateShrineVisit(farmer, 10);
     const travel = farmer.intentions!.queue.find(
@@ -96,16 +98,14 @@ describe("deliberateShrineVisit — reachability guard", () => {
   });
 
   it("skips entirely when AP is above 55% (existing cooldown check is unaffected by guard)", () => {
-    const farmer = makeFarmer({ ap: 60, apMax: 100 }); 
+    const farmer = makeFarmer({ ap: 60, apMax: 100 });
     deliberateShrineVisit(farmer, 10);
     expect(farmer.intentions!.queue).toHaveLength(0);
   });
 });
 
 describe("deliberateTavernGather — reachability guard", () => {
-
   function matchingDay(id: number): number {
-
     const period = 12;
     const offset = id % period;
 
@@ -113,13 +113,11 @@ describe("deliberateTavernGather — reachability guard", () => {
   }
 
   it("queues tavern travel for a connected, on-foot farmer on the right visit day", () => {
-    const id = 1; 
+    const id = 1;
     const day = matchingDay(id);
     const farmer = makeFarmer({ id, day, tx: VILLAGE.x, ty: VILLAGE.y, ap: 50 });
     deliberateTavernGather(farmer, -2);
-    const travel = farmer.intentions!.queue.find(
-      (i) => i.kind === "travel" && i.data.tavernGather === true,
-    );
+    const travel = farmer.intentions!.queue.find((i) => i.kind === "travel" && i.data.tavernGather === true);
     expect(travel).toBeDefined();
   });
 
@@ -135,7 +133,7 @@ describe("deliberateTavernGather — reachability guard", () => {
   it("does NOT queue tavern travel when farmer is on a non-walkable tile", () => {
     const id = 1;
     const day = matchingDay(id);
-    const farmer = makeFarmer({ id, day, tx: 0, ty: 0, ap: 50 }); 
+    const farmer = makeFarmer({ id, day, tx: 0, ty: 0, ap: 50 });
     deliberateTavernGather(farmer, -2);
     const travel = farmer.intentions!.queue.find((i) => i.data.tavernGather === true);
     expect(travel).toBeUndefined();
@@ -150,7 +148,6 @@ describe("deliberateFestivalGather — reachability guard", () => {
   }
 
   it("queues festival travel for a connected, on-foot farmer on a festival day", () => {
-
     // On their home farm (bridge-connected to the podium) but NOT already at the
     // podium, so a travel intent is queued. (If the farmer stands ON the podium,
     // isWithinReach short-circuits — see deliberateFestivalGather.)
@@ -158,9 +155,7 @@ describe("deliberateFestivalGather — reachability guard", () => {
     const farmer = makeFarmer({ tx: farm.x, ty: farm.y, region: "farm-pip", ap: 50 });
     addFestival(farmer);
     deliberateFestivalGather(farmer, -2);
-    const travel = farmer.intentions!.queue.find(
-      (i) => i.kind === "travel" && i.data.festivalGather === true,
-    );
+    const travel = farmer.intentions!.queue.find((i) => i.kind === "travel" && i.data.festivalGather === true);
     expect(travel).toBeDefined();
   });
 
@@ -173,7 +168,7 @@ describe("deliberateFestivalGather — reachability guard", () => {
   });
 
   it("does NOT queue festival travel when farmer is on a non-walkable tile", () => {
-    const farmer = makeFarmer({ tx: 0, ty: 0, ap: 50 }); 
+    const farmer = makeFarmer({ tx: 0, ty: 0, ap: 50 });
     addFestival(farmer);
     deliberateFestivalGather(farmer, -2);
     const travel = farmer.intentions!.queue.find((i) => i.data.festivalGather === true);
@@ -201,9 +196,7 @@ describe("deliberateFestivalGather — reachability guard", () => {
     const farmer = makeFarmer({ tx: farm.x, ty: farm.y, region: "farm-pip", ap: 0 });
     addFestival(farmer);
     deliberateFestivalGather(farmer, -2);
-    const travel = farmer.intentions!.queue.find(
-      (i) => i.kind === "travel" && i.data.festivalGather === true,
-    );
+    const travel = farmer.intentions!.queue.find((i) => i.kind === "travel" && i.data.festivalGather === true);
     expect(travel).toBeDefined();
   });
 
@@ -212,8 +205,12 @@ describe("deliberateFestivalGather — reachability guard", () => {
     // outranks the festival for a cautious personality.
     const farm = getRegion("farm-pip").center;
     const farmer = makeFarmer({
-      tx: farm.x, ty: farm.y, region: "farm-pip", ap: 50,
-      personality: "conservative", maxDrySoFar: 2,
+      tx: farm.x,
+      ty: farm.y,
+      region: "farm-pip",
+      ap: 50,
+      personality: "conservative",
+      maxDrySoFar: 2,
     });
     addFestival(farmer);
     deliberateFestivalGather(farmer, -2);
@@ -227,8 +224,12 @@ describe("deliberateFestivalGather — reachability guard", () => {
     // longer" per the brief.
     const farm = getRegion("farm-pip").center;
     const farmer = makeFarmer({
-      tx: farm.x, ty: farm.y, region: "farm-pip", ap: 50,
-      personality: "aggressive", maxDrySoFar: 2,
+      tx: farm.x,
+      ty: farm.y,
+      region: "farm-pip",
+      ap: 50,
+      personality: "aggressive",
+      maxDrySoFar: 2,
     });
     addFestival(farmer);
     deliberateFestivalGather(farmer, -2);
@@ -239,8 +240,12 @@ describe("deliberateFestivalGather — reachability guard", () => {
   it("even a social personality bails once dryness reaches ITS OWN tolerance (3)", () => {
     const farm = getRegion("farm-pip").center;
     const farmer = makeFarmer({
-      tx: farm.x, ty: farm.y, region: "farm-pip", ap: 50,
-      personality: "aggressive", maxDrySoFar: 3,
+      tx: farm.x,
+      ty: farm.y,
+      region: "farm-pip",
+      ap: 50,
+      personality: "aggressive",
+      maxDrySoFar: 3,
     });
     addFestival(farmer);
     deliberateFestivalGather(farmer, -2);

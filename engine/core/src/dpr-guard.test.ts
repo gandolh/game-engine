@@ -33,9 +33,7 @@ const IS_TEST_FILE = /\.test\.tsx?$/;
 // throw away the exact information the field exists to capture. Not part of
 // sweep-06's evidence table (engine + Citadel + Hollow only) or this sweep's
 // file ownership.
-const ALLOWED_RAW_READS = new Set<string>([
-  join("games", "farm", "client", "src", "main", "profile-export.ts"),
-]);
+const ALLOWED_RAW_READS = new Set<string>([join("games", "farm", "client", "src", "main", "profile-export.ts")]);
 
 // A line is a comment mention (documentation referring to `devicePixelRatio`
 // by name), not a real read, if its trimmed text opens a `//` line comment or

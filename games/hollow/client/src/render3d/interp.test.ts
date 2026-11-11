@@ -70,7 +70,10 @@ describe("lerpAgentPositions", () => {
   });
 
   it("drops an id present in prev but absent from next (despawned)", () => {
-    const prev = [{ id: 1, gx: 0, gy: 0 }, { id: 2, gx: 1, gy: 1 }];
+    const prev = [
+      { id: 1, gx: 0, gy: 0 },
+      { id: 2, gx: 1, gy: 1 },
+    ];
     const next = [{ id: 1, gx: 1, gy: 1 }];
     const result = lerpAgentPositions(prev, next, 0.5);
     expect(result.has(2)).toBe(false);

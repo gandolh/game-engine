@@ -119,10 +119,7 @@ function runningCtx(): FakeAudioContext {
   return ctx;
 }
 
-function engineWith(
-  ctx: FakeAudioContext,
-  opts?: { masterVolume?: number; maxVoices?: number },
-): AudioEngine {
+function engineWith(ctx: FakeAudioContext, opts?: { masterVolume?: number; maxVoices?: number }): AudioEngine {
   return new AudioEngine({ contextFactory: () => ctx, ...opts });
 }
 

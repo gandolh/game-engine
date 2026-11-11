@@ -70,10 +70,7 @@ describe("ingestEvents / getEvents", () => {
     ingestEvents([event({ tick: 1, ontology: "family.birth" })]);
     ingestEvents([event({ tick: 2, ontology: "family.death" })]);
 
-    expect(received).toEqual([
-      [{ tick: 1, ontology: "family.birth" }],
-      [{ tick: 2, ontology: "family.death" }],
-    ]);
+    expect(received).toEqual([[{ tick: 1, ontology: "family.birth" }], [{ tick: 2, ontology: "family.death" }]]);
 
     unsubscribe();
     ingestEvents([event({ tick: 3, ontology: "social.gift" })]);

@@ -3,15 +3,17 @@ import type { System, SimContext } from "@engine/core";
 import type { CitadelCommand, BuildingSnapshot, RenderSnapshot, CitadelSave } from "./snapshot/index";
 import { DayClockSystem } from "./systems/day-clock";
 import { TierSystem, tierAtLeast, unlockTier } from "./systems/tiers";
-import { generateTerrain, findCoreBox, CORE_BOX_W, CORE_BOX_H, WORLD_WIDTH as DEFAULT_WORLD_WIDTH, WORLD_HEIGHT as DEFAULT_WORLD_HEIGHT } from "./world/terrain";
+import {
+  generateTerrain,
+  findCoreBox,
+  CORE_BOX_W,
+  CORE_BOX_H,
+  WORLD_WIDTH as DEFAULT_WORLD_WIDTH,
+  WORLD_HEIGHT as DEFAULT_WORLD_HEIGHT,
+} from "./world/terrain";
 import type { TerrainGrid } from "./world/terrain";
 import type { BuildingEntity, BuildingRuntimeState, GoodType } from "./entities/building";
-import {
-  getProductionDef,
-  effectiveHousingCapacity,
-  upgradeCost,
-  BUILDING_MAX_LEVEL,
-} from "./entities/building";
+import { getProductionDef, effectiveHousingCapacity, upgradeCost, BUILDING_MAX_LEVEL } from "./entities/building";
 import type { VillagerEntity } from "./entities/villager";
 import type { SimState, Stockpiles, ArmyState } from "./sim-state";
 import { pushEvent, makePlayerState, localPlayer, playerById, releaseWorkersAt } from "./sim-state";
@@ -559,7 +561,10 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
     let target: BuildingEntity | undefined;
     for (const entity of buildingWorld.query("building")) {
       const b = entity.building;
-      if (targetX >= b.x && targetX < b.x + b.w && targetY >= b.y && targetY < b.y + b.h) { target = entity; break; }
+      if (targetX >= b.x && targetX < b.x + b.w && targetY >= b.y && targetY < b.y + b.h) {
+        target = entity;
+        break;
+      }
     }
     if (target === undefined) {
       pushEvent(state, `Day ${state.day}: no building to attack at (${targetX}, ${targetY}).`);
@@ -574,18 +579,28 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
     const spawn = attacker.keepPosition;
     // Auto-path to the target via the one authoritative pathfinder, routed around
     // the DEFENDER's walls (like a raider besieging that player).
-    const path = computeRaiderPath(spawn.x, spawn.y, target.building.x, target.building.y, state, defender, terrain) ?? [];
+    const path =
+      computeRaiderPath(spawn.x, spawn.y, target.building.x, target.building.y, state, defender, terrain) ?? [];
     const army: ArmyState = {
       id: state.nextArmyId++,
       attackerId: attacker.id,
       targetPlayerId: defenderId,
       targetX: target.building.x,
       targetY: target.building.y,
-      x: spawn.x, y: spawn.y, tileX: spawn.x, tileY: spawn.y,
-      path, pathStep: 0, strength, resolved: false,
+      x: spawn.x,
+      y: spawn.y,
+      tileX: spawn.x,
+      tileY: spawn.y,
+      path,
+      pathStep: 0,
+      strength,
+      resolved: false,
     };
     state.armies.push(army);
-    pushEvent(state, `Day ${state.day + 1}: player ${attacker.id} launched an army (str ${strength}) at player ${defenderId}'s ${target.building.type}.`);
+    pushEvent(
+      state,
+      `Day ${state.day + 1}: player ${attacker.id} launched an army (str ${strength}) at player ${defenderId}'s ${target.building.type}.`,
+    );
   });
 
   // Citadel 34: one-way gift/transfer — move goods from the sender to player
@@ -645,7 +660,10 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
   const traderSystem = new TraderSystem(state, ticksPerDay);
   // Phase 4.5: hazard systems (run AFTER needs/happiness, BEFORE immigration).
   const fireSystem = new FireSystem(state, { cozy: cozyThreats, deferUntilBuildings: deferThreatsUntilBuildings });
-  const diseaseSystem = new DiseaseSystem(state, { cozy: cozyThreats, deferUntilBuildings: deferThreatsUntilBuildings });
+  const diseaseSystem = new DiseaseSystem(state, {
+    cozy: cozyThreats,
+    deferUntilBuildings: deferThreatsUntilBuildings,
+  });
   // Phase 4: siege systems (run AFTER population so they see fresh state).
   const raidSpawnSystem = new RaidSpawnSystem(state, terrain, { deferUntilBuildings: deferThreatsUntilBuildings });
   const raiderMovementSystem = new RaiderMovementSystem(state, terrain);
@@ -728,7 +746,10 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
    */
   const SEED_CLUSTER_W = CORE_BOX_W;
   const SEED_CLUSTER_H = CORE_BOX_H;
-  function seededLayout(ax: number, ay: number): {
+  function seededLayout(
+    ax: number,
+    ay: number,
+  ): {
     buildings: ReadonlyArray<{ type: string; x: number; y: number }>;
     roads: ReadonlyArray<{ x: number; y: number }>;
   } {

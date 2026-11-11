@@ -1,5 +1,3 @@
-
-
 import type { SimContext, System, World, Intention } from "@engine/core";
 import type { GameEntity, ItemRef } from "../../components";
 import { regionAt, isWalkable, isFishingIsle, type RegionId } from "../../world/regions";
@@ -10,7 +8,7 @@ import { defaultItemSlots, syncItemSlots } from "./items";
 
 export const PLAYER_SPEED = 1 / PLAYER_STEP_TICKS;
 
-const AABB_HALF = 0.3; 
+const AABB_HALF = 0.3;
 
 export class PlayerControlSystem implements System {
   readonly name = "PlayerControlSystem";
@@ -24,7 +22,7 @@ export class PlayerControlSystem implements System {
       const farmer = entity.farmer!;
 
       farmer.movedThisTick = false;
-      farmer.renderPos = undefined; 
+      farmer.renderPos = undefined;
 
       if (player.itemSlots === undefined) player.itemSlots = defaultItemSlots();
       if (entity.inventory) syncItemSlots(player.itemSlots, entity.inventory, entity.resources);
@@ -33,15 +31,15 @@ export class PlayerControlSystem implements System {
       const my = player.pendingMoveY;
 
       if (mx !== null || my !== null) {
-        player.facing = mx ?? my!; 
+        player.facing = mx ?? my!;
 
         const vx = mx === "left" ? -PLAYER_SPEED : mx === "right" ? PLAYER_SPEED : 0;
-        const vy = my === "up"   ? -PLAYER_SPEED : my === "down"  ? PLAYER_SPEED : 0;
+        const vy = my === "up" ? -PLAYER_SPEED : my === "down" ? PLAYER_SPEED : 0;
 
         const aboard = farmer.aboard === true;
 
         const newX = this.resolveAxis(transform.x, transform.y, vx, 0, aboard).x;
-        const newY = this.resolveAxis(newX,          transform.y, 0,  vy, aboard).y;
+        const newY = this.resolveAxis(newX, transform.y, 0, vy, aboard).y;
 
         const moved = newX !== transform.x || newY !== transform.y;
         transform.x = newX;
@@ -61,9 +59,8 @@ export class PlayerControlSystem implements System {
         let ty: number;
 
         if (player.pendingActionTile !== null) {
-
           const clickedTile = player.pendingActionTile;
-          player.pendingActionTile = null; 
+          player.pendingActionTile = null;
 
           const px = Math.round(transform.x);
           const py = Math.round(transform.y);
@@ -78,13 +75,11 @@ export class PlayerControlSystem implements System {
 
           const reachable = Math.max(Math.abs(clickedTile.x - px), Math.abs(clickedTile.y - py)) <= 1;
           if (!reachable) {
-
             continue;
           }
           tx = clickedTile.x;
           ty = clickedTile.y;
         } else {
-
           const { dx, dy } = DIR_DELTA[player.facing]!;
           tx = Math.round(transform.x) + dx;
           ty = Math.round(transform.y) + dy;
@@ -98,15 +93,16 @@ export class PlayerControlSystem implements System {
         const px0 = Math.round(transform.x);
         const py0 = Math.round(transform.y);
         const onDock = isPortDockTile(px0, py0) || isDockTile(px0, py0);
-        const intent = targetFarmer !== undefined
-          ? { kind: "challenge", data: { peerId: targetFarmer, context: "street" }, priority: 0 }
-          : this.bushAt(tx, ty)
-          ? { kind: "gather-bush", data: { tileX: tx, tileY: ty }, priority: 0 }
-          : itemIntent
-          ? itemIntent
-          : onDock
-          ? { kind: farmer.aboard ? "return-to-shore" : "board-boat", data: {}, priority: 0 }
-          : null;
+        const intent =
+          targetFarmer !== undefined
+            ? { kind: "challenge", data: { peerId: targetFarmer, context: "street" }, priority: 0 }
+            : this.bushAt(tx, ty)
+              ? { kind: "gather-bush", data: { tileX: tx, tileY: ty }, priority: 0 }
+              : itemIntent
+                ? itemIntent
+                : onDock
+                  ? { kind: farmer.aboard ? "return-to-shore" : "board-boat", data: {}, priority: 0 }
+                  : null;
         if (intent !== null) {
           entity.intentions!.queue = [intent];
           entity.fsm!.current = "ACT";
@@ -115,13 +111,7 @@ export class PlayerControlSystem implements System {
     }
   }
 
-  private resolveAxis(
-    cx: number,
-    cy: number,
-    vx: number,
-    vy: number,
-    aboard: boolean,
-  ): { x: number; y: number } {
+  private resolveAxis(cx: number, cy: number, vx: number, vy: number, aboard: boolean): { x: number; y: number } {
     if (vx === 0 && vy === 0) return { x: cx, y: cy };
 
     const nx = cx + vx;
@@ -140,22 +130,17 @@ export class PlayerControlSystem implements System {
       for (let ty = minTY; ty <= maxTY; ty++) {
         if (this.canStand(tx, ty, aboard)) continue;
 
-        if (vx > 0) x = Math.min(x, tx - 0.5 - AABB_HALF);        
-        else if (vx < 0) x = Math.max(x, tx + 0.5 + AABB_HALF); 
-        if (vy > 0) y = Math.min(y, ty - 0.5 - AABB_HALF);        
-        else if (vy < 0) y = Math.max(y, ty + 0.5 + AABB_HALF); 
+        if (vx > 0) x = Math.min(x, tx - 0.5 - AABB_HALF);
+        else if (vx < 0) x = Math.max(x, tx + 0.5 + AABB_HALF);
+        if (vy > 0) y = Math.min(y, ty - 0.5 - AABB_HALF);
+        else if (vy < 0) y = Math.max(y, ty + 0.5 + AABB_HALF);
       }
     }
 
     return { x, y };
   }
 
-  private refIntent(
-    entity: GameEntity,
-    ref: ItemRef,
-    tx: number,
-    ty: number,
-  ): Intention | null {
+  private refIntent(entity: GameEntity, ref: ItemRef, tx: number, ty: number): Intention | null {
     if (ref.kind === "tool") {
       switch (ref.tool) {
         case "axe":
@@ -177,7 +162,6 @@ export class PlayerControlSystem implements System {
           return null;
         }
         case "fishing-rod": {
-
           const onIsle = isFishingIsle(entity.farmer?.currentRegion ?? null);
           if (onIsle && !isWalkable(tx, ty)) {
             return { kind: "fish", data: { tileX: tx, tileY: ty }, priority: 0 };
@@ -200,8 +184,8 @@ export class PlayerControlSystem implements System {
       }
     }
 
-    if (ref.kind !== "seed") return null; 
-    const plot = this.ownedPlotAt(entity, tx, ty); 
+    if (ref.kind !== "seed") return null;
+    const plot = this.ownedPlotAt(entity, tx, ty);
     if (plot && plot.state.kind !== "planted" && (entity.inventory?.seeds[ref.crop] ?? 0) > 0) {
       return { kind: "plant", data: { crop: ref.crop, tileX: tx, tileY: ty }, priority: 0 };
     }

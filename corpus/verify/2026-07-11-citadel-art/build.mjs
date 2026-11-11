@@ -15,8 +15,7 @@ import { fileURLToPath } from "node:url";
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ASSETS = join(HERE, "assets");
 
-const png = (file) =>
-  `data:image/png;base64,${readFileSync(join(ASSETS, file)).toString("base64")}`;
+const png = (file) => `data:image/png;base64,${readFileSync(join(ASSETS, file)).toString("base64")}`;
 
 const SUBSTITUTIONS = {
   __IMG_SPIKE1__: png("spike-1-nearest-colour.png"),

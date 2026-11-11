@@ -5,10 +5,7 @@ import { seasonForDay } from "../protocols";
 import { skillLevel } from "../systems/skills";
 import { deriveRegionLabel } from "./sprites";
 
-export function buildObserverSnapshot(
-  world: World<GameEntity>,
-  day: number,
-): ObserverSnapshot {
+export function buildObserverSnapshot(world: World<GameEntity>, day: number): ObserverSnapshot {
   const station = (() => {
     for (const w of world.query("weatherStation")) return w.weatherStation;
     return null;
@@ -31,19 +28,15 @@ export function buildObserverSnapshot(
       apCurrent: f.ap.current,
       apMax: f.ap.max,
       apPenaltyPending: f.ap.penaltyPending,
-      region: deriveRegionLabel(
-        f.farmer.name,
-        f.farmer.currentRegion,
-        f.farmer.path !== undefined,
-      ),
+      region: deriveRegionLabel(f.farmer.name, f.farmer.currentRegion, f.farmer.path !== undefined),
       currentIntention: queue[0]?.kind ?? null,
       nextIntention: queue[1]?.kind ?? null,
       reasons: f.decisionTrace ? [...f.decisionTrace.reasons] : [],
       skills: {
-        farming:  skillLevel(f.skills?.farming ?? 0),
+        farming: skillLevel(f.skills?.farming ?? 0),
         foraging: skillLevel(f.skills?.foraging ?? 0),
-        fishing:  skillLevel(f.skills?.fishing ?? 0),
-        mining:   skillLevel(f.skills?.mining ?? 0),
+        fishing: skillLevel(f.skills?.fishing ?? 0),
+        mining: skillLevel(f.skills?.mining ?? 0),
       },
       hasGreenhouse: greenhouseOwners.has(f.id),
     });
@@ -52,7 +45,7 @@ export function buildObserverSnapshot(
 
   return {
     day,
-    season: station?.season ?? seasonForDay(day), 
+    season: station?.season ?? seasonForDay(day),
     weather: {
       condition: station?.current ?? "normal",
       multiplier: station?.multiplier ?? 1,

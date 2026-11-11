@@ -22,7 +22,10 @@ const TICKS_PER_DAY = 20;
 
 function findClear(
   terrain: { width: number; height: number; cells: Uint8Array },
-  w: number, h: number, sx: number, sy: number,
+  w: number,
+  h: number,
+  sx: number,
+  sy: number,
 ): { x: number; y: number } {
   for (let r = 0; r < 60; r++) {
     for (let dy = -r; dy <= r; dy++) {
@@ -32,7 +35,10 @@ function findClear(
         let ok = true;
         for (let yy = 0; yy < h && ok; yy++)
           for (let xx = 0; xx < w; xx++)
-            if (!isWalkable(terrain, x + xx, y + yy)) { ok = false; break; }
+            if (!isWalkable(terrain, x + xx, y + yy)) {
+              ok = false;
+              break;
+            }
         if (ok) return { x, y };
       }
     }
@@ -93,15 +99,20 @@ describe("FireSystem — mid-day well invalidation (audit-15)", () => {
     const houseCx = housePos.x + 1;
     const houseCy = housePos.y + 1;
     const candidates = [
-      { x: housePos.x + 3, y: housePos.y }, { x: housePos.x + 3, y: housePos.y + 1 },
-      { x: housePos.x - 2, y: housePos.y }, { x: housePos.x, y: housePos.y + 3 },
-      { x: housePos.x, y: housePos.y - 2 }, { x: housePos.x + 2, y: housePos.y + 2 },
-      { x: housePos.x - 2, y: housePos.y + 2 }, { x: housePos.x + 2, y: housePos.y - 2 },
+      { x: housePos.x + 3, y: housePos.y },
+      { x: housePos.x + 3, y: housePos.y + 1 },
+      { x: housePos.x - 2, y: housePos.y },
+      { x: housePos.x, y: housePos.y + 3 },
+      { x: housePos.x, y: housePos.y - 2 },
+      { x: housePos.x + 2, y: housePos.y + 2 },
+      { x: housePos.x - 2, y: housePos.y + 2 },
+      { x: housePos.x + 2, y: housePos.y - 2 },
     ];
-    const wellPos = candidates.find((c) =>
-      isWalkable(terrain, c.x, c.y) &&
-      !sim.state.buildingTiles.has(c.y * sim.state.width + c.x) &&
-      coversRect("well", c.x, c.y, houseCx, houseCy),
+    const wellPos = candidates.find(
+      (c) =>
+        isWalkable(terrain, c.x, c.y) &&
+        !sim.state.buildingTiles.has(c.y * sim.state.width + c.x) &&
+        coversRect("well", c.x, c.y, houseCx, houseCy),
     );
     expect(wellPos).toBeDefined();
 

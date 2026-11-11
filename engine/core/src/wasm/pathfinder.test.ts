@@ -33,7 +33,8 @@ describe("Pathfinder (wasm A*)", () => {
   });
 
   it("routes around a wall", () => {
-    const w = 5, h = 5;
+    const w = 5,
+      h = 5;
     const cells = new Uint8Array(w * h);
     for (let y = 0; y < 4; y++) cells[y * w + 2] = 1;
     const path = pf.findPath({ cells, width: w, height: h }, { x: 0, y: 0 }, { x: 4, y: 0 });
@@ -44,12 +45,12 @@ describe("Pathfinder (wasm A*)", () => {
     for (const p of path) {
       expect(cells[p.y * w + p.x]).toBe(0);
     }
-    expect(path.length).toBe(13); 
+    expect(path.length).toBe(13);
   });
 
   it("returns empty array when no path exists", () => {
-
-    const w = 5, h = 5;
+    const w = 5,
+      h = 5;
     const cells = new Uint8Array(w * h);
     for (let y = 0; y < h; y++) cells[y * w + 2] = 1;
     const path = pf.findPath({ cells, width: w, height: h }, { x: 0, y: 0 }, { x: 4, y: 0 });
@@ -58,8 +59,9 @@ describe("Pathfinder (wasm A*)", () => {
 
   it("returns empty when start or end is blocked", () => {
     const cells = new Uint8Array(9);
-    cells[4] = 1; 
-    const w = 3, h = 3;
+    cells[4] = 1;
+    const w = 3,
+      h = 3;
     expect(pf.findPath({ cells, width: w, height: h }, { x: 1, y: 1 }, { x: 2, y: 2 })).toEqual([]);
     expect(pf.findPath({ cells, width: w, height: h }, { x: 0, y: 0 }, { x: 1, y: 1 })).toEqual([]);
   });
@@ -73,13 +75,12 @@ describe("Pathfinder (wasm A*)", () => {
 
   it("rejects mismatched grid sizes", () => {
     const cells = new Uint8Array(10);
-    expect(() =>
-      pf.findPath({ cells, width: 3, height: 3 }, { x: 0, y: 0 }, { x: 2, y: 2 }),
-    ).toThrow(/cells.length/);
+    expect(() => pf.findPath({ cells, width: 3, height: 3 }, { x: 0, y: 0 }, { x: 2, y: 2 })).toThrow(/cells.length/);
   });
 
   it("handles repeated calls without leaking memory growth", async () => {
-    const w = 64, h = 64;
+    const w = 64,
+      h = 64;
     const cells = new Uint8Array(w * h);
     for (let i = 0; i < 50; i++) {
       const path = pf.findPath({ cells, width: w, height: h }, { x: 0, y: 0 }, { x: 63, y: 63 });
@@ -89,19 +90,18 @@ describe("Pathfinder (wasm A*)", () => {
 });
 
 describe("Pathfinder (wasm A*) — allocator churn regression (brief 10)", () => {
-
   it("survives 800 sequential findPath calls on a 160×160 grid without RuntimeError", async () => {
     const bytes = await loadBytes();
 
     const freshPf = await createPathfinderFromBytes(bytes);
 
-    const w = 160, h = 160;
-    const cells = new Uint8Array(w * h); 
+    const w = 160,
+      h = 160;
+    const cells = new Uint8Array(w * h);
     const start = { x: 0, y: 0 };
     const end = { x: w - 1, y: h - 1 };
 
     for (let i = 0; i < 800; i++) {
-
       const path = freshPf.findPath({ cells, width: w, height: h }, start, end);
 
       expect(path.length).toBeGreaterThan(0);

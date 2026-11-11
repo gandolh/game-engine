@@ -2,7 +2,14 @@ import type { Camera2D } from "../camera";
 import type { LoadedAtlasImage } from "../../assets/loader";
 import type { ParticleSystem } from "../particles";
 import type {
-  RendererLike, WashOptions, WeatherLike, DecorateFn, Sprite, OverlayFn, UIQuad, CloudOptions,
+  RendererLike,
+  WashOptions,
+  WeatherLike,
+  DecorateFn,
+  Sprite,
+  OverlayFn,
+  UIQuad,
+  CloudOptions,
 } from "../renderer";
 import { drawUIQuad } from "../ui-draw";
 import type { StaticRegion } from "../static-region";
@@ -34,7 +41,11 @@ const GHOST_ALPHA = 0.4;
 const GHOST_UI_LAYER = 80;
 
 interface ShadowRecord {
-  x: number; y: number; rx: number; ry: number; alpha: number;
+  x: number;
+  y: number;
+  rx: number;
+  ry: number;
+  alpha: number;
 }
 
 /** One coalesced run of same-atlas instances in the sprite batch. */
@@ -50,12 +61,7 @@ function hexToRgbaFloats(hex: string, alpha = 1): [number, number, number, numbe
   if (c.startsWith("#")) c = c.slice(1);
   if (c.length === 3) c = c[0]! + c[0]! + c[1]! + c[1]! + c[2]! + c[2]!;
   const n = parseInt(c, 16);
-  return [
-    ((n >> 16) & 0xff) / 255,
-    ((n >> 8) & 0xff) / 255,
-    (n & 0xff) / 255,
-    alpha,
-  ];
+  return [((n >> 16) & 0xff) / 255, ((n >> 8) & 0xff) / 255, (n & 0xff) / 255, alpha];
 }
 
 /**
@@ -69,7 +75,7 @@ function hexToRgbaFloats(hex: string, alpha = 1): [number, number, number, numbe
  * shipped opaque; fixed 2026-08-23 in that client's `spriteAlphaOf`).
  */
 function tintFloats(tintRgba: number | undefined, spriteAlpha: number): [number, number, number, number] {
-  const t = tintRgba !== undefined ? (tintRgba >>> 0) : 0xffffffff;
+  const t = tintRgba !== undefined ? tintRgba >>> 0 : 0xffffffff;
   const r = ((t >>> 24) & 0xff) / 255;
   const g = ((t >>> 16) & 0xff) / 255;
   const b = ((t >>> 8) & 0xff) / 255;
@@ -174,11 +180,22 @@ export class WebGl2Renderer implements RendererLike {
   private _groupLen = 0;
 
   private readonly _inst: GlSpriteInstance = {
-    x: 0, y: 0, w: 0, h: 0,
-    u0: 0, v0: 0, u1: 0, v1: 0,
-    rotation: 0, flipX: 0,
-    r: 1, g: 1, b: 1, a: 1,
-    swayPhase: 0, swayAmp: 0,
+    x: 0,
+    y: 0,
+    w: 0,
+    h: 0,
+    u0: 0,
+    v0: 0,
+    u1: 0,
+    v1: 0,
+    rotation: 0,
+    flipX: 0,
+    r: 1,
+    g: 1,
+    b: 1,
+    a: 1,
+    swayPhase: 0,
+    swayAmp: 0,
   };
 
   private _cullLeft = -Infinity;
@@ -196,22 +213,36 @@ export class WebGl2Renderer implements RendererLike {
   // These fields are exactly what `_rebuildGpuState` needs to do that.
   //
   // `_atlases` (above) already retains every atlas, so textures re-upload for free.
-  private _bakeArgs: {
-    sprites: readonly Sprite[];
-    worldWidth: number;
-    worldHeight: number;
-    decorate?: DecorateFn;
-    region?: StaticRegion;
-  } | PatchedImage | undefined = undefined;
+  private _bakeArgs:
+    | {
+        sprites: readonly Sprite[];
+        worldWidth: number;
+        worldHeight: number;
+        decorate?: DecorateFn;
+        region?: StaticRegion;
+      }
+    | PatchedImage
+    | undefined = undefined;
 
-  private _waterPatternArgs: {
-    frame: string; atlasId: string; tileSize: number; pixelScale?: number;
-  } | undefined = undefined;
+  private _waterPatternArgs:
+    | {
+        frame: string;
+        atlasId: string;
+        tileSize: number;
+        pixelScale?: number;
+      }
+    | undefined = undefined;
 
-  private _waterDepthMaskArgs: {
-    data: Uint8Array; tilesX: number; tilesY: number;
-    worldWidthPx: number; worldHeightPx: number; tilePxSize: number;
-  } | undefined = undefined;
+  private _waterDepthMaskArgs:
+    | {
+        data: Uint8Array;
+        tilesX: number;
+        tilesY: number;
+        worldWidthPx: number;
+        worldHeightPx: number;
+        tilePxSize: number;
+      }
+    | undefined = undefined;
 
   private _waterScroll = { x: 0, y: 0 };
   private _waterSwell = { alpha: 0, x: 0, y: 0 };
@@ -313,9 +344,7 @@ export class WebGl2Renderer implements RendererLike {
     if (bake && "manifest" in bake) {
       this._staticPass.bakeImage(bake);
     } else if (bake) {
-      this._staticPass.bake(
-        bake.sprites, this._atlases, bake.worldWidth, bake.worldHeight, bake.decorate, bake.region,
-      );
+      this._staticPass.bake(bake.sprites, this._atlases, bake.worldWidth, bake.worldHeight, bake.decorate, bake.region);
     }
     const wp = this._waterPatternArgs;
     if (wp) {
@@ -323,9 +352,7 @@ export class WebGl2Renderer implements RendererLike {
     }
     const dm = this._waterDepthMaskArgs;
     if (dm) {
-      this._waterPass.setDepthMask(
-        dm.data, dm.tilesX, dm.tilesY, dm.worldWidthPx, dm.worldHeightPx, dm.tilePxSize,
-      );
+      this._waterPass.setDepthMask(dm.data, dm.tilesX, dm.tilesY, dm.worldWidthPx, dm.worldHeightPx, dm.tilePxSize);
     }
     this._waterPass.setScroll(this._waterScroll.x, this._waterScroll.y);
     this._waterPass.setSwell(this._waterSwell.alpha, this._waterSwell.x, this._waterSwell.y);
@@ -340,11 +367,7 @@ export class WebGl2Renderer implements RendererLike {
   /** The host's cap on the static layer's texture size (see `CreateRendererOptions.textureLimit`). */
   private _textureLimit = Number.POSITIVE_INFINITY;
 
-  static create(
-    canvas: HTMLCanvasElement,
-    camera: Camera2D,
-    textureLimit = Number.POSITIVE_INFINITY,
-  ): WebGl2Renderer {
+  static create(canvas: HTMLCanvasElement, camera: Camera2D, textureLimit = Number.POSITIVE_INFINITY): WebGl2Renderer {
     const glCtx = GlContext.create(canvas);
     const { gl } = glCtx;
 
@@ -361,8 +384,20 @@ export class WebGl2Renderer implements RendererLike {
     const overlayLightPass = new OverlayLightPass(gl);
 
     const renderer = new WebGl2Renderer(
-      canvas, camera, glCtx, store, batch, shadowBatch, overlay, staticPass, waterPass,
-      particleBatch, weatherPass, tintPass, cloudPass, overlayLightPass,
+      canvas,
+      camera,
+      glCtx,
+      store,
+      batch,
+      shadowBatch,
+      overlay,
+      staticPass,
+      waterPass,
+      particleBatch,
+      weatherPass,
+      tintPass,
+      cloudPass,
+      overlayLightPass,
     );
     renderer._textureLimit = textureLimit; // so a context-loss rebuild keeps the same limit
     return renderer;
@@ -391,7 +426,13 @@ export class WebGl2Renderer implements RendererLike {
   ): void {
     if (this._atlases.size === 0) throw new Error("bakeStaticLayer: addAtlas must be called first");
     // Retained so a context loss can replay it — see _rebuildGpuState.
-    this._bakeArgs = { sprites, worldWidth, worldHeight, ...(decorate ? { decorate } : {}), ...(region ? { region } : {}) };
+    this._bakeArgs = {
+      sprites,
+      worldWidth,
+      worldHeight,
+      ...(decorate ? { decorate } : {}),
+      ...(region ? { region } : {}),
+    };
     if (this._glCtx.isLost()) return;
     this._staticPass.bake(sprites, this._atlases, worldWidth, worldHeight, decorate, region);
     // _staticLayerW/H stay the LOGICAL world extent (visible-rect clamp); the
@@ -408,12 +449,15 @@ export class WebGl2Renderer implements RendererLike {
   }
 
   setWaterScroll(offsetX: number, offsetY: number): void {
-    this._waterScroll.x = offsetX; this._waterScroll.y = offsetY;
+    this._waterScroll.x = offsetX;
+    this._waterScroll.y = offsetY;
     this._waterPass.setScroll(offsetX, offsetY);
   }
 
   setWaterSwell(alpha: number, offsetX: number, offsetY: number): void {
-    this._waterSwell.alpha = alpha; this._waterSwell.x = offsetX; this._waterSwell.y = offsetY;
+    this._waterSwell.alpha = alpha;
+    this._waterSwell.x = offsetX;
+    this._waterSwell.y = offsetY;
     this._waterPass.setSwell(alpha, offsetX, offsetY);
   }
 
@@ -476,12 +520,7 @@ export class WebGl2Renderer implements RendererLike {
   }
 
   private _inView(x: number, y: number): boolean {
-    return (
-      x >= this._cullLeft &&
-      x <= this._cullRight &&
-      y >= this._cullTop &&
-      y <= this._cullBottom
-    );
+    return x >= this._cullLeft && x <= this._cullRight && y >= this._cullTop && y <= this._cullBottom;
   }
 
   push(sprite: Sprite): void {
@@ -492,7 +531,8 @@ export class WebGl2Renderer implements RendererLike {
       sprite.x - halfW > this._cullRight ||
       sprite.y + halfH < this._cullTop ||
       sprite.y - halfH > this._cullBottom
-    ) return;
+    )
+      return;
     this._queue[this._queueLen] = sprite;
     this._queueLen += 1;
   }
@@ -504,7 +544,11 @@ export class WebGl2Renderer implements RendererLike {
       rec = { x, y, rx, ry, alpha };
       this._shadowQueue[this._shadowLen] = rec;
     } else {
-      rec.x = x; rec.y = y; rec.rx = rx; rec.ry = ry; rec.alpha = alpha;
+      rec.x = x;
+      rec.y = y;
+      rec.rx = rx;
+      rec.ry = ry;
+      rec.alpha = alpha;
     }
     this._shadowLen += 1;
   }
@@ -560,11 +604,7 @@ export class WebGl2Renderer implements RendererLike {
     return seen.size;
   }
 
-  private _packSprite(
-    s: Sprite,
-    sx: number, sy: number, ox: number, oy: number,
-    alpha: number,
-  ): number {
+  private _packSprite(s: Sprite, sx: number, sy: number, ox: number, oy: number, alpha: number): number {
     const liftedY = s.z ? s.y - s.z : s.y;
     const inst = this._inst;
     inst.x = this.pixelSnap ? (Math.round(s.x * sx + ox) - ox) / sx : s.x;
@@ -573,12 +613,18 @@ export class WebGl2Renderer implements RendererLike {
     inst.h = s.height;
 
     const uv = this._store.uv(s.atlasId, s.frame);
-    inst.u0 = uv.u0; inst.v0 = uv.v0; inst.u1 = uv.u1; inst.v1 = uv.v1;
+    inst.u0 = uv.u0;
+    inst.v0 = uv.v0;
+    inst.u1 = uv.u1;
+    inst.v1 = uv.v1;
     inst.rotation = s.rotation;
     inst.flipX = s.flipX ? 1 : 0;
 
     const [r, g, b, a] = tintFloats(s.tintRgba, alpha);
-    inst.r = r; inst.g = g; inst.b = b; inst.a = a;
+    inst.r = r;
+    inst.g = g;
+    inst.b = b;
+    inst.a = a;
 
     inst.swayPhase = s.swayPhase ?? 0;
     inst.swayAmp = s.swayAmp ?? 0;
@@ -608,8 +654,7 @@ export class WebGl2Renderer implements RendererLike {
    */
   private _overlayWillPaint(particles?: ParticleSystem, weather?: WeatherLike): boolean {
     if (!this.useGpuEffects) {
-      return (particles !== undefined && particles.count > 0) ||
-        (weather !== undefined && weather.count > 0);
+      return (particles !== undefined && particles.count > 0) || (weather !== undefined && weather.count > 0);
     }
     return weather !== undefined && !(weather instanceof RainField) && weather.count > 0;
   }
@@ -636,10 +681,10 @@ export class WebGl2Renderer implements RendererLike {
     // Clip-space view for the GL passes. scaleY is ALREADY NEGATIVE — the Y-flip is
     // baked in here and must not be re-applied in a shader.
     const view: ViewUniform = {
-      scaleX: sx * 2 / canvasW,
-      scaleY: -sy * 2 / canvasH,
-      offsetX: ox * 2 / canvasW - 1,
-      offsetY: 1 - oy * 2 / canvasH,
+      scaleX: (sx * 2) / canvasW,
+      scaleY: (-sy * 2) / canvasH,
+      offsetX: (ox * 2) / canvasW - 1,
+      offsetY: 1 - (oy * 2) / canvasH,
       timeSec: nowSec,
       windStrength: 1.0 + 0.15 * Math.sin(nowSec * 0.37),
     };
@@ -681,7 +726,10 @@ export class WebGl2Renderer implements RendererLike {
     let i = 0;
     while (i < this._queueLen) {
       const s = this._queue[i];
-      if (s === undefined) { i++; continue; }
+      if (s === undefined) {
+        i++;
+        continue;
+      }
       const currentAtlas = s.atlasId;
       const groupFirst = this._batch.count;
 
@@ -717,10 +765,19 @@ export class WebGl2Renderer implements RendererLike {
     let k = 0;
     while (k < occludableCount) {
       const gi = this._occludableIdx[k];
-      if (gi === undefined) { k += 1; continue; }
+      if (gi === undefined) {
+        k += 1;
+        continue;
+      }
       const g = this._queue[gi];
-      if (g === undefined) { k += 1; continue; }
-      if (!this._ghostCovered(gi, g)) { k += 1; continue; }
+      if (g === undefined) {
+        k += 1;
+        continue;
+      }
+      if (!this._ghostCovered(gi, g)) {
+        k += 1;
+        continue;
+      }
 
       const currentAtlas = g.atlasId;
       const groupFirst = this._batch.count;
@@ -728,11 +785,20 @@ export class WebGl2Renderer implements RendererLike {
       let m = k;
       while (m < occludableCount) {
         const mi = this._occludableIdx[m];
-        if (mi === undefined) { m += 1; continue; }
+        if (mi === undefined) {
+          m += 1;
+          continue;
+        }
         const gm = this._queue[mi];
-        if (gm === undefined) { m += 1; continue; }
+        if (gm === undefined) {
+          m += 1;
+          continue;
+        }
         if (gm.atlasId !== currentAtlas) break;
-        if (!this._ghostCovered(mi, gm)) { m += 1; continue; }
+        if (!this._ghostCovered(mi, gm)) {
+          m += 1;
+          continue;
+        }
         this._packSprite(gm, sx, sy, ox, oy, GHOST_ALPHA);
         m += 1;
       }

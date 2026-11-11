@@ -32,7 +32,11 @@ function makeRequest(overrides: Partial<RationalizerRequest> = {}): Rationalizer
     site: "social",
     agentId: 1,
     tick: 100,
-    genome: { behavior: { greed: 0.4 }, aptitude: {}, appearance: { height: 1, build: 1, skinTone: "skin", hairTone: "hairBlack" } },
+    genome: {
+      behavior: { greed: 0.4 },
+      aptitude: {},
+      appearance: { height: 1, build: 1, skinTone: "skin", hairTone: "hairBlack" },
+    },
     beliefs: {},
     needs: { food: 0.5 },
     relationships: [],
@@ -68,7 +72,9 @@ describe("deriveCacheKey", () => {
   });
 
   it("changes when the BDI default differs", () => {
-    expect(deriveCacheKey(makeRequest({ bdiChoiceIndex: 0 }))).not.toBe(deriveCacheKey(makeRequest({ bdiChoiceIndex: 1 })));
+    expect(deriveCacheKey(makeRequest({ bdiChoiceIndex: 0 }))).not.toBe(
+      deriveCacheKey(makeRequest({ bdiChoiceIndex: 1 })),
+    );
   });
 
   it("changes when needs, beliefs, relationships or standing differ", () => {
@@ -78,11 +84,15 @@ describe("deriveCacheKey", () => {
     expect(
       deriveCacheKey(
         makeRequest({
-          relationships: [{ peerId: 4, trust: 0.9, grudge: 0, sameHousehold: false, sameCommunity: true, isCandidateTarget: true }],
+          relationships: [
+            { peerId: 4, trust: 0.9, grudge: 0, sameHousehold: false, sameCommunity: true, isCandidateTarget: true },
+          ],
         }),
       ),
     ).not.toBe(base);
-    expect(deriveCacheKey(makeRequest({ standing: { communityId: 3, memberCount: 5, standing: 0.2, isLeader: true } }))).not.toBe(base);
+    expect(
+      deriveCacheKey(makeRequest({ standing: { communityId: 3, memberCount: 5, standing: 0.2, isLeader: true } })),
+    ).not.toBe(base);
   });
 });
 
@@ -95,7 +105,10 @@ describe("createReplayingRationalizer", () => {
     const data: RationalizerCacheData = {
       version: 1,
       entries: {
-        [key]: [{ response: { choiceIndex: 0, rationale: "first" } }, { response: { choiceIndex: null, rationale: "second" } }],
+        [key]: [
+          { response: { choiceIndex: 0, rationale: "first" } },
+          { response: { choiceIndex: null, rationale: "second" } },
+        ],
       },
     };
     const replay = createReplayingRationalizer(data);
@@ -124,7 +137,10 @@ describe("createReplayingRationalizer", () => {
   it("round-trips through JSON.parse(JSON.stringify(...)) with identical replay behavior", () => {
     const req = makeRequest();
     const key = deriveCacheKey(req);
-    const data: RationalizerCacheData = { version: 1, entries: { [key]: [{ response: { choiceIndex: 1, rationale: "r" } }] } };
+    const data: RationalizerCacheData = {
+      version: 1,
+      entries: { [key]: [{ response: { choiceIndex: 1, rationale: "r" } }] },
+    };
     const roundTripped: RationalizerCacheData = JSON.parse(JSON.stringify(data));
 
     const replay = createReplayingRationalizer(roundTripped);

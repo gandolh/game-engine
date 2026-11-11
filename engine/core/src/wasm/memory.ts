@@ -1,5 +1,3 @@
-
-
 export interface WasmAllocator {
   alloc(size: number): number;
   free(ptr: number): void;

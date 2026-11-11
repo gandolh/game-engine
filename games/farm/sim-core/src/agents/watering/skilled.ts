@@ -52,7 +52,11 @@ export function deliberateSkilledNonFarm(
   const day = (farmer.beliefs?.data.currentDay as number | undefined) ?? 0;
 
   if (line === "fishing") {
-    const period = clampInt(BASE_FISH_PERIOD - commit * (BASE_FISH_PERIOD - MIN_FISH_PERIOD), MIN_FISH_PERIOD, BASE_FISH_PERIOD);
+    const period = clampInt(
+      BASE_FISH_PERIOD - commit * (BASE_FISH_PERIOD - MIN_FISH_PERIOD),
+      MIN_FISH_PERIOD,
+      BASE_FISH_PERIOD,
+    );
     const casts = 1 + Math.round(commit * 2);
     const apFloor = Math.round(50 - commit * 50);
     // Coral is the chase-worthy payoff line; shore fishing is the cheap entry
@@ -64,7 +68,11 @@ export function deliberateSkilledNonFarm(
     // Local forest bushes are worked by the boosted gather; the seasonal gold
     // zone is an excursion — cadence-gated so its direct gold supplements rather
     // than dominates the wealth ordering.
-    const period = clampInt(BASE_FORAGE_PERIOD - commit * (BASE_FORAGE_PERIOD - MIN_FORAGE_PERIOD), MIN_FORAGE_PERIOD, BASE_FORAGE_PERIOD);
+    const period = clampInt(
+      BASE_FORAGE_PERIOD - commit * (BASE_FORAGE_PERIOD - MIN_FORAGE_PERIOD),
+      MIN_FORAGE_PERIOD,
+      BASE_FORAGE_PERIOD,
+    );
     if (day % period === 0) {
       deliberateSeasonalForage(farmer, FRONT);
       recordReason(farmer, `skill-lean foraging (commit ${commit.toFixed(2)}, period ${period})`);

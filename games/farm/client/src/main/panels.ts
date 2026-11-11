@@ -104,12 +104,7 @@ function mount(id: string): HTMLElement | null {
  * Build + register every in-canvas panel with the host. Returns the panel handles the render loop
  * drives. `app` still hosts the (dev-only) DebugOverlay; every other surface is now in-canvas.
  */
-export function buildPanels(
-  app: HTMLElement,
-  host: UIHost,
-  canvas: HTMLCanvasElement,
-  actions: PanelActions,
-): Panels {
+export function buildPanels(app: HTMLElement, host: UIHost, canvas: HTMLCanvasElement, actions: PanelActions): Panels {
   const overlay = new DebugOverlay(app);
 
   // Shared collapsible-panel open/closed store (brief 117; sweep-09 promoted the implementation

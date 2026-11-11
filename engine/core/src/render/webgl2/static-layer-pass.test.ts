@@ -191,7 +191,18 @@ function fakeAtlas(): LoadedAtlasImage {
 }
 
 function sprite(partial: Partial<Sprite>): Sprite {
-  return { x: 0, y: 0, width: 16, height: 16, frame: "f", atlasId: "terrain", rotation: 0, layer: 0, alpha: 1, ...partial };
+  return {
+    x: 0,
+    y: 0,
+    width: 16,
+    height: 16,
+    frame: "f",
+    atlasId: "terrain",
+    rotation: 0,
+    layer: 0,
+    alpha: 1,
+    ...partial,
+  };
 }
 
 const identityView: ViewUniform = { scaleX: 1, scaleY: -1, offsetX: 0, offsetY: 0, timeSec: 0, windStrength: 1 };
@@ -313,7 +324,9 @@ describe("StaticLayerPass — patches", () => {
     pass.setView(identityView);
     frame(pass, gl, 40, 40, 70, 70); // inside patches (1..2, 1..2)
     expect(calls.drawArrays.length).toBe(4);
-    const dst = calls.uniform4f.filter((a) => (a[0] as { __uniform: string }).__uniform === "u_dstRect").map((a) => a.slice(1));
+    const dst = calls.uniform4f
+      .filter((a) => (a[0] as { __uniform: string }).__uniform === "u_dstRect")
+      .map((a) => a.slice(1));
     // The four dst rects tile the visible rect exactly: no gap, no overlap at x = 64 / y = 64.
     expect(dst).toEqual([
       [40, 40, 64, 64],

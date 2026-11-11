@@ -140,9 +140,10 @@ function buildOfferRow(): OfferRowNodes {
     [topLine, barTrack, stockLbl],
   );
 
-  const root = box({ direction: "column", gap: 0, align: "stretch", padding: { top: 4, bottom: 4, left: 0, right: 0 } }, [
-    info,
-  ]);
+  const root = box(
+    { direction: "column", gap: 0, align: "stretch", padding: { top: 4, bottom: 4, left: 0, right: 0 } },
+    [info],
+  );
 
   return { root, nameLbl, priceLbl, barTrack, barFill, stockLbl, iconCrop: "" };
 }
@@ -177,12 +178,7 @@ export function createSlateBillboard(): SlateBillboard {
   // the rows during `renderTree`, filling the panel's inner box without joining its flow). This
   // folds the old separate `drawIcons` post-pass into the widget tree (engine-ui backlog item 1).
   const iconsOverlay = custom((surface) => drawIconsInto(surface), { overlay: true });
-  const root = panel({ direction: "column", gap: 6, align: "stretch" }, [
-    title,
-    emptyLbl,
-    visibleRows,
-    iconsOverlay,
-  ]);
+  const root = panel({ direction: "column", gap: 6, align: "stretch" }, [title, emptyLbl, visibleRows, iconsOverlay]);
 
   // Per-node fill colour overrides for the stock bars — keyed by the bar-fill container's id,
   // since `ContainerNode` has no colour field of its own (see `drawIcons`). Rows are also
@@ -237,10 +233,7 @@ export function createSlateBillboard(): SlateBillboard {
       visible.push(child as ContainerNode);
     }
 
-    if (
-      visibleRows.children.length !== visible.length ||
-      visibleRows.children.some((c, i) => c !== visible[i])
-    ) {
+    if (visibleRows.children.length !== visible.length || visibleRows.children.some((c, i) => c !== visible[i])) {
       changed = true;
     }
     visibleRows.children = visible;

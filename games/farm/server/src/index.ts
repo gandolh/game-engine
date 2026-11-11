@@ -1,5 +1,3 @@
-
-
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
@@ -35,16 +33,10 @@ process.on("uncaughtException", (err) => {
  */
 async function loadPathfinderWasm(): Promise<ArrayBuffer | null> {
   const here = dirname(fileURLToPath(import.meta.url));
-  const wasmPath = resolve(
-    here,
-    "../../../../engine/wasm-modules/dist/pathfinding.wasm",
-  );
+  const wasmPath = resolve(here, "../../../../engine/wasm-modules/dist/pathfinding.wasm");
   try {
     const buf = await readFile(wasmPath);
-    return buf.buffer.slice(
-      buf.byteOffset,
-      buf.byteOffset + buf.byteLength,
-    ) as ArrayBuffer;
+    return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer;
   } catch (e) {
     const detail =
       `could not read pathfinding.wasm at ${wasmPath} — TravelSystem would be omitted and ` +
@@ -54,9 +46,7 @@ async function loadPathfinderWasm(): Promise<ArrayBuffer | null> {
       console.error(`[server] FATAL: ${detail}`);
       process.exit(1);
     }
-    console.warn(
-      `[server] ${detail} Behavior will DIFFER from the browser.`,
-    );
+    console.warn(`[server] ${detail} Behavior will DIFFER from the browser.`);
     return null;
   }
 }
@@ -74,9 +64,7 @@ async function main(): Promise<void> {
   console.log(`[server] Farm Valley sim server listening on ws://localhost:${PORT}`);
 
   wss.on("connection", (ws: WebSocket) => {
-
-    const rawSocket = (ws as { _socket?: { setNoDelay(b: boolean): void } })
-      ._socket;
+    const rawSocket = (ws as { _socket?: { setNoDelay(b: boolean): void } })._socket;
     rawSocket?.setNoDelay(true);
 
     const socket: ClientSocket = ws;

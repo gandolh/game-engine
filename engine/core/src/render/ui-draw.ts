@@ -16,12 +16,7 @@ import type { UIQuad } from "./renderer";
  * UI draws after the world + wash, so the caller is responsible for ordering.
  * Quads are drawn in submission order with no sorting.
  */
-export function drawUIQuad(
-  ctx: Ctx2D,
-  atlases: Map<string, LoadedAtlasImage>,
-  quad: UIQuad,
-  dpr: number,
-): void {
+export function drawUIQuad(ctx: Ctx2D, atlases: Map<string, LoadedAtlasImage>, quad: UIQuad, dpr: number): void {
   const alpha = quad.alpha ?? 1;
   if (alpha <= 0 || quad.width <= 0 || quad.height <= 0) return;
 

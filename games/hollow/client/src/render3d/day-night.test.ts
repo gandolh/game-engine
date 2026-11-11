@@ -6,7 +6,12 @@ const TICKS_PER_DAY = 200; // the real sim default (main.ts's TICKS_PER_DAY)
 
 describe("dayNightPhase", () => {
   it("is deterministic and in [0, 1)", () => {
-    for (const [tick, ticksPerDay] of [[0, 20], [5, 20], [19, 20], [199, 20]] as const) {
+    for (const [tick, ticksPerDay] of [
+      [0, 20],
+      [5, 20],
+      [19, 20],
+      [199, 20],
+    ] as const) {
       const phase = dayNightPhase(tick, ticksPerDay);
       expect(phase).toBe(dayNightPhase(tick, ticksPerDay));
       expect(phase).toBeGreaterThanOrEqual(0);

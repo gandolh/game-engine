@@ -1,5 +1,3 @@
-
-
 import { describe, it, expect, beforeEach } from "vitest";
 import {
   JuiceLayer,
@@ -134,7 +132,6 @@ describe("easing math", () => {
   });
 
   it("easeOutBack overshoots between 0 and 1 (> 1 at some midpoint)", () => {
-
     const values = [0.5, 0.6, 0.7, 0.8, 0.9].map(easeOutBack);
 
     expect(values.some((v) => v > 1)).toBe(true);
@@ -178,7 +175,6 @@ describe("JuiceLayer — popup pool cap", () => {
   });
 
   function countActivePopups(): number {
-
     const overlay = parent.firstChild as HTMLElement;
     let count = 0;
     for (const child of overlay.children) {
@@ -217,7 +213,6 @@ describe("JuiceLayer — popup pool cap", () => {
   });
 
   it("total pool never exceeds POPUP_POOL_SIZE active popups", () => {
-
     const events: SnapshotEvent[] = [];
     for (let i = 0; i < POPUP_POOL_SIZE + 10; i++) {
       events.push(tradeEvent(10 + i));
@@ -277,7 +272,6 @@ describe("JuiceLayer — resync / skip guard", () => {
   }
 
   it("after signalResync, stale events do NOT spawn popups", () => {
-
     const events: SnapshotEvent[] = [];
     for (let i = 0; i < 10; i++) {
       events.push(tradeEvent(5 + i));
@@ -289,7 +283,6 @@ describe("JuiceLayer — resync / skip guard", () => {
   });
 
   it("after signalResync, NEW events arriving after resync DO spawn popups", () => {
-
     const staleBatch: SnapshotEvent[] = [];
     for (let i = 0; i < 5; i++) staleBatch.push(tradeEvent(i + 1));
 
@@ -304,7 +297,6 @@ describe("JuiceLayer — resync / skip guard", () => {
   });
 
   it("after signalResync, trauma is reset to zero", () => {
-
     const events: SnapshotEvent[] = [rankFlipEvent(), festivalEvent()];
     layer.update(events, EMPTY_MAP, camera, canvas, 0.016);
 
@@ -446,7 +438,6 @@ describe("JuiceLayer — shake on positive beats", () => {
   });
 
   it("routine trade does NOT add shake", () => {
-
     layer.update([tradeEvent(10, 0.1)], EMPTY_MAP, camera, canvas, 0.016);
 
     expect(layer.shake.x).toBe(0);
@@ -468,12 +459,10 @@ describe("JuiceLayer — drama-weighted intensity", () => {
   });
 
   it("high-drama popup has larger font than low-drama popup", () => {
-
     layer.update([tradeEvent(10, 0.0)], EMPTY_MAP, camera, canvas, 0.016);
     const overlay = parent.firstChild as HTMLElement;
-    const lowEl = Array.from(overlay.children).find(
-      (c) => (c as HTMLElement).style.display !== "none",
-    ) as HTMLElement | undefined;
+    const lowEl = Array.from(overlay.children).find((c) => (c as HTMLElement).style.display !== "none") as
+      HTMLElement | undefined;
     const lowFont = lowEl ? parseInt(lowEl.style.fontSize, 10) : 0;
 
     layer.destroy();
@@ -482,9 +471,8 @@ describe("JuiceLayer — drama-weighted intensity", () => {
 
     layer2.update([tradeEvent(100, 1.0)], EMPTY_MAP, camera, canvas, 0.016);
     const overlay2 = parent2.firstChild as HTMLElement;
-    const highEl = Array.from(overlay2.children).find(
-      (c) => (c as HTMLElement).style.display !== "none",
-    ) as HTMLElement | undefined;
+    const highEl = Array.from(overlay2.children).find((c) => (c as HTMLElement).style.display !== "none") as
+      HTMLElement | undefined;
     const highFont = highEl ? parseInt(highEl.style.fontSize, 10) : 0;
 
     expect(highFont).toBeGreaterThan(lowFont);

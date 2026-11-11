@@ -1,16 +1,8 @@
 import { EDG, TILE } from "@engine/core/render";
-import {
-  CAMPFIRE_TILE,
-  getRegion,
-  CASINO_REGION_ID,
-  RING_REGION_ID,
-  REGIONS,
-  type RegionId,
-} from "../world/regions";
+import { CAMPFIRE_TILE, getRegion, CASINO_REGION_ID, RING_REGION_ID, REGIONS, type RegionId } from "../world/regions";
 import { FORGE_OVEN_TILE } from "./frames";
 
 export interface LightEmitter {
-
   tx: number;
   ty: number;
 
@@ -23,7 +15,6 @@ export interface LightEmitter {
 
 function farmhouseWindows(): LightEmitter[] {
   return REGIONS.filter((r) => r.kind === "farm").map((r) => ({
-
     tx: r.bounds.maxX - 1,
     ty: r.bounds.maxY - 2,
     radiusTiles: 2.2,
@@ -40,7 +31,6 @@ export const LIGHT_EMITTERS: readonly LightEmitter[] = (() => {
   const casino = centerOf(CASINO_REGION_ID);
   const ring = centerOf(RING_REGION_ID);
   return [
-
     { tx: FORGE_OVEN_TILE.x, ty: FORGE_OVEN_TILE.y, radiusTiles: 3.0, color: EDG.orange, intensity: 0.78 },
 
     { tx: CAMPFIRE_TILE.x, ty: CAMPFIRE_TILE.y, radiusTiles: 3.2, color: EDG.gold, intensity: 0.72 },

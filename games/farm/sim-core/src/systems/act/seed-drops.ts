@@ -1,21 +1,26 @@
-
-
 import type { Rng } from "@engine/core";
 import type { CropKind } from "../../components";
 
 const SEED_DROP_ORDER: readonly CropKind[] = [
-  "radish", "wheat", "carrot", "tomato", "corn", "winter-squash", "pumpkin", "grape",
+  "radish",
+  "wheat",
+  "carrot",
+  "tomato",
+  "corn",
+  "winter-squash",
+  "pumpkin",
+  "grape",
 ];
 
 export const SEED_WEIGHTS: Record<CropKind, number> = {
-  radish:          30,
-  wheat:           22,
-  carrot:          18,
-  tomato:          12,
-  corn:            8,
+  radish: 30,
+  wheat: 22,
+  carrot: 18,
+  tomato: 12,
+  corn: 8,
   "winter-squash": 6,
-  pumpkin:         3,
-  grape:           1,
+  pumpkin: 3,
+  grape: 1,
 };
 
 export const TREE_SEED_CHANCE = 0.2;

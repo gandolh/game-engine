@@ -1,5 +1,3 @@
-
-
 import { writeFileSync, mkdirSync, rmSync, existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -37,7 +35,6 @@ function nextPow2(n: number): number {
 }
 
 function packShelf(recipes: readonly PixelRecipe[]): Packed {
-
   const widest = recipes.reduce((m, r) => Math.max(m, recipeWidth(r)), 0);
   const targetWidth = Math.max(128, nextPow2(widest + PADDING * 2));
   const frames: Record<string, PackedFrame> = {};
@@ -96,7 +93,10 @@ const outDir = resolve(__dirname, "../../../games/farm/client/public/atlas");
 const recipesDir = RECIPES_SRC_DIR;
 const assetsDir = resolve(RECIPES_SRC_DIR, "assets");
 
-export interface BuildResult { built: string[]; cached: string[]; }
+export interface BuildResult {
+  built: string[];
+  cached: string[];
+}
 
 export function buildAtlas(opts: { force?: boolean } = {}): BuildResult {
   const force = opts.force ?? false;
@@ -117,7 +117,7 @@ export function buildAtlas(opts: { force?: boolean } = {}): BuildResult {
       sheetRecipes.set(sheetId, group);
     }
     group.push(recipe);
-    const assetPath = assetFileForRecipe(recipe.name); 
+    const assetPath = assetFileForRecipe(recipe.name);
     if (existsSync(assetPath)) {
       recipeAssetPaths.set(recipe.name, assetPath);
     }
@@ -157,7 +157,7 @@ export function buildAtlas(opts: { force?: boolean } = {}): BuildResult {
       const p = recipeAssetPaths.get(recipe.name);
       if (p !== undefined) sheetAssetFiles.push(p);
     }
-    sheetAssetFiles.sort(); 
+    sheetAssetFiles.sort();
 
     const hasGenerated = SHEETS_WITH_GENERATED.has(sheetId);
     const inputsHash = computeSheetHash(
@@ -184,14 +184,12 @@ export function buildAtlas(opts: { force?: boolean } = {}): BuildResult {
           });
           continue;
         }
-      } catch {
-
-      }
+      } catch {}
     }
 
     const packed = packShelf(recipes);
     const png = rasterize(packed, recipes);
-    const pngBuffer = PNG.sync.write(png, { ...PNG_OPTIONS }); 
+    const pngBuffer = PNG.sync.write(png, { ...PNG_OPTIONS });
     writeFileSync(resolve(outDir, `${sheetId}.png`), pngBuffer);
 
     const manifest = {
@@ -211,17 +209,13 @@ export function buildAtlas(opts: { force?: boolean } = {}): BuildResult {
     });
 
     built.push(sheetId);
-    console.log(
-      `atlas-builder: [${sheetId}] built — ${recipes.length} frames → ${packed.width}x${packed.height}`,
-    );
+    console.log(`atlas-builder: [${sheetId}] built — ${recipes.length} frames → ${packed.width}x${packed.height}`);
   }
 
   const atlasIndex = { sheets: indexEntries };
   const newIndexJson = JSON.stringify(atlasIndex, null, 2);
   const indexPath = resolve(outDir, "index.json");
-  const existingIndexJson = existsSync(indexPath)
-    ? readFileSync(indexPath, "utf8")
-    : null;
+  const existingIndexJson = existsSync(indexPath) ? readFileSync(indexPath, "utf8") : null;
 
   if (existingIndexJson !== newIndexJson) {
     writeFileSync(indexPath, newIndexJson);

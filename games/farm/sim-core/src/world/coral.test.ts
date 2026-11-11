@@ -1,23 +1,16 @@
 import { describe, it, expect } from "vitest";
-import {
-  buildBoatGrid,
-  CORAL_REEFS,
-  isCoralReefTile,
-  isDockTile,
-  nearestReef,
-} from "./coral";
+import { buildBoatGrid, CORAL_REEFS, isCoralReefTile, isDockTile, nearestReef } from "./coral";
 import { buildWalkableGrid } from "./walkable-grid";
 import { PORTS, portLaneTiles } from "./ports";
 import { WORLD_WIDTH, WORLD_HEIGHT, isWalkable, REGIONS, ROADS, getRegion, forEachLandTile } from "./regions";
 
-const VILLAGE = getRegion("village").center; 
+const VILLAGE = getRegion("village").center;
 
 describe("coral geography + boat grid", () => {
   it("reef + lane tiles sit on open OCEAN (not land/road)", () => {
-
     for (const r of CORAL_REEFS) {
-      expect(isWalkable(r.reef.x, r.reef.y)).toBe(false); 
-      for (const l of r.lane) expect(isWalkable(l.x, l.y)).toBe(false); 
+      expect(isWalkable(r.reef.x, r.reef.y)).toBe(false);
+      for (const l of r.lane) expect(isWalkable(l.x, l.y)).toBe(false);
     }
   });
 
@@ -56,7 +49,6 @@ describe("coral geography + boat grid", () => {
   });
 
   it("the LAND walkable grid is exactly REGIONS + ROADS — no coral leakage", () => {
-
     const expected = new Set<number>();
     const mark = (b: { minX: number; minY: number; maxX: number; maxY: number }) => {
       for (let y = b.minY; y <= b.maxY; y++) {
@@ -81,7 +73,7 @@ describe("coral geography + boat grid", () => {
       expect(isCoralReefTile(r.dock.x, r.dock.y)).toBe(false);
       expect(isDockTile(r.reef.x, r.reef.y)).toBe(false);
     }
-    expect(isCoralReefTile(VILLAGE.x, VILLAGE.y)).toBe(false); 
+    expect(isCoralReefTile(VILLAGE.x, VILLAGE.y)).toBe(false);
   });
 
   it("nearestReef picks the closest reef dock (deterministic)", () => {

@@ -13,7 +13,10 @@ import { ENEMY_SPRITE_DRAW, drawHero } from "./sprites";
 const PALETTE = new Set<string>(Object.values(MATE_PAL));
 
 /** Minimal `UISurface` stand-in — the `draw*` fns only ever call `.rect`. */
-function recordingSurface(): { rect: (x: number, y: number, w: number, h: number, color: string) => void; colors: string[] } {
+function recordingSurface(): {
+  rect: (x: number, y: number, w: number, h: number, color: string) => void;
+  colors: string[];
+} {
   const colors: string[] = [];
   return { rect: (_x, _y, _w, _h, color) => colors.push(color), colors };
 }

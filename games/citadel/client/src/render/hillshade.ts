@@ -58,9 +58,9 @@ import { TerrainType } from "@citadel/sim-core";
  * band. Pure + total (covers every TerrainType).
  */
 export const TERRAIN_RELIEF: Record<TerrainType, number> = {
-  [TerrainType.Water]: 0.10,
+  [TerrainType.Water]: 0.1,
   [TerrainType.Rough]: 0.35,
-  [TerrainType.Grass]: 0.50,
+  [TerrainType.Grass]: 0.5,
   [TerrainType.Forest]: 0.62,
   [TerrainType.Stone]: 0.85,
 };

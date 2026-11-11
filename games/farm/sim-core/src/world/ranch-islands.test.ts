@@ -42,7 +42,10 @@ describe("per-farm ranch islands", () => {
     for (const farmId of farmIds) {
       const ranch = ranchForFarm(farmId);
       expect(ranch, `ranch for ${farmId}`).toBeDefined();
-      expect(REGIONS.some((r) => r.id === ranch), `${ranch} exists`).toBe(true);
+      expect(
+        REGIONS.some((r) => r.id === ranch),
+        `${ranch} exists`,
+      ).toBe(true);
       expect(mapped.has(ranch!), `${ranch} not reused`).toBe(false);
       mapped.add(ranch!);
     }
@@ -74,10 +77,7 @@ describe("per-farm ranch islands", () => {
       const ranchId = ranchForFarm(farmId)!;
       const farm = REGIONS.find((r) => r.id === farmId)!.center;
       const ranch = REGIONS.find((r) => r.id === ranchId)!.center;
-      expect(
-        sameComponent(farm.x, farm.y, ranch.x, ranch.y),
-        `${farmId} reachable from ${ranchId}`,
-      ).toBe(true);
+      expect(sameComponent(farm.x, farm.y, ranch.x, ranch.y), `${farmId} reachable from ${ranchId}`).toBe(true);
     }
     _resetComponentMap();
   });
@@ -88,10 +88,9 @@ describe("per-farm ranch islands", () => {
       const ranchId = ranchForFarm(farmId)!;
       const farm = REGIONS.find((r) => r.id === farmId)!.center;
       const ranch = REGIONS.find((r) => r.id === ranchId)!.center;
-      expect(
-        sameComponent(farm.x, farm.y, ranch.x, ranch.y),
-        `${farmId} center connected to ${ranchId} center`,
-      ).toBe(true);
+      expect(sameComponent(farm.x, farm.y, ranch.x, ranch.y), `${farmId} center connected to ${ranchId} center`).toBe(
+        true,
+      );
     }
     _resetComponentMap();
   });
@@ -127,11 +126,7 @@ describe("per-farm ranch islands", () => {
       beliefs: { data: { currentDay: 0 }, revision: 0 },
     }) as ActingFarmer;
 
-    handleBuildPen(
-      farmer,
-      { kind: "build-pen", data: { penKind: "coop", animal: "chicken" }, priority: 0 },
-      world,
-    );
+    handleBuildPen(farmer, { kind: "build-pen", data: { penKind: "coop", animal: "chicken" }, priority: 0 }, world);
 
     const pens = [...world.query("pen")];
     expect(pens).toHaveLength(1);

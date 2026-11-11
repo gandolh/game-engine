@@ -47,7 +47,6 @@ export function drawSprite(ctx: Ctx2D, atlases: Map<string, LoadedAtlasImage>, s
       blit(ctx, buf.canvas, r.w, r.h, s);
       return;
     }
-
   }
 
   if (s.rotation !== 0 || s.flipX) {
@@ -62,13 +61,7 @@ export function drawSprite(ctx: Ctx2D, atlases: Map<string, LoadedAtlasImage>, s
   }
 }
 
-function blit(
-  ctx: Ctx2D,
-  src: OffscreenCanvas | HTMLCanvasElement,
-  sw: number,
-  sh: number,
-  s: Sprite,
-): void {
+function blit(ctx: Ctx2D, src: OffscreenCanvas | HTMLCanvasElement, sw: number, sh: number, s: Sprite): void {
   if (s.rotation !== 0 || s.flipX) {
     ctx.save();
     ctx.translate(s.x, s.y);
@@ -84,11 +77,7 @@ function blit(
 let tintCanvas: OffscreenCanvas | HTMLCanvasElement | null = null;
 let tintCtx: Ctx2D | null = null;
 function tintBuffer(w: number, h: number): { canvas: OffscreenCanvas | HTMLCanvasElement; ctx: Ctx2D } | null {
-  if (
-    tintCanvas === null ||
-    tintCanvas.width < w ||
-    tintCanvas.height < h
-  ) {
+  if (tintCanvas === null || tintCanvas.width < w || tintCanvas.height < h) {
     try {
       tintCanvas = createOffscreen(Math.max(w, tintCanvas?.width ?? 0), Math.max(h, tintCanvas?.height ?? 0));
     } catch {

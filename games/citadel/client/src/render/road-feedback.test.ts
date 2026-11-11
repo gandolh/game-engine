@@ -58,12 +58,12 @@ describe("needsRoadConnection", () => {
 describe("disconnectedBuildings", () => {
   it("returns only connectable buildings that are disconnected", () => {
     const buildings: BuildingSnapshot[] = [
-      bld({ type: "farm", connected: false }),       // mark
-      bld({ type: "farm", connected: true }),        // connected → skip
-      bld({ type: "house", connected: false }),      // mark
-      bld({ type: "road", connected: false }),       // infra → skip
-      bld({ type: "wall", connected: false }),       // infra → skip
-      bld({ type: "storehouse", connected: true }),  // connected → skip
+      bld({ type: "farm", connected: false }), // mark
+      bld({ type: "farm", connected: true }), // connected → skip
+      bld({ type: "house", connected: false }), // mark
+      bld({ type: "road", connected: false }), // infra → skip
+      bld({ type: "wall", connected: false }), // infra → skip
+      bld({ type: "storehouse", connected: true }), // connected → skip
     ];
     const out = disconnectedBuildings(buildings);
     expect(out.map((b) => b.type).sort()).toEqual(["farm", "house"]);

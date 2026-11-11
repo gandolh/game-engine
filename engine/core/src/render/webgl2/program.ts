@@ -158,14 +158,7 @@ export interface AttribSpec {
  */
 export function setupAttrib(gl: WebGL2RenderingContext, spec: AttribSpec): void {
   gl.enableVertexAttribArray(spec.location);
-  gl.vertexAttribPointer(
-    spec.location,
-    spec.size,
-    spec.type,
-    spec.normalized ?? false,
-    spec.stride,
-    spec.offset,
-  );
+  gl.vertexAttribPointer(spec.location, spec.size, spec.type, spec.normalized ?? false, spec.stride, spec.offset);
   if (spec.divisor) {
     gl.vertexAttribDivisor(spec.location, spec.divisor);
   }

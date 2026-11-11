@@ -1,5 +1,3 @@
-
-
 import type { SimContext, System, World, MessageBus } from "@engine/core";
 import { bodyOf } from "@engine/core";
 import type { GameEntity } from "../../components";
@@ -37,7 +35,7 @@ export class RunHistorySystem implements System {
           }
         }
       }
-      break; 
+      break;
     }
     if (newDay === null) return;
     this.lastDayProcessed = newDay;

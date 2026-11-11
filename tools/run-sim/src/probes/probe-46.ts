@@ -1,4 +1,3 @@
-
 import { bootstrapSim, leaderboard } from "@farm/sim-core/sim-bootstrap";
 import { JsPathfinder } from "@farm/sim-core/world/js-pathfinder";
 import type { GameEntity } from "@farm/sim-core/components";
@@ -29,7 +28,7 @@ interface ContractEvent {
 }
 
 const contractEvents: ContractEvent[] = [];
-const contractsPostedByDay = new Map<number, number>(); 
+const contractsPostedByDay = new Map<number, number>();
 let totalContractsPosted = 0;
 let totalCommits = 0;
 let totalDeliveries = 0;
@@ -73,10 +72,11 @@ for (const entry of eventFeed.recent()) {
 const maxOpenAtAny = Math.max(0, ...boardSnapshots.map((s) => s.openCount + s.committedCount));
 
 console.log("\n=== HARBOR BOARD LIFECYCLE ===");
-const significantSnapshots = boardSnapshots.filter((s, i) =>
-  i === 0 ||
-  s.openCount !== boardSnapshots[i - 1]!.openCount ||
-  s.committedCount !== boardSnapshots[i - 1]!.committedCount
+const significantSnapshots = boardSnapshots.filter(
+  (s, i) =>
+    i === 0 ||
+    s.openCount !== boardSnapshots[i - 1]!.openCount ||
+    s.committedCount !== boardSnapshots[i - 1]!.committedCount,
 );
 for (const s of significantSnapshots.slice(-20)) {
   console.log(`  Day ${String(s.day).padStart(3)}: open=${s.openCount}  committed=${s.committedCount}`);
@@ -110,7 +110,9 @@ for (const f of world.query("farmer")) {
 console.log("\n=== DAY-100 STANDINGS ===");
 for (const row of leaderboard(world)) {
   const rep = findFarmer(row.id)?.farmer?.harborReputation ?? 0;
-  console.log(`  ${row.name.padEnd(8)} ${row.personality.padEnd(12)} total=${Math.round(row.totalValue)} gold=${row.gold} harborRep=${rep}`);
+  console.log(
+    `  ${row.name.padEnd(8)} ${row.personality.padEnd(12)} total=${Math.round(row.totalValue)} gold=${row.gold} harborRep=${rep}`,
+  );
 }
 
 console.log("\n=== ACCEPTANCE (brief 46 harbor contracts) ===");
@@ -120,7 +122,9 @@ const hasDeliveries = totalDeliveries > 0;
 const anyRepGained = [...world.query("farmer")].some((f) => (f.farmer?.harborReputation ?? 0) > 0);
 
 console.log(`  harbor board entity spawned:          ${boardExists ? "YES ✓" : "NO ✗"}`);
-console.log(`  contracts ever posted (board max open+committed ≥ 1): ${contractsEverPosted ? `YES ✓ (max=${maxOpenAtAny})` : "NO ✗"}`);
+console.log(
+  `  contracts ever posted (board max open+committed ≥ 1): ${contractsEverPosted ? `YES ✓ (max=${maxOpenAtAny})` : "NO ✗"}`,
+);
 console.log(`  event-feed delivery lines:            ${deliveredLines.length} (${hasDeliveries ? "✓" : "✗"})`);
 console.log(`  event-feed miss lines:                ${missedLines.length}`);
 console.log(`  any farmer gained harbor rep:         ${anyRepGained ? "YES ✓" : "NO"}`);
@@ -129,6 +133,8 @@ const pass = boardExists && contractsEverPosted && hasDeliveries;
 console.log(`\n  ACCEPTANCE ${pass ? "MET ✓" : "NOT MET ✗"}  (need: board spawned + contracts posted + ≥1 delivery)`);
 if (!pass) {
   if (!boardExists) console.log("  !! harborBoard entity missing — check region-setup.ts");
-  if (!contractsEverPosted) console.log("  !! No contracts ever posted — check HarborSystem cadence + sim-bootstrap registration");
-  if (!hasDeliveries) console.log("  !! No deliveries — check agent deliberation + TravelSystem + HarborSystem.attemptDeliveries");
+  if (!contractsEverPosted)
+    console.log("  !! No contracts ever posted — check HarborSystem cadence + sim-bootstrap registration");
+  if (!hasDeliveries)
+    console.log("  !! No deliveries — check agent deliberation + TravelSystem + HarborSystem.attemptDeliveries");
 }

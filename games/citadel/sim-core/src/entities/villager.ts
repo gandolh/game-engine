@@ -8,12 +8,7 @@
 import type { EngineEntity } from "@engine/core";
 import type { GoodType } from "./building";
 
-export type VillagerFsm =
-  | "idle"
-  | "walkToWork"
-  | "work"
-  | "haulToStore"
-  | "walkHome";
+export type VillagerFsm = "idle" | "walkToWork" | "work" | "haulToStore" | "walkHome";
 
 /**
  * Whether a villager in this FSM state is TRAVELLING (walking between places)

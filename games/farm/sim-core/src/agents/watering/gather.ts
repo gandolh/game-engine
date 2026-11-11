@@ -21,8 +21,8 @@ export function deliberateResourceGather(
 ): void {
   if (!farmer.intentions || farmer.id === undefined) return;
   const tools = farmer.inventory?.tools ?? [];
-  const hasAxe    = tools.some(t => t.kind === "axe"     && t.durability > 0);
-  const hasPick   = tools.some(t => t.kind === "pickaxe" && t.durability > 0);
+  const hasAxe = tools.some((t) => t.kind === "axe" && t.durability > 0);
+  const hasPick = tools.some((t) => t.kind === "pickaxe" && t.durability > 0);
 
   const ownFeatures = tileFeatures.filter((f) => f.ownerId === farmer.id);
   if (!hasAxe && ownFeatures.some((f) => f.kind === "tree")) {
@@ -34,7 +34,7 @@ export function deliberateResourceGather(
 
   const gatherable = ownFeatures
 
-    .filter(f => (f.kind === "tree" && hasAxe) || (f.kind === "stone" && hasPick) || f.kind === "bush")
+    .filter((f) => (f.kind === "tree" && hasAxe) || (f.kind === "stone" && hasPick) || f.kind === "bush")
     .slice()
     .sort((a, b) => {
       if (preferKind) {
@@ -48,12 +48,12 @@ export function deliberateResourceGather(
   if (gatherable.length === 0) return;
 
   const transform = farmer.transform;
-  const inReach    = gatherable.filter(f => isWithinReach(transform, f.tileX, f.tileY));
-  const outOfReach = gatherable.filter(f => !isWithinReach(transform, f.tileX, f.tileY));
+  const inReach = gatherable.filter((f) => isWithinReach(transform, f.tileX, f.tileY));
+  const outOfReach = gatherable.filter((f) => !isWithinReach(transform, f.tileX, f.tileY));
 
   if (inReach.length === 0) {
     const nearest = nearestTile(transform, gatherable);
-    if (nearest && !farmer.intentions.queue.some(i => i.kind === "travel" && i.data.targetTile)) {
+    if (nearest && !farmer.intentions.queue.some((i) => i.kind === "travel" && i.data.targetTile)) {
       farmer.intentions.queue.push({
         kind: "travel",
         data: { targetTile: { x: nearest.tileX, y: nearest.tileY } },
@@ -76,7 +76,7 @@ export function deliberateResourceGather(
 
   if (outOfReach.length > 0) {
     const nearest = nearestTile(transform, outOfReach);
-    if (nearest && !farmer.intentions.queue.some(i => i.kind === "travel" && i.data.targetTile)) {
+    if (nearest && !farmer.intentions.queue.some((i) => i.kind === "travel" && i.data.targetTile)) {
       farmer.intentions.queue.push({
         kind: "travel",
         data: { targetTile: { x: nearest.tileX, y: nearest.tileY } },
@@ -87,11 +87,7 @@ export function deliberateResourceGather(
   if (count > 0) recordReason(farmer, `gather resources (${count} actions)`);
 }
 
-export function deliberateMillVisit(
-  farmer: GameEntity,
-  minStock: number,
-  priority: number,
-): void {
+export function deliberateMillVisit(farmer: GameEntity, minStock: number, priority: number): void {
   if (!farmer.intentions || !farmer.inventory) return;
   const crops = farmer.inventory.crops;
   let best: { crop: import("../../components").CropKind; qty: number } | null = null;
@@ -101,10 +97,10 @@ export function deliberateMillVisit(
   }
   if (!best) return;
 
-  if (farmer.intentions.queue.some(i => i.kind === "process-crop")) return;
+  if (farmer.intentions.queue.some((i) => i.kind === "process-crop")) return;
 
   if (farmer.farmer?.currentRegion !== "mill") {
-    if (!farmer.intentions.queue.some(i => i.kind === "travel" && i.data.targetRegionId === "mill")) {
+    if (!farmer.intentions.queue.some((i) => i.kind === "travel" && i.data.targetRegionId === "mill")) {
       farmer.intentions.queue.push({
         kind: "travel",
         data: { targetRegionId: "mill" },
@@ -120,20 +116,17 @@ export function deliberateMillVisit(
   recordReason(farmer, `mill ${best.crop} x${best.qty} for premium`);
 }
 
-export function deliberateSeasonalForage(
-  farmer: GameEntity,
-  priority: number,
-): void {
+export function deliberateSeasonalForage(farmer: GameEntity, priority: number): void {
   if (!farmer.intentions || !farmer.farmer) return;
   const day = (farmer.beliefs?.data.currentDay as number | undefined) ?? 0;
   const season = seasonForDay(day);
   const zone = FORAGE_ZONES.find((z) => z.season === season);
-  if (!zone) return; 
+  if (!zone) return;
 
-  if (farmer.intentions.queue.some(i => i.kind === "forage")) return;
+  if (farmer.intentions.queue.some((i) => i.kind === "forage")) return;
 
   if (farmer.farmer.currentRegion !== zone.region) {
-    if (!farmer.intentions.queue.some(i => i.kind === "travel" && i.data.targetRegionId === zone.region)) {
+    if (!farmer.intentions.queue.some((i) => i.kind === "travel" && i.data.targetRegionId === zone.region)) {
       farmer.intentions.queue.push({
         kind: "travel",
         data: { targetRegionId: zone.region },
@@ -170,7 +163,7 @@ export function deliberateResourceZoneVisit(
   const targetZone = nearestResourceZone(farmCenter, preferKind);
 
   if (farmer.farmer.currentRegion === targetZone) return;
-  if (farmer.intentions.queue.some(i => i.kind === "travel" && i.data.targetRegionId === targetZone)) return;
+  if (farmer.intentions.queue.some((i) => i.kind === "travel" && i.data.targetRegionId === targetZone)) return;
 
   farmer.intentions.queue.push({
     kind: "travel",

@@ -259,12 +259,7 @@ export function createInputDispatcher(
     // its value was already set on the press (and any drag); a no-movement press is a track-jump.
     let activated = false;
     const releasedLeaf = asFocusable(hit);
-    if (
-      !wasDragging &&
-      releasedLeaf &&
-      releasedLeaf === startedOn &&
-      releasedLeaf.state !== "disabled"
-    ) {
+    if (!wasDragging && releasedLeaf && releasedLeaf === startedOn && releasedLeaf.state !== "disabled") {
       if (releasedLeaf.kind === "button") releasedLeaf.onActivate?.();
       else if (releasedLeaf.kind === "checkbox") releasedLeaf.toggle();
       activated = true;

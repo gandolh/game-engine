@@ -3,7 +3,7 @@ import type { GameEntity, WorkNpc } from "../../components";
 
 const STEP_TICKS = 4;
 
-const DWELL_TICKS = 90; 
+const DWELL_TICKS = 90;
 
 function scaled(base: number, busyFactor: number | undefined): number {
   const f = busyFactor ?? 1;
@@ -28,7 +28,6 @@ function step(npc: WorkNpc, transform: GameEntity["transform"]): void {
   const station = npc.stations[npc.stationIndex]!;
 
   if (npc.phase === "walking") {
-
     npc.poseFrame = npc.idlePose;
     npc.timer -= 1;
     if (npc.timer > 0) return;
@@ -54,11 +53,9 @@ function step(npc: WorkNpc, transform: GameEntity["transform"]): void {
   npc.facing = station.facing;
   npc.flipX = station.flipX;
   if (station.pose) {
-
     const phaseBit = Math.floor(npc.timer / 8) & 1;
     npc.poseFrame = `${station.pose}-${phaseBit ? "a" : "b"}`;
   } else {
-
     npc.poseFrame = npc.idlePose;
   }
 

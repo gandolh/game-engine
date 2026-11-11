@@ -200,10 +200,7 @@ export class HollowLifecycleSystem implements System {
     let oldAge = false;
     if (entity.lifecycle.stage === "elder") {
       const ticksPastElder = Math.max(0, entity.lifecycle.ageTicks - this.adultElderTicks);
-      const hazard = Math.min(
-        this.oldAgeHazardMax,
-        this.oldAgeHazardBase + ticksPastElder * this.oldAgeHazardPerTick,
-      );
+      const hazard = Math.min(this.oldAgeHazardMax, this.oldAgeHazardBase + ticksPastElder * this.oldAgeHazardPerTick);
       // Rolled unconditionally for every elder (see class doc) -- keeps the
       // rng draw sequence independent of which agents starve/die violently.
       oldAge = this.rng.nextFloat() < hazard;
@@ -329,9 +326,6 @@ export class HollowLifecycleSystem implements System {
   }
 
   private emit(ontology: string, body: Record<string, unknown>, tick: number): void {
-    this.bus.send(
-      { performative: PERFORMATIVE.INFORM, ontology, sender: "world", recipient: "broadcast", body },
-      tick,
-    );
+    this.bus.send({ performative: PERFORMATIVE.INFORM, ontology, sender: "world", recipient: "broadcast", body }, tick);
   }
 }

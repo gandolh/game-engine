@@ -188,7 +188,14 @@ describe("drawUIQuad textured-quad tint", () => {
 
 describe("drawUIQuad tint cache (brief 118)", () => {
   const tinted = (over?: Partial<UIQuad>): UIQuad => ({
-    x: 10, y: 20, width: 5, height: 7, atlasId: "ui-font", frame: "g41", color: EDG.gold, ...over,
+    x: 10,
+    y: 20,
+    width: 5,
+    height: 7,
+    atlasId: "ui-font",
+    frame: "g41",
+    color: EDG.gold,
+    ...over,
   });
 
   it("a repeated (frame, colour) draw hits the cache: composite runs once, then plain blits", () => {

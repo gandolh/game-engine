@@ -1,5 +1,3 @@
-
-
 import type { SimContext, System, World, MessageBus, Rng } from "@engine/core";
 import { bodyOf } from "@engine/core";
 import type { GameEntity, CropQuality } from "../../components";
@@ -106,17 +104,20 @@ export class FestivalSystem implements System {
       let bestQuality: CropQuality = "normal";
       let bestCount = total;
       if (q) {
-        if (q.gold > 0) { bestQuality = "gold"; bestCount = q.gold; }
-        else if (q.silver > 0) { bestQuality = "silver"; bestCount = q.silver; }
-        else { bestQuality = "normal"; bestCount = q.normal; }
+        if (q.gold > 0) {
+          bestQuality = "gold";
+          bestCount = q.gold;
+        } else if (q.silver > 0) {
+          bestQuality = "silver";
+          bestCount = q.silver;
+        } else {
+          bestQuality = "normal";
+          bestCount = q.normal;
+        }
       }
       const bestRank = QUALITY_RANK[bestQuality];
       const prev = dayMap.get(f.id);
-      if (
-        !prev ||
-        bestRank > prev.bestRank ||
-        (bestRank === prev.bestRank && bestCount > prev.bestCount)
-      ) {
+      if (!prev || bestRank > prev.bestRank || (bestRank === prev.bestRank && bestCount > prev.bestCount)) {
         dayMap.set(f.id, { id: f.id, name: f.farmer.name, bestQuality, bestRank, bestCount });
       }
     }
@@ -189,9 +190,7 @@ export class FestivalSystem implements System {
       // (⚠️ Moves the baseline: the draw now decides the winner — same number
       // of draws as before, since the draw still happens iff the top two tie.)
       const top = winner;
-      const tied = ranked.filter(
-        (s) => s.bestRank === top.bestRank && s.bestCount === top.bestCount,
-      );
+      const tied = ranked.filter((s) => s.bestRank === top.bestRank && s.bestCount === top.bestCount);
       if (tied.length > 1) {
         const pick = Math.min(tied.length - 1, Math.floor(this.rng.nextFloat() * tied.length));
         winner = tied[pick]!;

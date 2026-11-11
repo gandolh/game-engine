@@ -50,7 +50,9 @@ function makeStubContext(rects: RectCall[]): CanvasRenderingContext2D {
     beginPath(): void {},
     ellipse(): void {},
     fill(): void {},
-    createPattern(): null { return null; },
+    createPattern(): null {
+      return null;
+    },
   };
   return ctx as unknown as CanvasRenderingContext2D;
 }
@@ -72,9 +74,16 @@ function makeRecordingRenderer(): { renderer: RendererLike; quads: UIQuad[]; act
   const quads: UIQuad[] = [];
   let uiActive = false;
   const partial = {
-    beginUI(): void { uiActive = true; quads.length = 0; },
-    pushUI(quad: UIQuad): void { if (uiActive) quads.push(quad); },
-    endUI(): void { uiActive = false; },
+    beginUI(): void {
+      uiActive = true;
+      quads.length = 0;
+    },
+    pushUI(quad: UIQuad): void {
+      if (uiActive) quads.push(quad);
+    },
+    endUI(): void {
+      uiActive = false;
+    },
   };
   return {
     renderer: partial as unknown as RendererLike,

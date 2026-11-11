@@ -1,19 +1,8 @@
 import type { SimContext, System, World, MessageBus, Rng } from "@engine/core";
 import { bodyOf } from "@engine/core";
 import type { GameEntity } from "../../components";
-import {
-  ONT_WEATHER,
-  WEATHER_MULTIPLIER,
-  ONT_SIMULATION,
-  PERFORMATIVE,
-  seasonForDay,
-} from "../../protocols";
-import type {
-  WeatherCondition,
-  WeatherNowBody,
-  WeatherForecastBody,
-  Season,
-} from "../../protocols";
+import { ONT_WEATHER, WEATHER_MULTIPLIER, ONT_SIMULATION, PERFORMATIVE, seasonForDay } from "../../protocols";
+import type { WeatherCondition, WeatherNowBody, WeatherForecastBody, Season } from "../../protocols";
 
 type WeatherWeights = ReadonlyArray<{ condition: WeatherCondition; weight: number }>;
 
@@ -31,8 +20,8 @@ const SEASON_WEATHER_WEIGHTS: Record<Season, WeatherWeights> = {
     { condition: "storm", weight: 0.12 },
   ],
   autumn: [
-    { condition: "sunny", weight: 0.30 },
-    { condition: "normal", weight: 0.40 },
+    { condition: "sunny", weight: 0.3 },
+    { condition: "normal", weight: 0.4 },
     { condition: "rainy", weight: 0.25 },
     { condition: "storm", weight: 0.05 },
   ],
@@ -54,7 +43,7 @@ const SEASON_TREND: Record<Season, string> = {
 function forecastWeights(season: Season): WeatherWeights {
   const base = SEASON_WEATHER_WEIGHTS[season];
   const flat = 1 / base.length;
-  const blend = 0.25; 
+  const blend = 0.25;
   return base.map((e) => ({
     condition: e.condition,
     weight: e.weight * (1 - blend) + flat * blend,
@@ -64,7 +53,6 @@ function forecastWeights(season: Season): WeatherWeights {
 const FORECAST_DAYS = 3;
 
 function rollWeighted(rng: Rng, weights: WeatherWeights): WeatherCondition {
-
   let total = 0;
   for (const entry of weights) total += entry.weight;
   const r = rng.nextFloat() * total;

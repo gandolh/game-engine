@@ -1,9 +1,6 @@
-
 import { bootstrapSim, leaderboard } from "@farm/sim-core/sim-bootstrap";
 import type { GameEntity } from "@farm/sim-core/components";
-import {
-  ONT_ENCOUNTER,
-} from "@farm/sim-core/protocols/encounter";
+import { ONT_ENCOUNTER } from "@farm/sim-core/protocols/encounter";
 import type { AgentMessage } from "@engine/core";
 import { makePathfinder } from "../pathfinder";
 
@@ -58,9 +55,7 @@ async function runSeed(seed: number): Promise<SeedResult> {
   for (const f of world.query("farmer", "inbox")) {
     const arr = f.inbox!.messages;
     const origPush = arr.push.bind(arr);
-    (arr as unknown as { push: (...m: AgentMessage[]) => number }).push = (
-      ...msgs: AgentMessage[]
-    ) => {
+    (arr as unknown as { push: (...m: AgentMessage[]) => number }).push = (...msgs: AgentMessage[]) => {
       for (const m of msgs) {
         if (m && ENCOUNTER_ONTS[m.ontology]) {
           counts[m.ontology] = (counts[m.ontology] ?? 0) + 1;
@@ -167,13 +162,9 @@ async function main(): Promise<void> {
     console.log(
       `    MEET=${c[ONT_ENCOUNTER.MEET]}  OFFER_SEED=${c[ONT_ENCOUNTER.OFFER_SEED]}  OFFER_CROP=${c[ONT_ENCOUNTER.OFFER_CROP]}  OFFER_BEAN=${c[ONT_ENCOUNTER.OFFER_BEAN]}  ACCEPT=${c[ONT_ENCOUNTER.ACCEPT]}  DECLINE=${c[ONT_ENCOUNTER.DECLINE]}  (Σ=${total})`,
     );
-    console.log(
-      `    farmers with non-empty trust map: ${r.trustNonEmpty}  (total trust entries: ${r.trustEntries})`,
-    );
+    console.log(`    farmers with non-empty trust map: ${r.trustNonEmpty}  (total trust entries: ${r.trustEntries})`);
     console.log(`    offer shapes seen: ${r.offerShapes.join(", ") || "(none)"}`);
-    console.log(
-      `    decline reasons: ${r.declineReasons.map(([k, v]) => `${k}×${v}`).join(", ") || "(none)"}`,
-    );
+    console.log(`    decline reasons: ${r.declineReasons.map(([k, v]) => `${k}×${v}`).join(", ") || "(none)"}`);
   }
   const anyOffer = results.some(
     (r) =>

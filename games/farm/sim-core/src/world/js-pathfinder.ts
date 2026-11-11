@@ -6,17 +6,11 @@ interface PathPoint {
 }
 
 export class JsPathfinder {
-  findPath(
-    grid: PathfinderGrid,
-    start: PathPoint,
-    end: PathPoint,
-  ): PathPoint[] {
+  findPath(grid: PathfinderGrid, start: PathPoint, end: PathPoint): PathPoint[] {
     const { cells, width, height } = grid;
 
-    const inBounds = (x: number, y: number) =>
-      x >= 0 && y >= 0 && x < width && y < height;
-    const isWalkable = (x: number, y: number) =>
-      inBounds(x, y) && cells[y * width + x] === 0;
+    const inBounds = (x: number, y: number) => x >= 0 && y >= 0 && x < width && y < height;
+    const isWalkable = (x: number, y: number) => inBounds(x, y) && cells[y * width + x] === 0;
 
     if (!isWalkable(start.x, start.y) || !isWalkable(end.x, end.y)) return [];
     if (start.x === end.x && start.y === end.y) return [{ x: start.x, y: start.y }];
@@ -39,7 +33,10 @@ export class JsPathfinder {
 
     while (head < queue.length) {
       const cur = queue[head++]!;
-      if (cur === endIdx) { found = true; break; }
+      if (cur === endIdx) {
+        found = true;
+        break;
+      }
 
       const cx = cur % width;
       const cy = Math.floor(cur / width);

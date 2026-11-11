@@ -25,18 +25,11 @@
  * `pushWearOverlay`) driven by the snapshot's existing `burning`/`onFire`.
  */
 import { CITADEL_PAL as EDG } from "./citadel-palette";
-import {
-  Camera2D,
-  createRenderer,
-} from "@engine/core";
+import { Camera2D, createRenderer } from "@engine/core";
 import type { RendererLike, LoadedAtlasImage, CloudOptions } from "@engine/core";
 import type { Sprite } from "@engine/core/render";
 import { TILE_SIZE, isTravellingFsm } from "@citadel/sim-core";
-import type {
-  BuildingSnapshot,
-  VillagerSnapshot,
-  RaiderSnapshot,
-} from "@citadel/sim-core";
+import type { BuildingSnapshot, VillagerSnapshot, RaiderSnapshot } from "@citadel/sim-core";
 
 // Sub-modules: pure helper families extracted for clarity.
 import {
@@ -68,7 +61,14 @@ import { disconnectedBuildings } from "./road-feedback";
 // fx imports a couple of helpers back from this module (villagerQuad/QuadSpec);
 // the resulting ES-module cycle is safe — every binding is used at call time,
 // never at module-eval time.
-import { glowAlphaForMood, houseAlphaForMood, villagerAlphaForMood, villagerSlumpOffset, fireGlowQuads, fireFlicker } from "./citadel-fx";
+import {
+  glowAlphaForMood,
+  houseAlphaForMood,
+  villagerAlphaForMood,
+  villagerSlumpOffset,
+  fireGlowQuads,
+  fireFlicker,
+} from "./citadel-fx";
 
 // ---------------------------------------------------------------------------
 // Re-export the full prior public surface so existing imports keep resolving.
@@ -122,12 +122,7 @@ const CLOUD_DRIFT_SPEED = 3.5;
  *
  * `dayFraction` in [0,1) is the same value `atmosphere.computeWash` consumes.
  */
-export function cloudOptionsFor(
-  season: string,
-  day: number,
-  dayFraction: number,
-  timeSec: number,
-): CloudOptions {
+export function cloudOptionsFor(season: string, day: number, dayFraction: number, timeSec: number): CloudOptions {
   const w = seasonToWeather(season, day);
   // Base overcast: overcast/rainy spells + winter push coverage up.
   let coverage: number;
@@ -391,9 +386,18 @@ function buildingInWindow(b: BuildingSnapshot, w: TileWindow): boolean {
 // MUST match the `heightTiles` authored per type in sprites/recipes/buildings.ts
 // so the sprite art maps 1:1 onto the quad (shared isoSpriteDims).
 const BUILDING_HEIGHT_TILES: Record<string, number> = {
-  keep: 3, tower: 3, garrison: 2, chapel: 2, mill: 3,
-  "town-hall": 2, healer: 2, mine: 2, watchpost: 2,
-  wall: 1, gate: 1, road: 0,
+  keep: 3,
+  tower: 3,
+  garrison: 2,
+  chapel: 2,
+  mill: 3,
+  "town-hall": 2,
+  healer: 2,
+  mine: 2,
+  watchpost: 2,
+  wall: 1,
+  gate: 1,
+  road: 0,
 };
 function buildingHeightTiles(type: string): number {
   return BUILDING_HEIGHT_TILES[type] ?? 1;
@@ -405,10 +409,21 @@ function buildingHeightTiles(type: string): number {
  * (anchored at the footprint diamond, risen by the per-type art height). Returns
  * the iso quad + its painter's-order depth.
  */
-function isoBuildingPlacement(iso: IsoProjection, b: BuildingSnapshot, base: QuadSpec): { quad: QuadSpec; depth: number } {
+function isoBuildingPlacement(
+  iso: IsoProjection,
+  b: BuildingSnapshot,
+  base: QuadSpec,
+): { quad: QuadSpec; depth: number } {
   const box = iso.isoFootprintBox(b.x, b.y, b.w, b.h, buildingHeightTiles(b.type));
   return {
-    quad: { x: box.x, y: box.y, width: box.width, height: box.height, tintRgba: base.tintRgba, ...(base.frame !== undefined ? { frame: base.frame } : {}) },
+    quad: {
+      x: box.x,
+      y: box.y,
+      width: box.width,
+      height: box.height,
+      tintRgba: base.tintRgba,
+      ...(base.frame !== undefined ? { frame: base.frame } : {}),
+    },
     depth: box.depth,
   };
 }
@@ -419,7 +434,15 @@ function isoBuildingPlacement(iso: IsoProjection, b: BuildingSnapshot, base: Qua
  * shadows, cluster borders, and the placement ghost — everything that should sit
  * FLAT on the iso grid rather than billboard upright.
  */
-function isoDiamondSprite(x: number, y: number, width: number, height: number, tintRgba: number, layer: number, sortY: number): Sprite {
+function isoDiamondSprite(
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  tintRgba: number,
+  layer: number,
+  sortY: number,
+): Sprite {
   return isoFlatSprite(x, y, width, height, FRAME_DIAMOND, tintRgba, layer, sortY);
 }
 
@@ -430,16 +453,44 @@ function isoDiamondSprite(x: number, y: number, width: number, height: number, t
  *  top-left); the engine sprite-batch anchors by CENTRE, so we add half-extents
  *  here — mirroring `quadToSprite`. Skipping this shifts the diamond up-left by
  *  half its size (the ghost/shadow then sit off the cursor / building base). */
-function isoFlatSprite(x: number, y: number, width: number, height: number, frame: string, tintRgba: number, layer: number, sortY: number): Sprite {
+function isoFlatSprite(
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  frame: string,
+  tintRgba: number,
+  layer: number,
+  sortY: number,
+): Sprite {
   // `alpha` comes from the tint's alpha byte via `spriteAlphaOf`, NOT a literal 1:
   // the engine discards a tint's alpha channel, so every translucent flat quad here
   // (ghost, footprint shadow, cluster border, light pool, fire glow) would otherwise
   // render fully opaque. Road/bridge tiles pack 0xff and are unaffected.
-  return { atlasId: QUAD_ATLAS_ID, frame, x: x + width / 2, y: y + height / 2, width, height, rotation: 0, layer, alpha: spriteAlphaOf(tintRgba), tintRgba, sortY };
+  return {
+    atlasId: QUAD_ATLAS_ID,
+    frame,
+    x: x + width / 2,
+    y: y + height / 2,
+    width,
+    height,
+    rotation: 0,
+    layer,
+    alpha: spriteAlphaOf(tintRgba),
+    tintRgba,
+    sortY,
+  };
 }
 
 /** Push one building's sprite quad, applying the optional placement ease-in fx. */
-function pushBuilding(renderer: RendererLike, iso: IsoProjection, b: BuildingSnapshot, fx?: SceneFx, clockMs?: number, nightFactor = 0): void {
+function pushBuilding(
+  renderer: RendererLike,
+  iso: IsoProjection,
+  b: BuildingSnapshot,
+  fx?: SceneFx,
+  clockMs?: number,
+  nightFactor = 0,
+): void {
   const base = buildingQuad(b, clockMs, nightFactor);
   const { quad: isoBase, depth } = isoBuildingPlacement(iso, b, base);
 
@@ -447,7 +498,17 @@ function pushBuilding(renderer: RendererLike, iso: IsoProjection, b: BuildingSna
   // Flat features (road/wall/gate) cast none.
   if (buildingShadowQuad(b) !== null) {
     const d = iso.isoFootprintDiamondBox(b.x, b.y, b.w, b.h, 0);
-    renderer.push(isoDiamondSprite(d.x + SHADOW_OFFSET, d.y + SHADOW_OFFSET, d.width, d.height, packTint(EDG.ink, SHADOW_ALPHA), LAYER_ENTITY, depth - 0.0001));
+    renderer.push(
+      isoDiamondSprite(
+        d.x + SHADOW_OFFSET,
+        d.y + SHADOW_OFFSET,
+        d.width,
+        d.height,
+        packTint(EDG.ink, SHADOW_ALPHA),
+        LAYER_ENTITY,
+        depth - 0.0001,
+      ),
+    );
   }
 
   // Phase A cozy pivot: a neglected house (low mood) reads dimmer/cooler than a
@@ -484,7 +545,10 @@ const FACING_FLIP_DEADZONE = 0.3;
  * ages out of `seen`).
  */
 class VillagerHeadingTracker {
-  private readonly last = new Map<number, { x: number; y: number; sx: number; sy: number; lean: number; facing: 1 | -1 }>();
+  private readonly last = new Map<
+    number,
+    { x: number; y: number; sx: number; sy: number; lean: number; facing: 1 | -1 }
+  >();
   private seen = new Set<number>();
 
   /**
@@ -556,7 +620,15 @@ const villagerHeading = new VillagerHeadingTracker();
  * (`pushNetworks`) are pulled from the memoized `memoNetworkTiles`, not
  * culled here — see that function's own doc comment.
  */
-export function pushScene(renderer: RendererLike, iso: IsoProjection, scene: SceneInput, fx?: SceneFx, clockMs?: number, nightFactor = 0, visible?: TileWindow): void {
+export function pushScene(
+  renderer: RendererLike,
+  iso: IsoProjection,
+  scene: SceneInput,
+  fx?: SceneFx,
+  clockMs?: number,
+  nightFactor = 0,
+  visible?: TileWindow,
+): void {
   // Roads + walls draw as autotiled connected networks (brief 11), not per-tile
   // through buildingQuad. Gates still draw their distinct gold block here.
   pushNetworks(renderer, iso, scene.buildings);
@@ -572,7 +644,17 @@ export function pushScene(renderer: RendererLike, iso: IsoProjection, scene: Sce
     for (const m of cluster.members) {
       if (visible !== undefined && !buildingInWindow(m, visible)) continue; // audit-13 cull
       const d = iso.isoFootprintDiamondBox(m.x, m.y, m.w, m.h, 0);
-      renderer.push(isoDiamondSprite(d.x, d.y, d.width, d.height, packTint(EDG.cream, Math.round(0xff * 0.18)), LAYER_ENTITY, d.depth - 0.0002));
+      renderer.push(
+        isoDiamondSprite(
+          d.x,
+          d.y,
+          d.width,
+          d.height,
+          packTint(EDG.cream, Math.round(0xff * 0.18)),
+          LAYER_ENTITY,
+          d.depth - 0.0002,
+        ),
+      );
       // Phase A cozy pivot: a warm hearth light-pool whose strength scales with
       // the house's mood — a content home glows amber, a neglected one stays
       // dark/cold (alpha 0). Same flat iso-diamond pattern as the cluster border,
@@ -582,7 +664,17 @@ export function pushScene(renderer: RendererLike, iso: IsoProjection, scene: Sce
       // separate night light-pool layer (pushLightPool) composes over this anyway.
       const glow = glowAlphaForMood(m.mood);
       if (glow > 0) {
-        renderer.push(isoDiamondSprite(d.x, d.y, d.width, d.height, packTint(EDG.gold, Math.round(0xff * glow)), LAYER_ENTITY, d.depth - 0.0001));
+        renderer.push(
+          isoDiamondSprite(
+            d.x,
+            d.y,
+            d.width,
+            d.height,
+            packTint(EDG.gold, Math.round(0xff * glow)),
+            LAYER_ENTITY,
+            d.depth - 0.0001,
+          ),
+        );
       }
     }
     for (const b of cluster.members) {
@@ -645,10 +737,21 @@ export function pushScene(renderer: RendererLike, iso: IsoProjection, scene: Sce
     const base = raiderQuad(r, clockMs);
     const rp = fx?.raiderPos !== undefined ? fx.raiderPos(r) : { x: r.x, y: r.y };
     const box = iso.isoPointBox(rp.x + 0.5, rp.y + 0.5, base.width);
-    renderer.push(quadToSprite(
-      { x: box.x, y: box.y, width: box.width, height: box.height, tintRgba: base.tintRgba, ...(base.frame !== undefined ? { frame: base.frame } : {}) },
-      LAYER_ENTITY, 1, box.depth + 0.0001,
-    ));
+    renderer.push(
+      quadToSprite(
+        {
+          x: box.x,
+          y: box.y,
+          width: box.width,
+          height: box.height,
+          tintRgba: base.tintRgba,
+          ...(base.frame !== undefined ? { frame: base.frame } : {}),
+        },
+        LAYER_ENTITY,
+        1,
+        box.depth + 0.0001,
+      ),
+    );
   }
 }
 
@@ -686,11 +789,18 @@ export function pushNetworks(renderer: RendererLike, iso: IsoProjection, buildin
     // Bridges sit just above the terrain water but BELOW roads/walls so a bridge
     // mouth tucks under the road it meets; textured tiles draw white-tinted.
     const depth = t.type === "bridge" ? d.depth - 0.6 : d.depth - 0.5;
-    renderer.push(isoFlatSprite(
-      d.x + insetX, d.y + insetY, d.width * t.band, d.height * t.band,
-      t.frame ?? FRAME_DIAMOND, t.frame !== undefined ? packTint(EDG.white) : packTint(t.hex),
-      LAYER_NETWORK, depth,
-    ));
+    renderer.push(
+      isoFlatSprite(
+        d.x + insetX,
+        d.y + insetY,
+        d.width * t.band,
+        d.height * t.band,
+        t.frame ?? FRAME_DIAMOND,
+        t.frame !== undefined ? packTint(EDG.white) : packTint(t.hex),
+        LAYER_NETWORK,
+        depth,
+      ),
+    );
   }
 }
 
@@ -763,7 +873,7 @@ export function pushDisconnectedMarkers(
   clockMs = 0,
 ): void {
   // Gentle 0.6..1.0 alpha pulse (~1.4 s period) — attention without strobing.
-  const pulse = 0.6 + 0.4 * (0.5 + 0.5 * Math.sin(clockMs / 1000 * (Math.PI * 2 / 1.4)));
+  const pulse = 0.6 + 0.4 * (0.5 + 0.5 * Math.sin((clockMs / 1000) * ((Math.PI * 2) / 1.4)));
   const alpha = Math.round(0xff * pulse);
   const tint = packTint(EDG.gold, alpha);
   const chip = ISO_TILE_H * 0.55; // small chip, ~half a tile-height square
@@ -813,10 +923,9 @@ export function pushLightPool(renderer: RendererLike, iso: IsoProjection, quads:
     // An iso diamond spanning `radiusTiles` each way: width = 2·r·ISO_HW, height = 2·r·ISO_HH.
     const halfW = radiusTiles * (ISO_TILE_W / 2);
     const halfH = radiusTiles * (ISO_TILE_H / 2);
-    renderer.push(isoFlatSprite(
-      c.x - halfW, c.y - halfH, halfW * 2, halfH * 2,
-      FRAME_DIAMOND, q.tintRgba, LAYER_LIGHT_POOL, c.y,
-    ));
+    renderer.push(
+      isoFlatSprite(c.x - halfW, c.y - halfH, halfW * 2, halfH * 2, FRAME_DIAMOND, q.tintRgba, LAYER_LIGHT_POOL, c.y),
+    );
   }
 }
 
@@ -844,7 +953,9 @@ export function pushFire(
     const c = iso.tileCenterToIso(cxTile - 0.5, cyTile - 0.5);
     const halfW = radiusTiles * (ISO_TILE_W / 2);
     const halfH = radiusTiles * (ISO_TILE_H / 2);
-    renderer.push(isoFlatSprite(c.x - halfW, c.y - halfH, halfW * 2, halfH * 2, FRAME_DIAMOND, q.tintRgba, LAYER_LIGHT_POOL, c.y));
+    renderer.push(
+      isoFlatSprite(c.x - halfW, c.y - halfH, halfW * 2, halfH * 2, FRAME_DIAMOND, q.tintRgba, LAYER_LIGHT_POOL, c.y),
+    );
   }
   // Flame billboards: an upright flame sprite over each burning building's body,
   // footprint-scaled, flicker-animated. Drawn on the entity layer with a sortY
@@ -859,10 +970,14 @@ export function pushFire(
     const fy = box.y + box.height - fh; // base near the building's foot
     const phaseMs = (b.x * 53 + b.y * 97) % 360; // de-sync neighbouring fires
     const frame = flameFrameAt(clockMs, 360, phaseMs);
-    renderer.push(quadToSprite(
-      { x: fx, y: fy, width: fw, height: fh, tintRgba: packTint(EDG.white), frame },
-      LAYER_ENTITY, 1, box.depth + 0.5, // just in front of the building
-    ));
+    renderer.push(
+      quadToSprite(
+        { x: fx, y: fy, width: fw, height: fh, tintRgba: packTint(EDG.white), frame },
+        LAYER_ENTITY,
+        1,
+        box.depth + 0.5, // just in front of the building
+      ),
+    );
   }
 }
 

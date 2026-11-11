@@ -1,11 +1,4 @@
-import type {
-  ButtonNode,
-  CheckboxNode,
-  ContainerNode,
-  LabelNode,
-  SliderNode,
-  UINode,
-} from "../widget/node";
+import type { ButtonNode, CheckboxNode, ContainerNode, LabelNode, SliderNode, UINode } from "../widget/node";
 import { isContainer } from "../widget/node";
 
 /**
@@ -425,8 +418,9 @@ export function createA11yMirror(mount: HTMLElement, opts: A11yMirrorOptions = {
     else if (node.kind === "slider") patchSlider(entry, node);
     else if (node.kind === "checkbox") patchCheckbox(entry, node);
     else if (node.kind === "label") patchLabel(entry, node);
-    else if (node.kind === "icon" || node.kind === "custom") { /* decorative — nothing to patch, see makeElement */ }
-    else patchRegion(entry, node);
+    else if (node.kind === "icon" || node.kind === "custom") {
+      /* decorative — nothing to patch, see makeElement */
+    } else patchRegion(entry, node);
 
     // Append (or move) to the correct ordinal position under the parent.
     parentEl.appendChild(entry.el);

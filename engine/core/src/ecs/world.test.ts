@@ -95,7 +95,7 @@ describe("World", () => {
       const c = world.spawn({ transform: { x: 2, y: 2, prevX: 0, prevY: 0, rotation: 0 } });
       const q = world.query("transform");
 
-      const visited: typeof a[] = [];
+      const visited: (typeof a)[] = [];
       for (const e of q) {
         visited.push(e);
         world.despawn(e);

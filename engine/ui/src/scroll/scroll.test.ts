@@ -150,14 +150,7 @@ describe("renderScrollViewport — child culling and translation", () => {
     vp: ReturnType<typeof scroll>;
     children: ReturnType<typeof label>[];
   } {
-    const children = [
-      label("A"),
-      label("B"),
-      label("C"),
-      label("D"),
-      label("E"),
-      label("F"),
-    ];
+    const children = [label("A"), label("B"), label("C"), label("D"), label("E"), label("F")];
 
     const vp = scroll({ width: 100, height: 50 }, children);
     // Manually lay out children in content-space (each 20px tall, stacked).

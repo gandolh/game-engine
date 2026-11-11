@@ -72,13 +72,7 @@ function easeHappiness(prior: number, target: number): number {
  * watchpost is the dedicated safety building; the fortifications also count
  * (citadel-38 P2#12 — their SERVICE_RADII were previously dead data).
  */
-const SAFETY_PROVIDERS: ReadonlySet<string> = new Set([
-  "watchpost",
-  "tower",
-  "garrison",
-  "keep",
-  "town-hall",
-]);
+const SAFETY_PROVIDERS: ReadonlySet<string> = new Set(["watchpost", "tower", "garrison", "keep", "town-hall"]);
 
 export class NeedsHappinessSystem implements System {
   readonly name = "NeedsHappinessSystem";
@@ -156,22 +150,12 @@ export class NeedsHappinessSystem implements System {
     let festivalMet = 0;
 
     for (const house of houses) {
-      const hasFaith = chapels.some(
-        (c) => manhattanDist(house.cx, house.cy, c.cx, c.cy) <= c.radius,
-      );
-      const hasSafety = watchposts.some(
-        (w) => manhattanDist(house.cx, house.cy, w.cx, w.cy) <= w.radius,
-      );
-      const hasGoodsAccess =
-        hasGoods &&
-        markets.some(
-          (m) => manhattanDist(house.cx, house.cy, m.cx, m.cy) <= m.radius,
-        );
+      const hasFaith = chapels.some((c) => manhattanDist(house.cx, house.cy, c.cx, c.cy) <= c.radius);
+      const hasSafety = watchposts.some((w) => manhattanDist(house.cx, house.cy, w.cx, w.cy) <= w.radius);
+      const hasGoodsAccess = hasGoods && markets.some((m) => manhattanDist(house.cx, house.cy, m.cx, m.cy) <= m.radius);
       // Cozy-pivot Phase G: a home in reach of a public square gets a festival mood
       // lift — an autonomous placement effect (no decree, no bread, no command).
-      const hasFestival = squares.some(
-        (s) => manhattanDist(house.cx, house.cy, s.cx, s.cy) <= s.radius,
-      );
+      const hasFestival = squares.some((s) => manhattanDist(house.cx, house.cy, s.cx, s.cy) <= s.radius);
 
       if (hasFaith) faithMet++;
       if (hasSafety) safetyMet++;

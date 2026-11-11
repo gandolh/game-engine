@@ -17,7 +17,6 @@ const bush: TileFeature = { kind: "bush", tileX: 1, tileY: 1, regionId: "farm-co
 
 describe("deliberateResourceZoneVisit", () => {
   it("still travels to the quarry when the only owned feature is a bush (kind-blind gate, item 23)", () => {
-
     const f = makeFarmer();
     deliberateResourceZoneVisit(f, [bush], "stone", 9);
     expect(f.intentions!.queue.some((i) => i.kind === "travel")).toBe(true);

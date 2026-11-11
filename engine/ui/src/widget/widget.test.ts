@@ -158,9 +158,7 @@ describe("button intrinsic size + state", () => {
 describe("renderTree — emits themed quads + text", () => {
   it("paints panel border+bg, then a label's glyph quads", () => {
     const { surface, rec } = makeSurface();
-    const root = panel({ direction: "column", padding: 2, gap: 0 }, [
-      label("A", { color: EDG.yellow }),
-    ]);
+    const root = panel({ direction: "column", padding: 2, gap: 0 }, [label("A", { color: EDG.yellow })]);
     computeLayout(root, 0, 0, DEFAULT_THEME);
 
     surface.begin();
@@ -213,7 +211,7 @@ describe("renderTree — emits themed quads + text", () => {
     const lbl = label("A", { color: EDG.yellow });
     const root = panel({ direction: "column", padding: 2, gap: 0 }, [lbl]);
     root.opacity = 0.5; // fade the whole panel
-    lbl.opacity = 0.5;  // ...and the label half again ⇒ 0.25 on its glyphs
+    lbl.opacity = 0.5; // ...and the label half again ⇒ 0.25 on its glyphs
     computeLayout(root, 0, 0, DEFAULT_THEME);
     surface.begin();
     renderTree(surface, root, DEFAULT_THEME);

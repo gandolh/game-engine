@@ -16,12 +16,7 @@ export const WEATHER_MULTIPLIER: Record<WeatherCondition, number> = {
 
 export type Season = "spring" | "summer" | "autumn" | "winter";
 
-export const SEASON_ORDER: ReadonlyArray<Season> = [
-  "spring",
-  "summer",
-  "autumn",
-  "winter",
-];
+export const SEASON_ORDER: ReadonlyArray<Season> = ["spring", "summer", "autumn", "winter"];
 
 export const SEASON_LENGTH = 25;
 

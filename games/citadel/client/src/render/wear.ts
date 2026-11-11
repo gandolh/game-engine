@@ -116,11 +116,7 @@ export function wearOverlayQuads(b: BuildingSnapshot, factor: number): QuadSpec[
  * Healthy buildings emit nothing. Call inside the same begin/endFrame as
  * `pushScene`.
  */
-export function pushWearOverlay(
-  renderer: RendererLike,
-  buildings: readonly BuildingSnapshot[],
-  clockMs = 0,
-): void {
+export function pushWearOverlay(renderer: RendererLike, buildings: readonly BuildingSnapshot[], clockMs = 0): void {
   for (const b of buildings) {
     const factor = wearFactor(b, clockMs);
     if (factor <= 0) continue;

@@ -51,10 +51,16 @@ function buttonByLabel(root: UINode, label: string): ButtonNode | undefined {
 describe("createResourceHud — data binding", () => {
   it("renders the settlement readout fields from the snapshot", () => {
     const hud = createResourceHud({ togglePause: () => {}, setSpeed: () => {} });
-    hud.refresh(baseState({
-      tier: "Town", day: 12, season: "summer",
-      population: 7, popCap: 10, happiness: 72,
-    }));
+    hud.refresh(
+      baseState({
+        tier: "Town",
+        day: 12,
+        season: "summer",
+        population: 7,
+        popCap: 10,
+        happiness: 72,
+      }),
+    );
     const texts = labels(hud.root).map((l) => l.text);
     expect(texts).toContain("Town");
     expect(texts).toContain("Day 12 (summer)");
@@ -64,10 +70,12 @@ describe("createResourceHud — data binding", () => {
 
   it("renders a live chip for every good in production-chain order", () => {
     const hud = createResourceHud({ togglePause: () => {}, setSpeed: () => {} });
-    hud.refresh(baseState({
-      stockpiles: { grain: 11, flour: 2, bread: 30, wood: 18, stone: 7, planks: 4, tools: 1 },
-      foodSurplus: 5,
-    }));
+    hud.refresh(
+      baseState({
+        stockpiles: { grain: 11, flour: 2, bread: 30, wood: 18, stone: 7, planks: 4, tools: 1 },
+        foodSurplus: 5,
+      }),
+    );
     const texts = labels(hud.root).map((l) => l.text);
     expect(texts).toContain("Grain 11");
     expect(texts).toContain("Flour 2");
@@ -80,10 +88,12 @@ describe("createResourceHud — data binding", () => {
 
   it("shows a negative food surplus without a plus sign", () => {
     const hud = createResourceHud({ togglePause: () => {}, setSpeed: () => {} });
-    hud.refresh(baseState({
-      stockpiles: { grain: 0, flour: 0, bread: 4, wood: 0, stone: 0, planks: 0, tools: 0 },
-      foodSurplus: -3,
-    }));
+    hud.refresh(
+      baseState({
+        stockpiles: { grain: 0, flour: 0, bread: 4, wood: 0, stone: 0, planks: 0, tools: 0 },
+        foodSurplus: -3,
+      }),
+    );
     expect(labelText(hud.root, "Bread")?.text).toBe("Bread 4 (-3)");
   });
 
@@ -290,7 +300,9 @@ describe("createResourceHud — fits MIN_VIEWPORT (playtest-02)", () => {
 
   it("keeps each row inside the width the minimap leaves", () => {
     // The point of the two-row split: NEITHER row may be the one that overflows.
-    const hud = laidOut(baseState({ stockpiles: { grain: 999, flour: 999, bread: 999, wood: 999, planks: 999, stone: 999, tools: 999 } }));
+    const hud = laidOut(
+      baseState({ stockpiles: { grain: 999, flour: 999, bread: 999, wood: 999, planks: 999, stone: 999, tools: 999 } }),
+    );
     for (const row of hud.root.children) {
       expect(row.rect.width).toBeLessThanOrEqual(availableWidth(MIN_VIEWPORT.width));
     }

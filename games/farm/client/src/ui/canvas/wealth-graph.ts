@@ -124,30 +124,14 @@ export function createWealthGraph(): WealthGraph {
     // Axis labels.
     drawText(surface, "0", bounds.left - 14, bounds.bottom + 2, { color: EDG.slate });
     const maxDayText = String(maxDay);
-    drawText(
-      surface,
-      maxDayText,
-      bounds.right - measureText(maxDayText),
-      bounds.bottom + 10,
-      { color: EDG.slate },
-    );
+    drawText(surface, maxDayText, bounds.right - measureText(maxDayText), bounds.bottom + 10, { color: EDG.slate });
 
     const maxGoldText = `${maxGold}g`;
-    drawText(
-      surface,
-      maxGoldText,
-      bounds.left - 2 - measureText(maxGoldText),
-      bounds.top,
-      { color: EDG.slate },
-    );
+    drawText(surface, maxGoldText, bounds.left - 2 - measureText(maxGoldText), bounds.top, { color: EDG.slate });
     const zeroGoldText = "0g";
-    drawText(
-      surface,
-      zeroGoldText,
-      bounds.left - 2 - measureText(zeroGoldText),
-      bounds.bottom - 7,
-      { color: EDG.slate },
-    );
+    drawText(surface, zeroGoldText, bounds.left - 2 - measureText(zeroGoldText), bounds.bottom - 7, {
+      color: EDG.slate,
+    });
 
     // Per-farmer polylines (dot-chain approximation — see module doc) + endpoint initials.
     const allPoints = computePoints(series, bounds);

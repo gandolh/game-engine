@@ -92,7 +92,12 @@ describe("verifyProblem is coupled to GENERATORS (audit-55)", () => {
 
   it("throws rather than silently passing when handed an unrecognised topic", () => {
     const rogue = {
-      kind: "typed", topic: "division", grade: 3, prompt: "6 : 2 = ?", answer: 99, teach: "x",
+      kind: "typed",
+      topic: "division",
+      grade: 3,
+      prompt: "6 : 2 = ?",
+      answer: 99,
+      teach: "x",
     } as unknown as Problem;
     expect(() => verifyProblem(rogue)).toThrow(/no independent check for topic "division"/);
   });
@@ -313,9 +318,10 @@ describe("comparisonTeach — the worked step fits the numbers (playtest-03)", (
   function comparisonWith(pred: (a: number, b: number) => boolean, locale?: "ro" | "en"): Problem {
     for (let seed = 1; seed < 8000; seed++) {
       for (const grade of GRADES) {
-        const p = locale === undefined
-          ? GENERATORS.comparison(createRng(seed), grade)
-          : GENERATORS.comparison(createRng(seed), grade, locale);
+        const p =
+          locale === undefined
+            ? GENERATORS.comparison(createRng(seed), grade)
+            : GENERATORS.comparison(createRng(seed), grade, locale);
         const [a, b] = numbersIn(p.prompt);
         if (a !== undefined && b !== undefined && pred(a, b)) return p;
       }

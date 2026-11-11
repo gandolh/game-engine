@@ -93,9 +93,18 @@ function bucketBuildings(buildings: readonly BuildingSnapshot[]): {
   let nonRoadTotal = 0;
   for (const b of buildings) {
     const prod = getProductionDef(b.type);
-    if (prod?.isRoad === true) { road++; continue; }
-    if (prod?.isWall === true) { wall++; continue; }
-    if (prod?.isGate === true) { gate++; continue; }
+    if (prod?.isRoad === true) {
+      road++;
+      continue;
+    }
+    if (prod?.isWall === true) {
+      wall++;
+      continue;
+    }
+    if (prod?.isGate === true) {
+      gate++;
+      continue;
+    }
     nonRoad[b.type] = (nonRoad[b.type] ?? 0) + 1;
     nonRoadTotal++;
   }

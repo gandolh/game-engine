@@ -3,11 +3,7 @@ import { frameToAtlasId } from "@farm/sim-core/render-systems";
 
 const cache = new Map<string, string | null>();
 
-export function frameDataUrl(
-  renderer: RendererLike,
-  frame: string,
-  scale = 2,
-): string | null {
+export function frameDataUrl(renderer: RendererLike, frame: string, scale = 2): string | null {
   const key = `${frame}@${scale}`;
   const cached = cache.get(key);
   if (cached !== undefined) return cached;

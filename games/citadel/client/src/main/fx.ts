@@ -11,12 +11,12 @@ import { TICKS_PER_DAY } from "./constants";
 // A single shared mutable object: settings.ts mutates its properties (never reassigns the
 // `renderToggles` binding itself), render-loop.ts reads them.
 export const renderToggles = {
-  wash: true,        // day/night + seasonal wash (brief 15)
-  clouds: true,      // fBm cloud-shadow + morning-haze overlay (art-03)
-  lightPool: true,   // night light pool (brief 15)
-  weather: true,     // weather particle FX (brief 16)
+  wash: true, // day/night + seasonal wash (brief 15)
+  clouds: true, // fBm cloud-shadow + morning-haze overlay (art-03)
+  lightPool: true, // night light pool (brief 15)
+  weather: true, // weather particle FX (brief 16)
   ambientCrowd: true, // instanced ambient crowd (brief 18)
-  smoke: true,       // chimney smoke (brief 17)
+  smoke: true, // chimney smoke (brief 17)
 };
 
 // Atmosphere (render-only, off-sim): day/night wash, weather FX, ambient crowd.

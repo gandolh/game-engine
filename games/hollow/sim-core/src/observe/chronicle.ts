@@ -42,7 +42,16 @@
  * output is unchanged.
  */
 import type { MessageBus } from "@engine/core";
-import { ONT_FAMILY, ONT_COMMUNITY, ONT_SOCIAL, ONT_STARVATION, ONT_GOVERNANCE, ONT_FEUD, ONT_JOBS, ONT_MORTALITY } from "../protocols";
+import {
+  ONT_FAMILY,
+  ONT_COMMUNITY,
+  ONT_SOCIAL,
+  ONT_STARVATION,
+  ONT_GOVERNANCE,
+  ONT_FEUD,
+  ONT_JOBS,
+  ONT_MORTALITY,
+} from "../protocols";
 import {
   RATIONALE_MAX_CHARS,
   type RationalizerDecision,
@@ -215,9 +224,11 @@ export function createChronicle(bus: MessageBus, cap: number = CHRONICLE_CAP): C
     return out;
   }
 
-  const capture = (ontology: string) => (msg: { body: Record<string, unknown> }): void => {
-    pushEvent({ tick: bodyTick(msg.body), ontology, ...msg.body });
-  };
+  const capture =
+    (ontology: string) =>
+    (msg: { body: Record<string, unknown> }): void => {
+      pushEvent({ tick: bodyTick(msg.body), ontology, ...msg.body });
+    };
 
   for (const ontology of ALL_FAMILY_ONTOLOGIES) {
     bus.subscribeOntology(ontology, capture(ontology));

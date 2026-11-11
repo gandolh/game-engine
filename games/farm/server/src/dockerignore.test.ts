@@ -27,7 +27,9 @@ const DOCKERFILE = readFileSync(join(REPO_ROOT, "infrastructure", "Dockerfile"),
 
 /** Patterns in file order, comments and blanks stripped. */
 function patterns(): string[] {
-  return IGNORE.split("\n").map((l) => l.trim()).filter((l) => l !== "" && !l.startsWith("#"));
+  return IGNORE.split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l !== "" && !l.startsWith("#"));
 }
 
 /**
@@ -44,8 +46,13 @@ function toRegExp(pat: string): RegExp {
     if (c === "*") {
       if (pat[i + 1] === "*") {
         // `**/` spans any number of path segments (including none); a bare `**` spans anything.
-        if (pat[i + 2] === "/") { out += "(?:[^/]+/)*"; i += 2; }
-        else { out += ".*"; i += 1; }
+        if (pat[i + 2] === "/") {
+          out += "(?:[^/]+/)*";
+          i += 2;
+        } else {
+          out += ".*";
+          i += 1;
+        }
       } else {
         out += "[^/]*"; // a single `*` stops at a separator
       }
@@ -161,8 +168,6 @@ describe("the runtime stage runs built JavaScript with node, nothing else", () =
 
   it("the bundle sits at the same depth as src/, so the server's relative wasm path still resolves", () => {
     // index.ts reads `../../../../engine/wasm-modules/dist/pathfinding.wasm` from its own directory.
-    expect(instructions).toContain(
-      "COPY --from=build /app/games/farm/server/dist ./games/farm/server/dist",
-    );
+    expect(instructions).toContain("COPY --from=build /app/games/farm/server/dist ./games/farm/server/dist");
   });
 });

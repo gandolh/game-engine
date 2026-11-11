@@ -1,5 +1,3 @@
-
-
 import { EDG } from "@engine/core/render";
 
 export const PERSONALITY_COLORS: Record<string, string> = {

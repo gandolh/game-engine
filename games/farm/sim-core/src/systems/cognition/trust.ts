@@ -1,5 +1,3 @@
-
-
 import type { SimContext, System, World } from "@engine/core";
 import { applyRelationshipDelta } from "@engine/core/agent";
 import type { GameEntity } from "../../components";

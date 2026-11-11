@@ -1,5 +1,3 @@
-
-
 export {
   ZERO_CROPS,
   CROP_SELL_PRICE,

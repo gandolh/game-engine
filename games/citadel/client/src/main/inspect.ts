@@ -73,7 +73,7 @@ export function initInspectPanel(): void {
       client.sendCommand({ type: "trade", payload: offer });
     },
   });
-  inspectDispatcher = createInputDispatcher(() => (inspectOpen() ? inspectPanel?.root ?? null : null));
+  inspectDispatcher = createInputDispatcher(() => (inspectOpen() ? (inspectPanel?.root ?? null) : null));
   if (inspectA11yMount !== null) {
     inspectMirror = createA11yMirror(inspectA11yMount, {
       rootLabel: "Building inspector",

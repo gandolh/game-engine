@@ -1,4 +1,3 @@
-
 import { bootstrapSim } from "@farm/sim-core/sim-bootstrap";
 import { ONT_SIMULATION, ONT_MARKET, type ShockBody } from "@farm/sim-core/protocols";
 import { runOnce, summarize } from "./run-core";

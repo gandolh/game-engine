@@ -1,9 +1,6 @@
 import type { Intention, Rng, World } from "@engine/core";
 import type { GameEntity, DecorationKind } from "../../../components";
-import {
-  DECORATION_RECIPE,
-  MAX_DECORATION_BOOST,
-} from "../../../components";
+import { DECORATION_RECIPE, MAX_DECORATION_BOOST } from "../../../components";
 import { grantSkillXp, foragingGoldMultiplier, miningRarityBonus } from "../../skills";
 import { isWithinReach } from "../../proximity";
 import { REGIONS, forEachLandTile } from "../../../world/regions";
@@ -20,7 +17,7 @@ export function handleChopTree(
   forageRng: Rng,
 ): void {
   if (farmer.id === undefined) return;
-  const axe = (farmer.inventory.tools ?? []).find(t => t.kind === "axe" && t.durability > 0);
+  const axe = (farmer.inventory.tools ?? []).find((t) => t.kind === "axe" && t.durability > 0);
   if (!axe) return;
   const tileX = intent.data.tileX as number;
   const tileY = intent.data.tileY as number;
@@ -69,7 +66,7 @@ export function handleMineStone(
   mineRng: Rng,
 ): void {
   if (farmer.id === undefined) return;
-  const pick = (farmer.inventory.tools ?? []).find(t => t.kind === "pickaxe" && t.durability > 0);
+  const pick = (farmer.inventory.tools ?? []).find((t) => t.kind === "pickaxe" && t.durability > 0);
   if (!pick) return;
   const tileX = intent.data.tileX as number;
   const tileY = intent.data.tileY as number;
@@ -104,7 +101,6 @@ export function handleRefillCan(
   _intent: Intention,
   fountainByRegion: Map<string, GameEntity>,
 ): void {
-
   const can = farmer.inventory.wateringCan;
   if (!can) return;
 
@@ -123,23 +119,19 @@ export function handleRefillCan(
   }
 
   for (const wellId of ["well-north", "well-south"] as const) {
-    const wellRegion = REGIONS.find(r => r.id === wellId);
+    const wellRegion = REGIONS.find((r) => r.id === wellId);
     if (wellRegion) {
       sourceTiles.push({ tileX: wellRegion.center.x, tileY: wellRegion.center.y });
     }
   }
 
-  const adjacent = sourceTiles.some(s => isWithinReach(farmer.transform, s.tileX, s.tileY));
+  const adjacent = sourceTiles.some((s) => isWithinReach(farmer.transform, s.tileX, s.tileY));
   if (!adjacent) return;
 
   can.charges = can.maxCharges;
 }
 
-export function handleCraftDecoration(
-  farmer: ActingFarmer,
-  intent: Intention,
-  world: World<GameEntity>,
-): void {
+export function handleCraftDecoration(farmer: ActingFarmer, intent: Intention, world: World<GameEntity>): void {
   if (farmer.id === undefined || !farmer.farmer?.homeRegion) return;
   const farmerId = farmer.id;
   const kind = intent.data.kind as DecorationKind;
@@ -157,7 +149,7 @@ export function handleCraftDecoration(
   if (existingBoost >= MAX_DECORATION_BOOST) return;
 
   const homeRegion = farmer.farmer.homeRegion;
-  const regionDef = REGIONS.find(r => r.id === homeRegion);
+  const regionDef = REGIONS.find((r) => r.id === homeRegion);
   if (!regionDef) return;
 
   const usedTiles = new Set<string>();
@@ -196,7 +188,7 @@ export function handleForage(farmer: ActingFarmer, day: number): void {
   if (!region) return;
   const zone = FORAGE_ZONES[region];
   if (!zone) return;
-  if (seasonForDay(day) !== zone.season) return; 
+  if (seasonForDay(day) !== zone.season) return;
 
   const mult = foragingGoldMultiplier(farmer.skills?.foraging ?? 0);
   farmer.inventory.gold += Math.round(zone.reward * mult);

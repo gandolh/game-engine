@@ -46,10 +46,19 @@ export function pickEdgeSpawn(
   for (let attempt = 0; attempt < 32; attempt++) {
     let x: number;
     let y: number;
-    if (edge === 0) { x = rng.int(0, width); y = 0; }
-    else if (edge === 1) { x = width - 1; y = rng.int(0, height); }
-    else if (edge === 2) { x = rng.int(0, width); y = height - 1; }
-    else { x = 0; y = rng.int(0, height); }
+    if (edge === 0) {
+      x = rng.int(0, width);
+      y = 0;
+    } else if (edge === 1) {
+      x = width - 1;
+      y = rng.int(0, height);
+    } else if (edge === 2) {
+      x = rng.int(0, width);
+      y = height - 1;
+    } else {
+      x = 0;
+      y = rng.int(0, height);
+    }
     if (isWalkable(terrain, x, y)) return { x, y };
   }
   // Fallback: a deterministic corner-ish tile on the edge.
@@ -75,15 +84,7 @@ export function computeRaiderPath(
   p: PlayerState,
   terrain: TerrainGrid,
 ): Array<{ x: number; y: number }> | null {
-  return bfsPath(
-    sx,
-    sy,
-    gx,
-    gy,
-    (tx, ty) => raiderWalkable(state, p, terrain, tx, ty),
-    state.width,
-    state.height,
-  );
+  return bfsPath(sx, sy, gx, gy, (tx, ty) => raiderWalkable(state, p, terrain, tx, ty), state.width, state.height);
 }
 
 export class RaidSpawnSystem implements System {

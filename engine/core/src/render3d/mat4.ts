@@ -86,9 +86,18 @@ export function lookAt(eye: Vec3, target: Vec3, up: Vec3): Mat4 {
   }
   const yAxis = cross(zAxis, xAxis);
   const out = new Float32Array(16);
-  out[0] = xAxis[0]; out[1] = yAxis[0]; out[2] = zAxis[0]; out[3] = 0;
-  out[4] = xAxis[1]; out[5] = yAxis[1]; out[6] = zAxis[1]; out[7] = 0;
-  out[8] = xAxis[2]; out[9] = yAxis[2]; out[10] = zAxis[2]; out[11] = 0;
+  out[0] = xAxis[0];
+  out[1] = yAxis[0];
+  out[2] = zAxis[0];
+  out[3] = 0;
+  out[4] = xAxis[1];
+  out[5] = yAxis[1];
+  out[6] = zAxis[1];
+  out[7] = 0;
+  out[8] = xAxis[2];
+  out[9] = yAxis[2];
+  out[10] = zAxis[2];
+  out[11] = 0;
   out[12] = -dot(xAxis, eye);
   out[13] = -dot(yAxis, eye);
   out[14] = -dot(zAxis, eye);
@@ -138,10 +147,22 @@ export function rotationZ(rad: number): Mat4 {
  * silent NaN matrix is a worse failure mode for a headless-tested library.
  */
 export function invert(m: Mat4): Mat4 {
-  const m00 = m[0] as number, m01 = m[1] as number, m02 = m[2] as number, m03 = m[3] as number;
-  const m10 = m[4] as number, m11 = m[5] as number, m12 = m[6] as number, m13 = m[7] as number;
-  const m20 = m[8] as number, m21 = m[9] as number, m22 = m[10] as number, m23 = m[11] as number;
-  const m30 = m[12] as number, m31 = m[13] as number, m32 = m[14] as number, m33 = m[15] as number;
+  const m00 = m[0] as number,
+    m01 = m[1] as number,
+    m02 = m[2] as number,
+    m03 = m[3] as number;
+  const m10 = m[4] as number,
+    m11 = m[5] as number,
+    m12 = m[6] as number,
+    m13 = m[7] as number;
+  const m20 = m[8] as number,
+    m21 = m[9] as number,
+    m22 = m[10] as number,
+    m23 = m[11] as number;
+  const m30 = m[12] as number,
+    m31 = m[13] as number,
+    m32 = m[14] as number,
+    m33 = m[15] as number;
 
   const b00 = m00 * m11 - m01 * m10;
   const b01 = m00 * m12 - m02 * m10;
@@ -183,7 +204,9 @@ export function invert(m: Mat4): Mat4 {
 /** Transform a point `p` (implicit w=1) by `m`, then perspective-divide by the
  *  resulting w. */
 export function transformPoint(m: Mat4, p: Vec3): Vec3 {
-  const x = p[0], y = p[1], z = p[2];
+  const x = p[0],
+    y = p[1],
+    z = p[2];
   const rx = (m[0] as number) * x + (m[4] as number) * y + (m[8] as number) * z + (m[12] as number);
   const ry = (m[1] as number) * x + (m[5] as number) * y + (m[9] as number) * z + (m[13] as number);
   const rz = (m[2] as number) * x + (m[6] as number) * y + (m[10] as number) * z + (m[14] as number);

@@ -1,19 +1,16 @@
-
-
 import type { CropKind, CropQuality } from "../components";
 
 export const ONT_HARBOR = {
-  CONTRACT_POSTED:    "harbor/contract-posted",
+  CONTRACT_POSTED: "harbor/contract-posted",
   CONTRACT_COMMITTED: "harbor/contract-committed",
   CONTRACT_DELIVERED: "harbor/contract-delivered",
-  CONTRACT_MISSED:    "harbor/contract-missed",
-  CONTRACT_EXPIRED:   "harbor/contract-expired",
+  CONTRACT_MISSED: "harbor/contract-missed",
+  CONTRACT_EXPIRED: "harbor/contract-expired",
 } as const;
 
 export type HarborOntology = (typeof ONT_HARBOR)[keyof typeof ONT_HARBOR];
 
 export interface ContractGoods {
-
   crop: CropKind;
 
   minQuality: CropQuality;
@@ -34,7 +31,6 @@ export interface ContractGoods {
 export type ContractSize = "small" | "medium" | "large";
 
 export interface HarborContract {
-
   id: string;
 
   goods: ContractGoods;

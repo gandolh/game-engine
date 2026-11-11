@@ -1,21 +1,11 @@
-
-
 import type { SimContext, System, World } from "@engine/core";
 import type { GameEntity } from "../../components";
 import { ONT_ENCOUNTER, type AcceptBody } from "../../protocols/encounter";
 import { ONT_MARKET } from "../../protocols/market";
 import { ONT_SHOP, type AuctionResultBody } from "../../protocols/shop";
 import { ONT_FESTIVAL, type FestivalResultBody } from "../../protocols/festival";
-import {
-  ONT_SIMULATION,
-  type ShockBody,
-  type CropDeathBody,
-} from "../../protocols/simulation";
-import {
-  ONT_HARBOR,
-  type ContractDeliveredBody,
-  type ContractMissedBody,
-} from "../../protocols/harbor";
+import { ONT_SIMULATION, type ShockBody, type CropDeathBody } from "../../protocols/simulation";
+import { ONT_HARBOR, type ContractDeliveredBody, type ContractMissedBody } from "../../protocols/harbor";
 import { ONT_CORAL, type CoralCaughtBody } from "../../protocols/coral";
 import type { DayClockSystem } from "../world-time/day-clock";
 import type { RivalrySystem } from "../rivalry";
@@ -102,39 +92,19 @@ export class EventFeedSystem implements System {
             this.captureTrade(msg.body as TradeCompletedBody, tick, day, out);
             break;
           case ONT_SHOP.AUCTION_RESULT:
-            this.captureAuction(
-              msg.body as unknown as AuctionResultBody,
-              tick,
-              day,
-              out,
-            );
+            this.captureAuction(msg.body as unknown as AuctionResultBody, tick, day, out);
             break;
           case ONT_SIMULATION.SHOCK:
             this.captureShock(msg.body as unknown as ShockBody, tick, day, out);
             break;
           case ONT_SIMULATION.CROP_DEATH:
-            this.captureCropDeath(
-              msg.body as unknown as CropDeathBody,
-              tick,
-              day,
-              out,
-            );
+            this.captureCropDeath(msg.body as unknown as CropDeathBody, tick, day, out);
             break;
           case ONT_FESTIVAL.RESULT:
-            this.captureFestival(
-              msg.body as unknown as FestivalResultBody,
-              tick,
-              day,
-              out,
-            );
+            this.captureFestival(msg.body as unknown as FestivalResultBody, tick, day, out);
             break;
           case ONT_CORAL.CAUGHT:
-            this.captureCoralCatch(
-              msg.body as unknown as CoralCaughtBody,
-              tick,
-              day,
-              out,
-            );
+            this.captureCoralCatch(msg.body as unknown as CoralCaughtBody, tick, day, out);
             break;
           default:
             break;
@@ -167,12 +137,7 @@ export class EventFeedSystem implements System {
     }
   }
 
-  private captureTrade(
-    body: TradeCompletedBody,
-    tick: number,
-    day: number,
-    out: EventEntry[],
-  ): void {
+  private captureTrade(body: TradeCompletedBody, tick: number, day: number, out: EventEntry[]): void {
     if (typeof body.buyerId !== "number" || typeof body.sellerId !== "number") return;
     const key = `trade:${body.offerId ?? `${body.buyerId}-${body.sellerId}`}`;
     if (this.seen.has(key)) return;
@@ -197,12 +162,7 @@ export class EventFeedSystem implements System {
     });
   }
 
-  private captureAuction(
-    body: AuctionResultBody,
-    tick: number,
-    day: number,
-    out: EventEntry[],
-  ): void {
+  private captureAuction(body: AuctionResultBody, tick: number, day: number, out: EventEntry[]): void {
     if (typeof body.auctionId !== "string") return;
     const key = `auction:${body.auctionId}`;
     if (this.seen.has(key)) return;
@@ -229,12 +189,7 @@ export class EventFeedSystem implements System {
     });
   }
 
-  private captureShock(
-    body: ShockBody,
-    tick: number,
-    day: number,
-    out: EventEntry[],
-  ): void {
+  private captureShock(body: ShockBody, tick: number, day: number, out: EventEntry[]): void {
     const key = `shock:${body.day}:${body.targetFarmerId}`;
     if (this.seen.has(key)) return;
     this.seen.add(key);
@@ -250,13 +205,8 @@ export class EventFeedSystem implements System {
     });
   }
 
-  private captureCropDeath(
-    body: CropDeathBody,
-    tick: number,
-    day: number,
-    out: EventEntry[],
-  ): void {
-    const key = `death:${body.day}:${body.ownerId}:${body.crop}`; 
+  private captureCropDeath(body: CropDeathBody, tick: number, day: number, out: EventEntry[]): void {
+    const key = `death:${body.day}:${body.ownerId}:${body.crop}`;
     if (this.seen.has(key)) return;
     this.seen.add(key);
     const name = this.nameOf(body.ownerId);
@@ -270,12 +220,7 @@ export class EventFeedSystem implements System {
     });
   }
 
-  private captureFestival(
-    body: FestivalResultBody,
-    tick: number,
-    day: number,
-    out: EventEntry[],
-  ): void {
+  private captureFestival(body: FestivalResultBody, tick: number, day: number, out: EventEntry[]): void {
     if (typeof body.festivalId !== "string") return;
     const key = `festival:${body.festivalId}:${body.day}`;
     if (this.seen.has(key)) return;
@@ -299,12 +244,7 @@ export class EventFeedSystem implements System {
     });
   }
 
-  private captureCoralCatch(
-    body: CoralCaughtBody,
-    tick: number,
-    day: number,
-    out: EventEntry[],
-  ): void {
+  private captureCoralCatch(body: CoralCaughtBody, tick: number, day: number, out: EventEntry[]): void {
     if (typeof body.farmerId !== "number") return;
 
     const key = `coral:${body.farmerId}:${tick}`;
@@ -325,20 +265,10 @@ export class EventFeedSystem implements System {
       for (const msg of board.inbox.messages) {
         switch (msg.ontology) {
           case ONT_HARBOR.CONTRACT_DELIVERED:
-            this.captureContractDelivered(
-              msg.body as unknown as ContractDeliveredBody,
-              tick,
-              day,
-              out,
-            );
+            this.captureContractDelivered(msg.body as unknown as ContractDeliveredBody, tick, day, out);
             break;
           case ONT_HARBOR.CONTRACT_MISSED:
-            this.captureContractMissed(
-              msg.body as unknown as ContractMissedBody,
-              tick,
-              day,
-              out,
-            );
+            this.captureContractMissed(msg.body as unknown as ContractMissedBody, tick, day, out);
             break;
           default:
             break;
@@ -347,12 +277,7 @@ export class EventFeedSystem implements System {
     }
   }
 
-  private captureContractDelivered(
-    body: ContractDeliveredBody,
-    tick: number,
-    day: number,
-    out: EventEntry[],
-  ): void {
+  private captureContractDelivered(body: ContractDeliveredBody, tick: number, day: number, out: EventEntry[]): void {
     const key = `contract-delivered:${body.contractId}:${body.farmerId}`;
     if (this.seen.has(key)) return;
     this.seen.add(key);
@@ -366,12 +291,7 @@ export class EventFeedSystem implements System {
     });
   }
 
-  private captureContractMissed(
-    body: ContractMissedBody,
-    tick: number,
-    day: number,
-    out: EventEntry[],
-  ): void {
+  private captureContractMissed(body: ContractMissedBody, tick: number, day: number, out: EventEntry[]): void {
     const key = `contract-missed:${body.contractId}:${body.farmerId}`;
     if (this.seen.has(key)) return;
     this.seen.add(key);
@@ -391,7 +311,6 @@ export class EventFeedSystem implements System {
       const aId = formed.aId;
       const bId = formed.bId;
       if (formed.kind === "rivalry") {
-
         const nameA = this.nameOf(aId);
         const nameB = this.nameOf(bId);
         out.push({
@@ -439,7 +358,7 @@ export class EventFeedSystem implements System {
     const prevLeaderId = this.lastTopFarmerId;
     this.lastTopFarmerId = currentLeaderId;
 
-    if (prevLeaderId === null) return; 
+    if (prevLeaderId === null) return;
     if (prevLeaderId === currentLeaderId) return;
 
     const newLeaderName = this.nameOf(currentLeaderId);

@@ -38,7 +38,7 @@ describe("NpcDeliberateSystem (live sim)", () => {
     expect(npcs.length).toBeGreaterThan(0);
     for (const e of npcs) {
       expect(typeof e.workNpc.busyFactor).toBe("number");
-      expect(e.workNpc.busyFactor!).toBeGreaterThanOrEqual(0.5); 
+      expect(e.workNpc.busyFactor!).toBeGreaterThanOrEqual(0.5);
       expect(e.workNpc.busyFactor!).toBeLessThanOrEqual(1.6);
     }
   });
@@ -52,10 +52,10 @@ describe("NpcDeliberateSystem (live sim)", () => {
     board.harborBoard.openContracts.length = 0;
     board.harborBoard.committed.clear();
     sys.run({ tick: 1 });
-    expect(dock!.workNpc.busyFactor!).toBeGreaterThan(1); 
+    expect(dock!.workNpc.busyFactor!).toBeGreaterThan(1);
 
     board.harborBoard.openContracts.push({} as never);
     sys.run({ tick: 2 });
-    expect(dock!.workNpc.busyFactor!).toBeLessThan(1); 
+    expect(dock!.workNpc.busyFactor!).toBeLessThan(1);
   });
 });

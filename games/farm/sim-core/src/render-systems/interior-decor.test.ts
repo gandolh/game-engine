@@ -2,21 +2,10 @@ import { describe, it, expect } from "vitest";
 import { bootstrapSim } from "../sim-bootstrap";
 import type { World } from "@engine/core";
 import type { GameEntity } from "../components";
-import {
-  WORLD_WIDTH,
-  regionAt,
-  isWalkable,
-  getRegion,
-  HARBOR_DOCK_TILE,
-  HARBOR_BOARD_TILE,
-} from "../world/regions";
+import { WORLD_WIDTH, regionAt, isWalkable, getRegion, HARBOR_DOCK_TILE, HARBOR_BOARD_TILE } from "../world/regions";
 import { CORAL_REEFS } from "../world/coral";
 import { BRIDGE_SET } from "./geometry";
-import {
-  computeInteriorDecor,
-  MIN_SPACING,
-  THEME_TABLE,
-} from "./interior-decor";
+import { computeInteriorDecor, MIN_SPACING, THEME_TABLE } from "./interior-decor";
 import { TILE } from "@engine/core/render";
 const key = (x: number, y: number): number => y * WORLD_WIDTH + x;
 const toTile = (px: number): number => Math.floor(px / TILE);
@@ -29,8 +18,7 @@ function functionalTiles(world: World<GameEntity>): Set<number> {
   const forbidden = new Set<number>();
   for (const e of world.query("plot")) forbidden.add(key(e.plot.tileX, e.plot.tileY));
   for (const e of world.query("solid")) forbidden.add(key(e.solid.tileX, e.solid.tileY));
-  for (const e of world.query("workNpc"))
-    for (const st of e.workNpc.stations) forbidden.add(key(st.tileX, st.tileY));
+  for (const e of world.query("workNpc")) for (const st of e.workNpc.stations) forbidden.add(key(st.tileX, st.tileY));
   for (const e of world.query("home"))
     if (e.transform) forbidden.add(key(toTile(e.transform.x), toTile(e.transform.y)));
   for (const e of world.query("fountain"))
@@ -82,9 +70,7 @@ describe("interior décor scatter", () => {
     const world = bootWorld();
     const decor = computeInteriorDecor(world);
 
-    const allowed = new Set<string>(
-      Object.values(THEME_TABLE).flatMap((e) => e.frames),
-    );
+    const allowed = new Set<string>(Object.values(THEME_TABLE).flatMap((e) => e.frames));
     for (const d of decor) expect(allowed.has(d.frame)).toBe(true);
   });
 

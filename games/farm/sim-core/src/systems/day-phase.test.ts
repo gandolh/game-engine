@@ -1,21 +1,16 @@
 import { describe, it, expect } from "vitest";
-import {
-  dayFraction,
-  phaseForTick,
-  isActivePhase,
-  isNightPhase,
-} from "./day-phase";
+import { dayFraction, phaseForTick, isActivePhase, isNightPhase } from "./day-phase";
 
 describe("day-phase", () => {
   const TPD = 1200;
 
   it("maps ticks to the four phases in order across a day", () => {
-    expect(phaseForTick(0, TPD)).toBe("morning"); 
+    expect(phaseForTick(0, TPD)).toBe("morning");
     expect(phaseForTick(TPD * 0.1, TPD)).toBe("morning");
-    expect(phaseForTick(TPD * 0.2, TPD)).toBe("work"); 
+    expect(phaseForTick(TPD * 0.2, TPD)).toBe("work");
     expect(phaseForTick(TPD * 0.6, TPD)).toBe("work");
-    expect(phaseForTick(TPD * 0.7, TPD)).toBe("evening"); 
-    expect(phaseForTick(TPD * 0.9, TPD)).toBe("night"); 
+    expect(phaseForTick(TPD * 0.7, TPD)).toBe("evening");
+    expect(phaseForTick(TPD * 0.9, TPD)).toBe("night");
   });
 
   it("wraps per day — tick TPD is morning of the next day", () => {
@@ -34,7 +29,6 @@ describe("day-phase", () => {
   });
 
   it("is deterministic and independent of day length", () => {
-
-    expect(phaseForTick(60, 1200)).toBe(phaseForTick(300, 6000)); 
+    expect(phaseForTick(60, 1200)).toBe(phaseForTick(300, 6000));
   });
 });

@@ -34,7 +34,7 @@ export function farmingGrowthMultiplier(xp: number): number {
   return 1 + skillProgress(xp) * FARMING_GROWTH_BONUS_MAX;
 }
 
-export const FISHING_RARITY_BONUS_MAX = 0.30;
+export const FISHING_RARITY_BONUS_MAX = 0.3;
 export function fishingRarityBonus(xp: number): number {
   return skillProgress(xp) * FISHING_RARITY_BONUS_MAX;
 }
@@ -44,7 +44,7 @@ export function miningRarityBonus(xp: number): number {
   return skillProgress(xp) * MINING_RARITY_BONUS_MAX;
 }
 
-export const FORAGING_GOLD_BONUS_MAX = 0.40;
+export const FORAGING_GOLD_BONUS_MAX = 0.4;
 export function foragingGoldMultiplier(xp: number): number {
   return 1 + skillProgress(xp) * FORAGING_GOLD_BONUS_MAX;
 }

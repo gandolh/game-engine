@@ -36,7 +36,13 @@
  * Stage: "economy" (after connectivity).
  */
 import type { System, SimContext } from "@engine/core";
-import { getProductionDef, effectiveOutputPerCycle, effectiveTicksPerCycle, SERVICE_RADII, manhattanDist } from "../entities/building";
+import {
+  getProductionDef,
+  effectiveOutputPerCycle,
+  effectiveTicksPerCycle,
+  SERVICE_RADII,
+  manhattanDist,
+} from "../entities/building";
 import type { SimState, PlayerState } from "../sim-state";
 import { getSeason, grainMultiplier } from "../world/seasons";
 

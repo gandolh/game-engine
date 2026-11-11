@@ -99,7 +99,10 @@ export function bspLeaves(rng: Rng, count: number): Bounds[] {
       const h = b.maxY - b.minY + 1;
       if (w < 2 * MIN_LEAF && h < 2 * MIN_LEAF) continue; // cannot split either axis
       const area = w * h;
-      if (area > bestArea) { bestArea = area; bestIdx = i; }
+      if (area > bestArea) {
+        bestArea = area;
+        bestIdx = i;
+      }
     }
     if (bestIdx < 0) break; // nothing left to split — fewer leaves than requested
     const b = leaves.splice(bestIdx, 1)[0]!;
@@ -154,21 +157,14 @@ function farmFactorings(area: number, minSide: number, maxAspect: number): Array
  * fits); others target their area but shrink to fit the leaf.
  * Returns null if even the minimum footprint won't fit the leaf.
  */
-function sizeIsland(
-  spec: RegionSpec,
-  leaf: Bounds,
-  scale: number,
-  rng: Rng,
-): { w: number; h: number } | null {
+function sizeIsland(spec: RegionSpec, leaf: Bounds, scale: number, rng: Rng): { w: number; h: number } | null {
   const availW = leaf.maxX - leaf.minX + 1 - 2 * GAP;
   const availH = leaf.maxY - leaf.minY + 1 - 2 * GAP;
   if (availW < spec.minSide || availH < spec.minSide) return null;
 
   if (spec.kind === "farm") {
     const maxAspect = spec.maxAspect ?? 2.5;
-    const facts = farmFactorings(spec.area, spec.minSide, maxAspect).filter(
-      (f) => f.w <= availW && f.h <= availH,
-    );
+    const facts = farmFactorings(spec.area, spec.minSide, maxAspect).filter((f) => f.w <= availW && f.h <= availH);
     if (facts.length === 0) return null;
     return rng.pick(facts);
   }
@@ -196,19 +192,13 @@ function sizeIsland(
  * the coverage loop grow/shrink non-farm islands. Returns null if any region
  * cannot be sized into its assigned leaf (caller retries with adjusted params).
  */
-function placeOnce(
-  specs: readonly RegionSpec[],
-  rng: Rng,
-  scale: number,
-): PlacementResult | null {
+function placeOnce(specs: readonly RegionSpec[], rng: Rng, scale: number): PlacementResult | null {
   const leaves = bspLeaves(rng.fork("bsp"), specs.length);
   if (leaves.length < specs.length) return null;
 
   // Assign largest-footprint specs to largest leaves (area desc, id tiebreak).
   const order = [...specs].sort((a, b) => b.area - a.area || (a.id < b.id ? -1 : 1));
-  const leafOrder = [...leaves].sort(
-    (a, b) => leafArea(b) - leafArea(a) || a.minX - b.minX || a.minY - b.minY,
-  );
+  const leafOrder = [...leaves].sort((a, b) => leafArea(b) - leafArea(a) || a.minX - b.minX || a.minY - b.minY);
 
   const islands: PlacedIsland[] = [];
   let landTiles = 0;
@@ -272,7 +262,10 @@ export function placeIslands(seed: number, specs: readonly RegionSpec[]): Placem
     const r = placeOnce(specs, root.fork("attempt-" + attempt), scale);
     if (r !== null) {
       const err = Math.abs(r.coverage - COVERAGE_TARGET);
-      if (err < bestErr) { best = r; bestErr = err; }
+      if (err < bestErr) {
+        best = r;
+        bestErr = err;
+      }
       if (r.coverage >= COVERAGE_MIN && r.coverage <= COVERAGE_MAX) return r;
       // Nudge non-farm scale toward the target (proportional, damped). Farms/ranches
       // are fixed, so to move total coverage the non-farm islands must over/under-shoot;

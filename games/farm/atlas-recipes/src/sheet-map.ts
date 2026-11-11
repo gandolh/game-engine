@@ -1,18 +1,17 @@
-
 export const PREFIX_TO_SHEET: Readonly<Record<string, string>> = {
-  "farmer":     "characters",
-  "npc":        "characters",
-  "structure":  "buildings",
-  "tile":       "terrain",
-  "crop":       "crops",
-  "decoration": "props",
-  "fish":       "items-ui",
-  "tool":       "items-ui",
-  "indicator":  "items-ui",
-  "debug":      "items-ui",
-  "animal":     "characters",
-  "product":    "items-ui",
-  "fruit":      "items-ui",
+  farmer: "characters",
+  npc: "characters",
+  structure: "buildings",
+  tile: "terrain",
+  crop: "crops",
+  decoration: "props",
+  fish: "items-ui",
+  tool: "items-ui",
+  indicator: "items-ui",
+  debug: "items-ui",
+  animal: "characters",
+  product: "items-ui",
+  fruit: "items-ui",
 };
 
 export function frameToSheetId(frame: string): string {

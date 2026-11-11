@@ -50,11 +50,20 @@ export function pickGossip(feed: readonly EventEntry[]): string | undefined {
   const window = feed.slice(Math.max(0, feed.length - GOSSIP_WINDOW));
   let best: EventEntry | undefined;
   for (const e of window) {
-    if (best === undefined) { best = e; continue; }
-    if (e.drama > best.drama) { best = e; continue; }
+    if (best === undefined) {
+      best = e;
+      continue;
+    }
+    if (e.drama > best.drama) {
+      best = e;
+      continue;
+    }
     if (e.drama < best.drama) continue;
 
-    if (e.tick > best.tick) { best = e; continue; }
+    if (e.tick > best.tick) {
+      best = e;
+      continue;
+    }
     if (e.tick < best.tick) continue;
     if (e.key < best.key) best = e;
   }

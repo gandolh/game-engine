@@ -91,7 +91,7 @@ interface AssignCandidate {
 type TierBucketKey = "GP" | "GC" | "SP" | "SC";
 
 function tierBucketKey(wantGoods: boolean, wantPrimary: boolean): TierBucketKey {
-  return wantGoods ? (wantPrimary ? "GP" : "GC") : (wantPrimary ? "SP" : "SC");
+  return wantGoods ? (wantPrimary ? "GP" : "GC") : wantPrimary ? "SP" : "SC";
 }
 
 export class VillagerSystem implements System {
@@ -209,12 +209,7 @@ export class VillagerSystem implements System {
   }
 
   /** Compute a BFS route; returns parallel arrays, or null if no route exists. */
-  private replanRoute(
-    fromX: number,
-    fromY: number,
-    toX: number,
-    toY: number,
-  ): { x: number[]; y: number[] } | null {
+  private replanRoute(fromX: number, fromY: number, toX: number, toY: number): { x: number[]; y: number[] } | null {
     const state = this.state;
     const path = bfsPath(
       fromX,
@@ -320,13 +315,13 @@ export class VillagerSystem implements System {
     // Tiers defined by [wantGoods, wantPrimary, wantUnstaffedType]. Goods-first
     // so the food/production chain always out-prioritises pure services.
     const tiers: Array<[boolean, boolean, boolean]> = [
-      [true, true, true],    // goods, primary, type not yet staffed
-      [true, false, true],   // goods, converter, type not yet staffed
-      [true, true, false],   // goods, primary, type already has workers
-      [true, false, false],  // goods, converter, type already has workers
-      [false, true, true],   // service, primary, type not yet staffed
-      [false, false, true],  // service, converter, type not yet staffed
-      [false, true, false],  // service, primary, type already has workers
+      [true, true, true], // goods, primary, type not yet staffed
+      [true, false, true], // goods, converter, type not yet staffed
+      [true, true, false], // goods, primary, type already has workers
+      [true, false, false], // goods, converter, type already has workers
+      [false, true, true], // service, primary, type not yet staffed
+      [false, false, true], // service, converter, type not yet staffed
+      [false, true, false], // service, primary, type already has workers
       [false, false, false], // service, converter, type already has workers
     ];
 
@@ -412,7 +407,10 @@ export class VillagerSystem implements System {
     if (this.candidatesCache === null || liveCount !== this.buildingCountWatermark) {
       this.buildingCountWatermark = liveCount;
       const cache = new Map<TierBucketKey, AssignCandidate[]>([
-        ["GP", []], ["GC", []], ["SP", []], ["SC", []],
+        ["GP", []],
+        ["GC", []],
+        ["SP", []],
+        ["SC", []],
       ]);
       for (const entity of state.buildingWorld.query("building")) {
         const id = entity.id;

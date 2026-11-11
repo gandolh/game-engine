@@ -61,8 +61,7 @@ export class MetricsSampler {
     const prevCoopCum = sumSocialCounts(this.prevSocialCounts, COOP_VERBS);
     const prevAntagCum = sumSocialCounts(this.prevSocialCounts, ANTAG_VERBS);
 
-    const deathsCumNow =
-      deathsCause.oldAge + deathsCause.starvation + deathsCause.violence + deathsCause.disease;
+    const deathsCumNow = deathsCause.oldAge + deathsCause.starvation + deathsCause.violence + deathsCause.disease;
     const deathsCumPrev =
       this.prevDeathsCause.oldAge +
       this.prevDeathsCause.starvation +

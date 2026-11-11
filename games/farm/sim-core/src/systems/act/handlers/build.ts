@@ -11,20 +11,11 @@ import {
   GREENHOUSE_BUILD_COST,
   GREENHOUSE_PLOT_COUNT,
 } from "../../../economy";
-import {
-  DECORATION_RECIPE,
-} from "../../../components";
+import { DECORATION_RECIPE } from "../../../components";
 import { REGIONS, ranchForFarm, regionMaskAt } from "../../../world/regions";
-import {
-  PERFORMATIVE,
-} from "../../../protocols";
+import { PERFORMATIVE } from "../../../protocols";
 import { ONT_COMMISSION } from "../../../protocols/commission";
-import {
-  UPGRADE_PATH,
-  UPGRADE_COST,
-  UPGRADE_MATERIAL,
-  HIRE_HELP_GOLD_COST,
-} from "../constants";
+import { UPGRADE_PATH, UPGRADE_COST, UPGRADE_MATERIAL, HIRE_HELP_GOLD_COST } from "../constants";
 import { maxApForDay, HELPER_AP_BOOST, HELPER_AP_MARGIN } from "../../economy/ap";
 import type { ActingFarmer } from "../types";
 
@@ -49,16 +40,12 @@ function sendBusMessage(
   );
 }
 
-export function handleUpgradeTool(
-  farmer: ActingFarmer,
-  intent: Intention,
-  blacksmithId: number | undefined,
-): void {
+export function handleUpgradeTool(farmer: ActingFarmer, intent: Intention, blacksmithId: number | undefined): void {
   if (blacksmithId === undefined) return;
   const toolKind = intent.data.toolKind as import("../../../components").ToolKind;
   const tools = farmer.inventory.tools ?? [];
   const existing = tools
-    .filter(t => t.kind === toolKind)
+    .filter((t) => t.kind === toolKind)
     .sort((a, b) => {
       const tierOrder: Record<import("../../../components").ToolTier, number> = { wooden: 0, stone: 1, iron: 2 };
       return tierOrder[b.tier] - tierOrder[a.tier];
@@ -121,11 +108,7 @@ export function handleHireHelp(farmer: ActingFarmer, day: number): void {
 }
 
 /** Build a coop/barn at carpentry. Pen tile placed on an interior tile to avoid trapping the farmer. */
-export function handleBuildPen(
-  farmer: ActingFarmer,
-  intent: Intention,
-  world: World<GameEntity>,
-): void {
+export function handleBuildPen(farmer: ActingFarmer, intent: Intention, world: World<GameEntity>): void {
   if (farmer.farmer?.currentRegion !== "carpentry") return;
   if (farmer.id === undefined || !farmer.farmer?.homeRegion) return;
   const penKind = intent.data.penKind as "coop" | "barn";
@@ -142,7 +125,10 @@ export function handleBuildPen(
 
   let alreadyHas = false;
   for (const p of world.query("pen")) {
-    if (p.pen.ownerId === farmer.id && p.pen.kind === penKind) { alreadyHas = true; break; }
+    if (p.pen.ownerId === farmer.id && p.pen.kind === penKind) {
+      alreadyHas = true;
+      break;
+    }
   }
   if (alreadyHas) return;
 
@@ -150,7 +136,7 @@ export function handleBuildPen(
   // to tend/collect). Fall back to the home farm if a farm somehow has no ranch.
   const homeRegion = farmer.farmer.homeRegion;
   const penRegion = ranchForFarm(homeRegion) ?? homeRegion;
-  const regionDef = REGIONS.find(r => r.id === penRegion);
+  const regionDef = REGIONS.find((r) => r.id === penRegion);
   if (!regionDef) return;
 
   const usedTiles = new Set<string>();
@@ -186,7 +172,17 @@ export function handleBuildPen(
       world.spawn({
         transform: { x: tx, y: ty, prevX: tx, prevY: ty, rotation: 0 },
         sprite: { atlasId: "main", frame, layer: 30, tintRgba: 0xffffffff },
-        pen: { kind: penKind, animal: animalKind, count: 0, care: 0.5, fedToday: false, tileX: tx, tileY: ty, regionId: penRegion, ownerId: farmer.id },
+        pen: {
+          kind: penKind,
+          animal: animalKind,
+          count: 0,
+          care: 0.5,
+          fedToday: false,
+          tileX: tx,
+          tileY: ty,
+          regionId: penRegion,
+          ownerId: farmer.id,
+        },
         solid: { isSolid: true, tileX: tx, tileY: ty },
       });
       if (useWood && res) res.wood -= recipe.woodCost;
@@ -199,11 +195,7 @@ export function handleBuildPen(
 }
 
 /** Build a greenhouse at carpentry. Wood+stone are optional discount. One per farmer. Spawns SOLID entity + season-immune plots. */
-export function handleBuildGreenhouse(
-  farmer: ActingFarmer,
-  _intent: Intention,
-  world: World<GameEntity>,
-): void {
+export function handleBuildGreenhouse(farmer: ActingFarmer, _intent: Intention, world: World<GameEntity>): void {
   if (farmer.farmer?.currentRegion !== "carpentry") return;
   if (farmer.id === undefined || !farmer.farmer?.homeRegion) return;
 
@@ -219,7 +211,7 @@ export function handleBuildGreenhouse(
   if (farmer.inventory.gold < goldDue) return;
 
   const homeRegion = farmer.farmer.homeRegion;
-  const regionDef = REGIONS.find(r => r.id === homeRegion);
+  const regionDef = REGIONS.find((r) => r.id === homeRegion);
   if (!regionDef) return;
 
   const usedTiles = new Set<string>();
@@ -276,7 +268,10 @@ export function handleBuildGreenhouse(
   }
   if (plotTiles.length === 0) return;
 
-  if (useMaterials && res) { res.wood -= recipe.woodCost; res.stone -= recipe.stoneCost; }
+  if (useMaterials && res) {
+    res.wood -= recipe.woodCost;
+    res.stone -= recipe.stoneCost;
+  }
   farmer.inventory.gold -= goldDue;
   world.spawn({
     transform: { x: structTile.x, y: structTile.y, prevX: structTile.x, prevY: structTile.y, rotation: 0 },
@@ -301,11 +296,7 @@ export function handleBuildGreenhouse(
 }
 
 /** Buy an animal; sold at village or carpentry. Requires matching pen. */
-export function handleBuyAnimal(
-  farmer: ActingFarmer,
-  intent: Intention,
-  world: World<GameEntity>,
-): void {
+export function handleBuyAnimal(farmer: ActingFarmer, intent: Intention, world: World<GameEntity>): void {
   const region = farmer.farmer?.currentRegion;
   if (region !== "village" && region !== "carpentry") return;
   if (farmer.id === undefined) return;
@@ -327,11 +318,7 @@ export function handleBuyAnimal(
 }
 
 /** Set fedToday and boost care for the matching pen. */
-export function handleTend(
-  farmer: ActingFarmer,
-  intent: Intention,
-  world: World<GameEntity>,
-): void {
+export function handleTend(farmer: ActingFarmer, intent: Intention, world: World<GameEntity>): void {
   if (farmer.id === undefined) return;
   const penKind = intent.data.penKind as ("coop" | "barn") | undefined;
 
@@ -354,11 +341,7 @@ export function handleTend(
 }
 
 /** Plant a fruit tree on a free farm tile. */
-export function handlePlantTree(
-  farmer: ActingFarmer,
-  intent: Intention,
-  world: World<GameEntity>,
-): void {
+export function handlePlantTree(farmer: ActingFarmer, intent: Intention, world: World<GameEntity>): void {
   if (farmer.id === undefined || !farmer.farmer?.homeRegion) return;
   const fruitKind = intent.data.kind as FruitKind;
   const cost = TREE_PLANT_COST[fruitKind];
@@ -395,11 +378,7 @@ export function handlePlantTree(
 }
 
 /** Harvest ready fruit from the target (or first ready) mature orchard tree. */
-export function handleHarvestFruit(
-  farmer: ActingFarmer,
-  intent: Intention,
-  world: World<GameEntity>,
-): void {
+export function handleHarvestFruit(farmer: ActingFarmer, intent: Intention, world: World<GameEntity>): void {
   if (farmer.id === undefined) return;
   const tileX = intent.data.tileX as number | undefined;
   const tileY = intent.data.tileY as number | undefined;

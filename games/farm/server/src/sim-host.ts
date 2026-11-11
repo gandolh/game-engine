@@ -1,19 +1,8 @@
-
-
 import { bootstrapSim } from "@farm/sim-core/sim-bootstrap";
 import { buildStaticLayerSprites } from "@farm/sim-core/render-systems";
 import { WORLD_WIDTH, WORLD_HEIGHT } from "@farm/sim-core/world/regions";
-import {
-  buildRenderSnapshot,
-  HIGHLIGHT_THRESHOLD,
-  SnapshotSpriteState,
-} from "@farm/sim-core/snapshot-builder";
-import {
-  ONT_SIMULATION,
-  type ShockBody,
-  seasonForDay,
-  type Season,
-} from "@farm/sim-core/protocols";
+import { buildRenderSnapshot, HIGHLIGHT_THRESHOLD, SnapshotSpriteState } from "@farm/sim-core/snapshot-builder";
+import { ONT_SIMULATION, type ShockBody, seasonForDay, type Season } from "@farm/sim-core/protocols";
 import { shouldStopSkip, SKIP_MAX_DAYS } from "@farm/sim-core/sim-worker-skip";
 import type {
   SimInbound,
@@ -68,7 +57,6 @@ function clampTickRateHz(hz: number): number {
 }
 
 export interface SimHostOptions {
-
   pathfinder?: PathfinderLike | null;
 
   /**
@@ -110,9 +98,7 @@ export class SimHost {
   private readonly profiler = new Profiler();
 
   private runOneTick: (() => void) | null = null;
-  private getEventFeedInfo:
-    | (() => { length: number; newestDrama: number })
-    | null = null;
+  private getEventFeedInfo: (() => { length: number; newestDrama: number }) | null = null;
   private applyInput:
     | ((
         moveX: "left" | "right" | null,
@@ -183,17 +169,12 @@ export class SimHost {
     }
   }
 
-  private async resolvePathfinder(
-    init: SimInitMsg,
-  ): Promise<PathfinderLike | null> {
-
+  private async resolvePathfinder(init: SimInitMsg): Promise<PathfinderLike | null> {
     if (this.opts.pathfinder) return this.opts.pathfinder;
     const bytes = this.opts.pathfinderWasm ?? init.pathfinderWasm ?? null;
     if (bytes) {
       try {
-        return (await createPathfinderFromBytes(
-          bytes,
-        )) as unknown as PathfinderLike;
+        return (await createPathfinderFromBytes(bytes)) as unknown as PathfinderLike;
       } catch (e) {
         console.warn("[sim-host] pathfinder failed to load:", e);
       }
@@ -216,16 +197,12 @@ export class SimHost {
 
     const pathfinder = await this.resolvePathfinder(init);
 
-    const {
-      world,
-      bus,
-      scheduler,
-      dayClock,
-      meetIndicators,
-      eventFeed,
-      runHistory,
-      rivalry,
-    } = bootstrapSim({ seed, ticksPerDay, maxDays, pathfinder });
+    const { world, bus, scheduler, dayClock, meetIndicators, eventFeed, runHistory, rivalry } = bootstrapSim({
+      seed,
+      ticksPerDay,
+      maxDays,
+      pathfinder,
+    });
 
     this.opts.onSchedulerReady?.(scheduler);
 
@@ -236,7 +213,7 @@ export class SimHost {
         if (action) e.player!.pendingAction = true;
         if (selectSlot !== null) e.player!.selectedSlot = selectSlot;
         e.player!.pendingActionTile = actionTile;
-        break; 
+        break;
       }
     };
 
@@ -248,7 +225,7 @@ export class SimHost {
         const tmp = slots[a]!;
         slots[a] = slots[b]!;
         slots[b] = tmp;
-        break; 
+        break;
       }
     };
 
@@ -402,10 +379,7 @@ export class SimHost {
    * The stop condition is evaluated per tick, exactly as it was in the unsliced loop, so the drain
    * ends on the same logical tick it always did; only where it PAUSES differs.
    */
-  private drainSkipSlice(
-    getInfo: () => { length: number; newestDrama: number },
-    runOneTick: () => void,
-  ): void {
+  private drainSkipSlice(getInfo: () => { length: number; newestDrama: number }, runOneTick: () => void): void {
     const now = this.opts.now ?? Date.now;
     const deadline = now() + SKIP_SLICE_BUDGET_MS;
 

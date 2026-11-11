@@ -3,11 +3,7 @@ import { boundsOf } from "@engine/core/render3d";
 import type { HollowAgentSnapshot, HollowCommunitySnapshot, HollowSnapshot } from "@hollow/sim-core/sim-bootstrap";
 import { householdLayout, householdMemberCounts, homeMeshFor } from "./household-layout";
 
-function makeAgent(
-  id: number,
-  householdId: number | null,
-  communityId: number | null,
-): HollowAgentSnapshot {
+function makeAgent(id: number, householdId: number | null, communityId: number | null): HollowAgentSnapshot {
   return {
     id,
     kind: "villager",
@@ -31,10 +27,7 @@ function makeCommunity(id: number, territory: readonly { gx: number; gy: number 
   return { id, members: [], territory, stockpile: {}, norms: { shareRate: 0, cooperationExpectation: 0 } };
 }
 
-function makeSnapshot(
-  agents: HollowAgentSnapshot[],
-  communities: HollowCommunitySnapshot[] = [],
-): HollowSnapshot {
+function makeSnapshot(agents: HollowAgentSnapshot[], communities: HollowCommunitySnapshot[] = []): HollowSnapshot {
   return {
     tick: 0,
     aliveCount: agents.length,
@@ -65,7 +58,12 @@ describe("householdMemberCounts", () => {
 
 describe("householdLayout", () => {
   it("is stable across two snapshots with identical content (different object instances)", () => {
-    const communities = [makeCommunity(1, [{ gx: 10, gy: 10 }, { gx: 12, gy: 10 }])];
+    const communities = [
+      makeCommunity(1, [
+        { gx: 10, gy: 10 },
+        { gx: 12, gy: 10 },
+      ]),
+    ];
     const agents = [makeAgent(1, 100, 1), makeAgent(2, 100, 1)];
     const snapA = makeSnapshot([...agents], [...communities]);
     const snapB = makeSnapshot(
@@ -80,7 +78,10 @@ describe("householdLayout", () => {
 
   it("anchors a household near its majority community's territory centroid", () => {
     const communities = [
-      makeCommunity(1, [{ gx: 5, gy: 5 }, { gx: 7, gy: 5 }]), // centroid (6, 5)
+      makeCommunity(1, [
+        { gx: 5, gy: 5 },
+        { gx: 7, gy: 5 },
+      ]), // centroid (6, 5)
       makeCommunity(2, [{ gx: 50, gy: 50 }]),
     ];
     const agents = [makeAgent(1, 100, 1), makeAgent(2, 100, 1)];

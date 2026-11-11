@@ -1,23 +1,9 @@
 import { describe, it, expect } from "vitest";
-import {
-  fishingCastTiles,
-  tavernGatherTile,
-  festivalPodiumTile,
-} from "./shared";
-import {
-  FISHING_ISLE_IDS,
-  regionAt,
-  isWalkable,
-  isFishingIsle,
-} from "../../world/regions";
+import { fishingCastTiles, tavernGatherTile, festivalPodiumTile } from "./shared";
+import { FISHING_ISLE_IDS, regionAt, isWalkable, isFishingIsle } from "../../world/regions";
 
 function hasOceanNeighbour(x: number, y: number): boolean {
-  return (
-    !isWalkable(x - 1, y) ||
-    !isWalkable(x + 1, y) ||
-    !isWalkable(x, y - 1) ||
-    !isWalkable(x, y + 1)
-  );
+  return !isWalkable(x - 1, y) || !isWalkable(x + 1, y) || !isWalkable(x, y - 1) || !isWalkable(x, y + 1);
 }
 
 describe("AI travel-target tiles are valid in the live world (brief 80)", () => {

@@ -88,7 +88,10 @@ export class ArmySystem implements System {
 
     for (let i = 0; i < state.armies.length; i++) {
       const army = state.armies[i]!;
-      if (army.resolved) { toRemove.push(i); continue; }
+      if (army.resolved) {
+        toRemove.push(i);
+        continue;
+      }
 
       if (move && army.pathStep < army.path.length) {
         const next = army.path[army.pathStep]!;
@@ -110,12 +113,15 @@ export class ArmySystem implements System {
 
       const tb = target.building;
       const reached =
-        army.pathStep >= army.path.length ||
-        tileTouchesFootprint(army.tileX, army.tileY, tb.x, tb.y, tb.w, tb.h);
+        army.pathStep >= army.path.length || tileTouchesFootprint(army.tileX, army.tileY, tb.x, tb.y, tb.w, tb.h);
       if (!reached) continue;
 
       const defender = playerById(state, army.targetPlayerId);
-      if (defender === undefined) { army.resolved = true; toRemove.push(i); continue; }
+      if (defender === undefined) {
+        army.resolved = true;
+        toRemove.push(i);
+        continue;
+      }
 
       const defense = computeDefensiveStrength(state, defender);
       const result = resolveSiege(army.strength, defense, state.rng.fork(`army-${army.id}`));
@@ -124,24 +130,39 @@ export class ArmySystem implements System {
       const isTownHall = getProductionDef(tb.type)?.isKeep === true;
 
       if (result === "repelled") {
-        pushEvent(state, `Day ${state.day + 1}: player ${defender.id} REPELLED player ${army.attackerId}'s army (def ${defense} vs ${army.strength}).`);
+        pushEvent(
+          state,
+          `Day ${state.day + 1}: player ${defender.id} REPELLED player ${army.attackerId}'s army (def ${defense} vs ${army.strength}).`,
+        );
       } else if (result === "sacked") {
         destroyBuilding(state, target, defender);
         if (isTownHall) {
           defender.keepSacked = true;
           defender.gameOver = true;
-          pushEvent(state, `Day ${state.day + 1}: player ${army.attackerId}'s army SACKED player ${defender.id}'s town hall — ELIMINATED!`);
+          pushEvent(
+            state,
+            `Day ${state.day + 1}: player ${army.attackerId}'s army SACKED player ${defender.id}'s town hall — ELIMINATED!`,
+          );
         } else {
-          pushEvent(state, `Day ${state.day + 1}: player ${army.attackerId}'s army destroyed player ${defender.id}'s ${tb.type}.`);
+          pushEvent(
+            state,
+            `Day ${state.day + 1}: player ${army.attackerId}'s army destroyed player ${defender.id}'s ${tb.type}.`,
+          );
         }
       } else {
         // "damage": a town hall holds (only a full sack topples it); other
         // buildings fall.
         if (isTownHall) {
-          pushEvent(state, `Day ${state.day + 1}: player ${defender.id}'s town hall took DAMAGE but held against player ${army.attackerId}.`);
+          pushEvent(
+            state,
+            `Day ${state.day + 1}: player ${defender.id}'s town hall took DAMAGE but held against player ${army.attackerId}.`,
+          );
         } else {
           destroyBuilding(state, target, defender);
-          pushEvent(state, `Day ${state.day + 1}: player ${army.attackerId}'s army destroyed player ${defender.id}'s ${tb.type}.`);
+          pushEvent(
+            state,
+            `Day ${state.day + 1}: player ${army.attackerId}'s army destroyed player ${defender.id}'s ${tb.type}.`,
+          );
         }
       }
       toRemove.push(i);

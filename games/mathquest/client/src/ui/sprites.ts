@@ -17,7 +17,15 @@ import { MATE_PAL } from "../render/mate-palette";
 
 /** A vertical isosceles triangle grown UP from `baseY`, stacked as rows of rects (copy of
  * `map-screen.ts`'s `drawTriangle` — kept local so this module has no cross-UI dependency). */
-function tri(s: UISurface, cx: number, baseY: number, halfBase: number, height: number, color: string, alpha = 1): void {
+function tri(
+  s: UISurface,
+  cx: number,
+  baseY: number,
+  halfBase: number,
+  height: number,
+  color: string,
+  alpha = 1,
+): void {
   const rows = Math.max(3, Math.round(height / 3));
   const rh = height / rows;
   for (let i = 0; i < rows; i++) {

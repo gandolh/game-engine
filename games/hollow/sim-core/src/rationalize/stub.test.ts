@@ -34,7 +34,15 @@ function makeAgent(): SocialAgent {
     },
     inventory: { goods: { [GOOD_MATERIALS]: 12 } },
     genome: {
-      behavior: { greed: 0.9, aggression: 0.2, risk: 0.5, loyalty: 0.3, sociability: 0.4, curiosity: 0.1, industriousness: 0.7 },
+      behavior: {
+        greed: 0.9,
+        aggression: 0.2,
+        risk: 0.5,
+        loyalty: 0.3,
+        sociability: 0.4,
+        curiosity: 0.1,
+        industriousness: 0.7,
+      },
       aptitude: { food: 0.8, material: 0.3 },
       appearance: { height: 1.02, build: 0.97, skinTone: "skinDark", hairTone: "hairRed" },
     },

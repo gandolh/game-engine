@@ -1,5 +1,3 @@
-
-
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("@farm/sim-core/render-systems", () => ({
@@ -27,7 +25,6 @@ function makeRecordingCtx() {
 const isSpeckle = (c: { w: number }) => c.w < TILE;
 
 describe("makeWaterDepthDecorator — granular water (brief 83.4)", () => {
-
   const W = 4 * TILE;
   const H = TILE;
 

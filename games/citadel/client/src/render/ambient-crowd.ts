@@ -57,9 +57,18 @@ const SPEED_MAX = 18;
  * than before (was 5 muted swatches) so a dense street doesn't look uniform.
  */
 const PED_COLORS: readonly string[] = [
-  EDG.tan, EDG.cream, EDG.salmon, EDG.steel, EDG.clay,
-  EDG.wood, EDG.green, EDG.blue, EDG.mauve, EDG.gold,
-  EDG.crimson, EDG.teal,
+  EDG.tan,
+  EDG.cream,
+  EDG.salmon,
+  EDG.steel,
+  EDG.clay,
+  EDG.wood,
+  EDG.green,
+  EDG.blue,
+  EDG.mauve,
+  EDG.gold,
+  EDG.crimson,
+  EDG.teal,
 ];
 
 /**
@@ -144,7 +153,8 @@ function roadNetworkOf(buildings: readonly BuildingSnapshot[]): RoadNetwork {
         const col = b.x + dx;
         const row = b.y + dy;
         const t: RoadTile = {
-          col, row,
+          col,
+          row,
           x: (col + 0.5) * TILE_SIZE,
           y: (row + 0.5) * TILE_SIZE,
         };
@@ -159,7 +169,10 @@ function roadNetworkOf(buildings: readonly BuildingSnapshot[]): RoadNetwork {
 /** The four orthogonal neighbour offsets — pedestrians step tile-to-tile along
  *  the road network (no diagonals), so they never cut a corner off the path. */
 const NEIGHBOURS: readonly (readonly [number, number])[] = [
-  [1, 0], [-1, 0], [0, 1], [0, -1],
+  [1, 0],
+  [-1, 0],
+  [0, 1],
+  [0, -1],
 ];
 
 export class CitadelAmbientCrowd {

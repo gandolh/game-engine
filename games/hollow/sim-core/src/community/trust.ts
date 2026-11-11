@@ -46,10 +46,7 @@ export function mutualTrust(a: TrustCarrier, b: TrustCarrier): number {
  * predicate `hasEdge`. Returns components sorted by their lowest member id,
  * each component's own members sorted ascending.
  */
-export function connectedComponents(
-  ids: readonly number[],
-  hasEdge: (a: number, b: number) => boolean,
-): number[][] {
+export function connectedComponents(ids: readonly number[], hasEdge: (a: number, b: number) => boolean): number[][] {
   const sorted = [...ids].sort((x, y) => x - y);
   const visited = new Set<number>();
   const components: number[][] = [];

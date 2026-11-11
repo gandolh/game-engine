@@ -1,5 +1,3 @@
-
-
 import { EDG } from "@engine/core/render";
 import type { Camera2D } from "@engine/core";
 import type { SnapshotEvent } from "@farm/sim-core/snapshot";
@@ -18,7 +16,7 @@ export function decayTrauma(trauma: number, dtSec: number): number {
   return Math.max(0, trauma - dtSec);
 }
 
-export const MAX_SHAKE_PX = 3; 
+export const MAX_SHAKE_PX = 3;
 export function traumaToDisplacement(trauma: number): number {
   return trauma * trauma * MAX_SHAKE_PX;
 }
@@ -125,27 +123,15 @@ const KIND_COLORS: Readonly<Record<PopupKind, string>> = {
 function shouldShake(ev: SnapshotEvent): boolean {
   if (ev.drama < 0.4) return false;
   const t = ev.text;
-  return (
-    isVictoryEvent(t) ||
-    t.includes("hauled in a coral-reef") ||
-    t.startsWith("Final stretch")
-  );
+  return isVictoryEvent(t) || t.includes("hauled in a coral-reef") || t.startsWith("Final stretch");
 }
 
 function shouldHitstop(ev: SnapshotEvent): boolean {
   const t = ev.text;
-  return (
-    (t.includes("overtakes") && t.includes("for 1st")) ||
-    (t.includes("golden bean") && t.includes("won"))
-  );
+  return (t.includes("overtakes") && t.includes("for 1st")) || (t.includes("golden bean") && t.includes("won"));
 }
 
-function worldToCss(
-  wx: number,
-  wy: number,
-  camera: Camera2D,
-  canvas: HTMLCanvasElement,
-): { cx: number; cy: number } {
+function worldToCss(wx: number, wy: number, camera: Camera2D, canvas: HTMLCanvasElement): { cx: number; cy: number } {
   // World → CSS-logical px (no dpr — see `screen-to-tile.ts`: the renderer's backing dpr cancels
   // against the display down-scale, so world-anchored effects land on the sprite at every dpr).
   const scaleX = camera.worldUnitsX / canvas.clientWidth;
@@ -165,7 +151,6 @@ export interface JuiceAudioSink {
 }
 
 export class JuiceLayer {
-
   private readonly pool: PopupSlot[];
   private readonly overlay: HTMLElement;
 
@@ -283,19 +268,16 @@ export class JuiceLayer {
   }
 
   private processEvent(ev: SnapshotEvent): void {
-
     // Same gating as the popups/shake below: processEvent only runs for new (ev.tick > markBefore)
     // events while !skipping, so audio automatically inherits the resync-skip guarantee.
     this.audioSink?.onEvent(ev);
 
     if (shouldShake(ev)) {
-
       const traumaAdd = 0.3 + ev.drama * 0.7;
       this.trauma = Math.min(1, this.trauma + traumaAdd);
     }
 
     if (shouldHitstop(ev)) {
-
       this.hitstopFrames = Math.max(this.hitstopFrames, ev.drama >= 0.7 ? 4 : 2);
     }
 
@@ -309,7 +291,7 @@ export class JuiceLayer {
       const pos = this.farmerPositions.get(farmerId);
       if (pos !== undefined) {
         wx = pos.x;
-        wy = pos.y - 12; 
+        wy = pos.y - 12;
       }
     }
 
@@ -332,7 +314,6 @@ export class JuiceLayer {
   }
 
   private _spawnPopup(spec: PopupSpec, wx: number, wy: number, drama: number): void {
-
     if (this._countActive(spec.kind) >= POPUP_KIND_CAP[spec.kind]) return;
     const slot = this._findFreeSlot();
     if (slot === null) return;

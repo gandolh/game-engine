@@ -1,9 +1,4 @@
-import type {
-  AudioContextLike,
-  AudioEngineOptions,
-  PlayOptions,
-  SoundSpec,
-} from "./types";
+import type { AudioContextLike, AudioEngineOptions, PlayOptions, SoundSpec } from "./types";
 
 /** Floor for exponential ramps — Web Audio rejects a target of exactly 0. */
 const SILENCE = 0.0001;

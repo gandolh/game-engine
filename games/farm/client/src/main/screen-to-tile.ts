@@ -1,5 +1,3 @@
-
-
 import type { Camera2D } from "@engine/core";
 import { TILE } from "./config";
 

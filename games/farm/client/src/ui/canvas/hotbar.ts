@@ -157,14 +157,14 @@ export function createHotbar(actions: HotbarActions): Hotbar {
   // without joining its row flow). Folds the old separate drawIcons/drawGhost post-passes into the
   // widget tree (engine-ui backlog item 1). The ghost draws at the live cursor position, which may
   // fall outside the panel box — fine, custom-node draws aren't clipped.
-  const overlay = custom((surface) => {
-    drawIconsInto(surface);
-    drawGhostInto(surface);
-  }, { overlay: true });
-  const root = panel(
-    { direction: "row", align: "end", gap: 5, padding: 6 },
-    [...slots.map((s) => s.root), overlay],
+  const overlay = custom(
+    (surface) => {
+      drawIconsInto(surface);
+      drawGhostInto(surface);
+    },
+    { overlay: true },
   );
+  const root = panel({ direction: "row", align: "end", gap: 5, padding: 6 }, [...slots.map((s) => s.root), overlay]);
 
   let changed = false;
   let firstRefresh = true;
@@ -173,7 +173,10 @@ export function createHotbar(actions: HotbarActions): Hotbar {
   // once the pointer moves past DRAG_THRESHOLD so a plain click never counts as a drag.
   let dragFrom: number | null = null;
   let dragActive = false;
-  let pressX = 0, pressY = 0, dragX = 0, dragY = 0;
+  let pressX = 0,
+    pressY = 0,
+    dragX = 0,
+    dragY = 0;
 
   function refresh(state: PlayerHotbar | null): boolean {
     changed = false;
@@ -301,13 +304,17 @@ export function createHotbar(actions: HotbarActions): Hotbar {
     if (s.iconFrame === "" && s.glyph.text === "") return; // empty slot — nothing to drag
     dragFrom = idx;
     dragActive = false;
-    pressX = x; pressY = y; dragX = x; dragY = y;
+    pressX = x;
+    pressY = y;
+    dragX = x;
+    dragY = y;
   }
 
   function onMouseMove(e: MouseEvent): void {
     if (dragFrom === null) return;
     const { x, y } = eventToCssPx(e);
-    dragX = x; dragY = y;
+    dragX = x;
+    dragY = y;
     if (!dragActive && (Math.abs(x - pressX) > DRAG_THRESHOLD || Math.abs(y - pressY) > DRAG_THRESHOLD)) {
       dragActive = true;
     }

@@ -18,11 +18,7 @@ interface ScheduledCmd {
   cmd: CitadelCommand;
 }
 
-function run(
-  cmds: ScheduledCmd[],
-  totalTicks: number,
-  setup?: (sim: ReturnType<typeof bootstrapSim>) => void,
-) {
+function run(cmds: ScheduledCmd[], totalTicks: number, setup?: (sim: ReturnType<typeof bootstrapSim>) => void) {
   const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY });
   if (setup !== undefined) setup(sim);
   let i = 0;
@@ -51,10 +47,10 @@ function economyCmds(): ScheduledCmd[] {
   return [
     { atTick: 0, cmd: roadRow(13, 10, 40) },
     { atTick: 0, cmd: { type: "placeBuilding", payload: { buildingType: "storehouse", x: 10, y: 11 } } },
-    { atTick: 0, cmd: { type: "placeBuilding", payload: { buildingType: "farm",       x: 14, y: 14 } } },
-    { atTick: 0, cmd: { type: "placeBuilding", payload: { buildingType: "mill",       x: 18, y: 14 } } },
-    { atTick: 0, cmd: { type: "placeBuilding", payload: { buildingType: "bakery",     x: 21, y: 14 } } },
-    { atTick: 0, cmd: { type: "placeBuilding", payload: { buildingType: "house",      x: 24, y: 14 } } },
+    { atTick: 0, cmd: { type: "placeBuilding", payload: { buildingType: "farm", x: 14, y: 14 } } },
+    { atTick: 0, cmd: { type: "placeBuilding", payload: { buildingType: "mill", x: 18, y: 14 } } },
+    { atTick: 0, cmd: { type: "placeBuilding", payload: { buildingType: "bakery", x: 21, y: 14 } } },
+    { atTick: 0, cmd: { type: "placeBuilding", payload: { buildingType: "house", x: 24, y: 14 } } },
   ];
 }
 
@@ -75,7 +71,7 @@ describe("Phase 3 — happiness", () => {
     const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY });
     // Place house at (10,10), chapel adjacent at (13,10) — within radius 8
     // Run 2 days so NeedsHappinessSystem fires at tick=TICKS_PER_DAY
-    sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: "house",  x: 10, y: 10 } });
+    sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: "house", x: 10, y: 10 } });
     sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: "chapel", x: 13, y: 10 } });
     // Run 2 days so NeedsHappinessSystem fires once (at tick=TICKS_PER_DAY).
     for (let tick = 0; tick < TICKS_PER_DAY * 2; tick++) sim.scheduler.tick({ tick });
@@ -87,7 +83,7 @@ describe("Phase 3 — happiness", () => {
 
   it("watchpost near a house raises safetyCoverage", () => {
     const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY });
-    sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: "house",     x: 10, y: 10 } });
+    sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: "house", x: 10, y: 10 } });
     sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: "watchpost", x: 13, y: 10 } });
     // Run 2 days so NeedsHappinessSystem fires once.
     for (let tick = 0; tick < TICKS_PER_DAY * 2; tick++) sim.scheduler.tick({ tick });
@@ -98,11 +94,11 @@ describe("Phase 3 — happiness", () => {
 
   it("all three service buildings near a house brings happiness to 80 without goods", () => {
     const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY });
-    sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: "house",      x: 10, y: 10 } });
-    sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: "chapel",     x: 13, y: 10 } });
-    sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: "watchpost",  x: 16, y: 10 } });
+    sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: "house", x: 10, y: 10 } });
+    sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: "chapel", x: 13, y: 10 } });
+    sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: "watchpost", x: 16, y: 10 } });
     // For goods coverage we also need food in stockpile
-    sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: "market",     x: 13, y: 13 } });
+    sim.commands.enqueue({ type: "placeBuilding", payload: { buildingType: "market", x: 13, y: 13 } });
     // Run 2 days so NeedsHappinessSystem fires once.
     for (let tick = 0; tick < TICKS_PER_DAY * 2; tick++) sim.scheduler.tick({ tick });
     // With no bread/grain yet, goodsCoverage = 0 (no goods in stockpile)
@@ -152,7 +148,7 @@ describe("Phase 3 — autonomous rationing (sharp, deficit-gated)", () => {
     // pop 8 needs 8 bread; only 6 on hand → deficit.
     // Sharp: floor(8*0.75)=6 consumed → foodSurplus −6. Cozy: full 8 → foodSurplus −8.
     const sharp = rationDay(false, 8, 6);
-    const cozy  = rationDay(true, 8, 6);
+    const cozy = rationDay(true, 8, 6);
     expect(sharp.foodSurplus).toBe(-6);
     expect(cozy.foodSurplus).toBe(-8);
   });

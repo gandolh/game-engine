@@ -69,11 +69,16 @@ export const MINIMAP_FACE = 168;
 /** Terrain type → minimap fill (EDG). Matches the in-world terrain reading. */
 function terrainColor(t: number): string {
   switch (t) {
-    case TerrainType.Water: return EDG.blue;
-    case TerrainType.Forest: return EDG.greenDark;
-    case TerrainType.Stone: return EDG.steel;
-    case TerrainType.Rough: return EDG.woodDark;
-    default: return EDG.greenMid; // Grass
+    case TerrainType.Water:
+      return EDG.blue;
+    case TerrainType.Forest:
+      return EDG.greenDark;
+    case TerrainType.Stone:
+      return EDG.steel;
+    case TerrainType.Rough:
+      return EDG.woodDark;
+    default:
+      return EDG.greenMid; // Grass
   }
 }
 
@@ -112,9 +117,7 @@ function rasterTerrainColors(
       const { tileX, tileY } = iso.isoToTileContinuous(isoX, isoY);
       const tx = Math.floor(tileX);
       const ty = Math.floor(tileY);
-      row[px] = tx >= 0 && tx < gw && ty >= 0 && ty < gh
-        ? terrainColor(terrain.cells[ty * gw + tx] ?? 0)
-        : null;
+      row[px] = tx >= 0 && tx < gw && ty >= 0 && ty < gh ? terrainColor(terrain.cells[ty * gw + tx] ?? 0) : null;
     }
     rows.push(row);
   }
@@ -309,7 +312,7 @@ export class CitadelMinimap {
     // Buildings — small blocks centred on the footprint's iso position, sized by
     // footprint; fire-tinted when burning, keep highlighted.
     for (const b of frame.buildings) {
-      const color = (b.onFire || b.burning) ? EDG.red : b.type === "keep" ? EDG.yellow : EDG.cream;
+      const color = b.onFire || b.burning ? EDG.red : b.type === "keep" ? EDG.yellow : EDG.cream;
       const c = this.iso.tileToIso(b.x + b.w / 2, b.y + b.h / 2);
       const side = Math.max(2, (b.w + b.h) * ISO_HW * this.fitScale * 0.5);
       surface.rect(ox + this.fx(c.x) - side / 2, oy + this.fy(c.y) - side / 2, side, side, color);
@@ -345,10 +348,10 @@ export class CitadelMinimap {
     const h = Math.abs(y1 - y0);
     const lw = 1.5; // stroke width in px
     const col = EDG.yellow;
-    surface.rect(ox + left, oy + top, w, lw, col);              // top edge
-    surface.rect(ox + left, oy + top + h - lw, w, lw, col);     // bottom edge
-    surface.rect(ox + left, oy + top, lw, h, col);              // left edge
-    surface.rect(ox + left + w - lw, oy + top, lw, h, col);     // right edge
+    surface.rect(ox + left, oy + top, w, lw, col); // top edge
+    surface.rect(ox + left, oy + top + h - lw, w, lw, col); // bottom edge
+    surface.rect(ox + left, oy + top, lw, h, col); // left edge
+    surface.rect(ox + left + w - lw, oy + top, lw, h, col); // right edge
   }
 
   /**

@@ -7,14 +7,7 @@
  */
 import { describe, it, expect } from "vitest";
 import { BEHAVIOR_GENES } from "../components";
-import {
-  METRICS_COLUMNS,
-  metricsCsv,
-  metricsJson,
-  eventsJsonl,
-  lineageJson,
-  type MetricsRow,
-} from "./export";
+import { METRICS_COLUMNS, metricsCsv, metricsJson, eventsJsonl, lineageJson, type MetricsRow } from "./export";
 import type { ChronicleEvent } from "./chronicle";
 import type { LineageEntry } from "../lineage";
 
@@ -120,7 +113,11 @@ describe("lineageJson", () => {
     const entries: LineageEntry[] = [
       {
         id: 3,
-        genome: { behavior: {}, aptitude: {}, appearance: { height: 1, build: 1, skinTone: "skin", hairTone: "hairBlack" } },
+        genome: {
+          behavior: {},
+          aptitude: {},
+          appearance: { height: 1, build: 1, skinTone: "skin", hairTone: "hairBlack" },
+        },
         parents: null,
         birthTick: 0,
         deathTick: null,
@@ -129,7 +126,11 @@ describe("lineageJson", () => {
       },
       {
         id: 1,
-        genome: { behavior: {}, aptitude: {}, appearance: { height: 1, build: 1, skinTone: "skin", hairTone: "hairBlack" } },
+        genome: {
+          behavior: {},
+          aptitude: {},
+          appearance: { height: 1, build: 1, skinTone: "skin", hairTone: "hairBlack" },
+        },
         parents: null,
         birthTick: 0,
         deathTick: null,

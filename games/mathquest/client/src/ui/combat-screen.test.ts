@@ -8,7 +8,13 @@
 import { describe, it, expect } from "vitest";
 import { MIN_VIEWPORT, assertFitsViewport, computeLayout } from "@engine/ui";
 import type { ButtonNode, LabelNode, UINode } from "@engine/ui";
-import { NO_LIFELINES, STARTING_LIFELINES, type CombatSnapshot, type LifelineCharges, type ProblemView } from "@mathquest/sim-core";
+import {
+  NO_LIFELINES,
+  STARTING_LIFELINES,
+  type CombatSnapshot,
+  type LifelineCharges,
+  type ProblemView,
+} from "@mathquest/sim-core";
 import { TILE_COLORS, createCombatScreen, type CombatScreenActions } from "./combat-screen";
 import { STRINGS_EN, STRINGS_RO as STRINGS, type Strings } from "../strings";
 import { MATE_THEME } from "../render/mate-theme";
@@ -262,10 +268,38 @@ describe("createCombatScreen — M5 folklore theming", () => {
 
   it("renders the enemy's epithet (snapshot.enemy.title) as its own label, rebound on refresh", () => {
     const { screen } = makeScreen();
-    screen.refresh(baseSnapshot({ enemy: { hp: 24, maxHp: 24, block: 0, name: "Zmeu pui", title: "puiul balaurului", sprite: "dragon", intent: 6 } }), "", DEFAULT_LIFELINES);
+    screen.refresh(
+      baseSnapshot({
+        enemy: {
+          hp: 24,
+          maxHp: 24,
+          block: 0,
+          name: "Zmeu pui",
+          title: "puiul balaurului",
+          sprite: "dragon",
+          intent: 6,
+        },
+      }),
+      "",
+      DEFAULT_LIFELINES,
+    );
     expect(labels(screen.root).map((l) => l.text)).toContain("puiul balaurului");
 
-    screen.refresh(baseSnapshot({ enemy: { hp: 26, maxHp: 26, block: 0, name: "Balaur", title: "balaurul cu multe capete", sprite: "balaur", intent: 6 } }), "", DEFAULT_LIFELINES);
+    screen.refresh(
+      baseSnapshot({
+        enemy: {
+          hp: 26,
+          maxHp: 26,
+          block: 0,
+          name: "Balaur",
+          title: "balaurul cu multe capete",
+          sprite: "balaur",
+          intent: 6,
+        },
+      }),
+      "",
+      DEFAULT_LIFELINES,
+    );
     const text = labels(screen.root).map((l) => l.text);
     expect(text).toContain("balaurul cu multe capete");
     expect(text).not.toContain("puiul balaurului");
@@ -329,11 +363,11 @@ describe("createCombatScreen — M4b lifeline bar", () => {
     const { screen } = makeScreen();
     // A choice problem (not typed) so "fifty" isn't ALSO disabled by the typed-problem rule —
     // isolates the "0 charges" case from the "wrong input kind" case tested separately below.
-    screen.refresh(
-      baseSnapshot({ phase: "await_answer", problem: choiceProblemView }),
-      "",
-      { hint: 0, fifty: 1, skip: 1 },
-    );
+    screen.refresh(baseSnapshot({ phase: "await_answer", problem: choiceProblemView }), "", {
+      hint: 0,
+      fifty: 1,
+      skip: 1,
+    });
     expect(byLabel(screen.root, STRINGS.lifelineLabel("hint", 0)).state).toBe("disabled");
     expect(byLabel(screen.root, STRINGS.lifelineLabel("fifty", 1)).state).toBe("normal");
   });
@@ -386,7 +420,11 @@ describe("createCombatScreen — M4b hint line", () => {
     );
     expect(labels(screen.root).map((l) => l.text)).toContain(`${STRINGS.hintPrefix} 3+4: count on from 4`);
 
-    screen.refresh(baseSnapshot({ phase: "await_answer", problem: typedProblemView, hint: null }), "", DEFAULT_LIFELINES);
+    screen.refresh(
+      baseSnapshot({ phase: "await_answer", problem: typedProblemView, hint: null }),
+      "",
+      DEFAULT_LIFELINES,
+    );
     expect(labels(screen.root).map((l) => l.text)).not.toContain(`${STRINGS.hintPrefix} 3+4: count on from 4`);
   });
 
@@ -397,7 +435,11 @@ describe("createCombatScreen — M4b hint line", () => {
       "",
       DEFAULT_LIFELINES,
     );
-    expect(labels(screen.root).map((l) => l.text).some((t) => t.startsWith(STRINGS.hintPrefix))).toBe(false);
+    expect(
+      labels(screen.root)
+        .map((l) => l.text)
+        .some((t) => t.startsWith(STRINGS.hintPrefix)),
+    ).toBe(false);
   });
 });
 
@@ -430,7 +472,13 @@ describe("createCombatScreen — M5 slice 2 locale (constructed with STRINGS_EN)
     const { screen } = makeScreen(STRINGS_EN);
     screen.refresh(baseSnapshot({ phase: "await_action" }), "", DEFAULT_LIFELINES);
     const btnLabels = buttons(screen.root).map((b) => b.label);
-    expect(btnLabels).toEqual(expect.arrayContaining([STRINGS_EN.actionLabel.attack, STRINGS_EN.actionLabel.heal, STRINGS_EN.actionLabel.shield]));
+    expect(btnLabels).toEqual(
+      expect.arrayContaining([
+        STRINGS_EN.actionLabel.attack,
+        STRINGS_EN.actionLabel.heal,
+        STRINGS_EN.actionLabel.shield,
+      ]),
+    );
     expect(btnLabels).not.toContain(STRINGS.actionLabel.attack);
 
     screen.refresh(baseSnapshot({ phase: "won" }), "", DEFAULT_LIFELINES);
@@ -508,7 +556,11 @@ describe("createCombatScreen — fits MIN_VIEWPORT (playtest-01)", () => {
     const { screen } = makeScreen();
     for (const snap of [
       baseSnapshot({ phase: "await_action" }),
-      baseSnapshot({ phase: "teach", teach: "9 > 6: 9 este cu 3 mai mult decât 6", lastPlayer: { kind: "fizzle", action: "attack" } }),
+      baseSnapshot({
+        phase: "teach",
+        teach: "9 > 6: 9 este cu 3 mai mult decât 6",
+        lastPlayer: { kind: "fizzle", action: "attack" },
+      }),
       baseSnapshot({ phase: "won" }),
       baseSnapshot({ phase: "lost" }),
     ]) {

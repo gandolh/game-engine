@@ -47,10 +47,7 @@ export function placeProps(
   }
 }
 
-export function placeFootprint(
-  world: World<GameEntity>,
-  tiles: ReadonlyArray<{ x: number; y: number }>,
-): void {
+export function placeFootprint(world: World<GameEntity>, tiles: ReadonlyArray<{ x: number; y: number }>): void {
   if (tiles.length === 0) return;
   // Footprint solids are non-walkable occlusion backing for a decorative
   // structure. Ride the footprint RIGIDLY: translate every authored tile by the

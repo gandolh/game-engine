@@ -80,8 +80,7 @@ export class HollowBelongingSystem implements System {
       if (!belonging) continue;
       const attended =
         isGatherPhase &&
-        chebyshevDistance(entity.agent.gx, entity.agent.gy, HEARTH_TILE.gx, HEARTH_TILE.gy) <=
-          HEARTH_ATTENDANCE_RADIUS;
+        chebyshevDistance(entity.agent.gx, entity.agent.gy, HEARTH_TILE.gx, HEARTH_TILE.gy) <= HEARTH_ATTENDANCE_RADIUS;
       if (attended) {
         replenishNeed(belonging, this.replenishPerTick);
       } else {

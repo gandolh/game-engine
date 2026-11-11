@@ -22,7 +22,7 @@ export function deliberateHarborContract(
   const day = (farmer.beliefs?.data.currentDay as number | undefined) ?? 0;
   const rep = farmer.farmer.harborReputation ?? 0;
 
-  if (farmer.intentions.queue.some(i => i.kind === "commit-contract")) return;
+  if (farmer.intentions.queue.some((i) => i.kind === "commit-contract")) return;
 
   const eligible = openContracts.filter((c) => {
     if (c.minReputation > rep) return false;
@@ -32,17 +32,15 @@ export function deliberateHarborContract(
     const { crop, quantity } = c.goods;
     const have = farmer.inventory!.crops[crop] ?? 0;
 
-    if (have >= quantity) return true; 
+    if (have >= quantity) return true;
 
     if (riskTolerance >= 1.0) {
-
       return daysLeft >= 3;
     }
     if (riskTolerance >= 0.5) {
-
       return daysLeft >= 8;
     }
-    return false; 
+    return false;
   });
 
   if (eligible.length === 0) return;
@@ -58,7 +56,7 @@ export function deliberateHarborContract(
 
   const atHarbor = farmer.farmer.currentRegion === "harbor";
   if (!atHarbor) {
-    const existing = farmer.intentions.queue.find(i => i.kind === "travel" && i.data.targetRegionId === "harbor");
+    const existing = farmer.intentions.queue.find((i) => i.kind === "travel" && i.data.targetRegionId === "harbor");
     const wanted = travelPriority ?? priority + 1;
     if (existing) {
       if (wanted < existing.priority) existing.priority = wanted;
@@ -91,7 +89,7 @@ export function deliberateDeliverContract(
 
   const day = (farmer.beliefs?.data.currentDay as number | undefined) ?? 0;
   const daysLeft = contract.deadlineDay - day;
-  if (daysLeft <= 0) return; 
+  if (daysLeft <= 0) return;
 
   const { crop, quantity } = contract.goods;
   const have = farmer.inventory?.crops[crop] ?? 0;
@@ -102,7 +100,7 @@ export function deliberateDeliverContract(
   const shouldTravelHarbor = hasGoods || daysLeft <= 1;
 
   if (!atHarbor && shouldTravelHarbor) {
-    const existing = farmer.intentions.queue.find(i => i.kind === "travel" && i.data.targetRegionId === "harbor");
+    const existing = farmer.intentions.queue.find((i) => i.kind === "travel" && i.data.targetRegionId === "harbor");
 
     // `travelPriority ?? priority + 1` — the former `hasGoods && …` guard was
     // dead: whenever travelPriority is defined the ternary yielded it in both
@@ -120,7 +118,7 @@ export function deliberateDeliverContract(
   }
 
   if (hasGoods || atHarbor) {
-    if (!farmer.intentions.queue.some(i => i.kind === "deliver-contract")) {
+    if (!farmer.intentions.queue.some((i) => i.kind === "deliver-contract")) {
       farmer.intentions.queue.push({
         kind: "deliver-contract",
         data: { contractId: contract.id },

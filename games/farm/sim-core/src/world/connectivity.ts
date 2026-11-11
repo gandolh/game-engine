@@ -1,5 +1,5 @@
-import { buildWalkableGrid } from './walkable-grid';
-import { WORLD_WIDTH, WORLD_HEIGHT, onWorldSwap } from './regions';
+import { buildWalkableGrid } from "./walkable-grid";
+import { WORLD_WIDTH, WORLD_HEIGHT, onWorldSwap } from "./regions";
 
 let componentMap: Int32Array | undefined;
 
@@ -25,10 +25,10 @@ function buildComponentMap(): Int32Array {
       const y = (i - x) / WORLD_WIDTH;
 
       const neighbors = [
-        x + 1 < WORLD_WIDTH                   ? i + 1           : -1,
-        x - 1 >= 0                             ? i - 1           : -1,
-        y + 1 < WORLD_HEIGHT                   ? i + WORLD_WIDTH : -1,
-        y - 1 >= 0                             ? i - WORLD_WIDTH : -1,
+        x + 1 < WORLD_WIDTH ? i + 1 : -1,
+        x - 1 >= 0 ? i - 1 : -1,
+        y + 1 < WORLD_HEIGHT ? i + WORLD_WIDTH : -1,
+        y - 1 >= 0 ? i - WORLD_WIDTH : -1,
       ];
       for (const ni of neighbors) {
         if (ni < 0 || cells[ni] !== 0 || map[ni] !== -1) continue;

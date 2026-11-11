@@ -1,28 +1,16 @@
 import type { World } from "@engine/core";
 import type { GameEntity, ItemRef } from "../components";
-import type {
-  SnapshotSprite,
-} from "../snapshot";
+import type { SnapshotSprite } from "../snapshot";
 import type { PlayerHotbar, PlayerInventory, ItemSlotState } from "../snapshot";
 import { isFarmerMoving } from "../render-systems";
 import { HOTBAR_SIZE, defaultItemSlots, resolveItem } from "../systems/player-control";
-import {
-  BUBBLE_SHOW_TICKS,
-  DECORATION_LABELS,
-  INTENTION_KIND_TO_GLYPH,
-} from "./constants";
+import { BUBBLE_SHOW_TICKS, DECORATION_LABELS, INTENTION_KIND_TO_GLYPH } from "./constants";
 import { cropCue, farmerCue, UNTINTED_RGBA } from "./indicators";
 import { TILE } from "@engine/core/render";
 
 export class SnapshotSpriteState {
-  readonly lastIntention = new Map<
-    number,
-    { kind: string; changedAtTick: number }
-  >();
-  readonly lastFacing = new Map<
-    number,
-    { facing: "down" | "up" | "side"; flipX: boolean }
-  >();
+  readonly lastIntention = new Map<number, { kind: string; changedAtTick: number }>();
+  readonly lastFacing = new Map<number, { facing: "down" | "up" | "side"; flipX: boolean }>();
 
   wealthRowsSent = -1;
 }
@@ -40,7 +28,7 @@ function resolveFacing(
   let flipX = false;
   if (Math.abs(dx) > Math.abs(dy)) {
     facing = "side";
-    flipX = dx < 0; 
+    flipX = dx < 0;
   } else {
     facing = dy < 0 ? "up" : "down";
   }
@@ -49,11 +37,7 @@ function resolveFacing(
   return result;
 }
 
-function deriveRegionLabel(
-  name: string,
-  currentRegion: string,
-  isTraveling: boolean,
-): string {
+function deriveRegionLabel(name: string, currentRegion: string, isTraveling: boolean): string {
   if (isTraveling) return "traveling";
   if (currentRegion === "village") return "village";
   if (currentRegion === `farm-${name.toLowerCase()}`) return "home";
@@ -134,16 +118,15 @@ export function buildSprites(
     if (npc) {
       facing = npc.facing;
       flipX = npc.flipX;
-      frame = npc.poseFrame ?? s.frame; 
+      frame = npc.poseFrame ?? s.frame;
     } else if (isFarmer) {
-
       if (entity.player) {
         const pf = entity.player.facing;
         if (pf === "left" || pf === "right") {
           facing = "side";
           flipX = pf === "left";
         } else {
-          facing = pf; 
+          facing = pf;
         }
       } else {
         const f = resolveFacing(state, entity.id ?? -1, t.x - t.prevX, t.y - t.prevY);
@@ -213,7 +196,6 @@ export function buildSprites(
       label = "Auction Podium";
       description = "Where farmers gather to bid on the daily contract.";
     } else if (entity.noticeBoard) {
-
       label = "Notice Board";
       description = entity.noticeBoard.bountyText ?? "Today's bounty is posted here.";
     } else if (entity.fishingSpot) {
@@ -279,7 +261,15 @@ function buildSlotState(
     return { ref: null, label: "", glyph: "", frame: "", text: "", available: false, actionable: false };
   }
   const r = resolveItem(ref, inv, resources);
-  return { ref, label: r.label, glyph: r.glyph, frame: r.frame, text: r.text, available: r.available, actionable: r.actionable };
+  return {
+    ref,
+    label: r.label,
+    glyph: r.glyph,
+    frame: r.frame,
+    text: r.text,
+    available: r.available,
+    actionable: r.actionable,
+  };
 }
 
 export function buildPlayerInventory(world: World<GameEntity>): PlayerInventory | null {
@@ -295,7 +285,11 @@ export function buildPlayerInventory(world: World<GameEntity>): PlayerInventory 
 export function buildPlayerHotbar(grid: PlayerInventory | null): PlayerHotbar | null {
   if (grid === null) return null;
   const slots = grid.slots.slice(0, grid.hotbarSize).map((s) => ({
-    label: s.label, glyph: s.glyph, frame: s.frame, text: s.text, available: s.available,
+    label: s.label,
+    glyph: s.glyph,
+    frame: s.frame,
+    text: s.text,
+    available: s.available,
   }));
   return { slots, selected: grid.selected };
 }

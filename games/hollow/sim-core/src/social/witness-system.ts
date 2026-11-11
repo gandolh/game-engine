@@ -117,7 +117,11 @@ export class HollowSocialWitnessSystem implements System {
       if (dist <= this.witnessProximityTiles) {
         applyRelationshipDelta(witness.relationships, rumor.targetId, -this.rumorTrustDelta);
       } else if (witness.relationships.byId.has(rumor.actorId)) {
-        applyRelationshipDelta(witness.relationships, rumor.targetId, -this.rumorTrustDelta * this.rumorConnectedFactor);
+        applyRelationshipDelta(
+          witness.relationships,
+          rumor.targetId,
+          -this.rumorTrustDelta * this.rumorConnectedFactor,
+        );
       }
     }
   }

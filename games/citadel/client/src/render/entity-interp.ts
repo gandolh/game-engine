@@ -182,10 +182,15 @@ export class EntityInterpolator {
       if (t === undefined) {
         // New id: no history → draw at its position (prev == cur).
         this.tracks.set(e.id, {
-          prevPrevX: e.x, prevPrevY: e.y,
-          prevX: e.x, prevY: e.y,
-          curX: e.x, curY: e.y,
-          snap: true, histValid: false, sinceChange: 0,
+          prevPrevX: e.x,
+          prevPrevY: e.y,
+          prevX: e.x,
+          prevY: e.y,
+          curX: e.x,
+          curY: e.y,
+          snap: true,
+          histValid: false,
+          sinceChange: 0,
         });
         continue;
       }
@@ -347,8 +352,14 @@ export class EntityInterpolator {
  * case), i.e. the spline reduces to a straight line on open road.
  */
 function hermite(
-  p0x: number, p0y: number, p1x: number, p1y: number,
-  m0x: number, m0y: number, m1x: number, m1y: number,
+  p0x: number,
+  p0y: number,
+  p1x: number,
+  p1y: number,
+  m0x: number,
+  m0y: number,
+  m1x: number,
+  m1y: number,
   a: number,
 ): InterpPos {
   const a2 = a * a;

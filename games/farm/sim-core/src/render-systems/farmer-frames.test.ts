@@ -1,4 +1,3 @@
-
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
@@ -16,13 +15,7 @@ const personalities = [...frameKeys]
 
 describe("atlas frame-existence guard (characters sheet)", () => {
   it("ships the 5 expected farmer bases (4 AI + Pip)", () => {
-    expect([...personalities].sort()).toEqual([
-      "aggressive",
-      "conservative",
-      "hoarder",
-      "opportunist",
-      "pip",
-    ]);
+    expect([...personalities].sort()).toEqual(["aggressive", "conservative", "hoarder", "opportunist", "pip"]);
   });
 
   it("every frame resolveFrameAndBob can emit exists in the atlas", () => {

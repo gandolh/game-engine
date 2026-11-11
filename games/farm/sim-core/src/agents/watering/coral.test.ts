@@ -67,7 +67,7 @@ describe("deliberateCoralFishing", () => {
   it("always queues return-to-shore when aboard back at the dock, even off a period day", () => {
     const dock = CORAL_REEFS[0]!.dock;
     const f = makeFarmer({
-      beliefs: { data: { currentDay: 7 }, revision: 0 }, 
+      beliefs: { data: { currentDay: 7 }, revision: 0 },
       transform: { x: dock.x, y: dock.y, prevX: dock.x, prevY: dock.y, rotation: 0 },
       farmer: { name: "T", currentRegion: "fishing-isle", aboard: true },
     });
@@ -103,7 +103,6 @@ describe("deliberateCoralFishing", () => {
   });
 
   it("does not mark casts as done at queue time, so a re-deliberation before execution still re-queues them (item 27)", () => {
-
     const reef = CORAL_REEFS[0]!.reef;
     const f = makeFarmer({
       transform: { x: reef.x, y: reef.y, prevX: reef.x, prevY: reef.y, rotation: 0 },

@@ -62,7 +62,7 @@ describe("ApSystem", () => {
     it("travel is free in AP (time-throttled)", () => {
       const farmer = spawnFarmer(world, 8, 8, [{ kind: "travel", priority: 1 }]);
       system.run(makeContext(0));
-      expect(farmer.ap!.current).toBe(8); 
+      expect(farmer.ap!.current).toBe(8);
     });
 
     it("deducts AP for a sell (cost 3)", () => {
@@ -78,13 +78,13 @@ describe("ApSystem", () => {
         { kind: "harvest", priority: 3 },
       ]);
       system.run(makeContext(0));
-      expect(farmer.ap!.current).toBe(5); 
+      expect(farmer.ap!.current).toBe(5);
     });
 
     it("does not deduct AP below zero", () => {
       const farmer = spawnFarmer(world, 2, 8, [
         { kind: "plant", priority: 1 },
-        { kind: "sell-shopkeeper", priority: 5 }, 
+        { kind: "sell-shopkeeper", priority: 5 },
       ]);
       system.run(makeContext(0));
       expect(farmer.ap!.current).toBeGreaterThanOrEqual(0);
@@ -96,7 +96,7 @@ describe("ApSystem", () => {
       const farmer = spawnFarmer(world, 2, 8, [
         { kind: "plant", priority: 1 },
         { kind: "buy-seed", priority: 2 },
-        { kind: "harvest", priority: 5 }, 
+        { kind: "harvest", priority: 5 },
       ]);
       system.run(makeContext(0));
       const kinds = farmer.intentions!.queue.map((i) => i.kind);
@@ -107,7 +107,7 @@ describe("ApSystem", () => {
     it("keeps sell-shopkeeper even when it has high priority number", () => {
       const farmer = spawnFarmer(world, 3, 8, [
         { kind: "plant", priority: 1 },
-        { kind: "sell-shopkeeper", priority: 5 }, 
+        { kind: "sell-shopkeeper", priority: 5 },
       ]);
       system.run(makeContext(0));
       const kinds = farmer.intentions!.queue.map((i) => i.kind);
@@ -117,9 +117,9 @@ describe("ApSystem", () => {
 
     it("can drop multiple intents if needed", () => {
       const farmer = spawnFarmer(world, 1, 8, [
-        { kind: "plant", priority: 1 },    
-        { kind: "buy-seed", priority: 2 }, 
-        { kind: "harvest", priority: 3 },  
+        { kind: "plant", priority: 1 },
+        { kind: "buy-seed", priority: 2 },
+        { kind: "harvest", priority: 3 },
       ]);
       system.run(makeContext(0));
       const queue = farmer.intentions!.queue;
@@ -166,8 +166,8 @@ describe("ApSystem", () => {
   describe("no longer refills on WAIT_DAY", () => {
     it("leaves AP untouched in WAIT_DAY even when penaltyPending was set", () => {
       const farmer = spawnFarmer(world, 1, 8, [
-        { kind: "travel", priority: 1 }, 
-        { kind: "plant", priority: 2 }, 
+        { kind: "travel", priority: 1 },
+        { kind: "plant", priority: 2 },
       ]);
       system.run(makeContext(0));
       expect(farmer.ap!.away).toBe(true);
@@ -234,7 +234,7 @@ describe("ApSystem", () => {
         { kind: "auction-bid", priority: 1 },
       ]);
       system.run(makeContext(0));
-      expect(f.ap!.current).toBe(6); 
+      expect(f.ap!.current).toBe(6);
     });
 
     it("a trade-init is cheaper toward a trusted counterparty (tiered)", () => {
@@ -251,7 +251,7 @@ describe("ApSystem", () => {
         trust: { byId: new Map<number, number>([[99, 0.8]]) },
       });
       system.run(makeContext(0));
-      expect(friend.ap!.current).toBe(9); 
+      expect(friend.ap!.current).toBe(9);
     });
 
     it("a trade-init toward a distrusted counterparty pays the full 3 AP", () => {
@@ -268,7 +268,7 @@ describe("ApSystem", () => {
         trust: { byId: new Map<number, number>([[7, 0.2]]) },
       });
       system.run(makeContext(0));
-      expect(f.ap!.current).toBe(7); 
+      expect(f.ap!.current).toBe(7);
     });
   });
 });

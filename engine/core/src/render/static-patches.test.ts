@@ -13,7 +13,16 @@ import {
 import type { Sprite } from "./sprite-types";
 
 const sprite = (p: Partial<Sprite>): Sprite => ({
-  x: 0, y: 0, width: 16, height: 16, frame: "f", atlasId: "a", rotation: 0, layer: 0, alpha: 1, ...p,
+  x: 0,
+  y: 0,
+  width: 16,
+  height: 16,
+  frame: "f",
+  atlasId: "a",
+  rotation: 0,
+  layer: 0,
+  alpha: 1,
+  ...p,
 });
 
 describe("patch sizing", () => {
@@ -35,10 +44,25 @@ describe("the grid", () => {
   });
 
   it("finds the patches a view touches, ignoring an edge-only touch and anything off the region", () => {
-    expect(visiblePatchRange(grid, { visL: 140, visT: 60, visR: 170, visB: 90 })).toEqual({ c0: 1, r0: 0, c1: 2, r1: 1 });
-    expect(visiblePatchRange(grid, { visL: 100, visT: 50, visR: 132, visB: 82 })).toEqual({ c0: 0, r0: 0, c1: 0, r1: 0 });
+    expect(visiblePatchRange(grid, { visL: 140, visT: 60, visR: 170, visB: 90 })).toEqual({
+      c0: 1,
+      r0: 0,
+      c1: 2,
+      r1: 1,
+    });
+    expect(visiblePatchRange(grid, { visL: 100, visT: 50, visR: 132, visB: 82 })).toEqual({
+      c0: 0,
+      r0: 0,
+      c1: 0,
+      r1: 0,
+    });
     expect(visiblePatchRange(grid, { visL: 0, visT: 0, visR: 100, visB: 50 })).toBeNull();
-    expect(visiblePatchRange(grid, { visL: 0, visT: 0, visR: 1000, visB: 1000 })).toEqual({ c0: 0, r0: 0, c1: 3, r1: 2 });
+    expect(visiblePatchRange(grid, { visL: 0, visT: 0, visR: 1000, visB: 1000 })).toEqual({
+      c0: 0,
+      r0: 0,
+      c1: 3,
+      r1: 2,
+    });
   });
 });
 
@@ -91,12 +115,16 @@ describe("the painted-image manifest", () => {
 
   it("accepts a manifest that matches its own slicing and rejects one that does not", () => {
     const patches = slicePatches(64, 32, 32).map((p) => ({ file: `p${p.col}.png`, x: p.x, y: p.y, w: p.w, h: p.h }));
-    expect(validatePatchManifest({ version: 1, width: 64, height: 32, patchSize: 32, patches }).patches).toHaveLength(2);
-    expect(() => validatePatchManifest({ version: 2 })).toThrow(/unknown version/);
-    expect(() => validatePatchManifest({ version: 1, width: 64, height: 32, patchSize: 32, patches: patches.slice(1) })).toThrow(
-      /1 patches, but a 64×32 image at 32 px has 2/,
+    expect(validatePatchManifest({ version: 1, width: 64, height: 32, patchSize: 32, patches }).patches).toHaveLength(
+      2,
     );
+    expect(() => validatePatchManifest({ version: 2 })).toThrow(/unknown version/);
+    expect(() =>
+      validatePatchManifest({ version: 1, width: 64, height: 32, patchSize: 32, patches: patches.slice(1) }),
+    ).toThrow(/1 patches, but a 64×32 image at 32 px has 2/);
     const moved = patches.map((p, i) => (i === 1 ? { ...p, x: 30 } : p));
-    expect(() => validatePatchManifest({ version: 1, width: 64, height: 32, patchSize: 32, patches: moved })).toThrow(/patch 1/);
+    expect(() => validatePatchManifest({ version: 1, width: 64, height: 32, patchSize: 32, patches: moved })).toThrow(
+      /patch 1/,
+    );
   });
 });

@@ -80,21 +80,21 @@ describe("mill — process-crop", () => {
 
 describe("seasonal forage", () => {
   it("rewards gold when in the right zone + season (autumn, mushroom-grove)", () => {
-    const f = makeFarmer({ region: "mushroom-grove", day: 51, gold: 0 }); 
+    const f = makeFarmer({ region: "mushroom-grove", day: 51, gold: 0 });
     f.intentions!.queue.push({ kind: "forage", data: {}, priority: 1 });
     runAct(f);
-    expect(f.inventory!.gold).toBe(18); 
+    expect(f.inventory!.gold).toBe(18);
   });
 
   it("gives nothing out of season (spring at mushroom-grove)", () => {
-    const f = makeFarmer({ region: "mushroom-grove", day: 1, gold: 0 }); 
+    const f = makeFarmer({ region: "mushroom-grove", day: 1, gold: 0 });
     f.intentions!.queue.push({ kind: "forage", data: {}, priority: 1 });
     runAct(f);
     expect(f.inventory!.gold).toBe(0);
   });
 
   it("ice-pond rewards in winter", () => {
-    const f = makeFarmer({ region: "ice-pond", day: 80, gold: 0 }); 
+    const f = makeFarmer({ region: "ice-pond", day: 80, gold: 0 });
     f.intentions!.queue.push({ kind: "forage", data: {}, priority: 1 });
     runAct(f);
     expect(f.inventory!.gold).toBe(22);
@@ -107,7 +107,7 @@ describe("buy-tool location guard", () => {
     f.intentions!.queue.push({ kind: "buy-tool", data: { toolKind: "hoe" }, priority: 1 });
     runAct(f);
     expect(f.inventory!.tools!.some((t) => t.kind === "hoe")).toBe(true);
-    expect(f.inventory!.gold).toBe(95); 
+    expect(f.inventory!.gold).toBe(95);
   });
 
   it("does not buy outside the village", () => {
@@ -120,7 +120,6 @@ describe("buy-tool location guard", () => {
 });
 
 describe("refill-can location guard", () => {
-
   it("refills when adjacent to the home fountain tile", () => {
     const f = makeFarmer({ region: "farm-cora", homeRegion: "farm-cora", charges: 0 });
 
@@ -164,7 +163,7 @@ describe("deliberation routing", () => {
     const proc = q.find((i) => i.kind === "process-crop");
     expect(travel).toBeTruthy();
     expect(proc).toBeTruthy();
-    expect(travel!.priority).toBeLessThan(proc!.priority); 
+    expect(travel!.priority).toBeLessThan(proc!.priority);
   });
 
   it("deliberateSeasonalForage routes to mushroom-grove in autumn", () => {
@@ -177,7 +176,7 @@ describe("deliberation routing", () => {
   });
 
   it("deliberateSeasonalForage is a no-op out of season", () => {
-    const f = makeFarmer({ region: "farm-cora", day: 1 }); 
+    const f = makeFarmer({ region: "farm-cora", day: 1 });
     f.intentions!.queue.length = 0;
     deliberateSeasonalForage(f, 7);
     expect(f.intentions!.queue.length).toBe(0);
@@ -192,7 +191,7 @@ describe("deliberation routing", () => {
     const buy = q.find((i) => i.kind === "buy-tool");
     expect(travel).toBeTruthy();
     expect(buy).toBeTruthy();
-    expect(travel!.priority).toBeLessThan(buy!.priority); 
+    expect(travel!.priority).toBeLessThan(buy!.priority);
   });
 
   it("deliberateRefillCan queues ONLY travel when away (no refill this cycle)", () => {
@@ -203,7 +202,7 @@ describe("deliberation routing", () => {
     const q = f.intentions!.queue;
     const travel = q.find((i) => i.kind === "travel");
     const refill = q.find((i) => i.kind === "refill-can");
-    expect(travel).toBeTruthy(); 
-    expect(refill).toBeUndefined(); 
+    expect(travel).toBeTruthy();
+    expect(refill).toBeUndefined();
   });
 });

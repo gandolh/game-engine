@@ -49,7 +49,9 @@ describe("CitadelMinimap geometry", () => {
     const originX = 600;
     const originY = 8;
     let got: { tx: number; ty: number } | null = null;
-    const mm = new CitadelMinimap(proj, fakeTerrain(), (tx, ty) => { got = { tx, ty }; });
+    const mm = new CitadelMinimap(proj, fakeTerrain(), (tx, ty) => {
+      got = { tx, ty };
+    });
 
     const consumed = mm.trySeek(originX + fx, originY + fy, originX, originY);
     expect(consumed).toBe(true);
@@ -62,7 +64,9 @@ describe("CitadelMinimap geometry", () => {
     const originX = 600;
     const originY = 8;
     let seeks = 0;
-    const mm = new CitadelMinimap(proj, fakeTerrain(), () => { seeks++; });
+    const mm = new CitadelMinimap(proj, fakeTerrain(), () => {
+      seeks++;
+    });
 
     // Centre of the face → consumed.
     const cx = originX + MINIMAP_FACE / 2;
@@ -93,7 +97,9 @@ describe("CitadelMinimap geometry", () => {
     const mm = new CitadelMinimap(mp, { cells: new Uint8Array(256 * 256), width: 256, height: 256 }, () => {});
     // The world's far corner must still land inside the face.
     let seeked: { tx: number; ty: number } | null = null;
-    const mm2 = new CitadelMinimap(mp, { cells: new Uint8Array(256 * 256), width: 256, height: 256 }, (tx, ty) => { seeked = { tx, ty }; });
+    const mm2 = new CitadelMinimap(mp, { cells: new Uint8Array(256 * 256), width: 256, height: 256 }, (tx, ty) => {
+      seeked = { tx, ty };
+    });
     const scale = MINIMAP_FACE / Math.max(mp.worldPxW, mp.worldPxH);
     const offX = (MINIMAP_FACE - mp.worldPxW * scale) / 2;
     const offY = (MINIMAP_FACE - mp.worldPxH * scale) / 2;
@@ -114,9 +120,15 @@ function countingSurface(): { surface: UISurface; count: () => number } {
   const surface = {
     begin: () => {},
     end: () => {},
-    push: () => { calls++; },
-    rect: () => { calls++; },
-    sprite: () => { calls++; },
+    push: () => {
+      calls++;
+    },
+    rect: () => {
+      calls++;
+    },
+    sprite: () => {
+      calls++;
+    },
   } as unknown as UISurface; // structurally a UISurface for what `draw()` actually calls (rect only)
   return { surface, count: () => calls };
 }

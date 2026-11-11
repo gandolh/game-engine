@@ -56,12 +56,11 @@ describe("connectivity component map", () => {
   });
 
   it("farm-3 interior is walkable and same-component as shrine in current radial world (stale brief-73 finding)", () => {
-
     const f3 = getRegion("farm-3").center;
     const comp = componentOf(f3.x, f3.y);
-    expect(comp).toBeGreaterThanOrEqual(0); 
+    expect(comp).toBeGreaterThanOrEqual(0);
     const shrine = getRegion(SHRINE_REGION_ID).center;
-    expect(sameComponent(f3.x, f3.y, shrine.x, shrine.y)).toBe(true); 
+    expect(sameComponent(f3.x, f3.y, shrine.x, shrine.y)).toBe(true);
   });
 
   it("shrine center is reachable from village (same component, never disconnected)", () => {

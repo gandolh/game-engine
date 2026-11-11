@@ -221,20 +221,14 @@ export function nearestVillager(
  * followed villager still exists, else null (it despawned — e.g. night /
  * starvation → release the follow). Pure predicate.
  */
-export function followReleaseId(
-  followId: number | null,
-  villagers: readonly VillagerSnapshot[],
-): number | null {
+export function followReleaseId(followId: number | null, villagers: readonly VillagerSnapshot[]): number | null {
   if (followId === null) return null;
   for (const v of villagers) if (v.id === followId) return followId;
   return null;
 }
 
 /** Find the followed villager in the list (or null). Pure. */
-export function villagerById(
-  villagers: readonly VillagerSnapshot[],
-  id: number,
-): VillagerSnapshot | null {
+export function villagerById(villagers: readonly VillagerSnapshot[], id: number): VillagerSnapshot | null {
   for (const v of villagers) if (v.id === id) return v;
   return null;
 }
@@ -390,10 +384,7 @@ export function wellServedPulse(nowMs: number, phaseMs = 0): number {
  * of my buildings is the town actually keeping up with?" at a glance, at any hour,
  * without opening the coverage overlay. PURE — returns quads, no GPU/RNG.
  */
-export function wellServedGlowQuads(
-  buildings: readonly BuildingSnapshot[],
-  pulse: number,
-): QuadSpec[] {
+export function wellServedGlowQuads(buildings: readonly BuildingSnapshot[], pulse: number): QuadSpec[] {
   const quads: QuadSpec[] = [];
   const breathe = 0.75 + 0.25 * Math.max(0, Math.min(1, pulse)); // ±25% breath
   for (const b of buildings) {
@@ -599,11 +590,20 @@ export function fireGlowQuads(
     const cy = (b.y + b.h / 2) * TILE_SIZE;
     const footHalf = (Math.max(b.w, b.h) / 2) * TILE_SIZE;
     // Two rings: a wide faint pool + a tighter brighter core.
-    for (const ring of [{ r: 1.6, a: 0.14 }, { r: 0.7, a: 0.26 }]) {
+    for (const ring of [
+      { r: 1.6, a: 0.14 },
+      { r: 0.7, a: 0.26 },
+    ]) {
       const half = footHalf + ring.r * TILE_SIZE;
       const alphaByte = Math.round(Math.max(0, Math.min(1, ring.a * dayNight * breathe)) * 0xff);
       if (alphaByte <= 0) continue;
-      quads.push({ x: cx - half, y: cy - half, width: half * 2, height: half * 2, tintRgba: packTint(FIRE_GLOW_HEX, alphaByte) });
+      quads.push({
+        x: cx - half,
+        y: cy - half,
+        width: half * 2,
+        height: half * 2,
+        tintRgba: packTint(FIRE_GLOW_HEX, alphaByte),
+      });
     }
   }
   return quads;
@@ -672,12 +672,20 @@ export class CitadelFire {
     const cx = (b.x + b.w / 2) * TILE_SIZE;
     const cy = (b.y + b.h * 0.4) * TILE_SIZE;
     this.particles.emit({
-      x: cx, y: cy, count: 3, shape: "circle",
-      color: EMBER_COLOR, color2: EMBER_COLOR2,
-      speedMin: 8, speedMax: 20,
-      angleMin: -Math.PI * 0.72, angleMax: -Math.PI * 0.28, // upward fan
-      lifetimeMin: 0.5, lifetimeMax: 1.3,
-      sizeMin: 0.8, sizeMax: 1.8,
+      x: cx,
+      y: cy,
+      count: 3,
+      shape: "circle",
+      color: EMBER_COLOR,
+      color2: EMBER_COLOR2,
+      speedMin: 8,
+      speedMax: 20,
+      angleMin: -Math.PI * 0.72,
+      angleMax: -Math.PI * 0.28, // upward fan
+      lifetimeMin: 0.5,
+      lifetimeMax: 1.3,
+      sizeMin: 0.8,
+      sizeMax: 1.8,
       gravity: -14, // sparks shoot up then fade
     });
   }
@@ -687,12 +695,20 @@ export class CitadelFire {
     const cx = (b.x + b.w / 2) * TILE_SIZE;
     const top = b.y * TILE_SIZE + TILE_SIZE * 0.05;
     this.particles.emit({
-      x: cx, y: top, count: 2, shape: "circle",
-      color: FIRE_SMOKE_COLOR, color2: FIRE_SMOKE_COLOR2,
-      speedMin: 6, speedMax: 14,
-      angleMin: -Math.PI * 0.66, angleMax: -Math.PI * 0.34,
-      lifetimeMin: 1.0, lifetimeMax: 2.0,
-      sizeMin: 1.4, sizeMax: 3.0,
+      x: cx,
+      y: top,
+      count: 2,
+      shape: "circle",
+      color: FIRE_SMOKE_COLOR,
+      color2: FIRE_SMOKE_COLOR2,
+      speedMin: 6,
+      speedMax: 14,
+      angleMin: -Math.PI * 0.66,
+      angleMax: -Math.PI * 0.34,
+      lifetimeMin: 1.0,
+      lifetimeMax: 2.0,
+      sizeMin: 1.4,
+      sizeMax: 3.0,
       gravity: -8,
     });
   }

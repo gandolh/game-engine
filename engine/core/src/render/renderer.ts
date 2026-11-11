@@ -7,8 +7,14 @@ import type { PatchedImage, StaticLayerInfo } from "./static-patches";
 
 export type { Sprite };
 
-export interface WashOptions { color: string; alpha: number; }
-export interface WeatherLike { count: number; draw(ctx: Ctx2D): void; }
+export interface WashOptions {
+  color: string;
+  alpha: number;
+}
+export interface WeatherLike {
+  count: number;
+  draw(ctx: Ctx2D): void;
+}
 /**
  * Paints on top of the baked static sprites, in world coords. `widthPx`/`heightPx` are the world's
  * extent; `region` is the world rect this call bakes (the whole world, a sub-region, or one
@@ -31,10 +37,7 @@ export type DecorateFn = (ctx: Ctx2D, widthPx: number, heightPx: number, region:
  * not render for the entire time Farm was WebGPU-only. Any future backend that takes
  * this and drops it is re-introducing that bug, not making an optimisation.
  */
-export type OverlayFn = (
-  ctx: Ctx2D,
-  transform: { sx: number; sy: number; ox: number; oy: number },
-) => void;
+export type OverlayFn = (ctx: Ctx2D, transform: { sx: number; sy: number; ox: number; oy: number }) => void;
 
 export interface CloudOptions {
   /** EDG hex color of the overlay (parsed to RGB floats on the CPU). */
@@ -191,10 +194,5 @@ export interface RendererLike {
    */
   lastDrawStats?: { groups: number; ghostGroups: number; sprites: number; atlases: number };
 
-  endFrame(
-    wash?: WashOptions,
-    particles?: ParticleSystem,
-    weather?: WeatherLike,
-    overlay?: OverlayFn,
-  ): void;
+  endFrame(wash?: WashOptions, particles?: ParticleSystem, weather?: WeatherLike, overlay?: OverlayFn): void;
 }

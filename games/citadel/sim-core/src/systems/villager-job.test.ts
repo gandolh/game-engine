@@ -51,8 +51,26 @@ describe("villager job snapshot field", () => {
       { type: "placeBuilding", payload: { buildingType: "house", x: 10, y: 6 } },
       { type: "placeBuilding", payload: { buildingType: "house", x: 14, y: 6 } },
       roadRow(10, 13, 17),
-      { type: "placeRoad", payload: { tiles: [{ x: 11, y: 8 }, { x: 11, y: 9 }] } },
-      { type: "placeRoad", payload: { tiles: [{ x: 15, y: 7 }, { x: 15, y: 8 }, { x: 15, y: 9 }, { x: 15, y: 10 }] } },
+      {
+        type: "placeRoad",
+        payload: {
+          tiles: [
+            { x: 11, y: 8 },
+            { x: 11, y: 9 },
+          ],
+        },
+      },
+      {
+        type: "placeRoad",
+        payload: {
+          tiles: [
+            { x: 15, y: 7 },
+            { x: 15, y: 8 },
+            { x: 15, y: 9 },
+            { x: 15, y: 10 },
+          ],
+        },
+      },
       { type: "placeBuilding", payload: { buildingType: "farm", x: 18, y: 10 } },
     ];
     for (const c of cmds) sim.commands.enqueue(c);
@@ -62,9 +80,20 @@ describe("villager job snapshot field", () => {
   it("every villager snapshot carries a job string from the documented set", () => {
     const sim = bootEconomy();
     const allowed = new Set([
-      "farmer", "miller", "baker", "woodcutter", "quarryman", "miner",
-      "sawyer", "smith", "priest", "trader", "watchman", "soldier",
-      "healer", "idle",
+      "farmer",
+      "miller",
+      "baker",
+      "woodcutter",
+      "quarryman",
+      "miner",
+      "sawyer",
+      "smith",
+      "priest",
+      "trader",
+      "watchman",
+      "soldier",
+      "healer",
+      "idle",
     ]);
     for (let tick = 0; tick < TICKS_PER_DAY * 30; tick++) {
       sim.scheduler.tick({ tick });
@@ -122,9 +151,35 @@ describe("villager job snapshot field", () => {
       { type: "placeBuilding", payload: { buildingType: "house", x: 18, y: 6 } },
       { type: "placeBuilding", payload: { buildingType: "bakery", x: 18, y: 10 } },
       roadRow(10, 11, 20),
-      { type: "placeRoad", payload: { tiles: [{ x: 11, y: 8 }, { x: 11, y: 9 }] } },
-      { type: "placeRoad", payload: { tiles: [{ x: 15, y: 7 }, { x: 15, y: 8 }, { x: 15, y: 9 }] } },
-      { type: "placeRoad", payload: { tiles: [{ x: 19, y: 7 }, { x: 19, y: 8 }, { x: 19, y: 9 }] } },
+      {
+        type: "placeRoad",
+        payload: {
+          tiles: [
+            { x: 11, y: 8 },
+            { x: 11, y: 9 },
+          ],
+        },
+      },
+      {
+        type: "placeRoad",
+        payload: {
+          tiles: [
+            { x: 15, y: 7 },
+            { x: 15, y: 8 },
+            { x: 15, y: 9 },
+          ],
+        },
+      },
+      {
+        type: "placeRoad",
+        payload: {
+          tiles: [
+            { x: 19, y: 7 },
+            { x: 19, y: 8 },
+            { x: 19, y: 9 },
+          ],
+        },
+      },
     ];
     for (const c of cmds) sim.commands.enqueue(c);
     let sawBaker = false;
@@ -163,17 +218,29 @@ describe("villager job snapshot field", () => {
     const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, worldWidth: 96, worldHeight: 96 });
     const state = sim.state;
     sim.stockpiles.grain = 10; // goods access needs stockpiled grain + market in range
-    const homeId = addTestBuilding(state, "house", 30, 30);      // centre (31,31)
-    addTestBuilding(state, "chapel", 32, 30);                    // faith in range
-    addTestBuilding(state, "watchpost", 30, 32);                 // safety in range
-    addTestBuilding(state, "market", 32, 32);                    // goods in range
+    const homeId = addTestBuilding(state, "house", 30, 30); // centre (31,31)
+    addTestBuilding(state, "chapel", 32, 30); // faith in range
+    addTestBuilding(state, "watchpost", 30, 32); // safety in range
+    addTestBuilding(state, "market", 32, 32); // goods in range
     // Park a villager whose HOME is this house's top-left tile and who is idle
     // (stationed at home, so its snapshot position == homeX/homeY).
     state.villagerWorld.spawn({
       villager: {
-        id: 9001, ownerId: 0, homeX: 30, homeY: 30, workX: 30, workY: 30,
-        storeX: 30, storeY: 30, fsm: "idle", pathX: [], pathY: [], pathStep: 0,
-        carryGood: null, carryAmount: 0, ticksAtWork: 0,
+        id: 9001,
+        ownerId: 0,
+        homeX: 30,
+        homeY: 30,
+        workX: 30,
+        workY: 30,
+        storeX: 30,
+        storeY: 30,
+        fsm: "idle",
+        pathX: [],
+        pathY: [],
+        pathStep: 0,
+        carryGood: null,
+        carryAmount: 0,
+        ticksAtWork: 0,
       },
     });
     // Run the daily needs pass several days so the covered house reaches mood 100.
@@ -193,9 +260,21 @@ describe("villager job snapshot field", () => {
     const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, worldWidth: 96, worldHeight: 96 });
     sim.state.villagerWorld.spawn({
       villager: {
-        id: 9002, ownerId: 0, homeX: 5, homeY: 5, workX: 5, workY: 5,
-        storeX: 5, storeY: 5, fsm: "idle", pathX: [], pathY: [], pathStep: 0,
-        carryGood: null, carryAmount: 0, ticksAtWork: 0,
+        id: 9002,
+        ownerId: 0,
+        homeX: 5,
+        homeY: 5,
+        workX: 5,
+        workY: 5,
+        storeX: 5,
+        storeY: 5,
+        fsm: "idle",
+        pathX: [],
+        pathY: [],
+        pathStep: 0,
+        carryGood: null,
+        carryAmount: 0,
+        ticksAtWork: 0,
       },
     });
     const v = sim.getSnapshot(0).villagers.find((vv) => vv.id === 9002);

@@ -140,13 +140,17 @@ describe("notifySubscribers — a throwing subscriber aborts LOUDLY (deliberate)
     //    host-side state, not the ECS. So there is no determinism argument for swallowing either.
     const bus = new MessageBus();
     const later = vi.fn();
-    bus.subscribeOntology("test.ontology", () => { throw new Error("subscriber blew up"); });
+    bus.subscribeOntology("test.ontology", () => {
+      throw new Error("subscriber blew up");
+    });
     bus.subscribeOntology("test.ontology", later);
 
     bus.send(makeMsg(), 1);
     bus.flush();
 
-    expect(() => { bus.notifySubscribers(); }).toThrow("subscriber blew up");
+    expect(() => {
+      bus.notifySubscribers();
+    }).toThrow("subscriber blew up");
     expect(later).not.toHaveBeenCalled();
   });
 

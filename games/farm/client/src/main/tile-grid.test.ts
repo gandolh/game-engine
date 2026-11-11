@@ -49,11 +49,15 @@ describe("screenToTile inverts the sim's sprite grid (round trip)", () => {
   it("a tile centre emitted by the SIM maps back to that tile in the CLIENT", () => {
     const camera = makeCamera();
     const canvas = makeCanvas();
-    for (const [tx, ty] of [[0, 0], [3, 5], [31, 17], [64, 64]] as const) {
+    for (const [tx, ty] of [
+      [0, 0],
+      [3, 5],
+      [31, 17],
+      [64, 64],
+    ] as const) {
       const world = simTileCentrePx(tx, ty);
       const css = worldToCanvasCss(camera, canvas, world.x, world.y);
-      expect(screenToTile(camera, canvas, css.x, css.y), `tile ${String(tx)},${String(ty)}`)
-        .toEqual({ x: tx, y: ty });
+      expect(screenToTile(camera, canvas, css.x, css.y), `tile ${String(tx)},${String(ty)}`).toEqual({ x: tx, y: ty });
     }
   });
 
@@ -64,8 +68,7 @@ describe("screenToTile inverts the sim's sprite grid (round trip)", () => {
       camera.setZoom(zoom);
       const world = simTileCentrePx(20, 11);
       const css = worldToCanvasCss(camera, canvas, world.x, world.y);
-      expect(screenToTile(camera, canvas, css.x, css.y), `zoom ${String(zoom)}`)
-        .toEqual({ x: 20, y: 11 });
+      expect(screenToTile(camera, canvas, css.x, css.y), `zoom ${String(zoom)}`).toEqual({ x: 20, y: 11 });
     }
   });
 
@@ -87,7 +90,11 @@ describe("screenToTile inverts the sim's sprite grid (round trip)", () => {
   it("screenToWorld and worldToCanvasCss are exact inverses", () => {
     const camera = makeCamera();
     const canvas = makeCanvas();
-    for (const [wx, wy] of [[0, 0], [123.5, 77.25], [1024, 768]] as const) {
+    for (const [wx, wy] of [
+      [0, 0],
+      [123.5, 77.25],
+      [1024, 768],
+    ] as const) {
       const css = worldToCanvasCss(camera, canvas, wx, wy);
       const back = screenToWorld(camera, canvas, css.x, css.y);
       expect(back.wx).toBeCloseTo(wx, 9);

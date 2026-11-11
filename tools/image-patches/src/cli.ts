@@ -24,4 +24,6 @@ const { manifest, files } = slicePng(PNG.sync.read(readFileSync(source)), size);
 mkdirSync(outDir, { recursive: true });
 for (const f of files) writeFileSync(join(outDir, f.file), PNG.sync.write(f.png));
 writeFileSync(join(outDir, "patches.json"), `${JSON.stringify(manifest, null, 2)}\n`);
-console.log(`${source}: ${manifest.width}×${manifest.height} → ${files.length} patches of ${manifest.patchSize} px in ${outDir}`);
+console.log(
+  `${source}: ${manifest.width}×${manifest.height} → ${files.length} patches of ${manifest.patchSize} px in ${outDir}`,
+);

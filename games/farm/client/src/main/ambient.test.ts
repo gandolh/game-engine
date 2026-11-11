@@ -1,5 +1,3 @@
-
-
 import { describe, it, expect } from "vitest";
 import { AmbientLayer } from "./ambient";
 import type { ViewRect } from "./ambient";
@@ -11,7 +9,10 @@ function makeSprite(frame: string, x = 0, y = 0, width = 16, height = 16): Sprit
 
 const WIDE_VIEW: ViewRect = { left: -10000, right: 10000, top: -10000, bottom: 10000 };
 
-function makeCollector(): { push(s: Sprite): void; sprites: Array<{ x: number; y: number; frame: string; alpha: number }> } {
+function makeCollector(): {
+  push(s: Sprite): void;
+  sprites: Array<{ x: number; y: number; frame: string; alpha: number }>;
+} {
   const sprites: Array<{ x: number; y: number; frame: string; alpha: number }> = [];
   return {
     push(s) {
@@ -39,7 +40,7 @@ describe("AmbientLayer pool caps", () => {
     const MAX_SMOKE = 12;
 
     for (let frame = 0; frame < 500; frame++) {
-      const nowMs = frame * 50; 
+      const nowMs = frame * 50;
       layer.update(50, nowMs, WIDE_VIEW, 0, "spring");
 
       const collector = makeCollector();
@@ -68,7 +69,6 @@ describe("AmbientLayer pool caps", () => {
 
 describe("AmbientLayer frame validity", () => {
   it("never pushes a sprite with an undefined/empty frame (multi-bird flock regression)", () => {
-
     const sprites: Sprite[] = [];
     for (let i = 0; i < 20; i++) sprites.push(makeSprite("structure/tree", i * 32, 100));
     sprites.push(makeSprite("structure/home", 200, 200, 32, 48));
@@ -127,10 +127,7 @@ describe("AmbientLayer seeded determinism", () => {
   });
 
   it("two layers with DIFFERENT seeds produce different states after many updates", () => {
-    const anchors: Sprite[] = [
-      makeSprite("structure/tree", 100, 100),
-      makeSprite("structure/tree", 300, 150),
-    ];
+    const anchors: Sprite[] = [makeSprite("structure/tree", 100, 100), makeSprite("structure/tree", 300, 150)];
 
     const layerA = new AmbientLayer();
     const layerB = new AmbientLayer();
@@ -183,9 +180,7 @@ describe("AmbientLayer anchor extraction", () => {
   });
 
   it("excludes forge-house from smoke anchors", () => {
-    const sprites: Sprite[] = [
-      makeSprite("structure/forge-house", 100, 100, 32, 48),
-    ];
+    const sprites: Sprite[] = [makeSprite("structure/forge-house", 100, 100, 32, 48)];
 
     const layer = new AmbientLayer();
     layer.init(sprites, 0);
@@ -200,9 +195,7 @@ describe("AmbientLayer anchor extraction", () => {
   });
 
   it("produces smoke from non-forge buildings", () => {
-    const sprites: Sprite[] = [
-      makeSprite("structure/home", 200, 200, 32, 48),
-    ];
+    const sprites: Sprite[] = [makeSprite("structure/home", 200, 200, 32, 48)];
 
     const layer = new AmbientLayer();
     layer.init(sprites, 5);
@@ -220,9 +213,7 @@ describe("AmbientLayer anchor extraction", () => {
   });
 
   it("uses autumn leaf frame in autumn season", () => {
-    const sprites: Sprite[] = [
-      makeSprite("structure/tree", 100, 100),
-    ];
+    const sprites: Sprite[] = [makeSprite("structure/tree", 100, 100)];
 
     const layer = new AmbientLayer();
     layer.init(sprites, 3);
@@ -240,9 +231,7 @@ describe("AmbientLayer anchor extraction", () => {
   });
 
   it("uses green leaf frame in non-autumn season", () => {
-    const sprites: Sprite[] = [
-      makeSprite("structure/tree", 100, 100),
-    ];
+    const sprites: Sprite[] = [makeSprite("structure/tree", 100, 100)];
 
     const layer = new AmbientLayer();
     layer.init(sprites, 3);

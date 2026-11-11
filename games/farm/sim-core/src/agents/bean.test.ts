@@ -95,7 +95,7 @@ describe("golden-bean gift handshake (EncounterTradeSystem)", () => {
 
   beforeEach(() => {
     world = new World<GameEntity>();
-    new MessageBus(); 
+    new MessageBus();
     trade = new EncounterTradeSystem(world);
   });
 
@@ -128,7 +128,7 @@ describe("golden-bean gift handshake (EncounterTradeSystem)", () => {
 
     expect(giver.inventory!.goldenBeans).toBe(0);
     expect(receiver.inventory!.goldenBeans).toBe(1);
-    expect(receiver.trust!.byId.get(giver.id!)!).toBeGreaterThan(0.6); 
+    expect(receiver.trust!.byId.get(giver.id!)!).toBeGreaterThan(0.6);
   });
 
   it("is a no-op if the giver has no bean to give", () => {

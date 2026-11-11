@@ -1,21 +1,20 @@
-
 import type { RendererLike } from "@engine/core";
 import { OCCLUDER_WALLS, CLIFFS, BIG_STRUCTURES, BRIDGES } from "./geometry";
 import { frameToAtlasId, seasonalTreeFrame } from "./frames";
 import type { Season } from "../protocols/weather";
 import { TILE } from "@engine/core/render";
 
-const BRIDGE_SWAY_AMP = 1.5; 
-const BRIDGE_ROPE_SAG = 4;   
+const BRIDGE_SWAY_AMP = 1.5;
+const BRIDGE_ROPE_SAG = 4;
 
 function bridgeSway(nowMs: number): number {
   const t = nowMs / 1000;
-  const wobble = Math.sin(t * 2.3) * 0.62 + Math.sin(t * 1.07 + 1.7) * 0.38; 
+  const wobble = Math.sin(t * 2.3) * 0.62 + Math.sin(t * 1.07 + 1.7) * 0.38;
   const breathe = 0.85 + 0.15 * Math.sin(t * 0.37);
   return wobble * breathe * BRIDGE_SWAY_AMP;
 }
 
-const ENTITY_LAYER = 50; 
+const ENTITY_LAYER = 50;
 
 export function pushOccluderSprites(renderer: Pick<RendererLike, "push">): void {
   for (const wall of OCCLUDER_WALLS) {
@@ -58,7 +57,8 @@ export function pushBridgeSprites(renderer: Pick<RendererLike, "push">, nowMs: n
     const y = b.ty * TILE + TILE / 2 + dy;
 
     renderer.push({
-      x, y,
+      x,
+      y,
       width: TILE,
       height: TILE,
       frame: "tile/bridge-h",
@@ -69,7 +69,8 @@ export function pushBridgeSprites(renderer: Pick<RendererLike, "push">, nowMs: n
     });
 
     renderer.push({
-      x, y,
+      x,
+      y,
       width: TILE,
       height: TILE,
       frame: "tile/bridge-rail-posts",
@@ -81,7 +82,8 @@ export function pushBridgeSprites(renderer: Pick<RendererLike, "push">, nowMs: n
 
     const sag = BRIDGE_ROPE_SAG * 4 * b.spanT * (1 - b.spanT);
     renderer.push({
-      x, y: y + sag,
+      x,
+      y: y + sag,
       width: TILE,
       height: TILE,
       frame: "tile/bridge-rail-rope",
@@ -98,7 +100,6 @@ export function pushBuildingSprites(
   season: Season = "spring",
 ): void {
   for (const b of BIG_STRUCTURES) {
-
     const frame = seasonalTreeFrame(b.frame, season);
 
     renderer.pushShadow(

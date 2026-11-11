@@ -40,7 +40,11 @@ function collectShocks(bus: MessageBus): ShockBody[] {
   return out;
 }
 
-function runSim(seed: number, days: number, shockDay: number): {
+function runSim(
+  seed: number,
+  days: number,
+  shockDay: number,
+): {
   world: World<GameEntity>;
   shocks: ShockBody[];
   plantedRemaining: () => number;
@@ -89,14 +93,13 @@ describe("ShockSystem (mid-game blight)", () => {
     const shock = shocks[0]!;
     expect(shock.kind).toBe("blight");
     expect(shock.day).toBe(3);
-    expect(shock.plotsWiped).toBe(2); 
+    expect(shock.plotsWiped).toBe(2);
     expect(["Cora", "Atticus"]).toContain(shock.targetName);
 
     expect(plantedRemaining()).toBe(2);
   });
 
   it("does not fire before the shock day", () => {
-
     const { shocks, plantedRemaining } = runSim(0xc0ffee, 3, 3);
 
     expect(shocks.length).toBe(0);
@@ -111,7 +114,6 @@ describe("ShockSystem (mid-game blight)", () => {
   });
 
   it("different seeds can strike different farmers", () => {
-
     const base = runSim(1, 6, 3).shocks[0]!;
     const targets = new Set<number>([base.targetFarmerId]);
     for (const seed of [2, 3, 4, 5, 6, 7, 8]) {
@@ -121,7 +123,6 @@ describe("ShockSystem (mid-game blight)", () => {
   });
 
   it("prefers a farmer with planted crops so the blight always lands", () => {
-
     for (const seed of [1, 2, 3, 4, 5]) {
       const w2 = new World<GameEntity>();
       const b2 = new MessageBus();

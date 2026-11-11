@@ -53,13 +53,7 @@ import { buildCorpseMesh, corpseTint } from "./corpse-mesh";
 import { sicklyTint } from "./disease-tint";
 import { dayNightFromPhase, simDayPhaseWash } from "./day-night";
 import { wireOrbitCameraInput, type CameraInputHandle } from "./camera-input";
-import {
-  WORLD_MATERIAL_KEYS,
-  buildWorldMaterialList,
-  territoryTintColor,
-  toFloatRgb,
-  WHITE_TINT,
-} from "./materials";
+import { WORLD_MATERIAL_KEYS, buildWorldMaterialList, territoryTintColor, toFloatRgb, WHITE_TINT } from "./materials";
 import {
   buildHumanoid,
   buildAgentMaterialList,
@@ -532,7 +526,11 @@ export function startHollowApp(canvas: HTMLCanvasElement, worker: Worker, opts: 
           else materialInstances.push(inst);
         }
         if (foodInstances.length > 0) {
-          draws.push({ mesh: foodNodeMesh, instances: packInstances(foodInstances), instanceCount: foodInstances.length });
+          draws.push({
+            mesh: foodNodeMesh,
+            instances: packInstances(foodInstances),
+            instanceCount: foodInstances.length,
+          });
         }
         if (materialInstances.length > 0) {
           draws.push({

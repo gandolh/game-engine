@@ -2,7 +2,12 @@ import { describe, it, expect } from "vitest";
 import { ONT_FAMILY, ONT_COMMUNITY, ONT_SOCIAL, ONT_STARVATION, ONT_SHOCK } from "@hollow/sim-core/protocols";
 import type { ChronicleEvent } from "@hollow/sim-core/observe";
 import { agentName } from "./agent-name";
-import { formatChronicleEvent, chronicleEventActors, chronicleCategory, CHRONICLE_CATEGORIES } from "./chronicle-format";
+import {
+  formatChronicleEvent,
+  chronicleEventActors,
+  chronicleCategory,
+  CHRONICLE_CATEGORIES,
+} from "./chronicle-format";
 
 const TICKS_PER_DAY = 20;
 const FMT = { ticksPerDay: TICKS_PER_DAY };
@@ -13,10 +18,7 @@ function ev(overrides: Partial<ChronicleEvent> & { tick: number; ontology: strin
 
 describe("formatChronicleEvent", () => {
   it("prefixes every line with the derived year (floor(tick / ticksPerDay))", () => {
-    const line = formatChronicleEvent(
-      ev({ tick: 245, ontology: ONT_STARVATION.ONSET, agentId: 1 }),
-      FMT,
-    );
+    const line = formatChronicleEvent(ev({ tick: 245, ontology: ONT_STARVATION.ONSET, agentId: 1 }), FMT);
     expect(line.startsWith("Y12  ")).toBe(true); // floor(245/20) = 12
   });
 
@@ -140,7 +142,9 @@ describe("formatChronicleEvent", () => {
 describe("chronicleEventActors", () => {
   it("returns both partners for family.bonded, primary first", () => {
     expect(
-      chronicleEventActors(ev({ tick: 1, ontology: ONT_FAMILY.BONDED, householdId: 1, partnerAId: 10, partnerBId: 11 })),
+      chronicleEventActors(
+        ev({ tick: 1, ontology: ONT_FAMILY.BONDED, householdId: 1, partnerAId: 10, partnerBId: 11 }),
+      ),
     ).toEqual([10, 11]);
   });
 
@@ -186,13 +190,17 @@ describe("chronicleEventActors", () => {
 
   it("returns actor+target for a two-party social verb, actor first", () => {
     expect(
-      chronicleEventActors(ev({ tick: 1, ontology: ONT_SOCIAL.STEAL, actorId: 1, targetId: 2, good: "food", amount: 1, detected: false })),
+      chronicleEventActors(
+        ev({ tick: 1, ontology: ONT_SOCIAL.STEAL, actorId: 1, targetId: 2, good: "food", amount: 1, detected: false }),
+      ),
     ).toEqual([1, 2]);
   });
 
   it("returns only the actor for social.share (no individual target)", () => {
     expect(
-      chronicleEventActors(ev({ tick: 1, ontology: ONT_SOCIAL.SHARE, actorId: 1, communityId: 2, good: "food", amount: 1 })),
+      chronicleEventActors(
+        ev({ tick: 1, ontology: ONT_SOCIAL.SHARE, actorId: 1, communityId: 2, good: "food", amount: 1 }),
+      ),
     ).toEqual([1]);
   });
 
@@ -313,7 +321,12 @@ describe("ONT_SHOCK formatting (chunk hollow-11b)", () => {
   it("has no single agent actor (chronicleEventActors returns [])", () => {
     expect(
       chronicleEventActors(
-        ev({ tick: 20, ontology: ONT_SHOCK.FAMINE, seq: 0, shock: { kind: "famine", resourceKind: "food", factor: 0.3, durationTicks: 120 } }),
+        ev({
+          tick: 20,
+          ontology: ONT_SHOCK.FAMINE,
+          seq: 0,
+          shock: { kind: "famine", resourceKind: "food", factor: 0.3, durationTicks: 120 },
+        }),
       ),
     ).toEqual([]);
   });

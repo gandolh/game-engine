@@ -48,7 +48,9 @@ describe("art-05 unit role silhouettes", () => {
       // A real held tool / hat / robe adds a clear cluster of new silhouette pixels.
       if (added < 6) weak.push(`${role} (+${added}px)`);
     }
-    expect(weak, weak.length ? `Role accessory too small to change silhouette:\n  ${weak.join("\n  ")}` : "").toEqual([]);
+    expect(weak, weak.length ? `Role accessory too small to change silhouette:\n  ${weak.join("\n  ")}` : "").toEqual(
+      [],
+    );
   });
 });
 
@@ -63,15 +65,18 @@ describe("art-05 multiply-tint contract (accessory doesn't flood the tint)", () 
   // false-flagging EDG's intrinsically-cool grey ramp.
   const saturatedFrac = (name: string): number => {
     const r = rasterizeRecipe(byName(name));
-    let opaque = 0, hot = 0;
+    let opaque = 0,
+      hot = 0;
     for (let i = 0; i < r.width * r.height; i++) {
       const a = r.rgba[i * 4 + 3]!;
       if (a === 0) continue;
       opaque++;
-      const rr = r.rgba[i * 4]!, gg = r.rgba[i * 4 + 1]!, bb = r.rgba[i * 4 + 2]!;
+      const rr = r.rgba[i * 4]!,
+        gg = r.rgba[i * 4 + 1]!,
+        bb = r.rgba[i * 4 + 2]!;
       // "hot" = strongly WARM/saturated (red or green dominant) — the colours an
       // accessory would add. Cool-blue greys (steel/slate) are NOT counted.
-      if ((rr - bb > 40) || (gg - bb > 40)) hot++;
+      if (rr - bb > 40 || gg - bb > 40) hot++;
     }
     return opaque === 0 ? 0 : hot / opaque;
   };

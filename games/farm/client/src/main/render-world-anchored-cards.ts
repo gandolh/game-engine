@@ -51,7 +51,18 @@ export interface WorldAnchoredCardsParams {
  * visible only near max zoom-in (within 5% of `MAX_ZOOM`).
  */
 function renderInspectCard(p: WorldAnchoredCardsParams): void {
-  const { surface, canvas, camera, zoom, focusedFarmerId, farmerPositions, client, inspectPanel, inspectRoot, inspectCtl } = p;
+  const {
+    surface,
+    canvas,
+    camera,
+    zoom,
+    focusedFarmerId,
+    farmerPositions,
+    client,
+    inspectPanel,
+    inspectRoot,
+    inspectCtl,
+  } = p;
   const obsData = client.observer;
   const followed = focusedFarmerId !== null ? farmerPositions.get(focusedFarmerId) : undefined;
   const farmerRow = obsData?.farmers.find((f) => f.id === focusedFarmerId);
@@ -99,7 +110,18 @@ function renderInspectCard(p: WorldAnchoredCardsParams): void {
  * toggle).
  */
 function renderDiegeticHud(p: WorldAnchoredCardsParams): void {
-  const { surface, canvas, camera, ticksPerDay, hudSummoned, client, noticeBoard, noticeBoardRoot, standingsPost, standingsPostRoot } = p;
+  const {
+    surface,
+    canvas,
+    camera,
+    ticksPerDay,
+    hudSummoned,
+    client,
+    noticeBoard,
+    noticeBoardRoot,
+    standingsPost,
+    standingsPostRoot,
+  } = p;
   const noticeChanged = noticeBoard.refresh({ events: client.events });
   const timeLabel = fractionToTimeLabel(dayFraction(client.tick, ticksPerDay));
   const standingsChanged = standingsPost.refresh({
@@ -121,17 +143,15 @@ function renderDiegeticHud(p: WorldAnchoredCardsParams): void {
   } else if (camera !== null) {
     // World-anchored: float each panel above its structure's tile centre.
     computeLayout(noticeBoard.root, 0, 0);
-    const nb = worldToCanvasCss(
-      camera, canvas,
-      NOTICE_BOARD_TILE.x * TILE + TILE / 2, NOTICE_BOARD_TILE.y * TILE,
-    );
+    const nb = worldToCanvasCss(camera, canvas, NOTICE_BOARD_TILE.x * TILE + TILE / 2, NOTICE_BOARD_TILE.y * TILE);
     computeLayout(noticeBoard.root, nb.x - noticeBoard.root.rect.width / 2, nb.y - noticeBoard.root.rect.height - TILE);
     computeLayout(standingsPost.root, 0, 0);
-    const sp = worldToCanvasCss(
-      camera, canvas,
-      AUCTION_PODIUM_TILE.x * TILE + TILE / 2, AUCTION_PODIUM_TILE.y * TILE,
+    const sp = worldToCanvasCss(camera, canvas, AUCTION_PODIUM_TILE.x * TILE + TILE / 2, AUCTION_PODIUM_TILE.y * TILE);
+    computeLayout(
+      standingsPost.root,
+      sp.x - standingsPost.root.rect.width / 2,
+      sp.y - standingsPost.root.rect.height - TILE,
     );
-    computeLayout(standingsPost.root, sp.x - standingsPost.root.rect.width / 2, sp.y - standingsPost.root.rect.height - TILE);
   }
   if (noticeChanged) noticeBoardRoot.mirror?.update(noticeBoard.root);
   if (standingsChanged) standingsPostRoot.mirror?.update(standingsPost.root);

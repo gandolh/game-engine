@@ -44,9 +44,28 @@ describe("built-in icon registry", () => {
   // here without a recipe means that button silently falls back to a text label, which is
   // the exact regression this icon set exists to fix — so assert coverage, not a sample.
   const BUILDINGS = [
-    "house", "storehouse", "well", "farm", "mill", "bakery", "woodcutter", "sawmill",
-    "quarry", "mine", "smith", "town-hall", "chapel", "market", "watchpost", "tradingpost",
-    "healer", "public-square", "gate", "tower", "garrison", "keep",
+    "house",
+    "storehouse",
+    "well",
+    "farm",
+    "mill",
+    "bakery",
+    "woodcutter",
+    "sawmill",
+    "quarry",
+    "mine",
+    "smith",
+    "town-hall",
+    "chapel",
+    "market",
+    "watchpost",
+    "tradingpost",
+    "healer",
+    "public-square",
+    "gate",
+    "tower",
+    "garrison",
+    "keep",
   ];
   const TOOLS = ["road", "wall", "upgrade", "demolish", "cancel"];
   const GOODS = ["grain", "flour", "bread", "wood", "planks", "stone", "tools"];
@@ -66,7 +85,12 @@ describe("built-in icon registry", () => {
     // no outline/highlight separation and turns to mush against a HUD panel.
     const flat: string[] = [];
     for (const [name, recipe] of Object.entries(ICONS)) {
-      const shades = new Set(recipe.pixels.join("").split("").filter((c) => c !== "."));
+      const shades = new Set(
+        recipe.pixels
+          .join("")
+          .split("")
+          .filter((c) => c !== "."),
+      );
       if (shades.size < 2) flat.push(`${name} (${shades.size} shade band)`);
     }
     expect(flat, flat.length ? `Flat icons:\n  ${flat.join("\n  ")}` : "").toEqual([]);

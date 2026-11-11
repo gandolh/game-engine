@@ -60,7 +60,10 @@ function makeItemCard(index: number, actions: LootScreenActions): ItemCard {
 export function createLootScreen(actions: LootScreenActions, strings: Strings): LootScreen {
   const titleLbl = label(strings.lootTitle, { color: MATE_PAL.gold, scale: 3 });
   const cards: readonly ItemCard[] = Array.from({ length: OFFER_SLOTS }, (_, i) => makeItemCard(i, actions));
-  const offerRow = box({ direction: "row", gap: 16 }, cards.map((c) => c.card));
+  const offerRow = box(
+    { direction: "row", gap: 16 },
+    cards.map((c) => c.card),
+  );
   const skipBtn = button(strings.lootSkip, { onActivate: () => actions.skipLoot() });
   const root = panel({ direction: "column", gap: 16, align: "center", padding: 24 }, [titleLbl, offerRow, skipBtn]);
 

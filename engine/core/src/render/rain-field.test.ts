@@ -22,8 +22,12 @@ describe("RainField", () => {
   });
 
   it("storm is denser than rainy (intensity scales the pool)", () => {
-    const rainy = new RainField(); rainy.setConfig(cfg("rain", 0.8)); rainy.update(0.016, VIEW);
-    const storm = new RainField(); storm.setConfig(cfg("rain", 1.3)); storm.update(0.016, VIEW);
+    const rainy = new RainField();
+    rainy.setConfig(cfg("rain", 0.8));
+    rainy.update(0.016, VIEW);
+    const storm = new RainField();
+    storm.setConfig(cfg("rain", 1.3));
+    storm.update(0.016, VIEW);
     expect(storm.count).toBeGreaterThan(rainy.count);
   });
 
@@ -47,7 +51,10 @@ describe("RainField", () => {
     f.setConfig(cfg("rain"));
     let impacts = 0;
 
-    for (let i = 0; i < 200; i++) f.update(0.05, VIEW, () => { impacts++; });
+    for (let i = 0; i < 200; i++)
+      f.update(0.05, VIEW, () => {
+        impacts++;
+      });
     expect(impacts).toBeGreaterThan(0);
   });
 
@@ -55,7 +62,10 @@ describe("RainField", () => {
     const f = new RainField();
     f.setConfig(cfg("snow"));
     let impacts = 0;
-    for (let i = 0; i < 200; i++) f.update(0.05, VIEW, () => { impacts++; });
+    for (let i = 0; i < 200; i++)
+      f.update(0.05, VIEW, () => {
+        impacts++;
+      });
     expect(impacts).toBe(0);
   });
 

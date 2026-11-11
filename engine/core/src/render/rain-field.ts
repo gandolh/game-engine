@@ -37,10 +37,10 @@ export interface RainFieldConfig {
 }
 
 interface Drop {
-  gx: number;   // ground/impact world-x
-  gy: number;   // ground/impact world-y
-  z: number;    // height above ground, world px (falls to 0)
-  vz: number;   // fall speed, world px/s (constant per drop — rain doesn't accelerate)
+  gx: number; // ground/impact world-x
+  gy: number; // ground/impact world-y
+  z: number; // height above ground, world px (falls to 0)
+  vz: number; // fall speed, world px/s (constant per drop — rain doesn't accelerate)
   wind: number; // horizontal drift, world px/s
   scale: number; // 0.7..1.2 depth cue (longer/larger when "nearer")
   phase: number; // snow sway phase
@@ -48,8 +48,27 @@ interface Drop {
 const CULL_MARGIN = TILE * 2;
 
 // Per-kind tuning. maxZ is the fall height; vz the fall speed range; density is drops per tile².
-const RAIN = { maxZ: TILE * 5, vzMin: 170, vzMax: 250, windMin: 14, windMax: 34, density: 0.22, splashChance: 0.07, streakLen: 9, lineWidth: 0.7 };
-const SNOW = { maxZ: TILE * 6, vzMin: 16, vzMax: 34, windMin: -6, windMax: 10, density: 0.12, swayAmp: 6, flakeSize: 1.1 };
+const RAIN = {
+  maxZ: TILE * 5,
+  vzMin: 170,
+  vzMax: 250,
+  windMin: 14,
+  windMax: 34,
+  density: 0.22,
+  splashChance: 0.07,
+  streakLen: 9,
+  lineWidth: 0.7,
+};
+const SNOW = {
+  maxZ: TILE * 6,
+  vzMin: 16,
+  vzMax: 34,
+  windMin: -6,
+  windMax: 10,
+  density: 0.12,
+  swayAmp: 6,
+  flakeSize: 1.1,
+};
 const MAX_DROPS = 900; // hard cap so a huge viewport can't blow up the pool on weak hardware
 
 export class RainField {
@@ -95,8 +114,10 @@ export class RainField {
         }
         this.respawn(d, view, tune, true); // re-drop from the sky
       } else if (
-        d.gx < view.left - CULL_MARGIN || d.gx > view.right + CULL_MARGIN ||
-        d.gy < view.top - CULL_MARGIN || d.gy > view.bottom + CULL_MARGIN
+        d.gx < view.left - CULL_MARGIN ||
+        d.gx > view.right + CULL_MARGIN ||
+        d.gy < view.top - CULL_MARGIN ||
+        d.gy > view.bottom + CULL_MARGIN
       ) {
         // Drifted out of view because the camera moved — reposition into view at a random height
         // (fills a newly-revealed edge with a full vertical column, so panning shows no gap).
@@ -114,12 +135,7 @@ export class RainField {
     if (this.drops.length > target) this.drops.length = target;
   }
 
-  private respawn(
-    d: Drop,
-    view: RainViewRect,
-    tune: typeof RAIN | typeof SNOW,
-    fromTop: boolean,
-  ): void {
+  private respawn(d: Drop, view: RainViewRect, tune: typeof RAIN | typeof SNOW, fromTop: boolean): void {
     d.gx = view.left + Math.random() * (view.right - view.left);
     d.gy = view.top + Math.random() * (view.bottom - view.top);
     d.z = fromTop ? tune.maxZ : Math.random() * tune.maxZ;
@@ -190,20 +206,13 @@ export class RainField {
    * (x0, y0) is the head (impact point lifted by z); (x1, y1) is the tail.
    * Only meaningful when weatherKind === "rain".
    */
-  forEachRainStreak(
-    visit: (x0: number, y0: number, x1: number, y1: number) => void,
-  ): void {
+  forEachRainStreak(visit: (x0: number, y0: number, x1: number, y1: number) => void): void {
     for (const d of this.drops) {
       const len = RAIN.streakLen * d.scale;
       const spd = Math.hypot(d.wind, d.vz) || 1;
       const drawX = d.gx;
       const drawY = d.gy - d.z;
-      visit(
-        drawX,
-        drawY,
-        drawX - (d.wind / spd) * len,
-        drawY - (d.vz / spd) * len,
-      );
+      visit(drawX, drawY, drawX - (d.wind / spd) * len, drawY - (d.vz / spd) * len);
     }
   }
 
@@ -212,9 +221,7 @@ export class RainField {
    * `cx` includes the sin-sway; `halfSize` is the s value (SNOW.flakeSize × scale).
    * Only meaningful when weatherKind === "snow".
    */
-  forEachSnowFlake(
-    visit: (cx: number, cy: number, halfSize: number) => void,
-  ): void {
+  forEachSnowFlake(visit: (cx: number, cy: number, halfSize: number) => void): void {
     for (const d of this.drops) {
       const s = SNOW.flakeSize * d.scale;
       const sway = Math.sin(this.timeSec * 1.5 + d.phase) * SNOW.swayAmp;

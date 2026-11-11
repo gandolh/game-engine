@@ -1,11 +1,4 @@
-import type {
-  FsmState,
-  Beliefs,
-  Desires,
-  Intentions,
-  Personality,
-  AgentInbox,
-} from "@engine/core";
+import type { FsmState, Beliefs, Desires, Intentions, Personality, AgentInbox } from "@engine/core";
 import type { Needs, RelationshipLedger } from "@engine/core/agent";
 import type { HollowAgent } from "./agent";
 import type { Inventory } from "./inventory";

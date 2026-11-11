@@ -23,12 +23,16 @@ function findGrass(t: TerrainGrid, w: number, h: number, sx: number, sy: number)
   for (let r = 0; r < 60; r++) {
     for (let dy = -r; dy <= r; dy++) {
       for (let dx = -r; dx <= r; dx++) {
-        const x = sx + dx, y = sy + dy;
+        const x = sx + dx,
+          y = sy + dy;
         if (x < 0 || y < 0 || x + w > t.width || y + h > t.height) continue;
         let ok = true;
         for (let yy = 0; yy < h && ok; yy++)
           for (let xx = 0; xx < w; xx++)
-            if (t.cells[(y + yy) * t.width + (x + xx)] !== TerrainType.Grass) { ok = false; break; }
+            if (t.cells[(y + yy) * t.width + (x + xx)] !== TerrainType.Grass) {
+              ok = false;
+              break;
+            }
         if (ok) return { x, y };
       }
     }
@@ -65,17 +69,22 @@ describe("build cost — opt-in flag", () => {
     expect(lp.stockpiles.wood).toBe(40 - (BUILD_COST["house"]?.wood ?? 0)); // 40 - 4 = 36
   });
 
-  it("REJECTS an unaffordable placement (\"cost\") — not spawned, nothing charged", () => {
+  it('REJECTS an unaffordable placement ("cost") — not spawned, nothing charged', () => {
     // Grant less than a house costs (house = 4 wood).
     const sim = bootstrapSim({ seed: 1, ticksPerDay: TPD, chargeBuildCost: true, startingStock: { wood: 1 } });
     const lp = localPlayer(sim.state);
     placeHouse(sim, 0);
-    expect(houseCount(sim)).toBe(0);     // not placed
-    expect(lp.stockpiles.wood).toBe(1);  // not charged
+    expect(houseCount(sim)).toBe(0); // not placed
+    expect(lp.stockpiles.wood).toBe(1); // not charged
   });
 
   it("charges stone for late buildings that cost it (smith = wood + stone)", () => {
-    const sim = bootstrapSim({ seed: 1, ticksPerDay: TPD, chargeBuildCost: true, startingStock: { wood: 40, stone: 10 } });
+    const sim = bootstrapSim({
+      seed: 1,
+      ticksPerDay: TPD,
+      chargeBuildCost: true,
+      startingStock: { wood: 40, stone: 10 },
+    });
     const lp = localPlayer(sim.state);
     lp.peakTier = "Village"; // smith is tier-locked to Village; unlock it so placement isn't a "tier" reject
     const s = findGrass(sim.terrain, 2, 2, 20, 20);
@@ -110,7 +119,7 @@ describe("build cost — opt-in flag", () => {
     const originalSnap = sim.getSnapshot(target);
 
     const save = sim.serializeSave(target);
-    expect(save.chargeBuildCost).toBe(true);     // options persisted...
+    expect(save.chargeBuildCost).toBe(true); // options persisted...
     expect(save.startingStock).toEqual({ wood: 40 });
     // ...so the replay charges the same costs + grants the same wood → identical stockpile.
     const loaded = loadFromSave(save);

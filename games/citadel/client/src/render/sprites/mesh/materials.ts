@@ -74,8 +74,20 @@ export const MATERIALS: Record<MaterialKey, FaceTones> = {
   // Warm lamplight glowing through a window at dusk/night — EMISSIVE (flat gold
   // regardless of face normal), outlined in a warm dark rust rather than a cold
   // stone outline so the pane still reads warm at its edge.
-  lampGlow: { top: rgba(EDG.gold), left: rgba(EDG.gold), right: rgba(EDG.gold), outline: rgba(EDG.rust), emissive: true },
+  lampGlow: {
+    top: rgba(EDG.gold),
+    left: rgba(EDG.gold),
+    right: rgba(EDG.gold),
+    outline: rgba(EDG.rust),
+    emissive: true,
+  },
   // A hotter ember glow for the smith's hearth at night — brighter than the
   // day "signal" ramp (the hearth's bright-mouth material) and EMISSIVE.
-  hotEmber: { top: rgba(EDG.yellow), left: rgba(EDG.yellow), right: rgba(EDG.yellow), outline: rgba(EDG.crimson), emissive: true },
+  hotEmber: {
+    top: rgba(EDG.yellow),
+    left: rgba(EDG.yellow),
+    right: rgba(EDG.yellow),
+    outline: rgba(EDG.crimson),
+    emissive: true,
+  },
 };

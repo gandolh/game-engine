@@ -127,7 +127,12 @@ function rollFounderGenomeInto(
 
   const appearanceOverride = overrides?.appearance;
   if (locked.has("height")) {
-    target.appearance.height = lockedValue(undefined, appearanceOverride?.height, APPEARANCE_HEIGHT_MIN, APPEARANCE_HEIGHT_MAX);
+    target.appearance.height = lockedValue(
+      undefined,
+      appearanceOverride?.height,
+      APPEARANCE_HEIGHT_MIN,
+      APPEARANCE_HEIGHT_MAX,
+    );
   } else {
     target.appearance.height = rollContinuous(
       undefined,
@@ -139,7 +144,12 @@ function rollFounderGenomeInto(
     );
   }
   if (locked.has("build")) {
-    target.appearance.build = lockedValue(undefined, appearanceOverride?.build, APPEARANCE_BUILD_MIN, APPEARANCE_BUILD_MAX);
+    target.appearance.build = lockedValue(
+      undefined,
+      appearanceOverride?.build,
+      APPEARANCE_BUILD_MIN,
+      APPEARANCE_BUILD_MAX,
+    );
   } else {
     target.appearance.build = rollContinuous(
       undefined,
@@ -226,7 +236,8 @@ export function applyPersonaSeed(sim: BootedHollowSim, seed: PersonaSeed): void 
  * mirrors `tools/hollow-sim/src/run-core.ts`'s existing spread pattern.
  */
 export function personaSeedToSimOptions(seed: PersonaSeed): Partial<HollowSimOptions> {
-  const population = seed.population ?? (seed.archetypes ? seed.archetypes.reduce((sum, a) => sum + a.count, 0) : undefined);
+  const population =
+    seed.population ?? (seed.archetypes ? seed.archetypes.reduce((sum, a) => sum + a.count, 0) : undefined);
   return {
     ...(seed.seed !== undefined ? { seed: seed.seed } : {}),
     ...(population !== undefined ? { population } : {}),

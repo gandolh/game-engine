@@ -21,7 +21,13 @@ function findLabel(node: UINode, prefix: string): LabelNode | null {
 
 const ev = (day: number, text: string, drama = 0): EventFeedRow => ({ day, text, drama });
 const lb = (rank: number, name: string, totalValue: number): LeaderboardRow => ({
-  rank, id: rank, name, personality: "conservative", gold: 0, unsoldValue: 0, totalValue,
+  rank,
+  id: rank,
+  name,
+  personality: "conservative",
+  gold: 0,
+  unsoldValue: 0,
+  totalValue,
 });
 
 describe("createNoticeBoard", () => {
@@ -54,7 +60,8 @@ describe("createStandingsPost", () => {
   it("shows day/time header and top-3 with rank colours", () => {
     const sp = createStandingsPost();
     const changed = sp.refresh({
-      day: 12, timeLabel: "12:00 PM",
+      day: 12,
+      timeLabel: "12:00 PM",
       rows: [lb(1, "Cora", 500), lb(2, "Atticus", 400), lb(3, "Hannah", 300), lb(4, "Otto", 200)],
     });
     expect(changed).toBe(true);

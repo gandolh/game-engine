@@ -88,7 +88,7 @@ describe("CropGrowthSystem", () => {
 
     const stations = world.query("weatherStation", "inbox");
     for (const s of stations) {
-      s.weatherStation!.multiplier = 1.2; 
+      s.weatherStation!.multiplier = 1.2;
     }
 
     sendDayStart(world, 1);
@@ -189,7 +189,7 @@ describe("CropGrowthSystem", () => {
     sendDayStart(world, 1);
     system.run(makeContext(10));
     const s = plot.plot!.state as Extract<PlotState, { kind: "planted" }>;
-    expect(s.daysGrowing).toBe(0); 
+    expect(s.daysGrowing).toBe(0);
     expect(s.daysSinceWater).toBe(1);
   });
 
@@ -200,7 +200,7 @@ describe("CropGrowthSystem", () => {
     sendDayStart(world, 1);
     system.run(makeContext(10));
     const s = plot.plot!.state as Extract<PlotState, { kind: "planted" }>;
-    expect(s.daysGrowing).toBe(1); 
+    expect(s.daysGrowing).toBe(1);
     expect(s.daysSinceWater).toBe(0);
   });
 
@@ -210,24 +210,22 @@ describe("CropGrowthSystem", () => {
 
     for (let day = 1; day <= 4; day++) {
       const s = plot.plot!.state;
-      if (s.kind === "planted" && day > 1) s.wateredToday = false; 
+      if (s.kind === "planted" && day > 1) s.wateredToday = false;
       sendDayStart(world, day);
       system.run(makeContext(day * 10));
     }
-    expect(plot.plot!.state.kind).toBe("empty"); 
+    expect(plot.plot!.state.kind).toBe("empty");
   });
 
   it("in-season crop grows at full rate (daysGrowing += 1 per day)", () => {
-
     const plot = spawnPlot(world, 1);
     sendDayStart(world, 1);
     system.run(makeContext(10));
     const s = plot.plot!.state as Extract<PlotState, { kind: "planted" }>;
-    expect(s.daysGrowing).toBe(1); 
+    expect(s.daysGrowing).toBe(1);
   });
 
   it("out-of-season crop grows at half rate (daysGrowing += 0.5 per day)", () => {
-
     const plotEntity = world.spawn({
       plot: {
         ownerId: 1,
@@ -245,10 +243,10 @@ describe("CropGrowthSystem", () => {
         } satisfies PlotState,
       },
     });
-    sendDayStart(world, 51); 
+    sendDayStart(world, 51);
     system.run(makeContext(100));
     const s = plotEntity.plot!.state as Extract<PlotState, { kind: "planted" }>;
-    expect(s.daysGrowing).toBeCloseTo(0.5); 
+    expect(s.daysGrowing).toBeCloseTo(0.5);
   });
 
   it("greenhouse plot grows an out-of-season crop at FULL rate (vs half for a normal plot)", () => {
@@ -262,7 +260,7 @@ describe("CropGrowthSystem", () => {
           greenhouse,
           state: {
             kind: "planted",
-            crop: "radish", 
+            crop: "radish",
             daysGrowing: 0,
             readyAtDay: 5,
             weatherSum: 0,
@@ -274,13 +272,13 @@ describe("CropGrowthSystem", () => {
     const normalPlot = mkOutOfSeasonRadish(false, 0);
     const greenhousePlot = mkOutOfSeasonRadish(true, 4);
 
-    sendDayStart(world, 51); 
+    sendDayStart(world, 51);
     system.run(makeContext(100));
 
     const sNormal = normalPlot.plot!.state as Extract<PlotState, { kind: "planted" }>;
     const sGreen = greenhousePlot.plot!.state as Extract<PlotState, { kind: "planted" }>;
-    expect(sNormal.daysGrowing).toBeCloseTo(0.5); 
-    expect(sGreen.daysGrowing).toBeCloseTo(1.0);   
+    expect(sNormal.daysGrowing).toBeCloseTo(0.5);
+    expect(sGreen.daysGrowing).toBeCloseTo(1.0);
   });
 });
 
@@ -291,7 +289,7 @@ describe("computeQuality", () => {
     const q1 = computeQuality(3, 3, 3.0, 0, 1, rng);
     const rng2 = createRng(999).fork("crop-quality");
     const q2 = computeQuality(3, 3, 3.0, 0, 1, rng2);
-    expect(q1).toBe(q2); 
+    expect(q1).toBe(q2);
   });
 
   it("perfect husbandry yields gold quality", () => {
@@ -311,7 +309,6 @@ describe("computeQuality", () => {
   });
 
   it("leaderboard values gold > normal for same crop", () => {
-
     const seeds = { ...ZERO_CROPS };
     const invNormal = {
       gold: 0,

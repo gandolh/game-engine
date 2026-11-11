@@ -46,9 +46,7 @@ describe("fbm", () => {
       [0.625, 0.875, 12345],
       [-4.5, 9.25, 99],
     ] as const) {
-      expect(fbm(x, y, s, OCTAVES, LACUNARITY, GAIN)).toBe(
-        fbm(x, y, s, OCTAVES, LACUNARITY, GAIN),
-      );
+      expect(fbm(x, y, s, OCTAVES, LACUNARITY, GAIN)).toBe(fbm(x, y, s, OCTAVES, LACUNARITY, GAIN));
     }
   });
 
@@ -73,8 +71,8 @@ describe("tileBrightness", () => {
 
   it("varies across tiles and across seeds", () => {
     const t1 = tileBrightness(3, 7, 0xc0ffee);
-    const t2 = tileBrightness(4, 7, 0xc0ffee); 
-    const t3 = tileBrightness(3, 7, 1); 
+    const t2 = tileBrightness(4, 7, 0xc0ffee);
+    const t3 = tileBrightness(3, 7, 1);
     expect(t1).not.toBe(t2);
     expect(t1).not.toBe(t3);
   });
@@ -150,21 +148,13 @@ describe("domainWarp", () => {
   });
 
   it("is actually wired into tileBrightness (warp changes output)", () => {
-
     const seed = 12345;
     const amp = GROUND_NOISE_AMPLITUDE;
     let differing = 0;
     for (let tx = 0; tx < 40; tx++) {
       for (let ty = 0; ty < 40; ty++) {
         const warped = tileBrightness(tx, ty, seed);
-        const nUnwarped = fbm(
-          tx * FBM_BASE_FREQUENCY,
-          ty * FBM_BASE_FREQUENCY,
-          seed >>> 0,
-          OCTAVES,
-          LACUNARITY,
-          GAIN,
-        );
+        const nUnwarped = fbm(tx * FBM_BASE_FREQUENCY, ty * FBM_BASE_FREQUENCY, seed >>> 0, OCTAVES, LACUNARITY, GAIN);
         const unwarped = 1 + (nUnwarped * 2 - 1) * amp;
         if (Math.abs(warped - unwarped) > 1e-6) differing++;
       }
@@ -196,7 +186,6 @@ describe("spatial coherence (fBm vs hash)", () => {
 
 describe("makeGroundNoiseDecorator", () => {
   it("stamps per-tile fills and restores composite state", () => {
-
     const ops: string[] = [];
     let composite = "source-over";
     let alpha = 1;
@@ -220,7 +209,7 @@ describe("makeGroundNoiseDecorator", () => {
     } as unknown as CanvasRenderingContext2D;
 
     const decorate = makeGroundNoiseDecorator(0xc0ffee, 16);
-    decorate(fakeCtx, 64, 64); 
+    decorate(fakeCtx, 64, 64);
 
     expect(ops.length).toBeGreaterThan(0);
 

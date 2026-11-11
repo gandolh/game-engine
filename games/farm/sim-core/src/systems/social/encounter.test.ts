@@ -13,8 +13,8 @@ function makeFarmer(world: World<GameEntity>, region: RegionId, name = "F"): Gam
 }
 
 function meetMessages(entity: GameEntity): MeetBody[] {
-  return entity.inbox!.messages
-    .filter((m) => m.ontology === ONT_ENCOUNTER.MEET)
+  return entity
+    .inbox!.messages.filter((m) => m.ontology === ONT_ENCOUNTER.MEET)
     .map((m) => m.body as unknown as MeetBody);
 }
 

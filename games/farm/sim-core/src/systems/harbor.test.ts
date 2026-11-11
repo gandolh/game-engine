@@ -25,7 +25,7 @@ describe("generateContracts (pure, deterministic)", () => {
   it("differs across different days (different call sequence yields different results)", () => {
     const rng = createRng(1).fork("harbor");
     const day3 = generateContracts(3, 2, rng, [0]);
-    const day6 = generateContracts(6, 2, rng, [0]); 
+    const day6 = generateContracts(6, 2, rng, [0]);
 
     const allSame = day3.every((c, i) => c.id === day6[i]?.id);
     expect(allSame).toBe(false);
@@ -39,7 +39,6 @@ describe("generateContracts (pure, deterministic)", () => {
   });
 
   it("normal tier contracts have quantity in [2,8] (small/medium/large size bands)", () => {
-
     const rng = createRng(77).fork("harbor");
     const contracts = generateContracts(3, 10, rng, [0]);
     for (const c of contracts) {
@@ -102,7 +101,7 @@ describe("generateContracts (pure, deterministic)", () => {
 
   it("silver tier available when max rep >= 5", () => {
     const rng = createRng(99).fork("harbor");
-    const contracts = generateContracts(6, 20, rng, [8]); 
+    const contracts = generateContracts(6, 20, rng, [8]);
     const hasSilver = contracts.some((c) => c.tier === "silver");
 
     expect(hasSilver).toBe(true);
@@ -110,7 +109,7 @@ describe("generateContracts (pure, deterministic)", () => {
 
   it("gold tier available when max rep >= 15", () => {
     const rng = createRng(123).fork("harbor");
-    const contracts = generateContracts(6, 30, rng, [20]); 
+    const contracts = generateContracts(6, 30, rng, [20]);
     const hasGold = contracts.some((c) => c.tier === "gold");
     expect(hasGold).toBe(true);
   });
@@ -161,7 +160,6 @@ describe("canFulfillContract (pure)", () => {
   });
 
   it("respects quality floor: silver-min contract requires silver or gold in stock", () => {
-
     const contract = {
       id: "test-q-1",
       goods: { crop: "wheat" as const, minQuality: "silver" as const, quantity: 3 },
@@ -195,10 +193,7 @@ describe("canFulfillContract (pure)", () => {
 });
 
 describe("HarborSystem integration (live sim)", () => {
-  function advanceToDayStart(
-    sim: ReturnType<typeof bootstrapSim>,
-    targetDay: number,
-  ): void {
+  function advanceToDayStart(sim: ReturnType<typeof bootstrapSim>, targetDay: number): void {
     const maxTicks = targetDay * 25 + 100;
     let ticks = 0;
     while (sim.dayClock.day < targetDay && ticks < maxTicks) {
@@ -249,7 +244,7 @@ describe("HarborSystem integration (live sim)", () => {
 
     const farmers = [...sim.world.query("farmer", "beliefs")];
     for (const f of farmers) {
-      if (f.player) continue; 
+      if (f.player) continue;
       const openContracts = f.beliefs.data.harborOpenContracts;
       expect(Array.isArray(openContracts)).toBe(true);
     }
@@ -284,9 +279,7 @@ describe("HarborSystem integration (live sim)", () => {
         sim.scheduler.tick({ tick: t });
       }
       const board = [...sim.world.query("harborBoard")][0]!;
-      return JSON.stringify(
-        board.harborBoard!.openContracts.map((c) => c.id).sort(),
-      );
+      return JSON.stringify(board.harborBoard!.openContracts.map((c) => c.id).sort());
     };
 
     expect(run(sim1)).toBe(run(sim2));
@@ -328,9 +321,7 @@ describe("HarborSystem deliveryDay uses injected ticksPerDay", () => {
     system.run({ tick });
     bus.flush();
 
-    const delivered = bus
-      .drain()
-      .find((m) => m.ontology === ONT_HARBOR.CONTRACT_DELIVERED);
+    const delivered = bus.drain().find((m) => m.ontology === ONT_HARBOR.CONTRACT_DELIVERED);
     expect(delivered).toBeDefined();
     return (delivered!.body as unknown as ContractDeliveredBody).deliveryDay;
   }
@@ -340,7 +331,6 @@ describe("HarborSystem deliveryDay uses injected ticksPerDay", () => {
   });
 
   it("computes deliveryDay as floor(tick / ticksPerDay) for a non-default cadence", () => {
-
     expect(runDelivery(37, 100)).toBe(2);
     expect(runDelivery(1200, 3599)).toBe(2);
   });

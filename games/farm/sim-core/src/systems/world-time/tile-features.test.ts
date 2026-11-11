@@ -1,4 +1,3 @@
-
 import { describe, it, expect, beforeAll } from "vitest";
 import { bootstrapSim } from "../../sim-bootstrap";
 import { REGIONS } from "../../world/regions";
@@ -60,7 +59,6 @@ function meanNearestNeighbour(pts: ReadonlyArray<{ x: number; y: number }>): num
 const ZONE_IDS = ["forest-north", "forest-south", "quarry-north", "quarry-south"] as const;
 
 describe("TileFeatureSystem — organic clusters", () => {
-
   let longRun: Map<string, Feat[]>;
 
   beforeAll(() => {
@@ -101,7 +99,6 @@ describe("TileFeatureSystem — organic clusters", () => {
   });
 
   it("zones trend toward their cap over many days (count behaviour preserved)", () => {
-
     const regions = longRun;
     let total = 0;
     for (const id of ZONE_IDS) total += (regions.get(id) ?? []).length;
@@ -111,7 +108,6 @@ describe("TileFeatureSystem — organic clusters", () => {
   });
 
   it("features are spatially clustered, not uniform", () => {
-
     let measuredSum = 0;
     let uniformSum = 0;
     let counted = 0;

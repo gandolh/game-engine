@@ -173,7 +173,11 @@ const JOB_BADGE_FONT = "10px monospace";
  * to its inputs (deterministic call sequence for a given input), but of
  * course has the side effect of issuing draw calls on `ctx`.
  */
-export function drawAgentOverlay(ctx: OverlayCtx, agents: readonly OverlayAgentInput[], opts: OverlayDrawOptions): void {
+export function drawAgentOverlay(
+  ctx: OverlayCtx,
+  agents: readonly OverlayAgentInput[],
+  opts: OverlayDrawOptions,
+): void {
   ctx.clearRect(0, 0, opts.width, opts.height);
   ctx.textAlign = "center";
 
@@ -262,7 +266,12 @@ export function createOverlayCanvas(container: HTMLElement): HTMLCanvasElement {
  *  most frames). Caller is responsible for re-applying
  *  `ctx.setTransform(dpr,0,0,dpr,0,0)` after a resize (or every frame,
  *  idempotently) so subsequent draws can use CSS-pixel coordinates. */
-export function resizeOverlayCanvas(canvas: HTMLCanvasElement, cssWidth: number, cssHeight: number, dpr: number): boolean {
+export function resizeOverlayCanvas(
+  canvas: HTMLCanvasElement,
+  cssWidth: number,
+  cssHeight: number,
+  dpr: number,
+): boolean {
   const width = Math.max(1, Math.round(cssWidth * dpr));
   const height = Math.max(1, Math.round(cssHeight * dpr));
   if (canvas.width === width && canvas.height === height) return false;

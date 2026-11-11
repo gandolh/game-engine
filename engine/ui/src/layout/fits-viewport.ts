@@ -129,8 +129,10 @@ export function assertFitsViewport(
   const lines = bad.map((o) => {
     const { x, y, width, height } = o.rect;
     const named = o.name.length > 0 ? ` "${o.name}"` : "";
-    return `  ${o.kind}${named} at (${Math.round(x)},${Math.round(y)}) ${Math.round(width)}×${Math.round(height)}` +
-      ` — off ${o.sides.join(" + ")} (bottom=${Math.round(y + height)}, right=${Math.round(x + width)})`;
+    return (
+      `  ${o.kind}${named} at (${Math.round(x)},${Math.round(y)}) ${Math.round(width)}×${Math.round(height)}` +
+      ` — off ${o.sides.join(" + ")} (bottom=${Math.round(y + height)}, right=${Math.round(x + width)})`
+    );
   });
   throw new Error(
     `${what}: ${bad.length} node(s) laid out outside a ${viewport.width}×${viewport.height} viewport, ` +

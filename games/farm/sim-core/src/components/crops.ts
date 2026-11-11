@@ -1,14 +1,6 @@
 import type { RegionId } from "../world/regions";
 
-export type CropKind =
-  | "radish"       
-  | "wheat"        
-  | "carrot"       
-  | "tomato"       
-  | "corn"         
-  | "pumpkin"      
-  | "grape"        
-  | "winter-squash"; 
+export type CropKind = "radish" | "wheat" | "carrot" | "tomato" | "corn" | "pumpkin" | "grape" | "winter-squash";
 
 export type CropQuality = "normal" | "silver" | "gold";
 

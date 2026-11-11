@@ -140,9 +140,7 @@ describe("stock bar geometry", () => {
     // straight on top of the "N/M left" caption (the fill is painted in a post-pass, so it won
     // the overlap and hid the text). Assert containment, which the padding: 0 fix guarantees.
     const slate = createSlateBillboard();
-    const offers: SlateEntry[] = [
-      { offerId: "o1", crop: "pumpkin", unitPrice: 17, quantity: 17, remaining: 17 },
-    ];
+    const offers: SlateEntry[] = [{ offerId: "o1", crop: "pumpkin", unitPrice: 17, quantity: 17, remaining: 17 }];
     slate.refresh(offers);
     computeLayout(slate.root, 0, 0);
 
@@ -162,9 +160,9 @@ describe("stock bar geometry", () => {
     const fill = track!.children[0]!;
 
     expect(fill.rect.y, "fill top is on the track").toBe(track!.rect.y);
-    expect(fill.rect.y + fill.rect.height, "fill bottom stays inside the track")
-      .toBeLessThanOrEqual(track!.rect.y + track!.rect.height);
-    expect(fill.rect.y + fill.rect.height, "fill never reaches the caption")
-      .toBeLessThanOrEqual(caption!.rect.y);
+    expect(fill.rect.y + fill.rect.height, "fill bottom stays inside the track").toBeLessThanOrEqual(
+      track!.rect.y + track!.rect.height,
+    );
+    expect(fill.rect.y + fill.rect.height, "fill never reaches the caption").toBeLessThanOrEqual(caption!.rect.y);
   });
 });

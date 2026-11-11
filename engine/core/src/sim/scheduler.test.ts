@@ -64,7 +64,9 @@ describe("Scheduler.tick — the production branch (audit OFF)", () => {
     const seen: SimContext[] = [];
     const log: string[] = [];
     const s = new Scheduler();
-    const capture = (ctx: SimContext): void => { seen.push(ctx); };
+    const capture = (ctx: SimContext): void => {
+      seen.push(ctx);
+    };
     s.add(spy("A", log, capture)).add(spy("B", log, capture));
 
     const ctx = { tick: 42 };
@@ -89,7 +91,9 @@ describe("Scheduler.tick — the production branch (audit OFF)", () => {
   });
 
   it("a ticking scheduler with no systems is a no-op, not a throw", () => {
-    expect(() => { new Scheduler().tick({ tick: 0 }); }).not.toThrow();
+    expect(() => {
+      new Scheduler().tick({ tick: 0 });
+    }).not.toThrow();
   });
 
   it("a throwing system propagates — it does not silently skip the rest", () => {
@@ -99,10 +103,17 @@ describe("Scheduler.tick — the production branch (audit OFF)", () => {
     const log: string[] = [];
     const s = new Scheduler();
     s.add(spy("A", log));
-    s.add({ name: "boom", run: () => { throw new Error("boom"); } });
+    s.add({
+      name: "boom",
+      run: () => {
+        throw new Error("boom");
+      },
+    });
     s.add(spy("C", log));
 
-    expect(() => { s.tick({ tick: 0 }); }).toThrow("boom");
+    expect(() => {
+      s.tick({ tick: 0 });
+    }).toThrow("boom");
     expect(log).toEqual(["A"]); // C never ran
   });
 });
@@ -139,18 +150,13 @@ describe("Scheduler.tick — the two branches agree (audit ON vs OFF)", () => {
 
     s.tick({ tick: 0 });
 
-    expect(log).toEqual([
-      "stage:perceive", "A",
-      "stage:act", "B",
-      "stage:act", "C",
-      "endTickAudit",
-    ]);
+    expect(log).toEqual(["stage:perceive", "A", "stage:act", "B", "stage:act", "C", "endTickAudit"]);
   });
 
   it("labels a system registered before any .stage() call with the empty stage", () => {
     const log: string[] = [];
     const s = new Scheduler();
-    s.add(spy("A", log));               // no stage set yet
+    s.add(spy("A", log)); // no stage set yet
     s.stage("act").add(spy("B", log));
     s.enableStageAudit(auditSpy(log));
 

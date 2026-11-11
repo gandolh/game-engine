@@ -42,7 +42,6 @@ export interface CarpenterTag {
 }
 
 export interface PendingCommission {
-
   ownerId: number;
 
   regionId: RegionId;
@@ -99,7 +98,7 @@ export interface TavernTag {
 
 export interface WellTag {
   readonly isWell: true;
-  regionId: import('../world/regions').RegionId;
+  regionId: import("../world/regions").RegionId;
 }
 
 export interface FishingSpotTag {
@@ -116,7 +115,7 @@ export interface HomeTag {
 
 export interface HarborBoardTag {
   readonly isHarborBoard: true;
-  openContracts: import('../protocols/harbor').HarborContract[];
+  openContracts: import("../protocols/harbor").HarborContract[];
 
   committed: Map<string, number>;
 }
@@ -128,10 +127,10 @@ export interface DockmasterTag {
 export type DecorationKind = "scarecrow" | "windmill" | "flower-bed" | "fence-art";
 
 export const DECORATION_RECIPE: Record<DecorationKind, { woodCost: number; yieldBoost: number }> = {
-  "scarecrow":   { woodCost: 3,  yieldBoost: 0.10 }, 
-  "flower-bed":  { woodCost: 5,  yieldBoost: 0.15 }, 
-  "fence-art":   { woodCost: 8,  yieldBoost: 0.20 }, 
-  "windmill":    { woodCost: 12, yieldBoost: 0.30 }, 
+  scarecrow: { woodCost: 3, yieldBoost: 0.1 },
+  "flower-bed": { woodCost: 5, yieldBoost: 0.15 },
+  "fence-art": { woodCost: 8, yieldBoost: 0.2 },
+  windmill: { woodCost: 12, yieldBoost: 0.3 },
 };
 
 export const MAX_DECORATION_BOOST = 0.75;

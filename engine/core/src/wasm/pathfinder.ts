@@ -1,4 +1,3 @@
-
 import { loadWasmModule, fetchWasmModule } from "./loader";
 import type { LoadedWasm } from "./loader";
 import { WasmHeap } from "./memory";
@@ -26,7 +25,6 @@ export interface PathPoint {
 }
 
 export interface PathfinderGrid {
-
   cells: Uint8Array;
   width: number;
   height: number;
@@ -50,9 +48,7 @@ export class Pathfinder {
   findPath(grid: PathfinderGrid, start: PathPoint, end: PathPoint): PathPoint[] {
     const { width, height, cells } = grid;
     if (cells.length !== width * height) {
-      throw new Error(
-        `Pathfinder.findPath: cells.length (${cells.length}) != width*height (${width * height})`,
-      );
+      throw new Error(`Pathfinder.findPath: cells.length (${cells.length}) != width*height (${width * height})`);
     }
 
     const gridPtr = this.heap.alloc(cells.length);
@@ -60,17 +56,7 @@ export class Pathfinder {
     const outPtr = this.heap.alloc(outCap * 4);
     try {
       this.heap.u8(gridPtr, cells.length).set(cells);
-      const length = this.exports.findPath(
-        gridPtr,
-        width,
-        height,
-        start.x,
-        start.y,
-        end.x,
-        end.y,
-        outPtr,
-        outCap,
-      );
+      const length = this.exports.findPath(gridPtr, width, height, start.x, start.y, end.x, end.y, outPtr, outCap);
       if (length <= 0) return [];
       const view = this.heap.i32(outPtr, length * 2);
       const out: PathPoint[] = new Array(length);
@@ -79,7 +65,6 @@ export class Pathfinder {
       }
       return out;
     } finally {
-
       this.heap.free(outPtr);
       this.heap.free(gridPtr);
     }
@@ -94,10 +79,7 @@ export async function createPathfinderFromBytes(
   return new Pathfinder(loaded, opts);
 }
 
-export async function createPathfinderFromUrl(
-  url: string,
-  opts?: { maxWaypoints?: number },
-): Promise<Pathfinder> {
+export async function createPathfinderFromUrl(url: string, opts?: { maxWaypoints?: number }): Promise<Pathfinder> {
   const loaded = await fetchWasmModule<PathfindingExports>(url);
   return new Pathfinder(loaded, opts);
 }

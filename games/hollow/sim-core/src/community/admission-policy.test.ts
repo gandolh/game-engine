@@ -65,7 +65,10 @@ function admittedUnderPolicy(admissionPolicy: number | undefined): number {
   // TWO of them, not three: COMMUNITY_MIN_SIZE is 3, so three co-located newcomers would
   // crystallize their OWN community via FORM and then MERGE into the founders' — bypassing GROW,
   // the only pass that consults the norm. Two can only be admitted or stay out.
-  const newcomers = [[40, 10], [10, 40]].map(([x, y]) => spawnAgent(world, x!, y!));
+  const newcomers = [
+    [40, 10],
+    [10, 40],
+  ].map(([x, y]) => spawnAgent(world, x!, y!));
 
   let tick = 0;
   const step = (): void => {
@@ -87,7 +90,7 @@ function admittedUnderPolicy(admissionPolicy: number | undefined): number {
   expect(founders.every((f) => f.communityId !== null)).toBe(true);
 
   // Phase 2: the newcomers move in and build trust. Only GROW can admit them now.
-  for (const n of newcomers) n.agent!.gx = 5, n.agent!.gy = 5;
+  for (const n of newcomers) ((n.agent!.gx = 5), (n.agent!.gy = 5));
   for (let i = 0; i < 900; i++) step();
 
   return newcomers.filter((n) => n.communityId !== null).length;
@@ -98,8 +101,7 @@ describe("admissionJoinThreshold — the norm→threshold dial", () => {
     // The hinge. A community that never voted its norm away from neutral must behave precisely as
     // it did before this coupling existed — which is what confines the re-baselining to the
     // mechanism actually under test.
-    expect(admissionJoinThreshold(COMMUNITY_DEFAULT_ADMISSION_POLICY))
-      .toBe(COMMUNITY_JOIN_TRUST_THRESHOLD);
+    expect(admissionJoinThreshold(COMMUNITY_DEFAULT_ADMISSION_POLICY)).toBe(COMMUNITY_JOIN_TRUST_THRESHOLD);
   });
 
   it("fully open demands the least trust, fully closed the most", () => {

@@ -2,14 +2,7 @@ export type { HollowAgent, MoveTarget } from "./agent";
 export type { Inventory } from "./inventory";
 export { makeInventory, addGoods, takeGoods } from "./inventory";
 export type { HollowEntity, HollowFsmState } from "./entity";
-export type {
-  Genome,
-  Appearance,
-  BehaviorGene,
-  AptitudeSkill,
-  SkinToneRole,
-  HairToneRole,
-} from "./genome";
+export type { Genome, Appearance, BehaviorGene, AptitudeSkill, SkinToneRole, HairToneRole } from "./genome";
 export {
   BEHAVIOR_GENES,
   APTITUDE_SKILLS,

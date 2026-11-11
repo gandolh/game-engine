@@ -1,5 +1,3 @@
-
-
 import { describe, it, expect } from "vitest";
 import { Scheduler } from "./scheduler";
 import { MessageBus } from "./message-bus";

@@ -1,5 +1,3 @@
-
-
 import type { RunHistoryRow } from "../systems/messaging/run-history";
 import type { FinalStandingRow, SnapshotRivalry } from "../snapshot";
 import type { EventEntry } from "../systems/event-feed";
@@ -32,9 +30,7 @@ export function summarizeRun(
     };
   });
 
-  const arcs: string[] = finalStandings.map((row) =>
-    farmerArc(row.id, row.name, row.rank, history),
-  );
+  const arcs: string[] = finalStandings.map((row) => farmerArc(row.id, row.name, row.rank, history));
 
   const winner = standings[0];
   const headline = buildHeadline(events, winner);

@@ -1,5 +1,3 @@
-
-
 import { dayFraction as engineDayFraction } from "@engine/core/sim";
 
 export type DayPhase = "morning" | "work" | "evening" | "night";

@@ -24,7 +24,11 @@ import { makeHeightSampler, landformFill, ditherClusters, DITHER_ACCENTS } from 
 const EDG_HEXES = new Set(Object.values(EDG).map((h) => String(h).toLowerCase()));
 
 const ALL_TYPES: TerrainType[] = [
-  TerrainType.Grass, TerrainType.Water, TerrainType.Forest, TerrainType.Stone, TerrainType.Rough,
+  TerrainType.Grass,
+  TerrainType.Water,
+  TerrainType.Forest,
+  TerrainType.Stone,
+  TerrainType.Rough,
 ];
 
 /** Build a small terrain grid from a per-cell kind function. */
@@ -77,7 +81,10 @@ describe("landformHeight (fBm rolling blended with terrain kind)", () => {
 
 describe("hillshade (NW-lit slope shading)", () => {
   // A flat plane at a fixed height.
-  const flat = (h: number): HeightSampler => () => h;
+  const flat =
+    (h: number): HeightSampler =>
+    () =>
+      h;
   // A plane whose height RISES toward the west (low tx = high) — its surface
   // faces the NW sun, so it should read LIT (> 0).
   const risesWest: HeightSampler = (tx) => 0.5 - tx * 0.05;
@@ -156,8 +163,7 @@ describe("landformFill (hillshaded base diamond fill)", () => {
     // the east (away from the NW sun → shadowed/dark) and its east flank rises to
     // the west (toward the sun → lit/light). Both accents must appear, i.e. the
     // ridge reads as shaped relief rather than a flat slab of one tone.
-    const kind = (tx: number): TerrainType =>
-      tx < 5 || tx >= 11 ? TerrainType.Water : TerrainType.Stone;
+    const kind = (tx: number): TerrainType => (tx < 5 || tx >= 11 ? TerrainType.Water : TerrainType.Stone);
     const grid = makeGrid(16, 16, kind);
     const sample = makeHeightSampler(grid);
     const seen = new Set<string>();
@@ -172,22 +178,29 @@ describe("landformFill (hillshaded base diamond fill)", () => {
 describe("ditherClusters speck bias (unified with hillshade, brief 2026-07-16)", () => {
   // Same stone-ridge-flanked-by-water grid as the landformFill test above: the
   // west flank (tx 5..7) is shadowed, the east flank (tx 8..10) is lit.
-  const kind = (tx: number): TerrainType =>
-    tx < 5 || tx >= 11 ? TerrainType.Water : TerrainType.Stone;
+  const kind = (tx: number): TerrainType => (tx < 5 || tx >= 11 ? TerrainType.Water : TerrainType.Stone);
   const grid = makeGrid(16, 16, kind);
   const sample = makeHeightSampler(grid);
   const accents = DITHER_ACCENTS[TerrainType.Stone];
 
   it("skews specks light on the lit flank and dark on the shadowed flank", () => {
-    let litShare = 0, litN = 0;
-    let shadowShare = 0, shadowN = 0;
+    let litShare = 0,
+      litN = 0;
+    let shadowShare = 0,
+      shadowN = 0;
     for (let ty = 2; ty < 14; ty++) {
       for (let tx = 5; tx < 11; tx++) {
         const band = shadeBand(hillshade(sample, tx, ty));
         if (band === 0) continue; // only compare cells the base fill actually bands
         const cs = ditherClusters(sample, tx, ty, TerrainType.Stone);
         const share = cs.filter((c) => c.hex === accents.light).length / cs.length;
-        if (band > 0) { litShare += share; litN++; } else { shadowShare += share; shadowN++; }
+        if (band > 0) {
+          litShare += share;
+          litN++;
+        } else {
+          shadowShare += share;
+          shadowN++;
+        }
       }
     }
     expect(litN).toBeGreaterThan(0);
@@ -200,7 +213,8 @@ describe("ditherClusters speck bias (unified with hillshade, brief 2026-07-16)",
     // should also mostly skew light (and dark ↔ dark) — the point of the
     // unification. "Mostly", not "always": the per-cluster hash still adds its
     // own texture on top of the shared bias.
-    let agree = 0, total = 0;
+    let agree = 0,
+      total = 0;
     for (let ty = 2; ty < 14; ty++) {
       for (let tx = 5; tx < 11; tx++) {
         const fill = landformFill(sample, TerrainType.Stone, tx, ty);

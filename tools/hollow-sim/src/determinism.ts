@@ -30,12 +30,7 @@ const SENTINEL_NAN = "__NaN";
 const SENTINEL_POS_INF = "__Inf";
 const SENTINEL_NEG_INF = "__-Inf";
 const SENTINEL_NEG_ZERO = "__-0";
-const SENTINELS: ReadonlySet<string> = new Set([
-  SENTINEL_NAN,
-  SENTINEL_POS_INF,
-  SENTINEL_NEG_INF,
-  SENTINEL_NEG_ZERO,
-]);
+const SENTINELS: ReadonlySet<string> = new Set([SENTINEL_NAN, SENTINEL_POS_INF, SENTINEL_NEG_INF, SENTINEL_NEG_ZERO]);
 
 function escapeSentinelString(value: string): string {
   return SENTINELS.has(value) ? `__esc${value}` : value;
@@ -114,11 +109,7 @@ function findDivergence(a: unknown, b: unknown, path: string): string | null {
 export function describeDivergence(a: RunResult, b: RunResult): string {
   const rowCount = Math.max(a.metricsRows.length, b.metricsRows.length);
   for (let i = 0; i < rowCount; i++) {
-    const found = findDivergence(
-      a.metricsRows[i] ?? null,
-      b.metricsRows[i] ?? null,
-      `metricsRows[${i}]`,
-    );
+    const found = findDivergence(a.metricsRows[i] ?? null, b.metricsRows[i] ?? null, `metricsRows[${i}]`);
     if (found) return `first metrics-row divergence at ${found}`;
   }
   const eventCount = Math.max(a.events.length, b.events.length);

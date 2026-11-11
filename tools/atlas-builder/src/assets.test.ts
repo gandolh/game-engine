@@ -1,4 +1,3 @@
-
 import { describe, it, expect } from "vitest";
 import { readdirSync, statSync, readFileSync, writeFileSync, existsSync } from "node:fs";
 import { join, relative, dirname } from "node:path";
@@ -38,9 +37,7 @@ describe("asset file path matches recipe name", () => {
 
       const recipe = mod.default as { name?: unknown };
       if (recipe?.name !== expectedName) {
-        mismatches.push(
-          `${rel}: expected name="${expectedName}", got name="${String(recipe?.name)}"`,
-        );
+        mismatches.push(`${rel}: expected name="${expectedName}", got name="${String(recipe?.name)}"`);
       }
     }
     expect(mismatches, "path ↔ name mismatches:\n" + mismatches.join("\n")).toHaveLength(0);

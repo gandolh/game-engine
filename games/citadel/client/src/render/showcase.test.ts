@@ -9,12 +9,7 @@ import { describe, it, expect } from "vitest";
 import { makeIso } from "./iso";
 
 const iso = makeIso(96, 96);
-import {
-  showcaseLayout,
-  showcaseBuildingTypes,
-  firstOverlap,
-  aabbsOverlap,
-} from "./showcase";
+import { showcaseLayout, showcaseBuildingTypes, firstOverlap, aabbsOverlap } from "./showcase";
 import { BUILDING_SPRITE_TYPES } from "./sprites/recipes";
 
 describe("showcase layout", () => {
@@ -27,10 +22,7 @@ describe("showcase layout", () => {
 
   it("no two sprite AABBs overlap (pixels can't collide)", () => {
     const overlap = firstOverlap(showcaseLayout(iso));
-    expect(
-      overlap,
-      overlap ? `overlap: ${overlap[0].label} vs ${overlap[1].label}` : "",
-    ).toBeNull();
+    expect(overlap, overlap ? `overlap: ${overlap[0].label} vs ${overlap[1].label}` : "").toBeNull();
   });
 
   it("no overlap in the all-burning variant either (same footprints)", () => {
@@ -46,9 +38,9 @@ describe("showcase layout", () => {
 
   it("aabbsOverlap: intersecting yes, edge-touching no, disjoint no", () => {
     const base = { x: 0, y: 0, width: 10, height: 10 };
-    expect(aabbsOverlap(base, { x: 5, y: 5, width: 10, height: 10 })).toBe(true);  // overlap
+    expect(aabbsOverlap(base, { x: 5, y: 5, width: 10, height: 10 })).toBe(true); // overlap
     expect(aabbsOverlap(base, { x: 10, y: 0, width: 10, height: 10 })).toBe(false); // edge touch
-    expect(aabbsOverlap(base, { x: 20, y: 20, width: 5, height: 5 })).toBe(false);  // disjoint
+    expect(aabbsOverlap(base, { x: 20, y: 20, width: 5, height: 5 })).toBe(false); // disjoint
   });
 
   it("every placed building's AABB has positive area", () => {

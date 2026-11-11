@@ -61,10 +61,7 @@ describe("OccupancyBadgeLayer — in-canvas chip lifecycle", () => {
 
   it("chip label text equals the building's occupancy count", () => {
     const layer = new OccupancyBadgeLayer();
-    const buildings = [
-      makeBuilding({ occupancy: 7 }),
-      makeBuilding({ x: 4, occupancy: 12 }),
-    ];
+    const buildings = [makeBuilding({ occupancy: 7 }), makeBuilding({ x: 4, occupancy: 12 })];
     layer.update(buildings, 0, proj);
     const chips = layer.activeChips;
     // Each chip.node is a panel with a single label child.
@@ -87,10 +84,7 @@ describe("OccupancyBadgeLayer — in-canvas chip lifecycle", () => {
 
   it("excludes buildings owned by a different player", () => {
     const layer = new OccupancyBadgeLayer();
-    const buildings = [
-      makeBuilding({ ownerId: 0, occupancy: 3 }),
-      makeBuilding({ x: 4, ownerId: 1, occupancy: 5 }),
-    ];
+    const buildings = [makeBuilding({ ownerId: 0, occupancy: 3 }), makeBuilding({ x: 4, ownerId: 1, occupancy: 5 })];
     layer.update(buildings, 0, proj); // localPlayer = 0
     expect(layer.activeChips.length).toBe(1);
     expect((layer.activeChips[0]!.node.children[0] as { text: string }).text).toBe("3");
@@ -98,9 +92,7 @@ describe("OccupancyBadgeLayer — in-canvas chip lifecycle", () => {
 
   it("excludes infrastructure types: road, wall, bridge, gate", () => {
     const layer = new OccupancyBadgeLayer();
-    const infra = ["road", "wall", "bridge", "gate"].map((type, i) =>
-      makeBuilding({ type, x: i * 4, occupancy: 3 }),
-    );
+    const infra = ["road", "wall", "bridge", "gate"].map((type, i) => makeBuilding({ type, x: i * 4, occupancy: 3 }));
     const nonInfra = makeBuilding({ x: 20, occupancy: 2 });
     layer.update([...infra, nonInfra], 0, proj);
     expect(layer.activeChips.length).toBe(1);

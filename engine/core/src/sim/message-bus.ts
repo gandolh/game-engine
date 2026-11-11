@@ -91,7 +91,6 @@ export class MessageBus {
     } else if (this.auditCurrent === null) {
       this.auditCurrent = { stage, written: new Set(), read: new Set() };
     }
-
   }
 
   endTickAudit(): void {

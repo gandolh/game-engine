@@ -28,14 +28,21 @@ import { scaleTicks } from "../pacing";
 
 /** Building types that are wooden (can burn). Stone/defensive types cannot. */
 const WOODEN_TYPES = new Set([
-  "house", "farm", "mill", "bakery", "woodcutter", "storehouse",
-  "chapel", "market", "watchpost", "tradingpost", "garrison",
+  "house",
+  "farm",
+  "mill",
+  "bakery",
+  "woodcutter",
+  "storehouse",
+  "chapel",
+  "market",
+  "watchpost",
+  "tradingpost",
+  "garrison",
 ]);
 
 /** Building types that are stone/fireproof (act as firebreaks). */
-const STONE_TYPES = new Set([
-  "quarry", "sawmill", "smith", "mine", "wall", "gate", "tower", "keep",
-]);
+const STONE_TYPES = new Set(["quarry", "sawmill", "smith", "mine", "wall", "gate", "tower", "keep"]);
 
 /**
  * Once-per-day, per-player fire index (perf: see `_buildDailyIndex`).
@@ -148,7 +155,10 @@ export class FireSystem implements System {
    */
   private buildingCountWatermark = -1;
 
-  constructor(private readonly state: SimState, opts: { cozy?: boolean; deferUntilBuildings?: number } = {}) {
+  constructor(
+    private readonly state: SimState,
+    opts: { cozy?: boolean; deferUntilBuildings?: number } = {},
+  ) {
     this.cozy = opts.cozy ?? true;
     this.deferUntilBuildings = opts.deferUntilBuildings ?? 0;
     // Fork the base RNG ONCE in constructor, never per-tick.
@@ -499,8 +509,8 @@ export class FireSystem implements System {
       const nearbyWooden = this._nearbyWoodenCount(w.cx, w.cy, w.id, 4, index.woodenPositions);
 
       if (nearbyWooden < 3) continue;
-      let chance = (nearbyWooden - 2) * 0.20;
-      chance = Math.min(0.70, chance);
+      let chance = (nearbyWooden - 2) * 0.2;
+      chance = Math.min(0.7, chance);
 
       if (this._hasWellNear(index.wellCentres, w.cx, w.cy)) chance *= 0.2;
 
@@ -530,12 +540,12 @@ export class FireSystem implements System {
     // tests still find a "fire" event via the un-gated extinguish message (_extinguish-
     // Building: "the fire in a … was put out"), not via these strings.
     const msg = this.cozy
-      ? (cause === "ignition"
-          ? `Day ${state.day}: a ${type} hearth is smouldering — a well nearby would settle it.`
-          : `Day ${state.day}: the smoulder drifted to a ${type} — keep a well close.`)
-      : (cause === "ignition"
-          ? `Day ${state.day}: a ${type} caught fire!`
-          : `Day ${state.day}: fire spread to a ${type}!`);
+      ? cause === "ignition"
+        ? `Day ${state.day}: a ${type} hearth is smouldering — a well nearby would settle it.`
+        : `Day ${state.day}: the smoulder drifted to a ${type} — keep a well close.`
+      : cause === "ignition"
+        ? `Day ${state.day}: a ${type} caught fire!`
+        : `Day ${state.day}: fire spread to a ${type}!`;
     pushEvent(state, msg);
   }
 
@@ -584,8 +594,8 @@ export class FireSystem implements System {
     const steps = Math.max(Math.abs(bx - ax), Math.abs(by - ay));
     if (steps <= 1) return false;
     for (let i = 1; i < steps; i++) {
-      const tx = Math.round(ax + (bx - ax) * i / steps);
-      const ty = Math.round(ay + (by - ay) * i / steps);
+      const tx = Math.round(ax + ((bx - ax) * i) / steps);
+      const ty = Math.round(ay + ((by - ay) * i) / steps);
       const idx = ty * state.width + tx;
       // Road tile = firebreak (roads are shared infrastructure).
       if (state.roadGrid[idx] === 1) return true;
@@ -602,7 +612,10 @@ export class FireSystem implements System {
    * per candidate.
    */
   private _nearbyWoodenCount(
-    cx: number, cy: number, selfId: number, range: number,
+    cx: number,
+    cy: number,
+    selfId: number,
+    range: number,
     woodenPositions: ReadonlyArray<{ id: number; cx: number; cy: number }>,
   ): number {
     let count = 0;

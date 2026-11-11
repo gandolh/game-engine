@@ -59,7 +59,14 @@ import {
   type InputDispatcher,
   type A11yMirror,
 } from "@engine/ui";
-import { EMPTY_MASTERY_STORE, LIFELINE_KINDS, LOCALE_STORAGE_KEY, MASTERY_STORAGE_KEY, parseLocale, parseMasteryStore } from "@mathquest/sim-core";
+import {
+  EMPTY_MASTERY_STORE,
+  LIFELINE_KINDS,
+  LOCALE_STORAGE_KEY,
+  MASTERY_STORAGE_KEY,
+  parseLocale,
+  parseMasteryStore,
+} from "@mathquest/sim-core";
 import type { AnswerResponse, GameSnapshot, Locale, MasteryStore } from "@mathquest/sim-core";
 import { MATE_PAL } from "./render/mate-palette";
 import { MATE_THEME } from "./render/mate-theme";
@@ -151,7 +158,9 @@ async function main(): Promise<void> {
   } catch (err) {
     console.error("[mathquest] WebGL2 unavailable:", err);
     showUnsupportedNotice(document.body, {
-      text: MATE_PAL.cream, background: MATE_PAL.black, border: MATE_PAL.gold,
+      text: MATE_PAL.cream,
+      background: MATE_PAL.black,
+      border: MATE_PAL.gold,
     });
     throw err;
   }
@@ -470,7 +479,7 @@ async function main(): Promise<void> {
     "wheel",
     (e) => {
       if (latest === null || latest.mode !== "map") return;
-      mapScreen.panBy((Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY), 0);
+      mapScreen.panBy(Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY, 0);
       e.preventDefault();
     },
     { passive: false },
@@ -675,7 +684,13 @@ async function main(): Promise<void> {
           const t3 = PROFILE ? performance.now() : 0;
           if (changed) mirror?.update(root); // reconcile a11y DOM only when the tree changed
           if (PROFILE) {
-            profileRing.push({ refresh: t1 - t0, layout: t2 - t1, draw: t3 - t2, mirror: performance.now() - t3, mode: snapshot.mode });
+            profileRing.push({
+              refresh: t1 - t0,
+              layout: t2 - t1,
+              draw: t3 - t2,
+              mirror: performance.now() - t3,
+              mode: snapshot.mode,
+            });
             if (profileRing.length > PROFILE_RING) profileRing.shift();
           }
         }

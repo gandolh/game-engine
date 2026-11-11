@@ -110,7 +110,8 @@ function scriptExactWin(nodeId: number, shieldPadding: number): void {
     if (before.mode !== "combat") throw new Error("scriptExactWin: fight already over — bad shieldPadding?");
     dispatch({ type: "choose-action", action });
     const pending = lastSnapshot()!;
-    if (pending.mode !== "combat") throw new Error("scriptExactWin: unreachable — choose-action alone can't end a fight");
+    if (pending.mode !== "combat")
+      throw new Error("scriptExactWin: unreachable — choose-action alone can't end a fight");
     dispatch({ type: "submit-answer", response: correctResponseFor(pending.combat.problem!) });
   };
   for (let i = 0; i < shieldPadding; i++) act("shield");

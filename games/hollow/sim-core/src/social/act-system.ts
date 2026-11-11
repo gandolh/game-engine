@@ -244,12 +244,7 @@ export class HollowSocialActSystem implements System {
    *  still travelling, `stepToward` returns false and the intention stays
    *  queued (NOT popped) so the same intention resumes next tick — this is
    *  the one social verb that can span more than one tick. */
-  private runHelpLabor(
-    entity: SocialAgent,
-    intention: Intention,
-    byId: Map<number, SocialAgent>,
-    tick: number,
-  ): void {
+  private runHelpLabor(entity: SocialAgent, intention: Intention, byId: Map<number, SocialAgent>, tick: number): void {
     const targetId = intention.data.targetId as number;
     if (targetId === entity.id) {
       entity.intentions.queue.shift();
@@ -358,7 +353,13 @@ export class HollowSocialActSystem implements System {
     if (!target) return;
 
     const offerId = `trade:${entity.id}:${targetId}:${tick}`;
-    if (!this.tradeOffers.add(offerId, { actorId: entity.id, targetId, offerGood, offerAmount, wantGood, wantAmount }, tick)) {
+    if (
+      !this.tradeOffers.add(
+        offerId,
+        { actorId: entity.id, targetId, offerGood, offerAmount, wantGood, wantAmount },
+        tick,
+      )
+    ) {
       return; // an offer with this exact id is already in flight (shouldn't happen -- defensive)
     }
     if (!this.tradeOffers.claimHandshake(offerId)) {
@@ -372,7 +373,16 @@ export class HollowSocialActSystem implements System {
 
     if (!accepted) {
       this.tradeOffers.remove(offerId);
-      const body: TradeBody = { actorId: entity.id, targetId, offerGood, offerAmount, wantGood, wantAmount, accepted, tick };
+      const body: TradeBody = {
+        actorId: entity.id,
+        targetId,
+        offerGood,
+        offerAmount,
+        wantGood,
+        wantAmount,
+        accepted,
+        tick,
+      };
       this.emit(ONT_SOCIAL.TRADE, entity.id, body, tick, PERFORMATIVE.REJECT);
       return;
     }
@@ -385,7 +395,16 @@ export class HollowSocialActSystem implements System {
     applyRelationshipDelta(target.relationships, entity.id, TRADE_TRUST_DELTA);
 
     this.tradeOffers.remove(offerId);
-    const body: TradeBody = { actorId: entity.id, targetId, offerGood, offerAmount, wantGood, wantAmount, accepted, tick };
+    const body: TradeBody = {
+      actorId: entity.id,
+      targetId,
+      offerGood,
+      offerAmount,
+      wantGood,
+      wantAmount,
+      accepted,
+      tick,
+    };
     this.emit(ONT_SOCIAL.TRADE, entity.id, body, tick, PERFORMATIVE.ACCEPT);
   }
 

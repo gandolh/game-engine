@@ -30,9 +30,14 @@ function spyCtx() {
       fills += 1;
     },
   };
-  return { ctx, ops, stops, get fills() {
-    return fills;
-  } };
+  return {
+    ctx,
+    ops,
+    stops,
+    get fills() {
+      return fills;
+    },
+  };
 }
 
 describe("local light overlay", () => {
@@ -40,7 +45,7 @@ describe("local light overlay", () => {
     expect(LIGHT_EMITTERS.length).toBeGreaterThan(0);
     expect(_LIGHT_COUNT).toBe(LIGHT_EMITTERS.length);
     for (const e of LIGHT_EMITTERS) {
-      expect(() => rgbOf(e.color)).not.toThrow(); 
+      expect(() => rgbOf(e.color)).not.toThrow();
       expect(e.radiusTiles).toBeGreaterThan(0);
       expect(e.intensity).toBeGreaterThan(0);
       expect(e.intensity).toBeLessThanOrEqual(1);
@@ -51,15 +56,15 @@ describe("local light overlay", () => {
     const s = spyCtx();
     makeLightOverlay(_NIGHT_GATE)(s.ctx as never);
     expect(s.fills).toBe(0);
-    expect(s.ops).toEqual([]); 
+    expect(s.ops).toEqual([]);
   });
 
   it("draws additive warm glows at night and restores composite", () => {
     const s = spyCtx();
-    makeLightOverlay(1)(s.ctx as never); 
+    makeLightOverlay(1)(s.ctx as never);
     expect(s.fills).toBe(LIGHT_EMITTERS.length);
-    expect(s.ops).toContain("lighter"); 
-    expect(s.ops[s.ops.length - 1]).toBe("source-over"); 
+    expect(s.ops).toContain("lighter");
+    expect(s.ops[s.ops.length - 1]).toBe("source-over");
 
     expect(s.stops.some(([o]) => o === 0)).toBe(true);
     expect(s.stops.some(([, c]) => c.endsWith(",0)"))).toBe(true);

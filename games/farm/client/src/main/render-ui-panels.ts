@@ -218,13 +218,15 @@ function renderGameOverPanel(panels: Panels, ctx: UiPanelsContext): void {
   if (!gameOverCtl.isOpen()) return;
   const final = client.finalSummary;
   if (final === null) return;
-  if (gameOverPanel.refresh({
-    rows: final,
-    finalDay: snap?.day ?? 0,
-    seed,
-    recap: client.recap,
-    shareStatus: getShareStatus(),
-  })) {
+  if (
+    gameOverPanel.refresh({
+      rows: final,
+      finalDay: snap?.day ?? 0,
+      seed,
+      recap: client.recap,
+      shareStatus: getShareStatus(),
+    })
+  ) {
     computeLayout(gameOverPanel.root, 0, 0);
     const gx = Math.max(0, (canvas.clientWidth - gameOverPanel.root.rect.width) / 2);
     const gy = Math.max(0, (canvas.clientHeight - gameOverPanel.root.rect.height) / 2);
@@ -260,12 +262,23 @@ export function renderUiPanels(panels: Panels, ctx: UiPanelsContext): void {
   // (notice-board + standings-post), and the Pip's-farm marker all track a world position each
   // frame instead of a fixed screen slot.
   renderWorldAnchoredCards({
-    surface, canvas: ctx.canvas, camera: ctx.camera, zoom: ctx.zoom, nowMs: ctx.nowMs,
-    ticksPerDay: ctx.ticksPerDay, hudSummoned: ctx.hudSummoned,
-    focusedFarmerId: ctx.focusedFarmerId, farmerPositions: ctx.farmerPositions, client: ctx.client,
-    inspectPanel: panels.inspectPanel, inspectRoot: panels.inspectRoot, inspectCtl: ctx.inspectCtl,
-    noticeBoard: panels.noticeBoard, noticeBoardRoot: panels.noticeBoardRoot,
-    standingsPost: panels.standingsPost, standingsPostRoot: panels.standingsPostRoot,
+    surface,
+    canvas: ctx.canvas,
+    camera: ctx.camera,
+    zoom: ctx.zoom,
+    nowMs: ctx.nowMs,
+    ticksPerDay: ctx.ticksPerDay,
+    hudSummoned: ctx.hudSummoned,
+    focusedFarmerId: ctx.focusedFarmerId,
+    farmerPositions: ctx.farmerPositions,
+    client: ctx.client,
+    inspectPanel: panels.inspectPanel,
+    inspectRoot: panels.inspectRoot,
+    inspectCtl: ctx.inspectCtl,
+    noticeBoard: panels.noticeBoard,
+    noticeBoardRoot: panels.noticeBoardRoot,
+    standingsPost: panels.standingsPost,
+    standingsPostRoot: panels.standingsPostRoot,
     pipMarker: ctx.pipMarker,
   });
 

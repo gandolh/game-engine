@@ -26,9 +26,18 @@ export function buildFireCommands(terrain: TerrainGrid, withWell: boolean): Cita
   // Middle buildings (col=1,2,row=1) see 4 wooden neighbors → ignition chance 0.60/day.
   // CRITICAL: no road carpet through the cluster.
   const clusterTypes = [
-    "house", "house", "bakery", "bakery",   // row 0
-    "mill",  "mill",  "house",  "house",    // row 1
-    "chapel","market","house",  "house",    // row 2 (3rd row adds more density)
+    "house",
+    "house",
+    "bakery",
+    "bakery", // row 0
+    "mill",
+    "mill",
+    "house",
+    "house", // row 1
+    "chapel",
+    "market",
+    "house",
+    "house", // row 2 (3rd row adds more density)
   ];
   const cmds: CitadelCommand[] = [];
   const clusterPositions: Array<{ x: number; y: number }> = [];
@@ -44,17 +53,17 @@ export function buildFireCommands(terrain: TerrainGrid, withWell: boolean): Cita
   // Economy: storehouse + farm + mill + bakery south of the cluster.
   // Road connects them without passing through the dense district.
   const econY = cy + 12; // below the 3-row cluster
-  const store  = findClear(terrain, 3, 2, cx,     econY);
-  const farm1  = findClear(terrain, 3, 3, cx - 5, econY);
-  const farm2  = findClear(terrain, 3, 3, cx + 4, econY);
-  const mill   = findClear(terrain, 2, 2, cx - 2, econY + 4);
+  const store = findClear(terrain, 3, 2, cx, econY);
+  const farm1 = findClear(terrain, 3, 3, cx - 5, econY);
+  const farm2 = findClear(terrain, 3, 3, cx + 4, econY);
+  const mill = findClear(terrain, 2, 2, cx - 2, econY + 4);
   const bakery = findClear(terrain, 2, 2, cx + 2, econY + 4);
 
-  cmds.push({ type: "placeBuilding", payload: { buildingType: "storehouse", x: store.x,  y: store.y } });
-  cmds.push({ type: "placeBuilding", payload: { buildingType: "farm",       x: farm1.x,  y: farm1.y } });
-  cmds.push({ type: "placeBuilding", payload: { buildingType: "farm",       x: farm2.x,  y: farm2.y } });
-  cmds.push({ type: "placeBuilding", payload: { buildingType: "mill",       x: mill.x,   y: mill.y } });
-  cmds.push({ type: "placeBuilding", payload: { buildingType: "bakery",     x: bakery.x, y: bakery.y } });
+  cmds.push({ type: "placeBuilding", payload: { buildingType: "storehouse", x: store.x, y: store.y } });
+  cmds.push({ type: "placeBuilding", payload: { buildingType: "farm", x: farm1.x, y: farm1.y } });
+  cmds.push({ type: "placeBuilding", payload: { buildingType: "farm", x: farm2.x, y: farm2.y } });
+  cmds.push({ type: "placeBuilding", payload: { buildingType: "mill", x: mill.x, y: mill.y } });
+  cmds.push({ type: "placeBuilding", payload: { buildingType: "bakery", x: bakery.x, y: bakery.y } });
 
   // Wells placed across the cluster when mitigation is active.
   // The cluster is ~11 tiles wide; three wells spaced 4 tiles apart give
@@ -72,9 +81,9 @@ export function buildFireCommands(terrain: TerrainGrid, withWell: boolean): Cita
   // Road: economy carpet BELOW the cluster only (econY-1 downward).
   // The cluster at cy..cy+8 is safely above and has no roads through it.
   const roadTiles: Array<{ x: number; y: number }> = [];
-  const roadTop  = econY - 1;
-  const roadBot  = Math.max(mill.y + 1, bakery.y + 1);
-  const roadLeft  = Math.min(farm1.x, store.x) - 1;
+  const roadTop = econY - 1;
+  const roadBot = Math.max(mill.y + 1, bakery.y + 1);
+  const roadLeft = Math.min(farm1.x, store.x) - 1;
   const roadRight = Math.max(farm2.x + 2, store.x + 2) + 1;
   for (let ry = roadTop; ry <= roadBot; ry++) {
     for (let rx = roadLeft; rx <= roadRight; rx++) {

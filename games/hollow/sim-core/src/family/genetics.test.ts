@@ -58,10 +58,16 @@ describe("crossoverGenomes — heritability (chunk hollow-05)", () => {
     let hairMatches = 0;
     for (let seed = 0; seed < N; seed++) {
       const child = crossoverGenomes(parentA, parentB, createRng(seed * 7919 + 1));
-      if (child.appearance.skinTone === parentA.appearance.skinTone || child.appearance.skinTone === parentB.appearance.skinTone) {
+      if (
+        child.appearance.skinTone === parentA.appearance.skinTone ||
+        child.appearance.skinTone === parentB.appearance.skinTone
+      ) {
         skinMatches++;
       }
-      if (child.appearance.hairTone === parentA.appearance.hairTone || child.appearance.hairTone === parentB.appearance.hairTone) {
+      if (
+        child.appearance.hairTone === parentA.appearance.hairTone ||
+        child.appearance.hairTone === parentB.appearance.hairTone
+      ) {
         hairMatches++;
       }
       // Always a valid role from the palette-role arrays, mutation or not.

@@ -7,10 +7,7 @@ import { HarvestSystem } from "./harvest";
 const N = 150;
 const TIER_SCORE = { gold: 2, silver: 1, normal: 0 } as const;
 
-function spawnFarmerWithPlot(
-  world: World<GameEntity>,
-  state: PlotState,
-): GameEntity {
+function spawnFarmerWithPlot(world: World<GameEntity>, state: PlotState): GameEntity {
   const farmer = world.spawn({
     farmer: { name: "F", currentRegion: "farm-atticus" as const },
     inventory: { gold: 0, crops: { ...ZERO_CROPS }, seeds: { ...ZERO_CROPS } },

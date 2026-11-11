@@ -113,7 +113,9 @@ describe("layering — the engine imports no game, and no game imports another g
           for (const m of line.matchAll(SPECIFIER_RE)) {
             const spec = m[1]!;
             if (!spec.startsWith(".")) continue;
-            const targetRel = relative(REPO_ROOT, resolve(dirname(file), spec)).split(sep).join("/");
+            const targetRel = relative(REPO_ROOT, resolve(dirname(file), spec))
+              .split(sep)
+              .join("/");
             if (targetRel.startsWith("..")) continue; // outside the repo entirely
             const target = scopeOfPath(targetRel);
             if (target === undefined) continue; // outside every scanned scope
@@ -132,7 +134,10 @@ describe("layering — the engine imports no game, and no game imports another g
     // rather than silently pass on nothing.
     expect(scanned.length).toBeGreaterThan(500);
     for (const { root } of SCOPES) {
-      expect(scanned.some((f) => f.startsWith(`${root}/`)), `scope "${root}" scanned no files`).toBe(true);
+      expect(
+        scanned.some((f) => f.startsWith(`${root}/`)),
+        `scope "${root}" scanned no files`,
+      ).toBe(true);
     }
   });
 
@@ -172,7 +177,10 @@ describe("layering — the engine imports no game, and no game imports another g
     if (!declared.has("engine")) missing.push('engine — add { root: "engine", game: null } to SCOPES');
     // Top-level workspaces outside engine/games/tools: the portal (docs is Docusaurus with no TS
     // imports of the engine, so it is not scanned).
-    if (statSync(join(REPO_ROOT, "portal"), { throwIfNoEntry: false })?.isDirectory() === true && !declared.has("portal")) {
+    if (
+      statSync(join(REPO_ROOT, "portal"), { throwIfNoEntry: false })?.isDirectory() === true &&
+      !declared.has("portal")
+    ) {
       missing.push('portal — add { root: "portal", game: null } to SCOPES');
     }
 
@@ -197,9 +205,7 @@ describe("layering — the engine imports no game, and no game imports another g
   it("has no cross-scope imports", () => {
     expect(
       violations,
-      violations.length
-        ? `\nDependency-rule violations:\n  ${violations.join("\n  ")}\n`
-        : "",
+      violations.length ? `\nDependency-rule violations:\n  ${violations.join("\n  ")}\n` : "",
     ).toEqual([]);
   });
 });

@@ -88,7 +88,7 @@ describe("ShopSlateSystem", () => {
     sendDayStartToShop(shop, 1);
     system.run(makeCtx(10));
     bus.flush();
-    bus.drain(); 
+    bus.drain();
 
     sendDayStartToShop(shop, 1);
     system.run(makeCtx(11));
@@ -98,7 +98,6 @@ describe("ShopSlateSystem", () => {
   });
 
   it("is deterministic: same seed + same day sequence → same slate", () => {
-
     const w1 = new World<GameEntity>();
     const b1 = new MessageBus();
     const s1 = spawnShopkeeper(w1);

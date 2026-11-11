@@ -1,13 +1,4 @@
-
-
-import type {
-  Inventory,
-  ResourceInventory,
-  ItemRef,
-  CropKind,
-  FishKind,
-  CropQualityCounts,
-} from "../../components";
+import type { Inventory, ResourceInventory, ItemRef, CropKind, FishKind, CropQualityCounts } from "../../components";
 import { itemKey } from "../../components";
 
 export const HOTBAR_SIZE = 8;
@@ -30,11 +21,16 @@ export function defaultItemSlots(): (ItemRef | null)[] {
 }
 
 const CROP_KINDS: readonly CropKind[] = [
-  "radish", "wheat", "carrot", "tomato", "corn", "pumpkin", "grape", "winter-squash",
+  "radish",
+  "wheat",
+  "carrot",
+  "tomato",
+  "corn",
+  "pumpkin",
+  "grape",
+  "winter-squash",
 ];
-const FISH_KINDS_ALL: readonly FishKind[] = [
-  "minnow", "bass", "salmon", "coral-trout", "lobster",
-];
+const FISH_KINDS_ALL: readonly FishKind[] = ["minnow", "bass", "salmon", "coral-trout", "lobster"];
 const RESOURCE_KINDS = ["wood", "stone", "ironOre", "geodes"] as const;
 
 function sumQuality(c: CropQualityCounts | undefined): number {
@@ -83,7 +79,7 @@ export function syncItemSlots(
     const k = itemKey(ref);
     if (present.has(k)) continue;
     const empty = slots.indexOf(null);
-    if (empty < 0) break; 
+    if (empty < 0) break;
     slots[empty] = ref;
     present.add(k);
   }
@@ -109,25 +105,24 @@ function titleCase(kind: string): string {
 }
 
 const TOOL_DISPLAY: Record<string, { label: string; glyph: string; frame: string }> = {
-  can:           { label: "Can",     glyph: "🪣", frame: "tool/can" },
-  hoe:           { label: "Hoe",     glyph: "⛏", frame: "tool/hoe" },
-  axe:           { label: "Axe",     glyph: "🪓", frame: "tool/axe" },
-  pickaxe:       { label: "Pickaxe", glyph: "⚒", frame: "tool/pickaxe" },
-  "fishing-rod": { label: "Rod",     glyph: "🎣", frame: "tool/fishing-rod" },
+  can: { label: "Can", glyph: "🪣", frame: "tool/can" },
+  hoe: { label: "Hoe", glyph: "⛏", frame: "tool/hoe" },
+  axe: { label: "Axe", glyph: "🪓", frame: "tool/axe" },
+  pickaxe: { label: "Pickaxe", glyph: "⚒", frame: "tool/pickaxe" },
+  "fishing-rod": { label: "Rod", glyph: "🎣", frame: "tool/fishing-rod" },
 };
 
 const FISH_GLYPH = "🐟";
 const RESOURCE_GLYPH: Record<string, string> = {
-  wood: "🪵", stone: "🪨", ironOre: "⚙", geodes: "💎",
+  wood: "🪵",
+  stone: "🪨",
+  ironOre: "⚙",
+  geodes: "💎",
 };
 const PRODUCT_GLYPH: Record<string, string> = { egg: "🥚", milk: "🥛", wool: "🧶" };
 const FRUIT_GLYPH: Record<string, string> = { apple: "🍎", cherry: "🍒" };
 
-export function resolveItem(
-  ref: ItemRef,
-  inv: Inventory,
-  resources: ResourceInventory | undefined,
-): ResolvedItem {
+export function resolveItem(ref: ItemRef, inv: Inventory, resources: ResourceInventory | undefined): ResolvedItem {
   switch (ref.kind) {
     case "tool": {
       const d = TOOL_DISPLAY[ref.tool]!;
@@ -141,15 +136,23 @@ export function resolveItem(
     case "seed": {
       const n = inv.seeds[ref.crop] ?? 0;
       return {
-        label: titleCase(ref.crop), glyph: "🌱", frame: `crop/${ref.crop}/seed`,
-        text: `x${n}`, available: n > 0, actionable: true,
+        label: titleCase(ref.crop),
+        glyph: "🌱",
+        frame: `crop/${ref.crop}/seed`,
+        text: `x${n}`,
+        available: n > 0,
+        actionable: true,
       };
     }
     case "crop": {
       const n = inv.crops[ref.crop] ?? 0;
       return {
-        label: titleCase(ref.crop), glyph: "🥬", frame: `crop/${ref.crop}/mature`,
-        text: `x${n}`, available: n > 0, actionable: false,
+        label: titleCase(ref.crop),
+        glyph: "🥬",
+        frame: `crop/${ref.crop}/mature`,
+        text: `x${n}`,
+        available: n > 0,
+        actionable: false,
       };
     }
     case "fish": {
@@ -157,36 +160,56 @@ export function resolveItem(
 
       const hasFrame = ref.fish === "minnow" || ref.fish === "bass" || ref.fish === "salmon";
       return {
-        label: titleCase(ref.fish), glyph: FISH_GLYPH, frame: hasFrame ? `fish/${ref.fish}` : "",
-        text: `x${n}`, available: n > 0, actionable: false,
+        label: titleCase(ref.fish),
+        glyph: FISH_GLYPH,
+        frame: hasFrame ? `fish/${ref.fish}` : "",
+        text: `x${n}`,
+        available: n > 0,
+        actionable: false,
       };
     }
     case "resource": {
       const n = resources?.[ref.resource] ?? 0;
       return {
-        label: titleCase(ref.resource), glyph: RESOURCE_GLYPH[ref.resource] ?? "📦", frame: "",
-        text: `x${n}`, available: n > 0, actionable: false,
+        label: titleCase(ref.resource),
+        glyph: RESOURCE_GLYPH[ref.resource] ?? "📦",
+        frame: "",
+        text: `x${n}`,
+        available: n > 0,
+        actionable: false,
       };
     }
     case "product": {
       const n = sumQuality(inv.products?.[ref.product]);
       return {
-        label: titleCase(ref.product), glyph: PRODUCT_GLYPH[ref.product] ?? "📦",
-        frame: `product/${ref.product}`, text: `x${n}`, available: n > 0, actionable: false,
+        label: titleCase(ref.product),
+        glyph: PRODUCT_GLYPH[ref.product] ?? "📦",
+        frame: `product/${ref.product}`,
+        text: `x${n}`,
+        available: n > 0,
+        actionable: false,
       };
     }
     case "fruit": {
       const n = sumQuality(inv.fruit?.[ref.fruit]);
       return {
-        label: titleCase(ref.fruit), glyph: FRUIT_GLYPH[ref.fruit] ?? "📦",
-        frame: `fruit/${ref.fruit}`, text: `x${n}`, available: n > 0, actionable: false,
+        label: titleCase(ref.fruit),
+        glyph: FRUIT_GLYPH[ref.fruit] ?? "📦",
+        frame: `fruit/${ref.fruit}`,
+        text: `x${n}`,
+        available: n > 0,
+        actionable: false,
       };
     }
     case "goldenBeans": {
       const n = inv.goldenBeans ?? 0;
       return {
-        label: "Golden Beans", glyph: "✨", frame: "",
-        text: `x${n}`, available: n > 0, actionable: false,
+        label: "Golden Beans",
+        glyph: "✨",
+        frame: "",
+        text: `x${n}`,
+        available: n > 0,
+        actionable: false,
       };
     }
   }

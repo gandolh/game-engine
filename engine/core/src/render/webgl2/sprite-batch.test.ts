@@ -73,9 +73,11 @@ function makeFakeGl() {
     createVertexArray: vi.fn(() => ({ __kind: "vao" })),
     bindVertexArray: vi.fn(),
     enableVertexAttribArray: vi.fn(),
-    vertexAttribPointer: vi.fn((location: number, size: number, type: number, normalized: boolean, stride: number, offset: number) => {
-      attribCalls.push({ location, size, type, normalized, stride, offset });
-    }),
+    vertexAttribPointer: vi.fn(
+      (location: number, size: number, type: number, normalized: boolean, stride: number, offset: number) => {
+        attribCalls.push({ location, size, type, normalized, stride, offset });
+      },
+    ),
     vertexAttribDivisor: vi.fn((location: number, divisor: number) => {
       divisorCalls.push([location, divisor]);
     }),
@@ -88,9 +90,11 @@ function makeFakeGl() {
     bufferData: vi.fn((_target: number, size: number) => {
       if (currentArrayBuffer) currentArrayBuffer.size = size;
     }),
-    bufferSubData: vi.fn((_target: number, _dstOffset: number, srcData: Float32Array, srcOffset: number, length: number) => {
-      if (currentArrayBuffer) currentArrayBuffer.data = srcData.slice(srcOffset, srcOffset + length);
-    }),
+    bufferSubData: vi.fn(
+      (_target: number, _dstOffset: number, srcData: Float32Array, srcOffset: number, length: number) => {
+        if (currentArrayBuffer) currentArrayBuffer.data = srcData.slice(srcOffset, srcOffset + length);
+      },
+    ),
     deleteBuffer: vi.fn((buf: FakeBuffer) => {
       buf.deleted = true;
       deletedBuffers.push(buf);
@@ -113,11 +117,22 @@ function makeFakeGl() {
 
 function instance(partial: Partial<GlSpriteInstance> = {}): GlSpriteInstance {
   return {
-    x: 1, y: 2, w: 3, h: 4,
-    u0: 0.1, v0: 0.2, u1: 0.3, v1: 0.4,
-    rotation: 0.5, flipX: 0,
-    r: 0.6, g: 0.7, b: 0.8, a: 0.9,
-    swayPhase: 1.1, swayAmp: 1.2,
+    x: 1,
+    y: 2,
+    w: 3,
+    h: 4,
+    u0: 0.1,
+    v0: 0.2,
+    u1: 0.3,
+    v1: 0.4,
+    rotation: 0.5,
+    flipX: 0,
+    r: 0.6,
+    g: 0.7,
+    b: 0.8,
+    a: 0.9,
+    swayPhase: 1.1,
+    swayAmp: 1.2,
     ...partial,
   };
 }
@@ -149,15 +164,27 @@ describe("SpriteBatch#begin/add", () => {
     batch.upload();
 
     // Reach into the uploaded buffer via bufferSubData's captured data.
-    const staging = (gl as unknown as { bufferSubData: ReturnType<typeof vi.fn> }).bufferSubData.mock.calls[0]![2] as Float32Array;
+    const staging = (gl as unknown as { bufferSubData: ReturnType<typeof vi.fn> }).bufferSubData.mock
+      .calls[0]![2] as Float32Array;
     // Values round-trip through Float32Array, so expected values must go through
     // the same f32 rounding (Math.fround) before comparison.
     const expected = [
-      1, 2, 3, 4, // x,y,w,h
-      0.1, 0.2, 0.3, 0.4, // u0,v0,u1,v1
-      0.5, 0, // rotation, flipX
-      0.6, 0.7, 0.8, 0.9, // r,g,b,a
-      1.1, 1.2, // swayPhase, swayAmp
+      1,
+      2,
+      3,
+      4, // x,y,w,h
+      0.1,
+      0.2,
+      0.3,
+      0.4, // u0,v0,u1,v1
+      0.5,
+      0, // rotation, flipX
+      0.6,
+      0.7,
+      0.8,
+      0.9, // r,g,b,a
+      1.1,
+      1.2, // swayPhase, swayAmp
     ].map(Math.fround);
     expect(Array.from(staging.slice(0, 16))).toEqual(expected);
   });
@@ -171,7 +198,8 @@ describe("SpriteBatch#begin/add", () => {
     expect(batch.count).toBe(600);
 
     batch.upload();
-    const staging = (gl as unknown as { bufferSubData: ReturnType<typeof vi.fn> }).bufferSubData.mock.calls[0]![2] as Float32Array;
+    const staging = (gl as unknown as { bufferSubData: ReturnType<typeof vi.fn> }).bufferSubData.mock
+      .calls[0]![2] as Float32Array;
     // instance 0's x is preserved at float offset 0; instance 599's x at offset 599*16.
     expect(staging[0]).toBe(0);
     expect(staging[599 * 16]).toBe(599);
@@ -269,7 +297,12 @@ describe("SpriteBatch#beginPass/drawRange/endPass (sweep-05 hoist)", () => {
     batch.drawRange(gl, {} as WebGLTexture, 0, 1);
     batch.endPass(gl);
 
-    expect(raw.blendFuncSeparate).toHaveBeenCalledWith(raw.ONE, raw.ONE_MINUS_SRC_ALPHA, raw.ONE, raw.ONE_MINUS_SRC_ALPHA);
+    expect(raw.blendFuncSeparate).toHaveBeenCalledWith(
+      raw.ONE,
+      raw.ONE_MINUS_SRC_ALPHA,
+      raw.ONE,
+      raw.ONE_MINUS_SRC_ALPHA,
+    );
     expect(raw.blendEquationSeparate).toHaveBeenCalledWith(raw.FUNC_ADD, raw.FUNC_ADD);
     expect(raw.enable).toHaveBeenCalledWith(raw.BLEND);
   });

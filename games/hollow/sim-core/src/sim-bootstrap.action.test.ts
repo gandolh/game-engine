@@ -109,9 +109,7 @@ describe("HollowAgentSnapshot.action (chunk hollow-09a)", () => {
     // match exactly, agent-for-agent — reading .action mid-run changed
     // nothing about the simulated world.
     const stripAction = (s: HollowSnapshot) =>
-      [...s.agents]
-        .sort((a, b) => a.id - b.id)
-        .map(({ action: _action, ...rest }) => rest);
+      [...s.agents].sort((a, b) => a.id - b.id).map(({ action: _action, ...rest }) => rest);
     expect(stripAction(finalA)).toEqual(stripAction(finalB));
   });
 });

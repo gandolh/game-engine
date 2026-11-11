@@ -54,7 +54,9 @@ describe("ui-host gesture ownership survives a release outside the canvas", () =
     worldSawMove = false;
     // Stands in for the world/camera handlers: bubble phase on the canvas, so a capture-phase
     // `stopImmediatePropagation()` from the UI host hides the event from it exactly as in the app.
-    canvas.addEventListener("mousemove", () => { worldSawMove = true; });
+    canvas.addEventListener("mousemove", () => {
+      worldSawMove = true;
+    });
   });
 
   function host(onActivate: () => void = () => {}): { h: ReturnType<typeof createUIHost>; btn: ButtonNode } {
@@ -75,7 +77,9 @@ describe("ui-host gesture ownership survives a release outside the canvas", () =
 
   it("press-and-release INSIDE the canvas on the same widget activates it (click fires)", () => {
     let activations = 0;
-    const { h, btn } = host(() => { activations++; });
+    const { h, btn } = host(() => {
+      activations++;
+    });
 
     canvas.dispatchEvent(mouse("mousedown", 10, 10));
     canvas.dispatchEvent(mouse("mouseup", 10, 10));
@@ -87,7 +91,9 @@ describe("ui-host gesture ownership survives a release outside the canvas", () =
 
   it("releasing on the WINDOW (outside the canvas) ends the gesture and unblocks the world", () => {
     let activations = 0;
-    const { h, btn } = host(() => { activations++; });
+    const { h, btn } = host(() => {
+      activations++;
+    });
     canvas.dispatchEvent(mouse("mousedown", 10, 10));
     canvas.dispatchEvent(mouse("mousemove", 20, 20));
 
@@ -105,7 +111,9 @@ describe("ui-host gesture ownership survives a release outside the canvas", () =
 
   it("drag-out-then-back-in: pointer leaves the canvas mid-press without releasing, returns, and a release over the original widget still activates it", () => {
     let activations = 0;
-    const { h, btn } = host(() => { activations++; });
+    const { h, btn } = host(() => {
+      activations++;
+    });
 
     canvas.dispatchEvent(mouse("mousedown", 10, 10));
     expect(h.isPressActive()).toBe(true);
@@ -127,7 +135,9 @@ describe("ui-host gesture ownership survives a release outside the canvas", () =
   it("the next world CLICK is not eaten after an outside release", () => {
     const { h } = host();
     let worldSawClick = false;
-    canvas.addEventListener("click", () => { worldSawClick = true; });
+    canvas.addEventListener("click", () => {
+      worldSawClick = true;
+    });
 
     canvas.dispatchEvent(mouse("mousedown", 10, 10));
     window.dispatchEvent(mouse("mouseup", 900, 700));
@@ -143,7 +153,9 @@ describe("ui-host gesture ownership survives a release outside the canvas", () =
 
   it("a window blur mid-drag also ends the gesture (alt-tab: no click, nothing stuck pressed)", () => {
     let activations = 0;
-    const { h, btn } = host(() => { activations++; });
+    const { h, btn } = host(() => {
+      activations++;
+    });
     canvas.dispatchEvent(mouse("mousedown", 10, 10));
     expect(h.isPressActive()).toBe(true);
 
@@ -159,9 +171,13 @@ describe("ui-host gesture ownership survives a release outside the canvas", () =
 
   it("THE NORMAL PATH IS UNCHANGED: press + release both inside the canvas stay UI-owned", () => {
     let activations = 0;
-    const { h, btn } = host(() => { activations++; });
+    const { h, btn } = host(() => {
+      activations++;
+    });
     let worldSawClick = false;
-    canvas.addEventListener("click", () => { worldSawClick = true; });
+    canvas.addEventListener("click", () => {
+      worldSawClick = true;
+    });
 
     canvas.dispatchEvent(mouse("mousedown", 10, 10));
     canvas.dispatchEvent(mouse("mouseup", 10, 10));

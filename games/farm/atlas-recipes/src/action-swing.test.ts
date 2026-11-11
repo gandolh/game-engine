@@ -1,10 +1,8 @@
-
 import { describe, it, expect } from "vitest";
 import { RECIPES } from "./index";
 import { ACTION_TEMPLATES, ACTION_TEMPLATES_B, PERSONALITY_SUBS } from "./templates";
 
-const grid = (name: string): string | undefined =>
-  RECIPES.find((r) => r.name === name)?.pixels.join("\n");
+const grid = (name: string): string | undefined => RECIPES.find((r) => r.name === name)?.pixels.join("\n");
 
 describe("farmer action swing frames", () => {
   it("the -b set mirrors the base action set", () => {

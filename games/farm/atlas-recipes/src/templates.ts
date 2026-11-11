@@ -272,16 +272,13 @@ export const ACTION_TEMPLATES_B: Record<string, readonly string[]> = {
 
 export const PERSONALITY_SUBS: Record<string, Record<string, string>> = {
   conservative: {},
-  aggressive:   { y: "k", D: "k" },
-  hoarder:      { y: "D", r: "y" },
-  opportunist:  { y: "s", r: "S", D: "k" },
-  pip:          { y: "o", r: "G" },
+  aggressive: { y: "k", D: "k" },
+  hoarder: { y: "D", r: "y" },
+  opportunist: { y: "s", r: "S", D: "k" },
+  pip: { y: "o", r: "G" },
 };
 
-export function applyPersonalitySubs(
-  pixels: readonly string[],
-  subs: Record<string, string>,
-): readonly string[] {
+export function applyPersonalitySubs(pixels: readonly string[], subs: Record<string, string>): readonly string[] {
   if (Object.keys(subs).length === 0) return pixels;
   return pixels.map((row) =>
     row
@@ -292,36 +289,11 @@ export function applyPersonalitySubs(
 }
 
 export const PERSONALITY_HATS: Record<string, readonly string[]> = {
-  conservative: [
-    "................",
-    "................",
-    ".....wwwww......",
-    "....w.....w.....",
-  ],
-  aggressive: [
-    "................",
-    ".....r.r.r......",
-    ".....rrrrr......",
-    "....r.....r.....",
-  ],
-  hoarder: [
-    "................",
-    "................",
-    ".....ooooo......",
-    "...ooooooooo....",
-  ],
-  opportunist: [
-    "..........o.....",
-    ".........ro.....",
-    ".....rrrrr......",
-    "....r.....r.....",
-  ],
-  pip: [
-    "................",
-    "......rrr.......",
-    ".....rrrrr......",
-    "....r.....r.....",
-  ],
+  conservative: ["................", "................", ".....wwwww......", "....w.....w....."],
+  aggressive: ["................", ".....r.r.r......", ".....rrrrr......", "....r.....r....."],
+  hoarder: ["................", "................", ".....ooooo......", "...ooooooooo...."],
+  opportunist: ["..........o.....", ".........ro.....", ".....rrrrr......", "....r.....r....."],
+  pip: ["................", "......rrr.......", ".....rrrrr......", "....r.....r....."],
 };
 
 export const PERSONALITY_HATS_24: Record<string, readonly string[]> = {
@@ -349,18 +321,10 @@ export const PERSONALITY_HATS_24: Record<string, readonly string[]> = {
     "........rrrrrrr.........",
     ".......rr.....rr........",
   ],
-  pip: [
-    "........................",
-    ".........rrrrrr.........",
-    "........rrrrrrrr........",
-    ".......rr......rr.......",
-  ],
+  pip: ["........................", ".........rrrrrr.........", "........rrrrrrrr........", ".......rr......rr......."],
 };
 
-export function applyPersonalityHat(
-  pixels: readonly string[],
-  personality: string,
-): readonly string[] {
+export function applyPersonalityHat(pixels: readonly string[], personality: string): readonly string[] {
   const hats = pixels.length >= 24 ? PERSONALITY_HATS_24 : PERSONALITY_HATS;
   const hat = hats[personality];
   if (!hat) return pixels;

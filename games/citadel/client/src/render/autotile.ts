@@ -274,11 +274,19 @@ export function isoNetworkTiles(
     let frame: string | undefined;
     let members: ReadonlySet<number> | null = null;
     if (b.type === "road") {
-      hex = roadHex; band = frames?.road !== undefined ? 1 : ROAD_BAND; frame = frames?.road; members = roadSet;
+      hex = roadHex;
+      band = frames?.road !== undefined ? 1 : ROAD_BAND;
+      frame = frames?.road;
+      members = roadSet;
     } else if (b.type === "bridge") {
-      hex = bridgeHex; band = 1; frame = frames?.bridge; members = roadSet;
+      hex = bridgeHex;
+      band = 1;
+      frame = frames?.bridge;
+      members = roadSet;
     } else if (b.type === "wall") {
-      hex = wallHex; band = WALL_BAND; members = wallSet;
+      hex = wallHex;
+      band = WALL_BAND;
+      members = wallSet;
     } else {
       continue;
     }

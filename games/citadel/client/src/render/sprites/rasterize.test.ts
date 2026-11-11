@@ -31,7 +31,7 @@ describe("rasterizeRecipe", () => {
     // (1,0) = `.` → transparent.
     expect(out.rgba[7]).toBe(0);
     // (1,1) = `#` black → opaque, non-white.
-    expect(out.rgba[(3 * 4) + 3]).toBe(255);
+    expect(out.rgba[3 * 4 + 3]).toBe(255);
     expect(out.rgba[3 * 4]).toBeLessThan(255);
   });
 

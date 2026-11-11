@@ -3,14 +3,12 @@ import { dayFraction } from "@farm/sim-core/systems/day-phase";
 import { EDG, rgbOf } from "@engine/core/render";
 
 export interface Wash {
-
   color: string;
 
   alpha: number;
 }
 
 interface SeasonGrade {
-
   night: [number, number, number];
 
   noon: [number, number, number];
@@ -33,7 +31,6 @@ function smoothstep(edge0: number, edge1: number, x: number): number {
 }
 
 export function daylightAt(f: number, daylight: number): number {
-
   const half = daylight / 2;
   const dawnStart = 0.5 - half - 0.12;
   const dawnEnd = 0.5 - half;
@@ -50,28 +47,23 @@ function lerp(a: number, b: number, t: number): number {
 }
 
 function toHex(r: number, g: number, b: number): string {
-  const h = (n: number) => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, "0");
+  const h = (n: number) =>
+    Math.max(0, Math.min(255, Math.round(n)))
+      .toString(16)
+      .padStart(2, "0");
   return `#${h(r)}${h(g)}${h(b)}`;
 }
 
-export function nightnessFor(args: {
-  tick: number;
-  ticksPerDay: number;
-  season: Season;
-}): number {
+export function nightnessFor(args: { tick: number; ticksPerDay: number; season: Season }): number {
   const grade = SEASON_GRADES[args.season];
   const f = dayFraction(args.tick, args.ticksPerDay);
   return 1 - daylightAt(f, grade.daylight);
 }
 
-export function washFor(args: {
-  tick: number;
-  ticksPerDay: number;
-  season: Season;
-}): Wash {
+export function washFor(args: { tick: number; ticksPerDay: number; season: Season }): Wash {
   const grade = SEASON_GRADES[args.season];
   const f = dayFraction(args.tick, args.ticksPerDay);
-  const light = daylightAt(f, grade.daylight); 
+  const light = daylightAt(f, grade.daylight);
   const r = lerp(grade.night[0], grade.noon[0], light);
   const g = lerp(grade.night[1], grade.noon[1], light);
   const b = lerp(grade.night[2], grade.noon[2], light);

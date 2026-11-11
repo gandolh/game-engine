@@ -31,7 +31,10 @@ function findGrass(terrain: TerrainGrid, w: number, h: number, sx: number, sy: n
         for (let yy = 0; yy < h && ok; yy++)
           for (let xx = 0; xx < w; xx++) {
             const t = terrain.cells[(y + yy) * terrain.width + (x + xx)];
-            if (t !== TerrainType.Grass) { ok = false; break; }
+            if (t !== TerrainType.Grass) {
+              ok = false;
+              break;
+            }
           }
         if (ok) return { x, y };
       }
@@ -184,10 +187,21 @@ describe("Phase 4 — raid casualties keep entity count == population", () => {
     for (let i = 0; i < 8; i++) {
       sim.state.villagerWorld.spawn({
         villager: {
-          id: sim.state.nextVillagerId++, ownerId: lp.id,
-          homeX: g.x, homeY: g.y, workX: g.x, workY: g.y, storeX: g.x, storeY: g.y,
-          fsm: "idle", pathX: [], pathY: [], pathStep: 0,
-          carryGood: null, carryAmount: 0, ticksAtWork: 0,
+          id: sim.state.nextVillagerId++,
+          ownerId: lp.id,
+          homeX: g.x,
+          homeY: g.y,
+          workX: g.x,
+          workY: g.y,
+          storeX: g.x,
+          storeY: g.y,
+          fsm: "idle",
+          pathX: [],
+          pathY: [],
+          pathStep: 0,
+          carryGood: null,
+          carryAmount: 0,
+          ticksAtWork: 0,
         },
       });
       lp.population++;
@@ -231,7 +245,10 @@ describe("Phase 4 — keep sacked", () => {
     let sacked = false;
     for (let tick = 0; tick < 60 * TICKS_PER_DAY; tick++) {
       sim.scheduler.tick({ tick });
-      if (localPlayer(sim.state).keepSacked) { sacked = true; break; }
+      if (localPlayer(sim.state).keepSacked) {
+        sacked = true;
+        break;
+      }
     }
     expect(sacked).toBe(true);
     expect(localPlayer(sim.state).gameOver).toBe(true);
@@ -324,9 +341,16 @@ describe("Phase 4 — determinism", () => {
     const cmds: CitadelCommand[] = [
       { type: "placeBuilding", payload: { buildingType: "keep", x: g.x, y: g.y } },
       { type: "placeBuilding", payload: { buildingType: "tower", x: g.x + 4, y: g.y } },
-      { type: "placeWall", payload: { tiles: [
-        { x: g.x - 1, y: g.y }, { x: g.x - 1, y: g.y + 1 }, { x: g.x - 1, y: g.y + 2 },
-      ] } },
+      {
+        type: "placeWall",
+        payload: {
+          tiles: [
+            { x: g.x - 1, y: g.y },
+            { x: g.x - 1, y: g.y + 1 },
+            { x: g.x - 1, y: g.y + 2 },
+          ],
+        },
+      },
     ];
     for (const c of cmds) sim.commands.enqueue(c);
     const totalTicks = 20 * TICKS_PER_DAY;
@@ -391,17 +415,22 @@ describe("Phase 4 — wall reroutes raiders", () => {
 
     // Path WITHOUT walls: plain BFS on a flat terrain (all walkable, no walls).
     const directPath = bfsPath(
-      spawnX, spawnY,
-      targetX, targetY,
-      (tx: number, ty: number) => tx >= 0 && ty >= 0 && tx < W && ty < H && terrain.cells[ty * W + tx] !== TerrainType.Water,
+      spawnX,
+      spawnY,
+      targetX,
+      targetY,
+      (tx: number, ty: number) =>
+        tx >= 0 && ty >= 0 && tx < W && ty < H && terrain.cells[ty * W + tx] !== TerrainType.Water,
       W,
       H,
     );
 
     // Path WITH walls: raider walkability blocks wall tiles.
     const wallPath = computeRaiderPath(
-      spawnX, spawnY,
-      targetX, targetY,
+      spawnX,
+      spawnY,
+      targetX,
+      targetY,
       sim.state,
       localPlayer(sim.state),
       sim.terrain, // the actual terrain from bootstrapSim

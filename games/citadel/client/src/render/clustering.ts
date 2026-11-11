@@ -39,10 +39,7 @@ export interface Cluster {
  * adjacent or overlapping. Buildings of other types are ignored entirely.
  * Returns one `Cluster` per component (including singletons). Pure.
  */
-export function clusterBuildings(
-  buildings: readonly BuildingSnapshot[],
-  type = "house",
-): Cluster[] {
+export function clusterBuildings(buildings: readonly BuildingSnapshot[], type = "house"): Cluster[] {
   const subjects = buildings.filter((b) => b.type === type);
 
   // Map every covered tile key → index of its owning subject building.
@@ -85,12 +82,7 @@ export function clusterBuildings(
           const ty = b.y + dy;
           tiles.add(tileKey(tx, ty));
           // 4-neighbour tiles owned by another (unseen) subject → same cluster.
-          const neighbours = [
-            tileKey(tx, ty - 1),
-            tileKey(tx + 1, ty),
-            tileKey(tx, ty + 1),
-            tileKey(tx - 1, ty),
-          ];
+          const neighbours = [tileKey(tx, ty - 1), tileKey(tx + 1, ty), tileKey(tx, ty + 1), tileKey(tx - 1, ty)];
           for (const nk of neighbours) {
             const owner = tileOwner.get(nk);
             if (owner !== undefined && !seen[owner]) {

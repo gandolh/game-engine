@@ -5,7 +5,7 @@ import { FeatureCollisionSystem } from "./feature-collision";
 import { buildWalkableGrid } from "../../world/walkable-grid";
 import { getRegion } from "../../world/regions";
 
-const PIP = getRegion("farm-pip").center; 
+const PIP = getRegion("farm-pip").center;
 
 function idx(grid: { width: number }, x: number, y: number): number {
   return y * grid.width + x;

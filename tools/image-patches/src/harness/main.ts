@@ -87,7 +87,12 @@ async function main(): Promise<void> {
   const pan = Number(params.get("pan") ?? 0);
 
   const canvas = document.getElementById("c") as HTMLCanvasElement;
-  const camera = new Camera2D({ worldUnitsX: canvas.clientWidth, worldUnitsY: canvas.clientHeight, centerX: 0, centerY: 0 });
+  const camera = new Camera2D({
+    worldUnitsX: canvas.clientWidth,
+    worldUnitsY: canvas.clientHeight,
+    centerX: 0,
+    centerY: 0,
+  });
   camera.setZoom(Number(params.get("zoom") ?? 1));
   const renderer = await createRenderer(canvas, camera, textureLimit > 0 ? { textureLimit } : {});
   renderer.clearColor = EDG.navy;
@@ -105,8 +110,15 @@ async function main(): Promise<void> {
     for (let ty = 0; ty < tiles; ty++) {
       for (let tx = 0; tx < tiles; tx++) {
         sprites.push({
-          x: tx * TILE + TILE / 2, y: ty * TILE + TILE / 2, width: TILE, height: TILE,
-          frame: frameAt(tx, ty, tiles), atlasId: "harness", rotation: 0, layer: 0, alpha: 1,
+          x: tx * TILE + TILE / 2,
+          y: ty * TILE + TILE / 2,
+          width: TILE,
+          height: TILE,
+          frame: frameAt(tx, ty, tiles),
+          atlasId: "harness",
+          rotation: 0,
+          layer: 0,
+          alpha: 1,
         });
       }
     }

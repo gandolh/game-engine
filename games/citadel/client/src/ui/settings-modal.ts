@@ -32,13 +32,7 @@
  */
 import { CITADEL_PAL as EDG } from "../render/citadel-palette";
 import { panel, box, label, button, slider, checkbox } from "@engine/ui";
-import type {
-  ContainerNode,
-  LabelNode,
-  ButtonNode,
-  SliderNode,
-  CheckboxNode,
-} from "@engine/ui";
+import type { ContainerNode, LabelNode, ButtonNode, SliderNode, CheckboxNode } from "@engine/ui";
 
 // ---------------------------------------------------------------------------
 // Pure logic (exported for unit tests)
@@ -52,11 +46,7 @@ import type {
  * Retained for unit tests / a potential future search affordance — the in-canvas
  * modal no longer wires a live search field (no text-input widget in @engine/ui).
  */
-export function matchesSearch(
-  query: string,
-  label: string,
-  keywords: string,
-): boolean {
+export function matchesSearch(query: string, label: string, keywords: string): boolean {
   const q = query.trim().toLowerCase();
   if (q === "") return true;
   const haystack = `${label} ${keywords}`.toLowerCase();
@@ -64,13 +54,7 @@ export function matchesSearch(
 }
 
 /** Arrow/Home/End key handling for a roving-tabindex tablist. */
-export type TabNavKey =
-  | "ArrowLeft"
-  | "ArrowRight"
-  | "ArrowUp"
-  | "ArrowDown"
-  | "Home"
-  | "End";
+export type TabNavKey = "ArrowLeft" | "ArrowRight" | "ArrowUp" | "ArrowDown" | "Home" | "End";
 
 /**
  * Given the current selected tab index, a key, and the tab count, return the
@@ -78,11 +62,7 @@ export type TabNavKey =
  * forward, both WRAPPING around the ends; Home → first, End → last. Returns the
  * current index unchanged for counts < 1.
  */
-export function nextTabIndex(
-  current: number,
-  key: TabNavKey,
-  count: number,
-): number {
+export function nextTabIndex(current: number, key: TabNavKey, count: number): number {
   if (count <= 0) return current;
   switch (key) {
     case "ArrowLeft":
@@ -206,9 +186,7 @@ export class SettingsModal {
     const atmospherePanel = box({ direction: "column", gap: 6, align: "start" }, atmosphereRows);
 
     // --- Simulation tab: speed buttons -----------------------------------
-    const speedButtons: ButtonNode[] = [1, 2, 4].map((n) =>
-      button(`${n}x`, { onActivate: () => cfg.setSpeed(n) }),
-    );
+    const speedButtons: ButtonNode[] = [1, 2, 4].map((n) => button(`${n}x`, { onActivate: () => cfg.setSpeed(n) }));
     const speedPanel = box({ direction: "column", gap: 8, align: "start" }, [
       label("Simulation speed", { muted: true }),
       box({ direction: "row", gap: 6, align: "center" }, speedButtons),
@@ -231,11 +209,7 @@ export class SettingsModal {
     // --- Dialog: header + tab row + active content panel -----------------
     // The 3rd child is swapped by selectTab to switch tabs (only the selected
     // panel is ever in the tree, so only it lays out + renders).
-    this.root = panel({ direction: "column", gap: 12, align: "stretch" }, [
-      header,
-      tabRow,
-      this.tabPanels[0]!,
-    ]);
+    this.root = panel({ direction: "column", gap: 12, align: "stretch" }, [header, tabRow, this.tabPanels[0]!]);
 
     this.selectTab(0);
   }

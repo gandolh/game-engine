@@ -89,7 +89,7 @@ export interface IsoBox {
  * footprints should pass their front-most (max) tile. Pure.
  */
 export function isoDepth(tileX: number, tileY: number, elevation = 0): number {
-  return (tileX + tileY) + elevation * 0.001;
+  return tileX + tileY + elevation * 0.001;
 }
 
 /**
@@ -100,7 +100,11 @@ export function isoDepth(tileX: number, tileY: number, elevation = 0): number {
  *   height = roof + walls + diamond            (top of roof → bottom diamond point)
  * Pure.
  */
-export function isoSpriteDims(w: number, h: number, heightTiles: number): { width: number; height: number; roofH: number; wallH: number; diaH: number } {
+export function isoSpriteDims(
+  w: number,
+  h: number,
+  heightTiles: number,
+): { width: number; height: number; roofH: number; wallH: number; diaH: number } {
   const width = (w + h) * ISO_HW;
   const diaH = (w + h) * ISO_HH;
   // Walls rise ~1 tile-height per storey so a multi-storey building is clearly
@@ -142,7 +146,11 @@ export const ISO_ART_SCALE = 2;
  * the proportional scale means the high-res art still maps 1:1 onto the quad.
  * Pure.
  */
-export function isoArtDims(w: number, h: number, heightTiles: number): { width: number; height: number; roofH: number; wallH: number; diaH: number } {
+export function isoArtDims(
+  w: number,
+  h: number,
+  heightTiles: number,
+): { width: number; height: number; roofH: number; wallH: number; diaH: number } {
   const d = isoSpriteDims(w, h, heightTiles);
   const s = ISO_ART_SCALE;
   return {

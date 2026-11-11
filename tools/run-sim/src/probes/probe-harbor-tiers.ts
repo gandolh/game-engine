@@ -1,4 +1,3 @@
-
 import { bootstrapSim, leaderboard } from "@farm/sim-core/sim-bootstrap";
 import { ONT_HARBOR, type ContractCommittedBody, type ContractPostedBody } from "@farm/sim-core/protocols/harbor";
 import type { GameEntity } from "@farm/sim-core/components";
@@ -47,7 +46,10 @@ async function runSeed(seed: number): Promise<void> {
   // already holds the goods) can deliver in the very same tick, which removes
   // the contract from openContracts before we look it up. Keeping our own
   // never-pruned map sidesteps that race entirely.
-  const seenContracts = new Map<string, { tier: string; size: string; quantity: number; crop: string; reward: number }>();
+  const seenContracts = new Map<
+    string,
+    { tier: string; size: string; quantity: number; crop: string; reward: number }
+  >();
   bus.subscribeOntology(ONT_HARBOR.CONTRACT_POSTED, (msg) => {
     const body = msg.body as unknown as ContractPostedBody;
     const c = body.contract;
@@ -116,10 +118,10 @@ async function runSeed(seed: number): Promise<void> {
       );
     }
   }
-  const nonHoarderPersonalities = new Set(
-    [...byPersonality.keys()].filter((p) => p !== "hoarder"),
+  const nonHoarderPersonalities = new Set([...byPersonality.keys()].filter((p) => p !== "hoarder"));
+  console.log(
+    `  --- distinct NON-hoarder personalities that committed: ${nonHoarderPersonalities.size} (${[...nonHoarderPersonalities].join(", ") || "none"})`,
   );
-  console.log(`  --- distinct NON-hoarder personalities that committed: ${nonHoarderPersonalities.size} (${[...nonHoarderPersonalities].join(", ") || "none"})`);
 
   const board = leaderboard(world);
   console.log(`  --- hoarder gold trajectory (sampled every 10 days):`);

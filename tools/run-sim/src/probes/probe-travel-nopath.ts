@@ -1,4 +1,3 @@
-
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
@@ -65,7 +64,10 @@ console.warn = (...args: unknown[]) => {
     from: `(${f?.transform?.x.toFixed(0)},${f?.transform?.y.toFixed(0)})`,
     targetTile: tt ? `(${tt.x},${tt.y})` : "??",
     intentSummary: front ? `${front.kind}:${JSON.stringify(front.data ?? {}).slice(0, 120)}` : "?",
-    queueRest: (f?.intentions?.queue ?? []).slice(1, 3).map((i) => i.kind).join(","),
+    queueRest: (f?.intentions?.queue ?? [])
+      .slice(1, 3)
+      .map((i) => i.kind)
+      .join(","),
   });
 };
 
@@ -76,12 +78,21 @@ for (let t = 0; t < TICKS_PER_DAY * DAYS; t++) {
 }
 console.warn = origWarn;
 
-console.log(`\n${DAYS} days × ${TICKS_PER_DAY} ticks: ${drops.length} tile-target drops, ${otherNoPath} region-target drops`);
-for (const [region, n] of [...regionDrops.entries()].sort((a, b) => b[1] - a[1])) console.log(`  region '${region}': ${n}`);
+console.log(
+  `\n${DAYS} days × ${TICKS_PER_DAY} ticks: ${drops.length} tile-target drops, ${otherNoPath} region-target drops`,
+);
+for (const [region, n] of [...regionDrops.entries()].sort((a, b) => b[1] - a[1]))
+  console.log(`  region '${region}': ${n}`);
 const byFarmer = new Map<string, number>();
-for (const d of drops) byFarmer.set(`${d.farmerId} ${d.name} (${d.personality})`, (byFarmer.get(`${d.farmerId} ${d.name} (${d.personality})`) ?? 0) + 1);
+for (const d of drops)
+  byFarmer.set(
+    `${d.farmerId} ${d.name} (${d.personality})`,
+    (byFarmer.get(`${d.farmerId} ${d.name} (${d.personality})`) ?? 0) + 1,
+  );
 for (const [k, n] of [...byFarmer.entries()].sort((a, b) => b[1] - a[1])) console.log(`  ${n}× farmer ${k}`);
 console.log("\nfirst 8 drops:");
 for (const d of drops.slice(0, 8)) {
-  console.log(`  t${d.tick} (day ${(d.tick / TICKS_PER_DAY).toFixed(1)}) #${d.farmerId} ${d.name} aboard=${d.aboard} at ${d.from} -> tile ${d.targetTile}\n    intent ${d.intentSummary} | rest: ${d.queueRest}`);
+  console.log(
+    `  t${d.tick} (day ${(d.tick / TICKS_PER_DAY).toFixed(1)}) #${d.farmerId} ${d.name} aboard=${d.aboard} at ${d.from} -> tile ${d.targetTile}\n    intent ${d.intentSummary} | rest: ${d.queueRest}`,
+  );
 }

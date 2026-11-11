@@ -22,7 +22,7 @@ export function medicTreatsRemaining(
 ): number {
   const a = agent.agent;
   if (!a) return 0;
-  const used = a.medicTreatDay === dayOfRun ? a.medicTreatsToday ?? 0 : 0;
+  const used = a.medicTreatDay === dayOfRun ? (a.medicTreatsToday ?? 0) : 0;
   return Math.max(0, cap - used);
 }
 

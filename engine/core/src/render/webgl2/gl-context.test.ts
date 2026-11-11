@@ -65,9 +65,7 @@ class FakeCanvas {
 describe("createGlContext", () => {
   it("throws 'webgl2: context unavailable' when getContext returns null", () => {
     const canvas = new FakeCanvas(makeFakeGl(), true);
-    expect(() => createGlContext(canvas as unknown as HTMLCanvasElement)).toThrow(
-      "webgl2: context unavailable",
-    );
+    expect(() => createGlContext(canvas as unknown as HTMLCanvasElement)).toThrow("webgl2: context unavailable");
   });
 
   it("returns a GlContext wrapping the real context on success", () => {
@@ -82,8 +80,7 @@ describe("createGlContext", () => {
 
 describe("GlContext#resize", () => {
   it("scales CSS pixels by devicePixelRatio (clamped to 2) and sets canvas + viewport", () => {
-    const originalDpr = (globalThis as { window?: { devicePixelRatio?: number } }).window
-      ?.devicePixelRatio;
+    const originalDpr = (globalThis as { window?: { devicePixelRatio?: number } }).window?.devicePixelRatio;
     (globalThis as unknown as { window: { devicePixelRatio: number } }).window = {
       devicePixelRatio: 3, // above the MAX_DPR=2 clamp
     };

@@ -62,7 +62,7 @@ describe("Keyboard", () => {
     expect(kb.isDown("KeyZ")).toBe(false);
 
     kb.attach(win as Window);
-    kb.attach(win as Window); 
+    kb.attach(win as Window);
     win.dispatchEvent(new dom.window.KeyboardEvent("keydown", { code: "KeyZ", bubbles: true }));
     expect(kb.isDown("KeyZ")).toBe(true);
   });
@@ -85,9 +85,7 @@ describe("Keyboard — focus loss releases held keys (audit-47)", () => {
   });
 
   const hold = (code: string): void => {
-    (win as unknown as EventTarget).dispatchEvent(
-      new dom.window.KeyboardEvent("keydown", { code, bubbles: true }),
-    );
+    (win as unknown as EventTarget).dispatchEvent(new dom.window.KeyboardEvent("keydown", { code, bubbles: true }));
   };
   const setHidden = (hidden: boolean): void => {
     Object.defineProperty(dom.window.document, "hidden", { value: hidden, configurable: true });
@@ -119,7 +117,9 @@ describe("Keyboard — focus loss releases held keys (audit-47)", () => {
   });
 
   it("releases every held key at once, not just one", () => {
-    hold("KeyW"); hold("KeyD"); hold("ShiftLeft");
+    hold("KeyW");
+    hold("KeyD");
+    hold("ShiftLeft");
     kb.endFrame();
 
     (win as unknown as EventTarget).dispatchEvent(new dom.window.Event("blur"));
@@ -200,7 +200,11 @@ describe("Keyboard — focus loss releases held keys (audit-47)", () => {
         origAdd(t, f, o);
       };
       (host as EventTarget).removeEventListener = (t: string, f: never, o?: never): void => {
-        for (const k of live) if (k.startsWith(`${tag}:${t}:`)) { live.delete(k); break; }
+        for (const k of live)
+          if (k.startsWith(`${tag}:${t}:`)) {
+            live.delete(k);
+            break;
+          }
         origRemove(t, f, o);
       };
     };

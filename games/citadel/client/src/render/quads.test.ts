@@ -70,7 +70,7 @@ describe("villagerQuad — job-driven tint", () => {
 
   it("uses a different tint for each of two distinct jobs", () => {
     const farmerTint = villagerQuad(villager("farmer")).tintRgba;
-    const smithTint  = villagerQuad(villager("smith")).tintRgba;
+    const smithTint = villagerQuad(villager("smith")).tintRgba;
     expect(farmerTint).not.toBe(smithTint);
   });
 
@@ -92,10 +92,23 @@ describe("villagerQuad — job-driven tint", () => {
 describe("dusk-lit building frames (mesh @lit night art)", () => {
   function building(type: string, burning = false): BuildingSnapshot {
     return {
-      type, x: 2, y: 2, w: 2, h: 2,
-      connected: true, outputBuffer: 0, workerCount: 1, occupancy: 0,
-      ownerId: 0, onFire: burning, burning, level: 1,
-      lacksFaith: false, lacksSafety: false, lacksGoods: false, mood: 60,
+      type,
+      x: 2,
+      y: 2,
+      w: 2,
+      h: 2,
+      connected: true,
+      outputBuffer: 0,
+      workerCount: 1,
+      occupancy: 0,
+      ownerId: 0,
+      onFire: burning,
+      burning,
+      level: 1,
+      lacksFaith: false,
+      lacksSafety: false,
+      lacksGoods: false,
+      mood: 60,
       wellServed: false,
     };
   }
@@ -105,10 +118,8 @@ describe("dusk-lit building frames (mesh @lit night art)", () => {
 
   it("picks the `@lit` frame at night and the day frame by day", () => {
     for (const type of LIT_BUILDING_TYPES) {
-      expect(buildingQuad(building(type), undefined, DAY).frame, `${type} by day`)
-        .toBe(buildingFrameName(type));
-      expect(buildingQuad(building(type), undefined, NIGHT).frame, `${type} at night`)
-        .toBe(buildingLitFrameName(type));
+      expect(buildingQuad(building(type), undefined, DAY).frame, `${type} by day`).toBe(buildingFrameName(type));
+      expect(buildingQuad(building(type), undefined, NIGHT).frame, `${type} at night`).toBe(buildingLitFrameName(type));
     }
   });
 
@@ -128,7 +139,6 @@ describe("dusk-lit building frames (mesh @lit night art)", () => {
   });
 
   it("a non-lit building type keeps its day frame at night", () => {
-    expect(buildingQuad(building("storehouse"), undefined, NIGHT).frame)
-      .toBe(buildingFrameName("storehouse"));
+    expect(buildingQuad(building("storehouse"), undefined, NIGHT).frame).toBe(buildingFrameName("storehouse"));
   });
 });

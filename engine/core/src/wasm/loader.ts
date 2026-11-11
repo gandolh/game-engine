@@ -1,5 +1,3 @@
-
-
 export type WasmImports = WebAssembly.Imports;
 
 export interface LoadedWasm<T extends WebAssembly.Exports = WebAssembly.Exports> {
@@ -51,9 +49,7 @@ export async function fetchWasmModule<T extends WebAssembly.Exports = WebAssembl
 function defaultEnvImports(): WebAssembly.ModuleImports {
   return {
     abort(msgPtr: number, filePtr: number, line: number, col: number): void {
-      throw new Error(
-        `wasm aborted: msg=${msgPtr} file=${filePtr} line=${line} col=${col}`,
-      );
+      throw new Error(`wasm aborted: msg=${msgPtr} file=${filePtr} line=${line} col=${col}`);
     },
   };
 }

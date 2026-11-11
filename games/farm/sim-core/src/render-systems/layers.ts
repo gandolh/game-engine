@@ -1,6 +1,4 @@
-
 export const LAYER = {
-
   WHALE: 1,
   CORAL: 2,
   KELP: 2,

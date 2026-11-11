@@ -1,10 +1,4 @@
-
-export function shouldStopSkip(
-  prevLen: number,
-  curLen: number,
-  newestDrama: number,
-  threshold: number,
-): boolean {
+export function shouldStopSkip(prevLen: number, curLen: number, newestDrama: number, threshold: number): boolean {
   return curLen > prevLen && newestDrama >= threshold;
 }
 

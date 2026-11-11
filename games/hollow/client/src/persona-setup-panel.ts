@@ -67,7 +67,13 @@ function fmt(n: number): string {
   return n.toFixed(2);
 }
 
-function numberInput(value: number, min: number, max: number, step: number, onChange: (n: number) => void): HTMLInputElement {
+function numberInput(
+  value: number,
+  min: number,
+  max: number,
+  step: number,
+  onChange: (n: number) => void,
+): HTMLInputElement {
   const input = document.createElement("input");
   input.type = "range";
   input.min = String(min);
@@ -78,7 +84,11 @@ function numberInput(value: number, min: number, max: number, step: number, onCh
   return input;
 }
 
-function optionalNumberInput(value: number | undefined, placeholder: string, onChange: (n: number | undefined) => void): HTMLInputElement {
+function optionalNumberInput(
+  value: number | undefined,
+  placeholder: string,
+  onChange: (n: number | undefined) => void,
+): HTMLInputElement {
   const input = document.createElement("input");
   input.type = "number";
   input.placeholder = placeholder;

@@ -18,7 +18,15 @@ import { VillagerSystem } from "./villager-system";
 import type { VillagerComponent } from "../entities/villager";
 import type { BuildingRuntimeState } from "../entities/building";
 
-function addBuilding(state: SimState, type: string, x: number, y: number, w: number, h: number, ownerId: number): number {
+function addBuilding(
+  state: SimState,
+  type: string,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  ownerId: number,
+): number {
   const entity = state.buildingWorld.spawn({ building: { type, x, y, w, h, ownerId } });
   const rs: BuildingRuntimeState = {
     outputBuffer: 0,

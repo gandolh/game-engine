@@ -70,7 +70,9 @@ async function setupRuntime(canvas: HTMLCanvasElement): Promise<Runtime> {
   try {
     // DEV only: `?textureLimit=<px>` makes the static layer behave as on a device with that
     // MAX_TEXTURE_SIZE (2048 turns Farm's 3840 px bake into patches).
-    const textureLimit = import.meta.env.DEV ? Number(new URLSearchParams(location.search).get("textureLimit") ?? 0) : 0;
+    const textureLimit = import.meta.env.DEV
+      ? Number(new URLSearchParams(location.search).get("textureLimit") ?? 0)
+      : 0;
     renderer = await createRenderer(canvas, camera, {
       onBackend: (b) => console.info("[render] backend:", b),
       ...(textureLimit > 0 ? { textureLimit } : {}),
@@ -78,7 +80,9 @@ async function setupRuntime(canvas: HTMLCanvasElement): Promise<Runtime> {
   } catch (err) {
     console.error("[render] WebGL2 unavailable:", err);
     showUnsupportedNotice(document.body, {
-      text: EDG.cream, background: EDG.ink, border: EDG.rust,
+      text: EDG.cream,
+      background: EDG.ink,
+      border: EDG.rust,
     });
     throw err;
   }
@@ -94,11 +98,7 @@ async function setupRuntime(canvas: HTMLCanvasElement): Promise<Runtime> {
   const keyboard = new Keyboard();
   keyboard.attach(window);
 
-  const SCROLL_KEYS = new Set([
-    "Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight",
-
-    "Tab",
-  ]);
+  const SCROLL_KEYS = new Set(["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Tab"]);
   window.addEventListener("keydown", (e: KeyboardEvent) => {
     const target = e.target as HTMLElement | null;
     const tag = target?.tagName;
@@ -137,7 +137,11 @@ async function setupRuntime(canvas: HTMLCanvasElement): Promise<Runtime> {
  * the Randomize button). Position off the laid-out rect, which tracks whatever the text metrics
  * do, instead of a fraction of the panel.
  */
-function positionSeedInput(canvas: HTMLCanvasElement, input: HTMLInputElement, slot: { rect: { x: number; y: number; width: number; height: number } }): void {
+function positionSeedInput(
+  canvas: HTMLCanvasElement,
+  input: HTMLInputElement,
+  slot: { rect: { x: number; y: number; width: number; height: number } },
+): void {
   const rect = canvas.getBoundingClientRect();
   input.style.left = `${rect.left + slot.rect.x}px`;
   input.style.top = `${rect.top + slot.rect.y}px`;
@@ -301,8 +305,12 @@ async function startGame(
       const clip = navigator.clipboard;
       if (clip && typeof clip.writeText === "function") {
         clip.writeText(url).then(
-          () => { shareStatus = "copied URL to clipboard"; },
-          () => { shareStatus = "URL in address bar (copy failed)"; },
+          () => {
+            shareStatus = "copied URL to clipboard";
+          },
+          () => {
+            shareStatus = "URL in address bar (copy failed)";
+          },
         );
       } else {
         shareStatus = "URL in address bar";
@@ -319,7 +327,9 @@ async function startGame(
       onSelectFarmer: focusFarmer,
       playback: playbackActions,
       onShare,
-      swapSlots: (from, to) => { if (client.owner) client.swapSlots(from, to); },
+      swapSlots: (from, to) => {
+        if (client.owner) client.swapSlots(from, to);
+      },
       isOwner: () => client.owner,
     });
 
@@ -348,9 +358,21 @@ async function startGame(
     });
 
     const renderFrame = createRenderLoop({
-      client, renderer, keyboard, particles, particleDirector, rain,
-      canvas, panels, seed, maxDays, ticksPerDay, ambient, juice,
-      uiHost, getShareStatus: () => shareStatus,
+      client,
+      renderer,
+      keyboard,
+      particles,
+      particleDirector,
+      rain,
+      canvas,
+      panels,
+      seed,
+      maxDays,
+      ticksPerDay,
+      ambient,
+      juice,
+      uiHost,
+      getShareStatus: () => shareStatus,
       onFirstFrame: () => {
         firstFrame = true;
         maybeDismiss();

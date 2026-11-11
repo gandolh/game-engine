@@ -54,9 +54,10 @@ describe("handleSellShopkeeper", () => {
     const q = farmer.inventory.cropQuality![crop]!;
     expect(q).toEqual({ normal: 0, silver: 0, gold: 0 });
     // 2 gold + 1 silver + 2 normal, priced at their own multiplier each.
-    const expectedGold = Math.round(CROP_SELL_PRICE[crop] * 1.5 * 2)
-      + Math.round(CROP_SELL_PRICE[crop] * 1.25 * 1)
-      + Math.round(CROP_SELL_PRICE[crop] * 1.0 * 2);
+    const expectedGold =
+      Math.round(CROP_SELL_PRICE[crop] * 1.5 * 2) +
+      Math.round(CROP_SELL_PRICE[crop] * 1.25 * 1) +
+      Math.round(CROP_SELL_PRICE[crop] * 1.0 * 2);
     expect(farmer.inventory.gold).toBe(expectedGold);
   });
 });

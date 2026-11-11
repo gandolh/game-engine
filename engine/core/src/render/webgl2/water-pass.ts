@@ -72,12 +72,7 @@ function uploadPatternTexture(
  * `UNPACK_ALIGNMENT` is set to 1 for the duration of the call: the default of 4 would misinterpret
  * the row stride for any `tilesX` not a multiple of 4, corrupting the mask.
  */
-function uploadDepthTexture(
-  gl: WebGL2RenderingContext,
-  data: Uint8Array,
-  w: number,
-  h: number,
-): WebGLTexture {
+function uploadDepthTexture(gl: WebGL2RenderingContext, data: Uint8Array, w: number, h: number): WebGLTexture {
   const tex = gl.createTexture();
   if (!tex) throw new Error('webgl2: gl.createTexture() returned null for "water depth mask"');
   gl.bindTexture(gl.TEXTURE_2D, tex);
@@ -116,8 +111,7 @@ export class WaterPass {
   private readonly ctx: GlContext;
 
   private program: WebGLProgram | null = null;
-  private uniforms: Record<(typeof WATER_UNIFORM_NAMES)[number], WebGLUniformLocation | null> | null =
-    null;
+  private uniforms: Record<(typeof WATER_UNIFORM_NAMES)[number], WebGLUniformLocation | null> | null = null;
 
   private waterTexture: WebGLTexture | null = null;
   private tileSize = 0;

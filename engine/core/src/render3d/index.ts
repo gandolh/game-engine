@@ -45,12 +45,7 @@ export { OrbitCamera } from "./camera3d";
 export type { OrbitCameraConfig } from "./camera3d";
 
 export type { Ray } from "./pick";
-export {
-  rayFromScreen,
-  rayIntersectAABB,
-  rayIntersectTriangle,
-  pickNearest,
-} from "./pick";
+export { rayFromScreen, rayIntersectAABB, rayIntersectTriangle, pickNearest } from "./pick";
 
 // --- 3D buffer packing (pure, backend-agnostic) -------------------------
 // CPU-side packing, deliberately backend-agnostic — no GPU calls, fully

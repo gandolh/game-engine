@@ -28,7 +28,11 @@ function findAgent(sim: BootedHollowSim, id: number): Agent {
  *  setting `fsm.current: "ACT"` (so HollowDeliberateSystem, which only
  *  re-plans "PERCEIVE"-state agents, leaves it alone) with `intention` as
  *  the sole queued item. */
-function forceIntention(sim: BootedHollowSim, actorId: number, intention: { kind: string; data: Record<string, unknown>; priority: number }): void {
+function forceIntention(
+  sim: BootedHollowSim,
+  actorId: number,
+  intention: { kind: string; data: Record<string, unknown>; priority: number },
+): void {
   const agent = findAgent(sim, actorId);
   agent.fsm!.current = "ACT";
   agent.intentions!.queue = [intention];
@@ -73,7 +77,13 @@ describe("social verbs emerge correctly through the real bootstrapHollowSim sche
 
 describe("determinism (chunk hollow-06a's social verbs)", () => {
   it("two bootstrapHollowSim runs with the same seed + an identical injected verb workload produce identical resulting snapshots/ledgers", () => {
-    const opts: HollowSimOptions = { seed: 909, ticksPerDay: 20, population: 6, stealDetectionProb: 0.5, attackLethalityProb: 0.5 };
+    const opts: HollowSimOptions = {
+      seed: 909,
+      ticksPerDay: 20,
+      population: 6,
+      stealDetectionProb: 0.5,
+      attackLethalityProb: 0.5,
+    };
     const a = bootstrapHollowSim(opts);
     const b = bootstrapHollowSim(opts);
 

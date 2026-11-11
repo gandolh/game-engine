@@ -31,7 +31,10 @@ export function healer(): MeshModel {
   const winE2 = windowPane("x", 1.8, 0.55, 0.85, 1.6, 1.95, "window");
   const winS2 = windowPane("y", 1.8, 0.95, 1.25, 1.6, 1.95, "window");
   return {
-    name: "bld/healer", footprintW: 2, footprintD: 2, heightTiles: 2,
+    name: "bld/healer",
+    footprintW: 2,
+    footprintD: 2,
+    heightTiles: 2,
     mesh: merge(body, roof, crossV, crossH, winE1, winS1, winE2, winS2),
   };
 }

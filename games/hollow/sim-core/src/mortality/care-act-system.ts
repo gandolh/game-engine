@@ -105,7 +105,11 @@ export class HollowCareActSystem implements System {
     }
   }
 
-  private runCollect(actor: HollowEntity & { id: number }, intention: Intention, corpseById: Map<number, HollowEntity>): void {
+  private runCollect(
+    actor: HollowEntity & { id: number },
+    intention: Intention,
+    corpseById: Map<number, HollowEntity>,
+  ): void {
     const pos = actor.agent!;
     if (actor.agent!.carryingCorpseId != null) return; // already carrying — ignore
     const corpseId = intention.data.corpseId as number | undefined;
@@ -136,7 +140,12 @@ export class HollowCareActSystem implements System {
     this.emit(ONT_MORTALITY.BURIED, body as unknown as Record<string, unknown>, tick);
   }
 
-  private runTreat(actor: HollowEntity & { id: number }, intention: Intention, agentById: Map<number, HollowEntity>, tick: number): void {
+  private runTreat(
+    actor: HollowEntity & { id: number },
+    intention: Intention,
+    agentById: Map<number, HollowEntity>,
+    tick: number,
+  ): void {
     const pos = actor.agent!;
     const dayOfRun = dayPhase(tick, this.ticksPerDay).dayOfRun;
     if (medicTreatsRemaining(actor, dayOfRun, this.medicCap) <= 0) return; // out of daily budget
@@ -154,9 +163,6 @@ export class HollowCareActSystem implements System {
   }
 
   private emit(ontology: string, body: Record<string, unknown>, tick: number): void {
-    this.bus.send(
-      { performative: PERFORMATIVE.INFORM, ontology, sender: "world", recipient: "broadcast", body },
-      tick,
-    );
+    this.bus.send({ performative: PERFORMATIVE.INFORM, ontology, sender: "world", recipient: "broadcast", body }, tick);
   }
 }

@@ -48,9 +48,7 @@ export class StationInboxClearSystem implements System {
 
       if (entity.shopkeeper) {
         // Keep only the pending auction-result retries ShopkeeperSystem left behind.
-        entity.inbox.messages = entity.inbox.messages.filter(
-          (msg) => msg.ontology === ONT_SHOP.AUCTION_RESULT,
-        );
+        entity.inbox.messages = entity.inbox.messages.filter((msg) => msg.ontology === ONT_SHOP.AUCTION_RESULT);
         continue;
       }
 

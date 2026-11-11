@@ -59,8 +59,7 @@ export class MarketSystem implements System {
     opts: { ticksPerDay?: number; ttlDays?: number } = {},
   ) {
     this.offerIdRng = rng.fork("market.offerId");
-    this.ttlTicks =
-      (opts.ttlDays ?? OFFER_TTL_DAYS) * (opts.ticksPerDay ?? DEFAULT_TICKS_PER_DAY);
+    this.ttlTicks = (opts.ttlDays ?? OFFER_TTL_DAYS) * (opts.ticksPerDay ?? DEFAULT_TICKS_PER_DAY);
   }
 
   run(ctx: SimContext): void {
@@ -303,11 +302,7 @@ export class MarketSystem implements System {
     }
   }
 
-  private sendRejection(
-    recipientId: number,
-    originalOntology: MarketOntology,
-    tick: number,
-  ): void {
+  private sendRejection(recipientId: number, originalOntology: MarketOntology, tick: number): void {
     const body: MarketRejectedBody = {
       reason: "not-in-village",
       originalOntology,

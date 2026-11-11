@@ -12,9 +12,7 @@ import { bakeIconAtlas, type BakedIconAtlas } from "./bake";
  * (the deterministic part) is synchronous and lives in {@link bakeIconAtlas}. Mirrors
  * `../text/font-atlas.ts`'s `makeBakedFontAtlas` exactly.
  */
-export async function makeBakedIconAtlas(
-  baked: BakedIconAtlas = bakeIconAtlas(),
-): Promise<LoadedAtlasImage> {
+export async function makeBakedIconAtlas(baked: BakedIconAtlas = bakeIconAtlas()): Promise<LoadedAtlasImage> {
   const image = new ImageData(baked.width, baked.height);
   image.data.set(baked.rgba);
   const bitmap = await createImageBitmap(image);

@@ -1,4 +1,3 @@
-
 import { type PixelRecipe } from "../types";
 
 import r0 from "./tile/shore";

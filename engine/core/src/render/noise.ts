@@ -130,14 +130,7 @@ export function valueNoise2d(x: number, y: number, seed: number): number {
  * Seeded fBm with configurable octaves, lacunarity and gain, normalised by the amplitude sum.
  * Each octave draws from a decorrelated sub-seed.
  */
-export function fbm(
-  x: number,
-  y: number,
-  seed: number,
-  octaves: number,
-  lacunarity: number,
-  gain: number,
-): number {
+export function fbm(x: number, y: number, seed: number, octaves: number, lacunarity: number, gain: number): number {
   let freq = 1;
   let amp = 1;
   let sum = 0;
@@ -187,12 +180,7 @@ export interface HillshadeWeights {
  * `-(gx + gy)` is positive exactly when the cell faces the sun. The `(h - 0.5)` term adds a mild
  * hypsometric nudge so absolute height shades too.
  */
-export function hillshadeFrom(
-  sample: HeightSampler,
-  tx: number,
-  ty: number,
-  w: HillshadeWeights,
-): number {
+export function hillshadeFrom(sample: HeightSampler, tx: number, ty: number, w: HillshadeWeights): number {
   const hC = sample(tx, ty);
   const gx = sample(tx + 1, ty) - sample(tx - 1, ty);
   const gy = sample(tx, ty + 1) - sample(tx, ty - 1);

@@ -1,5 +1,3 @@
-
-
 import { describe, it, expect } from "vitest";
 import { bootstrapSim } from "../../sim-bootstrap";
 
@@ -24,7 +22,6 @@ describe("RunHistorySystem", () => {
   });
 
   it("rows cover the expected day range (0..DAYS-1 as triggered by the sim clock)", () => {
-
     const DAYS = 3;
     const sim = runDays(0xc0ffee, DAYS);
     const history = sim.runHistory.history();
@@ -48,14 +45,11 @@ describe("RunHistorySystem", () => {
     }
     for (const [day, ids] of dayMap) {
       const unique = new Set(ids);
-      expect(unique.size, `day ${day}: duplicate farmerId detected`).toBe(
-        ids.length,
-      );
+      expect(unique.size, `day ${day}: duplicate farmerId detected`).toBe(ids.length);
     }
   });
 
   it("rank tie-break is deterministic: lower farmerId wins on equal totalValue", () => {
-
     const DAYS = 5;
     const sim = runDays(1, DAYS);
     const history = sim.runHistory.history();
@@ -68,10 +62,9 @@ describe("RunHistorySystem", () => {
     }
     for (const [day, ranks] of dayMap) {
       const sorted = ranks.slice().sort((a, b) => a - b);
-      expect(
-        sorted,
-        `day ${day}: ranks should be [1..N] with no gaps`,
-      ).toEqual(Array.from({ length: ranks.length }, (_, i) => i + 1));
+      expect(sorted, `day ${day}: ranks should be [1..N] with no gaps`).toEqual(
+        Array.from({ length: ranks.length }, (_, i) => i + 1),
+      );
     }
   });
 

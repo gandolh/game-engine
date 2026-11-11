@@ -65,7 +65,6 @@ describe("EncounterTradeSystem", () => {
   });
 
   it("Hoarder declines an OFFER_SEED that breaches her seed buffer", () => {
-
     const hannah = spawnFarmer(world, {
       personality: "hoarder",
       gold: 200,
@@ -100,7 +99,6 @@ describe("EncounterTradeSystem", () => {
   });
 
   it("MEET → OFFER_SEED → ACCEPT transfers seeds + gold (sell direction injected)", () => {
-
     const atticus = spawnFarmer(world, {
       personality: "aggressive",
       gold: 100,
@@ -137,7 +135,6 @@ describe("EncounterTradeSystem", () => {
   });
 
   it("MEET → OFFER_SEED → ACCEPT transfers when buy direction is initiated", () => {
-
     const hannah = spawnFarmer(world, {
       personality: "hoarder",
       gold: 200,
@@ -231,7 +228,6 @@ describe("EncounterTradeSystem", () => {
   });
 
   it("transfer is silently skipped if seller no longer has stock when ACCEPT arrives", () => {
-
     const hannah = spawnFarmer(world, {
       personality: "hoarder",
       gold: 200,
@@ -284,7 +280,6 @@ describe("EncounterTradeSystem", () => {
   });
 
   it("only the lower-id farmer's MEET triggers initiate (prevents double-offer)", () => {
-
     const lo = spawnFarmer(world, {
       personality: "hoarder",
       gold: 200,
@@ -321,19 +316,14 @@ describe("EncounterTradeSystem", () => {
 
     encounter.run({ tick: 1 });
 
-    expect(
-      hannah.inbox!.messages.some((m) => m.ontology === ONT_ENCOUNTER.MEET),
-    ).toBe(true);
+    expect(hannah.inbox!.messages.some((m) => m.ontology === ONT_ENCOUNTER.MEET)).toBe(true);
 
     trade.run({ tick: 1 });
 
-    expect(
-      hannah.inbox!.messages.some((m) => m.ontology === ONT_ENCOUNTER.MEET),
-    ).toBe(false);
+    expect(hannah.inbox!.messages.some((m) => m.ontology === ONT_ENCOUNTER.MEET)).toBe(false);
   });
 
   it("acceptor records +acceptDelta trust toward the sender when accepting OFFER_SEED", () => {
-
     const hannah = spawnFarmer(world, {
       personality: "hoarder",
       gold: 200,
@@ -366,7 +356,6 @@ describe("EncounterTradeSystem", () => {
   });
 
   it("declines do NOT bump trust on the responder side", () => {
-
     const hannah = spawnFarmer(world, {
       personality: "hoarder",
       gold: 200,
@@ -424,12 +413,11 @@ describe("EncounterTradeSystem", () => {
 
   describe("crop trades (OFFER_CROP)", () => {
     it("MEET → OFFER_CROP → ACCEPT transfers crops + gold and bumps trust both ways", () => {
-
       const hannah = spawnFarmer(world, {
         personality: "hoarder",
         gold: 200,
         reserve: 80,
-        crops: { wheat: 6 }, 
+        crops: { wheat: 6 },
       });
       const otto = spawnFarmer(world, {
         personality: "opportunist",
@@ -511,7 +499,6 @@ describe("EncounterTradeSystem", () => {
     });
 
     it("a personality without respondCrop declines crop offers", () => {
-
       const seller = spawnFarmer(world, { personality: "opportunist", crops: { wheat: 5 } });
       const hoarder = spawnFarmer(world, { personality: "hoarder", gold: 200 });
       const offer: OfferSeedBody = {

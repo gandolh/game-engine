@@ -1,7 +1,4 @@
-
-
 export interface AnimationFrame {
-
   readonly frame: string;
 
   readonly durationMs: number;
@@ -14,7 +11,6 @@ export interface AnimationEvent {
 }
 
 export interface SampledFrame {
-
   readonly frameName: string;
 
   readonly loopsCompleted: number;
@@ -54,9 +50,7 @@ export class AnimationClip {
     const events = params.events ?? [];
     for (const e of events) {
       if (!(e.atMs >= 0) || e.atMs >= total) {
-        throw new Error(
-          `AnimationClip "${params.name}": event "${e.name}" atMs ${e.atMs} out of [0, ${total})`,
-        );
+        throw new Error(`AnimationClip "${params.name}": event "${e.name}" atMs ${e.atMs} out of [0, ${total})`);
       }
     }
     this.events = events;
@@ -66,7 +60,6 @@ export class AnimationClip {
     if (this.events.length === 0 || curMs <= prevMs) return [];
     const out: string[] = [];
     if (this.loop) {
-
       const span = Math.min(curMs - prevMs, this.totalDurationMs);
       const from = curMs - span;
       for (const e of this.events) {
@@ -111,7 +104,6 @@ export class AnimationClip {
   }
 
   private frameAtLocal(localMs: number): string {
-
     let acc = 0;
     for (const f of this.frames) {
       acc += f.durationMs;

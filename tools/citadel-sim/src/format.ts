@@ -10,12 +10,7 @@ export const MAIN_NOTABLE_EVENT_PATTERN =
   /Raid|REPELLED|SACKED|DAMAGE|sacked outer|spotted|fire|burned|disease|outbreak|villager.*died|risen from|Hamlet|Village|Town|Citadel|Fortress/i;
 
 /** Print the per-day economy/siege/hazard summary line used by the main scenario loop. */
-export function printMainDayLine(
-  snap: RenderSnapshot,
-  maxDays: number,
-  scenario: string,
-  isSiege: boolean,
-): void {
+export function printMainDayLine(snap: RenderSnapshot, maxDays: number, scenario: string, isSiege: boolean): void {
   const connected = snap.buildings.filter((b) => b.connected).length;
   const workers = snap.villagers.length;
   const decreesStr = snap.activeDecrees.length > 0 ? ` [${snap.activeDecrees.join(",")}]` : "";
@@ -23,12 +18,14 @@ export function printMainDayLine(
   const siegeStr = isSiege
     ? ` | threat=${snap.threatLevel} defense=${snap.defensiveStrength} raiders=${snap.raiders.length} keepSacked=${snap.keepSacked}`
     : "";
-  const refinStr = scenario === "siege"
-    ? ` stone=${snap.stockpiles.stone ?? 0} planks=${snap.stockpiles.planks ?? 0} tools=${snap.stockpiles.tools ?? 0}`
-    : "";
-  const hazardStr = (snap.activeFires > 0 || snap.outbreakActive)
-    ? ` | fires=${snap.activeFires} sick=${snap.sickVillagers}${snap.outbreakActive ? " [OUTBREAK]" : ""}`
-    : "";
+  const refinStr =
+    scenario === "siege"
+      ? ` stone=${snap.stockpiles.stone ?? 0} planks=${snap.stockpiles.planks ?? 0} tools=${snap.stockpiles.tools ?? 0}`
+      : "";
+  const hazardStr =
+    snap.activeFires > 0 || snap.outbreakActive
+      ? ` | fires=${snap.activeFires} sick=${snap.sickVillagers}${snap.outbreakActive ? " [OUTBREAK]" : ""}`
+      : "";
   console.log(
     `  Day ${String(snap.day + 1).padStart(2)}/${maxDays} [${snap.season.padEnd(6)}] ` +
       `[${snap.tier}] ` +
@@ -40,7 +37,11 @@ export function printMainDayLine(
       `(connected ${connected}/${snap.buildings.length}, surplus ${snap.foodSurplus}) ` +
       `happy=${snap.happiness} faith=${(snap.faithCoverage * 100).toFixed(0)}% ` +
       `safe=${(snap.safetyCoverage * 100).toFixed(0)}% goods=${(snap.goodsCoverage * 100).toFixed(0)}%` +
-      decreesStr + traderStr + siegeStr + refinStr + hazardStr +
+      decreesStr +
+      traderStr +
+      siegeStr +
+      refinStr +
+      hazardStr +
       (snap.gameOver ? " *** GAME OVER ***" : ""),
   );
 }
@@ -55,12 +56,7 @@ export function printNotableEvents(events: readonly string[], pattern: RegExp): 
 }
 
 /** Print the end-of-run summary block (done/final/siege/refining/recent-events). */
-export function printFinalSummary(
-  final: RenderSnapshot,
-  maxDays: number,
-  scenario: string,
-  isSiege: boolean,
-): void {
+export function printFinalSummary(final: RenderSnapshot, maxDays: number, scenario: string, isSiege: boolean): void {
   console.log(`\nDone. Simulated up to ${maxDays} days.`);
   console.log(
     `Final: pop ${final.population}/${final.popCap}, bread ${final.stockpiles.bread ?? 0}, ` +
@@ -90,18 +86,17 @@ export function printFinalSummary(
  * a cheerful economy summary while asserting nothing. Give it a verdict and a non-zero
  * exit, so a future regression is a FAILURE and not a paragraph nobody reads.
  */
-export const SACK_VERDICT_PASS =
-  "SACK: PASS — the sharp raid path reached the `sacked` band: keep sacked, game over.";
+export const SACK_VERDICT_PASS = "SACK: PASS — the sharp raid path reached the `sacked` band: keep sacked, game over.";
 
 export function formatSackFailure(final: RenderSnapshot): string {
   return (
     "SACK: FAIL — the keep was NOT sacked.\n" +
-      `  keepPresent=${final.keepPresent} keepSacked=${final.keepSacked} gameOver=${final.gameOver} ` +
-      `threat=${final.threatLevel} defense=${final.defensiveStrength} tier=${final.tier}\n` +
-      "  This fixture is the ONLY end-to-end check of the sharp (cozyThreats:false) raid\n" +
-      "  resolution. If it is not sacking, the sharp path is unproven — do not sign off\n" +
-      "  Challenge mode or any raid work on top of it. Check, in order: (1) is\n" +
-      "  cozyThreats:false actually reaching bootstrapSim? (2) did the settlement reach\n" +
-      "  Town so the TIER_LOCKed keep could be placed? (3) did a raider ever arrive?"
+    `  keepPresent=${final.keepPresent} keepSacked=${final.keepSacked} gameOver=${final.gameOver} ` +
+    `threat=${final.threatLevel} defense=${final.defensiveStrength} tier=${final.tier}\n` +
+    "  This fixture is the ONLY end-to-end check of the sharp (cozyThreats:false) raid\n" +
+    "  resolution. If it is not sacking, the sharp path is unproven — do not sign off\n" +
+    "  Challenge mode or any raid work on top of it. Check, in order: (1) is\n" +
+    "  cozyThreats:false actually reaching bootstrapSim? (2) did the settlement reach\n" +
+    "  Town so the TIER_LOCKed keep could be placed? (3) did a raider ever arrive?"
   );
 }

@@ -56,22 +56,10 @@ const TOOL_HELP: ReadonlyArray<readonly [string, string]> = [
 ];
 
 const PERSONALITY_HELP: ReadonlyArray<readonly [string, string]> = [
-  [
-    "conservative",
-    "Plays it safe: waters every plot early, expands slowly, plants the cheapest in-season crop.",
-  ],
-  [
-    "aggressive",
-    "Chases profit: over-plants, expands fast, plants the priciest in-season crop, takes risks.",
-  ],
-  [
-    "hoarder",
-    "Accumulates: waters religiously, buys cheap offers, wins and keeps the golden bean.",
-  ],
-  [
-    "opportunist",
-    "Reads the market: plants by weather and season, posts at fair price or dumps by supply.",
-  ],
+  ["conservative", "Plays it safe: waters every plot early, expands slowly, plants the cheapest in-season crop."],
+  ["aggressive", "Chases profit: over-plants, expands fast, plants the priciest in-season crop, takes risks."],
+  ["hoarder", "Accumulates: waters religiously, buys cheap offers, wins and keeps the golden bean."],
+  ["opportunist", "Reads the market: plants by weather and season, posts at fair price or dumps by supply."],
 ];
 
 const FSM_HELP: ReadonlyArray<readonly [FarmerFsmState, string]> = [

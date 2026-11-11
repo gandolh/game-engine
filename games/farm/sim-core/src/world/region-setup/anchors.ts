@@ -22,9 +22,7 @@ export const PLOT_OFFSETS = [-2, 1] as const;
  * These tiles are pinned by the organic mask generator and are used
  * as reference positions for entity spawning.
  */
-export function forcedCoreTiles(
-  region: RegionDef,
-): { x: number; y: number }[] {
+export function forcedCoreTiles(region: RegionDef): { x: number; y: number }[] {
   const { bounds, center } = region;
   const tiles: { x: number; y: number }[] = [];
 

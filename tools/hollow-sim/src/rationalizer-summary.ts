@@ -81,9 +81,7 @@ function medianLag(rows: readonly RationalizeDecisionBody[]): number {
  * `RATIONALIZER=off` run's summary is byte-identical to one from before this
  * block existed.
  */
-export function summarizeRationalizerDecisions(
-  events: readonly ChronicleEvent[],
-): RationalizerRunSummary | null {
+export function summarizeRationalizerDecisions(events: readonly ChronicleEvent[]): RationalizerRunSummary | null {
   // `ChronicleEvent` is FLAT (an index signature, no `body` wrapper) — a
   // decision's fields sit directly on the event, which is also exactly how
   // they serialize into events.jsonl.

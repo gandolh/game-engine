@@ -28,12 +28,7 @@ export function handleReturnToShore(farmer: ActingFarmer): void {
   farmer.farmer.aboard = false;
 }
 
-export function handleFishCoral(
-  farmer: ActingFarmer,
-  tick: number,
-  fishRng: Rng,
-  bus?: MessageBus,
-): void {
+export function handleFishCoral(farmer: ActingFarmer, tick: number, fishRng: Rng, bus?: MessageBus): void {
   if (!farmer.farmer || !farmer.transform) return;
   if (!farmer.farmer.aboard) return;
   const rod = (farmer.inventory.tools ?? []).find((t) => t.kind === "fishing-rod");
@@ -43,7 +38,6 @@ export function handleFishCoral(
   if (!isCoralReefTile(fx, fy)) return;
 
   if (farmer.beliefs) {
-
     const day = (farmer.beliefs.data.currentDay as number | undefined) ?? 0;
     const castDay = farmer.beliefs.data["coralCastDay"] as number | undefined;
     const castsDone = castDay === day ? ((farmer.beliefs.data["coralCastsDone"] as number | undefined) ?? 0) : 0;
@@ -51,17 +45,14 @@ export function handleFishCoral(
     farmer.beliefs.data["coralCastsDone"] = castsDone + 1;
   }
 
-  const weights = applyCoralRarityBonus(
-    CORAL_WEIGHTS,
-    fishingRarityBonus(farmer.skills?.fishing ?? 0),
-  );
+  const weights = applyCoralRarityBonus(CORAL_WEIGHTS, fishingRarityBonus(farmer.skills?.fishing ?? 0));
   const fish = pickWeightedFish(weights, fishRng);
   const busyTicks = fishRng.int(FISH_MIN_TICKS, FISH_MAX_TICKS + 1);
 
   if (!farmer.inventory.fish) farmer.inventory.fish = zeroFish();
   farmer.inventory.fish[fish] += 1;
   farmer.inventory.gold += FISH_VALUE[fish];
-  grantSkillXp(farmer, "fishing", 2); 
+  grantSkillXp(farmer, "fishing", 2);
 
   farmer.farmer.busyUntilTick = tick + busyTicks;
 

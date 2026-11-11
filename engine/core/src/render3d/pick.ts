@@ -19,13 +19,7 @@ export interface Ray {
  * matrix) to build a world-space ray. WebGPU NDC: x,y ∈ [-1,1] with +y up
  * (hence the y-flip from screen space), z ∈ [0 (near), 1 (far)].
  */
-export function rayFromScreen(
-  sx: number,
-  sy: number,
-  viewportW: number,
-  viewportH: number,
-  viewProj: Mat4,
-): Ray {
+export function rayFromScreen(sx: number, sy: number, viewportW: number, viewportH: number, viewProj: Mat4): Ray {
   const ndcX = (sx / viewportW) * 2 - 1;
   const ndcY = 1 - (sy / viewportH) * 2;
   const invVP = invert(viewProj);
@@ -55,7 +49,11 @@ export function rayIntersectAABB(ray: Ray, min: Vec3, max: Vec3): number | null 
     const invD = 1 / d;
     let t0 = (lo - o) * invD;
     let t1 = (hi - o) * invD;
-    if (t0 > t1) { const tmp = t0; t0 = t1; t1 = tmp; }
+    if (t0 > t1) {
+      const tmp = t0;
+      t0 = t1;
+      t1 = tmp;
+    }
     if (t0 > tMin) tMin = t0;
     if (t1 < tMax) tMax = t1;
     if (tMin > tMax) return null;

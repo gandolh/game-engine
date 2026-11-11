@@ -177,12 +177,7 @@ export function renderInspectPanel(detail: InspectDetail, callbacks: InspectPane
     // audit-63: governance was sim-core + chronicle only, so hollow-12 was readable solely by
     // exporting CSV and opening it elsewhere. Leader, standing and all THREE norms now show here.
     community.appendChild(
-      row(
-        "leader",
-        detail.community.isLeader
-          ? "this agent"
-          : (detail.community.leaderName ?? "none yet"),
-      ),
+      row("leader", detail.community.isLeader ? "this agent" : (detail.community.leaderName ?? "none yet")),
     );
     community.appendChild(row("standing", fmt(detail.community.standing)));
     community.appendChild(row("share rate", fmt(detail.community.shareRate)));

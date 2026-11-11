@@ -2,11 +2,7 @@ import { ZERO_CROPS } from "../economy";
 import { describe, expect, it } from "vitest";
 import type { GameEntity, CropKind } from "../components";
 import type { MeetBody, OfferSeedBody } from "../protocols/encounter";
-import {
-  initiatePeerTradeHoarder,
-  initiateCropTradeHoarder,
-  respondToPeerOfferHoarder,
-} from "./hoarder";
+import { initiatePeerTradeHoarder, initiateCropTradeHoarder, respondToPeerOfferHoarder } from "./hoarder";
 import { MAX_FRIEND_DISCOUNT } from "./peer-trade-policy";
 import { respondToPeerOfferAggressive } from "./aggressive";
 import { respondToPeerOfferConservative } from "./conservative";
@@ -35,12 +31,7 @@ function makeFarmer(overrides: {
   };
 }
 
-function offer(
-  direction: "buy" | "sell",
-  crop: CropKind,
-  unitPrice: number,
-  quantity: number,
-): OfferSeedBody {
+function offer(direction: "buy" | "sell", crop: CropKind, unitPrice: number, quantity: number): OfferSeedBody {
   return { offerId: "t", crop, quantity, unitPrice, direction };
 }
 
@@ -56,7 +47,7 @@ describe("hoarder peer-trade hooks", () => {
       expect(out!.crop).toBe("radish");
       expect(out!.direction).toBe("buy");
       expect(out!.quantity).toBe(3);
-      expect(out!.unitPrice).toBe(5); 
+      expect(out!.unitPrice).toBe(5);
       expect(out!.offerId).toBe("peer-1-99-42-2-radish");
     });
 
@@ -84,22 +75,13 @@ describe("hoarder peer-trade hooks", () => {
   describe("respond", () => {
     it("accepts sell offers at or below 105% of seed cost (SEED_COST.radish=5; 5 passes, 6 fails)", () => {
       const f = makeFarmer({ gold: 200, reserve: 80 });
-      expect(
-        respondToPeerOfferHoarder(f, offer("sell", "radish", 5, 1), 2, { tick: 0 })
-          .decision,
-      ).toBe("accept");
-      expect(
-        respondToPeerOfferHoarder(f, offer("sell", "radish", 6, 1), 2, { tick: 0 })
-          .decision,
-      ).toBe("decline");
+      expect(respondToPeerOfferHoarder(f, offer("sell", "radish", 5, 1), 2, { tick: 0 }).decision).toBe("accept");
+      expect(respondToPeerOfferHoarder(f, offer("sell", "radish", 6, 1), 2, { tick: 0 }).decision).toBe("decline");
     });
 
     it("declines sell offer when buying would breach reserve (84-5=79<80)", () => {
       const f = makeFarmer({ gold: 84, reserve: 80 });
-      expect(
-        respondToPeerOfferHoarder(f, offer("sell", "radish", 5, 1), 2, { tick: 0 })
-          .decision,
-      ).toBe("decline");
+      expect(respondToPeerOfferHoarder(f, offer("sell", "radish", 5, 1), 2, { tick: 0 }).decision).toBe("decline");
     });
 
     it("accepts buy offers at >= 95% of seed cost when buffer maintained (95%×5=4.75; need seeds≥qty+2)", () => {
@@ -261,7 +243,6 @@ describe("opportunist peer-trade hooks", () => {
 });
 
 describe("friend trust-discount on sell-surplus initiation", () => {
-
   const BASE = 15 * 0.95;
 
   function seller(trustTowardPeer?: number): GameEntity {

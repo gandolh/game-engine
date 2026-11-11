@@ -1,11 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import {
-  compileProgram,
-  uniformLocations,
-  setupAttrib,
-  createVao,
-  type AttribSpec,
-} from "./program";
+import { compileProgram, uniformLocations, setupAttrib, createVao, type AttribSpec } from "./program";
 
 // node's vitest env has no real WebGL2. Per the project convention (see
 // ../webgpu/renderer.test.ts's fake device/canvas), compileProgram is
@@ -96,7 +90,7 @@ describe("compileProgram", () => {
     const gl = makeFakeGl({ shaderCompiles: () => true, programLinks: true });
     const program = compileProgram(gl, VERT, FRAG, "blit");
     expect(program).toBeTruthy();
-    expect((gl.linkProgram as ReturnType<typeof vi.fn>)).toHaveBeenCalled();
+    expect(gl.linkProgram as ReturnType<typeof vi.fn>).toHaveBeenCalled();
   });
 
   it("throws with the info log and line-numbered source when a shader fails to compile", () => {
