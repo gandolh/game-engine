@@ -26,7 +26,6 @@ beforeEach(() => {
   });
 });
 afterEach(() => {
-  // eslint-disable-next-line vitest/no-standalone-expect -- a hook that fails the test if anything reached for the network
   expect(fetchSpy).not.toHaveBeenCalled();
   fetchSpy.mockRestore();
 });
