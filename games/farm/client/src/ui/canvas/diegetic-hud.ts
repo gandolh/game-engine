@@ -41,8 +41,8 @@ interface DiegeticPanel<S> {
   refresh(state: S): boolean;
 }
 
-export interface NoticeBoard extends DiegeticPanel<NoticeBoardState> {}
-export interface StandingsPost extends DiegeticPanel<StandingsPostState> {}
+export type NoticeBoard = DiegeticPanel<NoticeBoardState>;
+export type StandingsPost = DiegeticPanel<StandingsPostState>;
 
 function setText(lbl: LabelNode, text: string): boolean {
   if (lbl.text === text) return false;

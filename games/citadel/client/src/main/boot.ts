@@ -185,6 +185,7 @@ if (CARD_MODE) {
     const { runShowcase } = await import("../render/showcase");
     const handle = await runShowcase(canvas, terrain);
     (window as unknown as { __citadelShowcase?: unknown }).__citadelShowcase = handle;
+    // eslint-disable-next-line no-console -- the showcase announces itself in the dev console
     console.info("[citadel] showcase mode — toggles on window.__citadelShowcase.toggles");
   })().catch((err) => console.error("[citadel] showcase boot failed", err));
 } else {

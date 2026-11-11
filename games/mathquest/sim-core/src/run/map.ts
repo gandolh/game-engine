@@ -163,7 +163,7 @@ export function generateMap(rng: Rng, opts?: { readonly eliteUnlocked?: boolean 
     rowIds.push(ids);
   }
 
-  const bossId = nextId++;
+  const bossId = nextId;
   nodes.push({
     id: bossId,
     type: "boss",

@@ -90,7 +90,10 @@ function admittedUnderPolicy(admissionPolicy: number | undefined): number {
   expect(founders.every((f) => f.communityId !== null)).toBe(true);
 
   // Phase 2: the newcomers move in and build trust. Only GROW can admit them now.
-  for (const n of newcomers) ((n.agent!.gx = 5), (n.agent!.gy = 5));
+  for (const n of newcomers) {
+    n.agent!.gx = 5;
+    n.agent!.gy = 5;
+  }
   for (let i = 0; i < 900; i++) step();
 
   return newcomers.filter((n) => n.communityId !== null).length;

@@ -457,13 +457,12 @@ describe("DiseaseSystem — disease onset", () => {
 
     // Run 40 days — with seed 0xdeadbeef the outbreak should trigger.
     let outbreakEverHappened = false;
-    let diseaseDeaths = 0;
     for (let t = 1; t <= 40 * TICKS_PER_DAY; t++) {
       sim.scheduler.tick({ tick: t });
       if (localPlayer(sim.state).outbreakActive) outbreakEverHappened = true;
       // Count disease-related events.
     }
-    diseaseDeaths = sim.state.events.filter((e) => /died.*disease|disease.*died/i.test(e)).length;
+    const diseaseDeaths = sim.state.events.filter((e) => /died.*disease|disease.*died/i.test(e)).length;
 
     // The disease system must run without error and fields must be valid.
     expect(localPlayer(sim.state).sickVillagers).toBeGreaterThanOrEqual(0);

@@ -52,7 +52,7 @@ export function assertTextureWithinLimits(
   height: number,
   label = "texture",
 ): void {
-  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- WebGL2's getParameter is loosely typed; MAX_TEXTURE_SIZE always returns a number.
+  // WebGL2's getParameter is loosely typed; MAX_TEXTURE_SIZE always returns a number.
   const max = gl.getParameter(gl.MAX_TEXTURE_SIZE) as number;
   if (width > max || height > max) {
     throw new RangeError(
@@ -160,7 +160,7 @@ export class StaticLayerPass {
   /** The largest texture edge this layer may use: the device's, or the host's lower limit. */
   private limit(): number {
     const { gl } = this.ctx;
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- WebGL2's getParameter is loosely typed; MAX_TEXTURE_SIZE always returns a number.
+    // WebGL2's getParameter is loosely typed; MAX_TEXTURE_SIZE always returns a number.
     const max = gl.getParameter(gl.MAX_TEXTURE_SIZE) as number;
     return Math.min(max, this.textureLimit);
   }

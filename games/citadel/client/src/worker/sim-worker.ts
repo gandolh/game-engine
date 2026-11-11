@@ -75,6 +75,11 @@ const pump = createTickPump({
 self.onmessage = (event: MessageEvent<WorkerInbound>) => {
   const msg = event.data;
   switch (msg.type) {
+    // Presence and emotes are the MP social layer: the MP server relays them, and a solo
+    // worker has no peers to show them to.
+    case "presence":
+    case "emote":
+      break;
     case "init": {
       // Brief 103: Challenge is a call-site PRESET of the flat flags (decision #19 — no
       // mode enum in the sim). Sharp threats, no seeded alive-core, no threat-defer; the

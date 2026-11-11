@@ -16,6 +16,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // `order` = per-frame DRAW sequence (order assertions). `life` = lifecycle events
 // (constructions, bakes, uploads) — kept separate so instrumenting recovery does not
 // pollute the strict draw-order assertions.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- the mocked GL context's shape is private to this file
 const rec = vi.hoisted(() => ({ order: [] as string[], life: [] as string[], contexts: [] as any[] }));
 
 vi.mock("./gl-context", () => {
@@ -704,6 +705,7 @@ describe("WebGl2Renderer guards", () => {
 });
 
 describe("WebGl2Renderer context-loss recovery", () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- the mocked GL context's shape is private to this file
   function ctx(): any {
     return rec.contexts[rec.contexts.length - 1];
   }

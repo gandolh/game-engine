@@ -151,7 +151,7 @@ function buildMatureTown(): { sim: CitadelSimResult; B: number } {
  *  technique as `fire-system-scan.test.ts`'s `instrumentBuildingQuery`. */
 function instrumentBuildingQuery(sim: CitadelSimResult): { count: () => number; stop: () => void } {
   const q = sim.state.buildingWorld.query("building");
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test-only instrumentation of an instance's own iterator
   const target = q as any; // test-only instrumentation: shadowing an instance's own Symbol.iterator
   const original: () => Iterator<unknown> = target[Symbol.iterator].bind(q);
   let visits = 0;
@@ -212,7 +212,7 @@ describe("VillagerSystem — per-tick assign() scan volume (audit-09)", () => {
 
     probe.stop();
 
-    // eslint-disable-next-line no-console
+    // eslint-disable-next-line no-console -- an audit line the run prints on purpose
     console.log(
       `[audit-09] B=${B}, villagers=${IDLE_VILLAGERS}, ` +
         `MEASURED old-code visits for one tick's worth of attempts=${oldPerTickVisits}, ` +

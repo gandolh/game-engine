@@ -68,7 +68,7 @@ function forceIgnite(sim: CitadelSimResult, entityId: number): void {
  */
 function instrumentBuildingQuery(sim: CitadelSimResult): { count: () => number; stop: () => void } {
   const q = sim.state.buildingWorld.query("building");
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test-only instrumentation of an instance's own iterator
   const target = q as any; // test-only instrumentation: shadowing an instance's own Symbol.iterator
   const original: () => Iterator<unknown> = target[Symbol.iterator].bind(q);
   let visits = 0;
@@ -151,7 +151,7 @@ describe("FireSystem — per-tick building-scan volume", () => {
     const delta = withFires - baseline;
     const B = eightFires.B;
 
-    // eslint-disable-next-line no-console
+    // eslint-disable-next-line no-console -- an audit line the run prints on purpose
     console.log(
       `[audit-15] B=${B}, no-fire baseline visits=${baseline}, 8-fire visits=${withFires}, ` +
         `delta attributable to 8 burning buildings=${delta} (=${(delta / B).toFixed(2)} x B)`,

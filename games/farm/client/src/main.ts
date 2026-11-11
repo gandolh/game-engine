@@ -51,6 +51,7 @@ interface Runtime {
 async function loadNoiseGenerator(): Promise<NoiseGenerator | null> {
   try {
     const gen = await createNoiseGeneratorFromUrl(`${import.meta.env.BASE_URL}wasm/noise.wasm`);
+    // eslint-disable-next-line no-console -- one startup line, as the other loaders print
     console.info("[wasm] noise module loaded");
     return gen;
   } catch (err) {
@@ -74,6 +75,7 @@ async function setupRuntime(canvas: HTMLCanvasElement): Promise<Runtime> {
       ? Number(new URLSearchParams(location.search).get("textureLimit") ?? 0)
       : 0;
     renderer = await createRenderer(canvas, camera, {
+      // eslint-disable-next-line no-console -- one startup line naming the render backend
       onBackend: (b) => console.info("[render] backend:", b),
       ...(textureLimit > 0 ? { textureLimit } : {}),
     });

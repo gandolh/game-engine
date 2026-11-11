@@ -20,7 +20,7 @@ if (!parentPort) {
   throw new Error("determinism-worker must be run as a worker thread");
 }
 
-parentPort.on("message", async (job: DeterminismJob) => {
+async function handleJob(job: DeterminismJob): Promise<void> {
   const result = runOnce({
     seed: job.seed,
     ticksPerDay: job.ticksPerDay,
@@ -30,4 +30,10 @@ parentPort.on("message", async (job: DeterminismJob) => {
   });
   const out: DeterminismJobResult = { seed: job.seed, pass: job.pass, result };
   parentPort!.postMessage(out);
+}
+
+// The listener must return void. `void` keeps what an async listener always did with a failure: it
+// is an unhandled rejection, which ends the worker and reaches the parent.
+parentPort.on("message", (job: DeterminismJob) => {
+  void handleJob(job);
 });

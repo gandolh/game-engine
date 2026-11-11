@@ -96,4 +96,13 @@ export default [
     files: ["games/*/server/src/index.ts"],
     rules: { "n/no-process-env": "warn" },
   },
+  {
+    // A warning for now (2026-11-11): the deprecated multiplayer client ignores the server's roster,
+    // presence and emote messages, and nothing in the client shows them. Whether that is a gap or the
+    // intended end of that path is the owner's call. When it is decided, this block goes and the switch
+    // handles or ignores each message on purpose, like the solo client's.
+    name: "game-engine/mp-client-switch",
+    files: ["games/citadel/client/src/worker/server-client.ts"],
+    rules: { "@typescript-eslint/switch-exhaustiveness-check": ["warn", { considerDefaultExhaustiveForUnions: true }] },
+  },
 ];

@@ -150,7 +150,7 @@ describe("deferThreatsUntilBuildings — cold-open threat defer", () => {
 
     // Grow population so there are villagers to be sick, then force an active outbreak
     // by hand (the ONSET path is what's gated — an active one must still tick down).
-    let t = runDays(sim, 6, 1);
+    const t = runDays(sim, 6, 1);
     if (lp.population > 0) {
       lp.outbreakActive = true;
       lp.sickVillagers = lp.population;

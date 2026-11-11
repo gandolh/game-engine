@@ -21,7 +21,7 @@ import { effectiveDpr } from "./dpr";
 
 export class Overlay2D {
   /** overlay must NOT clear to a solid color */
-  readonly clearColorIsTransparent: true = true;
+  readonly clearColorIsTransparent = true as const;
 
   /** The 2D context handed to particles, weather, and wash draws. */
   readonly ctx: Ctx2D;

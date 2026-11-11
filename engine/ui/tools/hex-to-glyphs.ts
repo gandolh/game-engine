@@ -156,7 +156,6 @@ function generate(opts: {
   lines.push("");
 
   writeFileSync(outPath, lines.join("\n"), "utf8");
-  // eslint-disable-next-line no-console -- one-off CLI tool, not shipped runtime code
   console.log(`wrote ${opts.outFile} (${font.rows.size} glyphs, ${opts.glyphWidth}x${glyphHeight})`);
 }
 

@@ -184,7 +184,9 @@ export function buildAtlas(opts: { force?: boolean } = {}): BuildResult {
           });
           continue;
         }
-      } catch {}
+      } catch {
+        // An unreadable manifest only means the sheet is rebuilt.
+      }
     }
 
     const packed = packShelf(recipes);

@@ -175,7 +175,7 @@ async function main(): Promise<void> {
   // creation itself be the test, and report whatever it actually failed on.
   let device3d: Awaited<ReturnType<typeof createDevice3d>>;
   try {
-    device3d = await createDevice3d(canvas);
+    device3d = createDevice3d(canvas);
   } catch {
     if (hud) {
       hud.textContent =
@@ -308,8 +308,8 @@ async function main(): Promise<void> {
       .map((inst) => ({ bounds: instanceAABB(inst.meshData, inst.model), value: inst.label }));
     const picked = pickNearest(ray, pickItems);
     pickedLabel = picked;
-    // eslint-disable-next-line no-console -- the brief's smoke-test contract:
-    // click-to-inspect proves out by logging + highlighting the pick.
+    // The smoke-test contract: click-to-inspect proves out by logging + highlighting the pick.
+    // eslint-disable-next-line no-console -- the demo's pick readout
     console.log(`[render3d-demo] picked: ${picked ?? "(none)"}`);
   });
 

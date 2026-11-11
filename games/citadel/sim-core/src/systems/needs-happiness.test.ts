@@ -255,7 +255,6 @@ describe("NeedsHappinessSystem — stateful asymmetric happiness (Phase B Chunk 
     // No houses at all → coverage 0, target = base 40 (no food/decree/festival).
     p.happiness = 100; // start high so we can see it ease DOWN, not snap
     runDaily(state, 1);
-    p.faithCoverage; // coverage zeroed by the early return
     expect(p.faithCoverage).toBe(0);
     // Eased toward 40 (decay), did not snap: 100 + (40-100)*0.3 = 82.
     expect(p.happiness).toBe(Math.round(100 + (40 - 100) * DECAY));

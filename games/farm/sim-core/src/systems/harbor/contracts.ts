@@ -94,7 +94,7 @@ export function canFulfillContract(inv: GameEntity["inventory"], contract: Harbo
   if (!quality) {
     return minQuality === "normal";
   }
-  let qualifying = 0;
+  let qualifying: number;
   if (minQuality === "normal") qualifying = quality.normal + quality.silver + quality.gold;
   else if (minQuality === "silver") qualifying = quality.silver + quality.gold;
   else qualifying = quality.gold;

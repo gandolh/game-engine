@@ -268,6 +268,7 @@ export async function createCitadelRenderer(
   });
 
   const renderer = await createRenderer(canvas, camera, {
+    // eslint-disable-next-line no-console -- one startup line naming the render backend
     onBackend: (b) => console.info("[citadel render] backend:", b),
     ...(opts.textureLimit !== undefined && opts.textureLimit > 0 ? { textureLimit: opts.textureLimit } : {}),
   });

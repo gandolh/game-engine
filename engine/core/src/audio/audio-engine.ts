@@ -51,7 +51,7 @@ export class AudioEngine {
     this._volume = clamp01(opts?.masterVolume ?? 1);
     this._maxVoices = opts?.maxVoices ?? DEFAULT_MAX_VOICES;
 
-    let ctx: AudioContextLike | null = null;
+    let ctx: AudioContextLike | null;
     try {
       ctx = opts?.contextFactory !== undefined ? opts.contextFactory() : createDefaultContext();
     } catch {

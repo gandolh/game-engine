@@ -304,7 +304,7 @@ describe("measured rectsOverlap call counts on a saturated map (audit-11)", () =
     // same search order, just cheaper lookup.
     expect(afterPos).toEqual(beforePos);
 
-    // eslint-disable-next-line no-console
+    // eslint-disable-next-line no-console -- an audit line the run prints on purpose
     console.log(
       `[audit-11] rectsOverlap calls on a 190-reservation saturated map: ` +
         `before(array)=${beforeCounter.calls} after(index)=${afterCounter.calls}`,
@@ -356,7 +356,7 @@ describe("measured rectsOverlap call counts on a saturated map (audit-11)", () =
     const expectedOldSamples = 1 + sumRingSamples(OLD_DEFAULT_MAX_RINGS);
     const expectedCappedSamples = 1 + sumRingSamples(CAPPED_MAX_RINGS);
 
-    // eslint-disable-next-line no-console
+    // eslint-disable-next-line no-console -- an audit line the run prints on purpose
     console.log(
       `[audit-11] rectsOverlap calls, impossible search — ` +
         `maxRings=48 (old default)=${oldCounter.calls} (expected ${expectedOldSamples}); ` +

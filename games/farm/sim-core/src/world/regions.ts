@@ -350,7 +350,7 @@ function buildWorldFromPlacement(
     }
   };
 
-  let fallbackCount = 0;
+  const fallbackCount = 0;
 
   const regions: RegionDef[] = [];
   for (const themed of allThemedUnmasked) {

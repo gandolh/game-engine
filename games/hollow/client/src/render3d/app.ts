@@ -229,7 +229,7 @@ export function startHollowApp(canvas: HTMLCanvasElement, worker: Worker, opts: 
     // unhandled promise rejection + blank canvas.
     let device3d: Awaited<ReturnType<typeof createDevice3d>>;
     try {
-      device3d = await createDevice3d(canvas);
+      device3d = createDevice3d(canvas);
     } catch {
       opts.onRendererUnavailable?.(
         "3D rendering could not start — WebGL2 is unavailable in this browser. This is " +

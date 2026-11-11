@@ -269,10 +269,10 @@ export function isoNetworkTiles(
   for (const b of buildings) {
     // Roads and bridges fill the whole tile (band 1) when textured — the cobble
     // / plank art carries the visual, so no inset is needed; walls stay banded.
-    let hex: string | null = null;
-    let band = WALL_BAND;
+    let hex: string | null;
+    let band: number;
     let frame: string | undefined;
-    let members: ReadonlySet<number> | null = null;
+    let members: ReadonlySet<number> | null;
     if (b.type === "road") {
       hex = roadHex;
       band = frames?.road !== undefined ? 1 : ROAD_BAND;

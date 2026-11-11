@@ -35,6 +35,14 @@ export class CitadelSimClient {
           this.saveCallback?.(msg.save);
           this.saveCallback = null; // one-shot callback
           break;
+        // "ready" follows a (re)load and the snapshots carry everything the client needs, so
+        // nothing waits on it here. The social layer (roster, presence, emote) is MP-only: a solo
+        // worker never sends it.
+        case "ready":
+        case "roster":
+        case "presence":
+        case "emote":
+          break;
       }
     };
   }

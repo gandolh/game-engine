@@ -223,7 +223,9 @@ async function main(): Promise<void> {
     for (const c of clients) c.close();
     try {
       process.kill(-serverPid, "SIGTERM");
-    } catch {}
+    } catch {
+      // The server may already be gone.
+    }
   }
   console.log("[probe] done");
 }

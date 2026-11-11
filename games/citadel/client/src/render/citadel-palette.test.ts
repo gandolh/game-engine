@@ -8,7 +8,7 @@ import { APOLLO, APOLLO_SET, CITADEL_PAL, nearestApollo } from "./citadel-palett
 // this module drifting from the engine-side scan list. That copy is gone —
 // citadel-palette.ts now imports APOLLO from @engine/core/render, so there is
 // nothing left for this module to drift FROM. What still needs a colocated
-// test (the engine cannot import a game) is that CITADEL_PAL's own role
+// check (the engine cannot import a game) is that CITADEL_PAL's own role
 // values stay valid Apollo members — see below.
 
 // Perceived luminance (Rec. 601) — used to assert shading ramps never invert.

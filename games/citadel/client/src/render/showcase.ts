@@ -183,7 +183,8 @@ function firstOverlapIn(items: readonly ShowcaseItem[]): [ShowcaseItem, Showcase
 /** Extend a bounds AABB to include the villager row's iso footprint points, so
  *  the framed view doesn't crop the units below the building lattice. */
 function padBounds(iso: IsoProjection, b: Aabb, villagers: readonly VillagerSnapshot[]): Aabb {
-  let { x: minX, y: minY } = b;
+  let minX = b.x;
+  const minY = b.y;
   let maxX = b.x + b.width,
     maxY = b.y + b.height;
   for (const v of villagers) {

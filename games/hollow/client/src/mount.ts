@@ -490,7 +490,7 @@ export function mountHollow(container: HTMLElement, options: MountOptions): () =
     const overlayCanvas = createOverlayCanvas(appEl);
     const overlayCtx = overlayCanvas.getContext("2d");
     if (!overlayCtx) {
-      // eslint-disable-next-line no-console -- surfaced to the dev console, same
+      // Surfaced to the dev console, same
       // convention as app.ts's renderer-unavailable message; the overlay is a
       // legibility layer on top of the 3D scene, not something the app hard-fails
       // without.

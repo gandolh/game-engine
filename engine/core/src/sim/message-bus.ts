@@ -20,7 +20,7 @@ export type Recipient = number | "broadcast";
  * historical `Record<string, unknown>` body, so unconverted call sites keep
  * compiling unchanged.
  */
-// eslint-disable-next-line @typescript-eslint/no-empty-interface -- open for declaration merging by games
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type -- open for declaration merging by games
 export interface OntologyBodies {}
 
 /** Ontology strings that have a registered body shape. */

@@ -69,7 +69,9 @@ export class GlDevice3d {
       glContext = createGlContext(canvas, { depth: true });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      throw new Error(`render3d: webgl2 context unavailable (WebGL2 not supported in this browser): ${message}`);
+      throw new Error(`render3d: webgl2 context unavailable (WebGL2 not supported in this browser): ${message}`, {
+        cause: err,
+      });
     }
 
     const gl = glContext.gl;
