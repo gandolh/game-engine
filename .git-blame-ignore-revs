@@ -1,0 +1,5 @@
+# Commits git blame skips: whitespace-only reformats.
+# Use it with: git config blame.ignoreRevsFile .git-blame-ignore-revs
+
+# style: format with Prettier (house-style, width 120)
+fdabace68ea09537e252a448e9755901e29186e0
