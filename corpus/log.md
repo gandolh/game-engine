@@ -4160,3 +4160,10 @@ parameter properties became fields (declared first, which is where TypeScript al
 `check:conventions` with `no-circular` (37) a dated warning; knip is not wired. The atlas manifests'
 `inputsHash` changed with the recipe sources, twice. [decisions.md](wiki/decisions.md) has the entry, and
 [routing.md](routing.md)'s stale deviations table is fixed.
+
+## [2026-11-11] fix | Citadel's MP client ignores the social layer on purpose
+
+Brief 03 left a dated warning on `games/citadel/client/src/worker/server-client.ts`, whose switch
+skipped `ready`, `roster`, `presence` and `emote`. Multiplayer is deprecated (decision #21), so
+the controller answered the owner question: not a gap. The switch now names the four kinds and
+ignores them, as the solo client does; the warn block is gone and the lint ceiling is 3,573.

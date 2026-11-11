@@ -69,6 +69,13 @@ export class CitadelServerClient {
           this.saveCallback?.(msg.save);
           this.saveCallback = null;
           break;
+        // MP is deprecated (decision #21): nothing here waits on ready, and the client never showed
+        // the social layer (roster, presence, emote), so the path ends without it.
+        case "ready":
+        case "roster":
+        case "presence":
+        case "emote":
+          break;
       }
     };
   }
