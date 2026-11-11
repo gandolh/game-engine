@@ -6,7 +6,7 @@
  * villager-driven sim for hundreds of ticks).
  */
 import { describe, it, expect } from "vitest";
-import { World, MessageBus, createRng, type SimContext } from "@engine/core";
+import { World, MessageBus, createRng } from "@engine/core";
 import { makeNeed } from "@engine/core/agent";
 import type { HollowEntity, Stage } from "../components";
 import { NEED_FOOD } from "../economy";
@@ -68,7 +68,7 @@ function makeHarness(opts?: LifecycleSystemOptions) {
     deaths,
     spawn: (o: Parameters<typeof spawnAgent>[2]) => spawnAgent(world, lineage, o),
     step(): void {
-      system.run({ tick } as SimContext);
+      system.run({ tick });
       bus.flush();
       bus.notifySubscribers();
       tick++;

@@ -340,8 +340,17 @@ describe("input.ts pointer ownership survives a release outside the canvas (audi
   beforeEach(async () => {
     const dom = await import("./dom");
     canvas = dom.canvas;
-    canvas.getBoundingClientRect = () =>
-      ({ left: 0, top: 0, width: 800, height: 600, right: 800, bottom: 600, x: 0, y: 0, toJSON() {} }) as DOMRect;
+    canvas.getBoundingClientRect = () => ({
+      left: 0,
+      top: 0,
+      width: 800,
+      height: 600,
+      right: 800,
+      bottom: 600,
+      x: 0,
+      y: 0,
+      toJSON() {},
+    });
     refs.uiDispatcher = consumingDispatcher();
     worldSawMove = false;
   });
@@ -470,8 +479,17 @@ describe("input.ts pointer gestures that end off-canvas — the four acceptance 
   beforeEach(async () => {
     const dom = await import("./dom");
     canvas = dom.canvas;
-    canvas.getBoundingClientRect = () =>
-      ({ left: 0, top: 0, width: 800, height: 600, right: 800, bottom: 600, x: 0, y: 0, toJSON() {} }) as DOMRect;
+    canvas.getBoundingClientRect = () => ({
+      left: 0,
+      top: 0,
+      width: 800,
+      height: 600,
+      right: 800,
+      bottom: 600,
+      x: 0,
+      y: 0,
+      toJSON() {},
+    });
     activations = 0;
     btn = button("go", {
       layout: { width: 200, height: 60 },
@@ -548,8 +566,17 @@ describe("input.ts — Escape and a still right-click leave the placement tool",
   beforeEach(async () => {
     const dom = await import("./dom");
     canvas = dom.canvas;
-    canvas.getBoundingClientRect = () =>
-      ({ left: 0, top: 0, width: 800, height: 600, right: 800, bottom: 600, x: 0, y: 0, toJSON() {} }) as DOMRect;
+    canvas.getBoundingClientRect = () => ({
+      left: 0,
+      top: 0,
+      width: 800,
+      height: 600,
+      right: 800,
+      bottom: 600,
+      x: 0,
+      y: 0,
+      toJSON() {},
+    });
     refs.inputReady = true;
     fakes.placement.mode = "none";
     fakes.placement.isDraggingRoad = false;
@@ -686,8 +713,17 @@ describe("input.ts — speed keys and Space whichever root holds focus", () => {
     const dom = await import("./dom");
     canvas = dom.canvas;
     mount = dom.buildBarA11yMount as HTMLElement;
-    canvas.getBoundingClientRect = () =>
-      ({ left: 0, top: 0, width: 800, height: 600, right: 800, bottom: 600, x: 0, y: 0, toJSON() {} }) as DOMRect;
+    canvas.getBoundingClientRect = () => ({
+      left: 0,
+      top: 0,
+      width: 800,
+      height: 600,
+      right: 800,
+      bottom: 600,
+      x: 0,
+      y: 0,
+      toJSON() {},
+    });
     activations = 0;
     const house = button("House", {
       layout: { width: 100, height: 40 },

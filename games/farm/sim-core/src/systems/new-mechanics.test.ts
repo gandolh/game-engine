@@ -50,9 +50,9 @@ function makeFarmer(over: FarmerOverrides): GameEntity {
 function runAct(farmer: GameEntity, extraEntities?: Partial<GameEntity>[]): void {
   const world = new World<GameEntity>();
 
-  world.spawn(farmer as Record<string, unknown>);
+  world.spawn(farmer);
   for (const e of extraEntities ?? []) {
-    world.spawn(e as Record<string, unknown>);
+    world.spawn(e);
   }
   const bus = new MessageBus();
   const act = new ActSystem(world, createRng(1), bus);

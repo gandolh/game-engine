@@ -248,7 +248,7 @@ describe("SpriteBatch#beginPass/drawRange/endPass (sweep-05 hoist)", () => {
     batch.upload();
 
     batch.beginPass(gl);
-    batch.drawRange(gl, {} as WebGLTexture, 0, 2);
+    batch.drawRange(gl, {}, 0, 2);
     batch.endPass(gl);
 
     expect(drawCalls).toEqual([[raw.TRIANGLES, 0, 6, 2]]);
@@ -259,7 +259,7 @@ describe("SpriteBatch#beginPass/drawRange/endPass (sweep-05 hoist)", () => {
     const batch = new SpriteBatch(gl);
     batch.setView(VIEW);
     batch.beginPass(gl);
-    batch.drawRange(gl, {} as WebGLTexture, 0, 0);
+    batch.drawRange(gl, {}, 0, 0);
     batch.endPass(gl);
     expect(drawCalls).toEqual([]);
   });
@@ -275,7 +275,7 @@ describe("SpriteBatch#beginPass/drawRange/endPass (sweep-05 hoist)", () => {
     const STRIDE = 16 * 4;
     const first = 3;
     batch.beginPass(gl);
-    batch.drawRange(gl, {} as WebGLTexture, first, 2);
+    batch.drawRange(gl, {}, first, 2);
     batch.endPass(gl);
 
     // location 0 (a_pos) should have been re-pointed at first*STRIDE + 0.
@@ -294,7 +294,7 @@ describe("SpriteBatch#beginPass/drawRange/endPass (sweep-05 hoist)", () => {
     batch.upload();
 
     batch.beginPass(gl);
-    batch.drawRange(gl, {} as WebGLTexture, 0, 1);
+    batch.drawRange(gl, {}, 0, 1);
     batch.endPass(gl);
 
     expect(raw.blendFuncSeparate).toHaveBeenCalledWith(

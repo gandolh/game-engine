@@ -122,7 +122,7 @@ export class OverlayLightPass {
 
     if (this.bakeCanvas === null || this.bakeW !== drawingBufferWidth || this.bakeH !== drawingBufferHeight) {
       this.bakeCanvas = createOffscreen(drawingBufferWidth, drawingBufferHeight);
-      const ctx = this.bakeCanvas.getContext("2d") as Ctx2D | null;
+      const ctx = this.bakeCanvas.getContext("2d");
       if (!ctx) throw new Error("webgl2: OverlayLightPass offscreen 2d context unavailable");
       this.bakeCtx = ctx;
       this.bakeW = drawingBufferWidth;

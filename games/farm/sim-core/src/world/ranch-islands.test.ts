@@ -4,7 +4,7 @@ import { REGIONS, ranchForFarm, regionAt, WORLD_WIDTH, WORLD_HEIGHT, forEachLand
 import type { RegionId } from "./regions";
 import { sameComponent, _resetComponentMap } from "./connectivity";
 import { ZERO_CROPS } from "../economy";
-import type { GameEntity, FarmerFsmState } from "../components";
+import type { GameEntity } from "../components";
 import { handleBuildPen } from "../systems/act/handlers/build";
 import type { ActingFarmer } from "../systems/act/types";
 
@@ -43,7 +43,7 @@ describe("per-farm ranch islands", () => {
     }
     expect(mapped.size).toBe(21);
 
-    expect(ranchForFarm("village" as RegionId)).toBeUndefined();
+    expect(ranchForFarm("village")).toBeUndefined();
   });
 
   it("every ranch keeps a ≥2-tile ocean gap from every other region", () => {
@@ -110,7 +110,7 @@ describe("per-farm ranch islands", () => {
 
     const farmer = world.spawn({
       farmer: { name: "F", currentRegion: "carpentry" as const, homeRegion },
-      fsm: { current: "ACT" as FarmerFsmState, enteredTick: 0 },
+      fsm: { current: "ACT", enteredTick: 0 },
       intentions: { queue: [] },
       transform: { x: 0, y: 0, prevX: 0, prevY: 0, rotation: 0 },
       inventory: { gold: 999, crops: { ...ZERO_CROPS }, seeds: { ...ZERO_CROPS }, tools: [] },

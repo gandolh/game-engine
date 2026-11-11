@@ -1,7 +1,6 @@
 import { computeLayout } from "../layout/layout";
 import type { Theme } from "../theme/theme";
 import { DEFAULT_THEME } from "../theme/theme";
-import type { UINode } from "../widget/node";
 import { box } from "../widget/node";
 import type { ScrollViewportNode } from "./node";
 
@@ -39,7 +38,7 @@ export function computeScrollContent(
       gap: contentLayout.gap ?? 0,
       padding: contentLayout.padding ?? 0,
     },
-    vp.children as UINode[],
+    vp.children,
   );
 
   computeLayout(wrapper, 0, 0, theme);

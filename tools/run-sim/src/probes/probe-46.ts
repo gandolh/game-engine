@@ -32,7 +32,7 @@ for (let tick = 0; tick < totalTicks; tick++) {
   if (day !== lastSnapshotDay && tick % TICKS_PER_DAY === Math.floor(TICKS_PER_DAY / 2)) {
     lastSnapshotDay = day;
     for (const board of world.query("harborBoard")) {
-      const hb = board.harborBoard!;
+      const hb = board.harborBoard;
       boardSnapshots.push({
         day,
         openCount: hb.openContracts.length,

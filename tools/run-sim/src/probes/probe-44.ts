@@ -85,7 +85,7 @@ for (let tick = 0; tick < totalTicks; tick++) {
     const prev = bestTier.get(f.id) ?? -1;
     if (cur > prev) {
       upgrades++;
-      const name = f.farmer!.name;
+      const name = f.farmer.name;
       upgradesBy.set(name, (upgradesBy.get(name) ?? 0) + 1);
       console.log(`[day ${day}] ${name} upgraded a tool to tier ${cur} (consumed ore+gold)`);
       bestTier.set(f.id, cur);
@@ -94,12 +94,12 @@ for (let tick = 0; tick < totalTicks; tick++) {
 
   for (const f of world.query("farmer")) {
     if (f.id === undefined) continue;
-    const h = f.farmer!.helperHiredDay;
+    const h = f.farmer.helperHiredDay;
     if (h !== undefined && lastHiredDay.get(f.id) !== h) {
       lastHiredDay.set(f.id, h);
       hires++;
-      hiresBy.set(f.farmer!.name, (hiresBy.get(f.farmer!.name) ?? 0) + 1);
-      console.log(`[day ${day}] ${f.farmer!.name} hired a day-helper at the tavern`);
+      hiresBy.set(f.farmer.name, (hiresBy.get(f.farmer.name) ?? 0) + 1);
+      console.log(`[day ${day}] ${f.farmer.name} hired a day-helper at the tavern`);
     }
   }
 

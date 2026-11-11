@@ -12,7 +12,6 @@ import { compileProgram, uniformLocations } from "./program";
 import type { DecorateFn, Sprite } from "../renderer";
 import type { LoadedAtlasImage } from "../../assets/loader";
 import { createOffscreen, compareSprite, drawSprite } from "../raster2d";
-import type { Ctx2D } from "../sprite-types";
 import { resolveStaticRegion, staticBlitRect } from "../static-region";
 import type { StaticRegion } from "../static-region";
 import {
@@ -438,7 +437,7 @@ function bakeRegion(
   cull = true,
 ): OffscreenCanvas | HTMLCanvasElement {
   const surface = createOffscreen(rect.width, rect.height);
-  const bakeCtx = surface.getContext("2d") as Ctx2D | null;
+  const bakeCtx = surface.getContext("2d");
   if (!bakeCtx) throw new Error("StaticLayerPass: failed to acquire an offscreen 2d context");
   bakeCtx.imageSmoothingEnabled = false;
   bakeCtx.clearRect(0, 0, rect.width, rect.height);

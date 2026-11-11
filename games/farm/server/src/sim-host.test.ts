@@ -15,7 +15,7 @@ const WASM_PATH = resolve(here, "../../../../engine/wasm-modules/dist/pathfindin
 
 function loadWasmBytes(): ArrayBuffer {
   const buf = readFileSync(WASM_PATH);
-  return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer;
+  return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
 }
 
 async function runHostToCompletion(

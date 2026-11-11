@@ -18,7 +18,7 @@ function pushDayStart(board: GameEntity, day: number): void {
     performative: PERFORMATIVE.INFORM,
     ontology: ONT_SIMULATION.DAY_START,
     sender: "world",
-    body: { day } as Record<string, unknown>,
+    body: { day },
     tickIssued: 0,
   });
 }
@@ -34,7 +34,7 @@ describe("NoticeBoardSystem (daily demand line)", () => {
       const b = w.spawn({ noticeBoard: { isNoticeBoard: true }, inbox: { messages: [] } });
       const sys = new NoticeBoardSystem(w, new MessageBus(), createRng(seed));
       pushDayStart(b, 1);
-      sys.run({ tick: 20 } as never);
+      sys.run({ tick: 20 });
       const text = b.noticeBoard!.bountyText;
       expect(typeof text).toBe("string");
       if (text && text.startsWith("Wanted:")) posted = true;
@@ -43,7 +43,7 @@ describe("NoticeBoardSystem (daily demand line)", () => {
 
     const sys = new NoticeBoardSystem(world, bus, createRng(1));
     pushDayStart(board, 1);
-    sys.run({ tick: 20 } as never);
+    sys.run({ tick: 20 });
     bus.flush();
     const sent = bus.drain().filter((m) => m.ontology === ONT_BOUNTY.POSTED);
     expect(sent.length).toBe(1);

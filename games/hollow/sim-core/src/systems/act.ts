@@ -100,16 +100,16 @@ export class HollowActSystem implements System {
 
       switch (intention.kind) {
         case "seek_food":
-          this.runSeekFood(entity as ActingAgent, intention);
+          this.runSeekFood(entity, intention);
           break;
         case "work":
-          this.runWork(entity as ActingAgent, intention);
+          this.runWork(entity, intention);
           break;
         case "rest":
-          this.runRest(entity as ActingAgent);
+          this.runRest(entity);
           break;
         case "goto":
-          this.runGoto(entity as ActingAgent, intention);
+          this.runGoto(entity, intention);
           break;
         default:
           // Social verbs (chunk hollow-06a) belong to the sibling

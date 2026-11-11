@@ -54,7 +54,7 @@ export const CORAL_REEFS: readonly CoralReef[] = new Proxy([] as CoralReef[], {
   get(_t, prop) {
     return Reflect.get(coralReefs() as CoralReef[], prop);
   },
-}) as readonly CoralReef[];
+});
 
 function reefTiles(): ReadonlySet<string> {
   if (!_reefTiles) _reefTiles = new Set(coralReefs().map((r) => `${r.reef.x},${r.reef.y}`));

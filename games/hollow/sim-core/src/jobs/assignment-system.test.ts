@@ -8,7 +8,7 @@
  * full-sim-level wiring + stockpile-growth + determinism tests.
  */
 import { describe, it, expect } from "vitest";
-import { World, MessageBus, type SimContext } from "@engine/core";
+import { World, MessageBus } from "@engine/core";
 import type { HollowEntity, Genome } from "../components";
 import { makeOccupation } from "../components";
 import { GOOD_FOOD, GOOD_MATERIALS } from "../economy";
@@ -65,7 +65,7 @@ function makeJobsHarness(opts?: JobAssignmentSystemOptions) {
     registry,
     events,
     step(): void {
-      system.run({ tick } as SimContext);
+      system.run({ tick });
       bus.flush();
       bus.notifySubscribers();
       tick++;

@@ -28,7 +28,7 @@ export class ChaseSystem implements System {
       if (!chase || chaser.id === undefined) continue;
 
       if (this.combat.isFighting(chaser.id)) {
-        delete chaser.farmer!.chaseTarget;
+        delete chaser.farmer.chaseTarget;
         continue;
       }
 

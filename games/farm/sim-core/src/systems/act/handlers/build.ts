@@ -83,15 +83,7 @@ export function handleCommissionBuild(
   const recipe = DECORATION_RECIPE[kind];
   if (!recipe) return;
   if (!farmer.resources || farmer.resources.wood < recipe.woodCost) return; // carpenter re-validates authoritatively
-  sendBusMessage(
-    bus,
-    PERFORMATIVE.REQUEST,
-    ONT_COMMISSION.BUILD,
-    farmer.id,
-    carpenterId,
-    { kind } as unknown as Record<string, unknown>,
-    tick,
-  );
+  sendBusMessage(bus, PERFORMATIVE.REQUEST, ONT_COMMISSION.BUILD, farmer.id, carpenterId, { kind }, tick);
 }
 
 /** Same-day AP boost (pure, no RNG). Location-gated to village. Clamped to maxApForDay+HELPER_AP_MARGIN. */

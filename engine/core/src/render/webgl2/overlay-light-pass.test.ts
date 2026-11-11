@@ -117,7 +117,7 @@ beforeEach(() => {
   (globalThis as { OffscreenCanvas?: unknown }).OffscreenCanvas = class {
     constructor(w: number, h: number) {
       offscreenCtorCalls += 1;
-      return new FakeOffscreen(w, h) as unknown as OffscreenCanvas;
+      return new FakeOffscreen(w, h);
     }
   };
 });

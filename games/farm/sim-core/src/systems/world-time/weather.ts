@@ -162,10 +162,10 @@ export class WeatherSystem implements System {
         farmer.beliefs.data.weatherNow = { condition, multiplier, day: newDay, season };
         farmer.beliefs.data.weatherSeason = season;
         farmer.beliefs.data.weatherForecast = forecast.map((fc, i) => ({
-          forDay: newDay! + i + 1,
+          forDay: newDay + i + 1,
           predicted: fc.condition,
           confidence: fc.confidence,
-          season: seasonForDay(newDay! + i + 1),
+          season: seasonForDay(newDay + i + 1),
         }));
         farmer.beliefs.revision += 1;
       }

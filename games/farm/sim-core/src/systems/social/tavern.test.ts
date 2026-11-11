@@ -63,10 +63,10 @@ describe("TavernSystem", () => {
       performative: PERFORMATIVE.INFORM,
       ontology: ONT_SIMULATION.DAY_START,
       sender: "world",
-      body: { day: 1 } as Record<string, unknown>,
+      body: { day: 1 },
       tickIssued: 0,
     });
-    sys.run({ tick: 20 } as never);
+    sys.run({ tick: 20 });
 
     expect(tavern.tavern!.gossip).toBe('"Atticus won the golden bean at 120g," says the barkeep.');
     expect(tavern.tavern!.gossipDay).toBe(1);
@@ -80,10 +80,10 @@ describe("TavernSystem", () => {
       performative: PERFORMATIVE.INFORM,
       ontology: ONT_SIMULATION.DAY_START,
       sender: "world",
-      body: { day: 1 } as Record<string, unknown>,
+      body: { day: 1 },
       tickIssued: 0,
     });
-    sys.run({ tick: 20 } as never);
+    sys.run({ tick: 20 });
     expect(tavern.tavern!.gossip).toBe("The valley is quiet today.");
   });
 });

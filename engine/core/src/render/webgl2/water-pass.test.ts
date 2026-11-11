@@ -137,7 +137,7 @@ function fakeAtlas(frameW = 16, frameH = 16): LoadedAtlasImage {
     manifest: { id: "terrain", imageUrl: "", width: 64, height: 64, frames: {} },
     bitmap: {} as unknown as ImageBitmap,
     frameRect: () => ({ x: 0, y: 0, w: frameW, h: frameH }),
-  } as unknown as LoadedAtlasImage;
+  };
 }
 
 const identityView: ViewUniform = { scaleX: 1, scaleY: -1, offsetX: 0, offsetY: 0, timeSec: 0, windStrength: 1 };

@@ -9,7 +9,7 @@ const wasmPath = resolve(__dirname, "../../../wasm-modules/dist/pathfinding.wasm
 
 async function loadBytes(): Promise<ArrayBuffer> {
   const buf = await readFile(wasmPath);
-  return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer;
+  return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
 }
 
 describe("Pathfinder (wasm A*)", () => {

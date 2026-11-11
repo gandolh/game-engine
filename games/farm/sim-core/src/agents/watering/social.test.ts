@@ -57,7 +57,7 @@ function makeFarmer(overrides: {
       away: false,
     },
     inventory: { gold: 100, crops: {} as never, seeds: {} as never },
-    ...(overrides.personality !== undefined ? { personality: { kind: overrides.personality as never } } : {}),
+    ...(overrides.personality !== undefined ? { personality: { kind: overrides.personality } } : {}),
   };
 }
 

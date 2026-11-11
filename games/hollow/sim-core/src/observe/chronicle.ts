@@ -257,7 +257,7 @@ export function createChronicle(bus: MessageBus, cap: number = CHRONICLE_CAP): C
   // ("oldAge" | "starvation" | "violence" | "disease"); every death is one of
   // the four, so no "unknown cause" bucket is needed.
   bus.subscribeOntology(ONT_FAMILY.DEATH, (msg) => {
-    const cause = (msg.body as Record<string, unknown>)["cause"];
+    const cause = msg.body["cause"];
     if (cause === "oldAge") deaths.oldAge++;
     else if (cause === "starvation") deaths.starvation++;
     else if (cause === "violence") deaths.violence++;

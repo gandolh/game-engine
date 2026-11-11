@@ -138,7 +138,7 @@ describe("golden-bean gift handshake (EncounterTradeSystem)", () => {
       performative: PERFORMATIVE.PROPOSE,
       ontology: ONT_ENCOUNTER.OFFER_BEAN,
       sender: giver.id!,
-      body: { offerId: "bean-y", quantity: 1 } as unknown as Record<string, unknown>,
+      body: { offerId: "bean-y", quantity: 1 },
       tickIssued: 1,
     });
     trade.run({ tick: 1 });

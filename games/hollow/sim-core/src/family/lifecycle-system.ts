@@ -260,7 +260,7 @@ export class HollowLifecycleSystem implements System {
   private spawnCorpse(entity: LifecycleEntity, tick: number): void {
     this.world.spawn({
       corpse: makeCorpse(entity.id, tick, entity.agent.gx, entity.agent.gy),
-    } as HollowEntity);
+    });
   }
 
   /** If the deceased was a grave-digger carrying a corpse, clears that

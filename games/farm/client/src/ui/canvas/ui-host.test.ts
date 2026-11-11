@@ -24,8 +24,17 @@ function makeRenderer(): RendererLike {
 
 function makeCanvas(): HTMLCanvasElement {
   const canvas = document.createElement("canvas");
-  canvas.getBoundingClientRect = () =>
-    ({ left: 0, top: 0, width: 800, height: 600, right: 800, bottom: 600, x: 0, y: 0, toJSON() {} }) as DOMRect;
+  canvas.getBoundingClientRect = () => ({
+    left: 0,
+    top: 0,
+    width: 800,
+    height: 600,
+    right: 800,
+    bottom: 600,
+    x: 0,
+    y: 0,
+    toJSON() {},
+  });
   document.body.appendChild(canvas);
   return canvas;
 }

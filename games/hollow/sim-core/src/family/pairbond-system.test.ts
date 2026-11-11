@@ -5,7 +5,7 @@
  * specific trust/proximity/genome combinations precisely.
  */
 import { describe, it, expect } from "vitest";
-import { World, MessageBus, type SimContext } from "@engine/core";
+import { World, MessageBus } from "@engine/core";
 import type { HollowEntity, Genome, Stage } from "../components";
 import { BEHAVIOR_GENES } from "../components";
 import { ONT_FAMILY, type FamilyBondedBody } from "../protocols";
@@ -53,7 +53,7 @@ function makeHarness(opts?: PairBondSystemOptions) {
     events,
     spawn: (o: Parameters<typeof spawnAgent>[2]) => spawnAgent(world, lineage, o),
     step(): void {
-      system.run({ tick } as SimContext);
+      system.run({ tick });
       bus.flush();
       bus.notifySubscribers();
       tick++;

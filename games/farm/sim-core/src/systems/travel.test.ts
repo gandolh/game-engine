@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { MessageBus, World, createPathfinderFromBytes, type Pathfinder, type PathfinderGrid } from "@engine/core";
-import type { GameEntity, FarmerFsmState } from "../components";
+import type { GameEntity } from "../components";
 import { TravelSystem, STEP_TICKS, smoothPath } from "./travel";
 import { buildWalkableGrid } from "../world/walkable-grid";
 import { getRegion, WORLD_WIDTH, WORLD_HEIGHT, type RegionId } from "../world/regions";
@@ -16,13 +16,13 @@ const wasmPath = resolve(__dirname, "../../../../../engine/wasm-modules/dist/pat
 
 function loadBytes(): ArrayBuffer {
   const buf = readFileSync(wasmPath);
-  return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer;
+  return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
 }
 
 function makeFarmer(world: World<GameEntity>, opts: { x: number; y: number; region: RegionId }): GameEntity {
   return world.spawn({
     transform: { x: opts.x, y: opts.y, prevX: opts.x, prevY: opts.y, rotation: 0 },
-    fsm: { current: "ACT" as FarmerFsmState, enteredTick: 0 },
+    fsm: { current: "ACT", enteredTick: 0 },
     intentions: { queue: [] },
     personality: { kind: "conservative" },
     inbox: { messages: [] },

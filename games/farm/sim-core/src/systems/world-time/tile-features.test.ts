@@ -26,7 +26,7 @@ interface Feat {
 function collectFeatures(world: World<GameEntity>): Feat[] {
   const out: Feat[] = [];
   for (const e of world.query("tileFeature")) {
-    const f = e.tileFeature!;
+    const f = e.tileFeature;
     out.push({ kind: f.kind, x: f.tileX, y: f.tileY, regionId: f.regionId });
   }
   return out;

@@ -1,5 +1,4 @@
 import type { GameEntity } from "../../components";
-import type { CropKind } from "../../components";
 import { MAX_LOOT_UNITS } from "./constants";
 
 export function lootGoods(victor: GameEntity, victim: GameEntity): number {
@@ -17,9 +16,9 @@ export function lootGoods(victor: GameEntity, victim: GameEntity): number {
     }
   };
 
-  moveFrom(victim.inventory.crops as Record<CropKind, number>, victor.inventory.crops as Record<CropKind, number>);
+  moveFrom(victim.inventory.crops, victor.inventory.crops);
   if (taken < MAX_LOOT_UNITS) {
-    moveFrom(victim.inventory.seeds as Record<CropKind, number>, victor.inventory.seeds as Record<CropKind, number>);
+    moveFrom(victim.inventory.seeds, victor.inventory.seeds);
   }
   return taken;
 }

@@ -59,8 +59,8 @@ function setup(): {
 }
 
 function tick(world: World<GameEntity>, control: PlayerControlSystem, act: ActSystem, t = 0): void {
-  control.run({ tick: t } as never);
-  act.run({ tick: t } as never);
+  control.run({ tick: t });
+  act.run({ tick: t });
 }
 
 describe("PlayerControlSystem — movement", () => {

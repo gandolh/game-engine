@@ -229,7 +229,7 @@ describe("HarborSystem integration (live sim)", () => {
 
     const boards = [...sim.world.query("harborBoard")];
     const board = boards[0]!;
-    expect(board.harborBoard!.openContracts.length).toBeGreaterThan(0);
+    expect(board.harborBoard.openContracts.length).toBeGreaterThan(0);
   });
 
   it("farmers have harborOpenContracts in beliefs after contracts post", () => {
@@ -279,7 +279,7 @@ describe("HarborSystem integration (live sim)", () => {
         sim.scheduler.tick({ tick: t });
       }
       const board = [...sim.world.query("harborBoard")][0]!;
-      return JSON.stringify(board.harborBoard!.openContracts.map((c) => c.id).sort());
+      return JSON.stringify(board.harborBoard.openContracts.map((c) => c.id).sort());
     };
 
     expect(run(sim1)).toBe(run(sim2));

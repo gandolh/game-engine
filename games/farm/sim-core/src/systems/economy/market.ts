@@ -164,7 +164,7 @@ export class MarketSystem implements System {
 
     const seller = findById(this.world, sellerId, "farmer", "inventory");
     if (!seller || !seller.inventory) return;
-    if (seller.inventory.crops[offer.crop as CropKind] === undefined) return;
+    if (seller.inventory.crops[offer.crop] === undefined) return;
 
     if (seller.farmer && seller.farmer.currentRegion !== "village") {
       this.sendRejection(sellerId, ONT_MARKET.POST_OFFER, ctx.tick);

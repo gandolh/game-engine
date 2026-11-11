@@ -151,7 +151,7 @@ describe("stock bar geometry", () => {
     };
     walk(slate.root);
 
-    const caption = boxes.find((n) => n.kind === "label" && (n as LabelNode).text.includes("left"));
+    const caption = boxes.find((n) => n.kind === "label" && n.text.includes("left"));
     expect(caption, "the N/M left caption exists").toBeDefined();
 
     // The fill is the only zero-or-more-width box nested directly in a BAR_HEIGHT-tall box.

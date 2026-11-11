@@ -24,11 +24,11 @@ describe("FeatureCollisionSystem", () => {
       transform: { x: PIP.x, y: PIP.y, prevX: PIP.x, prevY: PIP.y, rotation: 0 },
       tileFeature: { kind: "tree", tileX: PIP.x, tileY: PIP.y, regionId: "farm-pip", ownerId: 1 },
     });
-    sys.run({ tick: 0 } as never);
+    sys.run({ tick: 0 });
     expect(grid.cells[i]).toBe(1);
 
     world.despawn(tree);
-    sys.run({ tick: 1 } as never);
+    sys.run({ tick: 1 });
     expect(grid.cells[i]).toBe(0);
   });
 
@@ -36,7 +36,7 @@ describe("FeatureCollisionSystem", () => {
     const world = new World<GameEntity>();
     const grid = buildWalkableGrid();
     const sys = new FeatureCollisionSystem(world, grid);
-    sys.run({ tick: 0 } as never);
+    sys.run({ tick: 0 });
 
     expect(grid.cells[idx(grid, PIP.x, PIP.y)]).toBe(0);
 

@@ -1,5 +1,5 @@
 import { World, createRng } from "@engine/core";
-import type { GameEntity, CropKind, FarmerFsmState, Tool, Inventory } from "./components";
+import type { GameEntity, CropKind, Tool, Inventory } from "./components";
 import { zeroFish, HEALTH_MAX } from "./components";
 import { defaultItemSlots } from "./systems/player-control/items";
 import { setupRegions } from "./world/region-setup";
@@ -74,7 +74,7 @@ export function setupFarmer(world: World<GameEntity>, spec: FarmerSpec, seed: nu
   const farmer = world.spawn({
     transform: { x: spec.homeX, y: spec.homeY, prevX: spec.homeX, prevY: spec.homeY, rotation: 0 },
     sprite: { atlasId: "main", frame: sprite, layer: 100, tintRgba: 0xffffffff },
-    fsm: { current: "WAIT_DAY" as FarmerFsmState, enteredTick: 0 },
+    fsm: { current: "WAIT_DAY", enteredTick: 0 },
     beliefs: { data: { currentDay: 0 }, revision: 0 },
     desires: {
       data: {

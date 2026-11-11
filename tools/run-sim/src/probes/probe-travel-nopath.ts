@@ -8,9 +8,7 @@ import type { GameEntity } from "@farm/sim-core/components";
 const here = dirname(fileURLToPath(import.meta.url));
 const wasmPath = resolve(here, "../../../../engine/wasm-modules/dist/pathfinding.wasm");
 const buf = readFileSync(wasmPath);
-const pathfinder = await createPathfinderFromBytes(
-  buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer,
-);
+const pathfinder = await createPathfinderFromBytes(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength));
 
 const TICKS_PER_DAY = 1200;
 const DAYS = 8;

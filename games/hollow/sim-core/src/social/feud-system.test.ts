@@ -10,7 +10,7 @@
  * `sim-bootstrap.divergence.test.ts`.
  */
 import { describe, it, expect } from "vitest";
-import { World, MessageBus, createRng, type SimContext, type Intention, type AgentMessage } from "@engine/core";
+import { World, MessageBus, createRng, type AgentMessage } from "@engine/core";
 import { makeNeed } from "@engine/core/agent";
 import type { HollowEntity, Genome } from "../components";
 import { NEED_WEALTH, GOOD_FOOD } from "../economy";
@@ -92,8 +92,8 @@ function makeHarness(feudOpts: FeudSystemOptions = {}) {
      *  a new broadcast into `inflight`), THEN `bus.flush()`/
      *  `notifySubscribers()`. */
     step(tick: number): void {
-      feud.run({ tick } as SimContext);
-      act.run({ tick } as SimContext);
+      feud.run({ tick });
+      act.run({ tick });
       bus.flush();
       bus.notifySubscribers();
     },
@@ -106,7 +106,7 @@ describe("HollowFeudSystem", () => {
     const attacker = h.spawn(0, 0);
     const victim = h.spawn(0, 0);
 
-    attacker.intentions!.queue = [{ kind: "attack", data: { targetId: victim.id }, priority: 1 } as Intention];
+    attacker.intentions!.queue = [{ kind: "attack", data: { targetId: victim.id }, priority: 1 }];
     h.step(0); // ACT emits ATTACK
     h.step(1); // feud.run() escalates (sub-pass a), THEN decays once (sub-pass c) -- same run() call
 
@@ -118,7 +118,7 @@ describe("HollowFeudSystem", () => {
     expect(h.feudEvents[0]!.body["holderId"]).toBe(victim.id);
     expect(h.feudEvents[0]!.body["towardId"]).toBe(attacker.id);
 
-    attacker.intentions!.queue = [{ kind: "attack", data: { targetId: victim.id }, priority: 1 } as Intention];
+    attacker.intentions!.queue = [{ kind: "attack", data: { targetId: victim.id }, priority: 1 }];
     h.step(2); // no new harm buffered yet -- feud.run() only decays once more
     h.step(3); // feud.run() escalates the second (buffered) attack, THEN decays again -- the feud is ALREADY active
 
@@ -135,7 +135,7 @@ describe("HollowFeudSystem", () => {
     victim.inventory!.goods[GOOD_FOOD] = 10;
 
     thief.intentions!.queue = [
-      { kind: "steal", data: { targetId: victim.id, good: GOOD_FOOD, amount: 5 }, priority: 1 } as Intention,
+      { kind: "steal", data: { targetId: victim.id, good: GOOD_FOOD, amount: 5 }, priority: 1 },
     ];
     h.step(0);
     h.step(1);
@@ -152,7 +152,7 @@ describe("HollowFeudSystem", () => {
     const victim = h.spawn(0, 0);
 
     // One detected sabotage alone starts a feud (0.3 >= FEUD_START_THRESHOLD).
-    attacker.intentions!.queue = [{ kind: "sabotage", data: { targetId: victim.id }, priority: 1 } as Intention];
+    attacker.intentions!.queue = [{ kind: "sabotage", data: { targetId: victim.id }, priority: 1 }];
     h.step(0); // ACT emits SABOTAGE (forced-detected)
     h.step(1); // feud.run() escalates + decays once
     const beforeGift = victim.feud!.byId.get(attacker.id)!;
@@ -162,7 +162,7 @@ describe("HollowFeudSystem", () => {
     // The saboteur now GIFTs the victim a genuine peace gesture.
     attacker.inventory!.goods["material"] = 10;
     attacker.intentions!.queue = [
-      { kind: "gift", data: { targetId: victim.id, good: "material", amount: 10 }, priority: 1 } as Intention,
+      { kind: "gift", data: { targetId: victim.id, good: "material", amount: 10 }, priority: 1 },
     ];
     h.step(2); // ACT emits GIFT
     h.step(3); // feud.run() applies the buffered gift as a reconciliation
@@ -178,7 +178,7 @@ describe("HollowFeudSystem", () => {
     const attacker = h.spawn(0, 0);
     const victim = h.spawn(0, 0);
 
-    attacker.intentions!.queue = [{ kind: "attack", data: { targetId: victim.id }, priority: 1 } as Intention];
+    attacker.intentions!.queue = [{ kind: "attack", data: { targetId: victim.id }, priority: 1 }];
     h.step(0);
     h.step(1); // grudge = FEUD_INCREMENT_ATTACK (0.5), STARTED fires
     expect(h.feudEvents.some((e) => e.ontology === ONT_FEUD.STARTED)).toBe(true);
@@ -198,10 +198,10 @@ describe("HollowFeudSystem", () => {
     const attacker = h.spawn(0, 0);
     const victim = h.spawn(0, 0);
 
-    attacker.intentions!.queue = [{ kind: "attack", data: { targetId: victim.id }, priority: 1 } as Intention];
+    attacker.intentions!.queue = [{ kind: "attack", data: { targetId: victim.id }, priority: 1 }];
     h.step(0);
     h.step(1);
-    attacker.intentions!.queue = [{ kind: "attack", data: { targetId: victim.id }, priority: 1 } as Intention];
+    attacker.intentions!.queue = [{ kind: "attack", data: { targetId: victim.id }, priority: 1 }];
     h.step(2);
     h.step(3);
 

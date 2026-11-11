@@ -40,7 +40,7 @@ function makeActor(): SocialAgent {
     genome: flatGenome({ greed: STEAL_GREED_GATE + 0.1 }), // clears steal's hard gate
     relationships: { byId: new Map() },
     skills: { byKind: { food: 0, material: 0 } },
-  } as unknown as SocialAgent;
+  };
 }
 
 function candidate(id: number, gx: number, gy: number, materials: number): NeighborView {

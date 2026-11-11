@@ -274,7 +274,7 @@ describe("CombatSystem — ring teleport + handshake + governors", () => {
       sender: challengerId,
       body: { challengerId, context },
       tickIssued: 0,
-    } as never);
+    });
   }
 
   it("a ring bout teleports both fighters out and restores them after", () => {

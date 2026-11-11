@@ -13,7 +13,7 @@ export function actionTicks(kind: string, tools: import("../../components").Tool
   const best = tools
     .filter((t) => t.kind === toolKind && t.durability > 0)
     .sort((a, b) => (tierOrder[b.tier] ?? 0) - (tierOrder[a.tier] ?? 0))[0];
-  const tier = (best?.tier ?? "wooden") as import("../../components").ToolTier;
+  const tier = best?.tier ?? "wooden";
   return TOOL_WORK_TICKS[tier];
 }
 

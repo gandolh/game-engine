@@ -41,7 +41,7 @@ function makeFarmer(overrides: {
       revision: 0,
     },
     intentions: { queue: [] },
-    ...(overrides.personality !== undefined ? { personality: { kind: overrides.personality as never } } : {}),
+    ...(overrides.personality !== undefined ? { personality: { kind: overrides.personality } } : {}),
   };
 }
 

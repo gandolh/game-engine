@@ -1,5 +1,5 @@
 import type { SimContext, System, MessageBus, World, AgentMessage } from "@engine/core";
-import type { GameEntity, DecorationKind, PendingCommission } from "../../components";
+import type { GameEntity, PendingCommission } from "../../components";
 import { DECORATION_RECIPE, MAX_DECORATION_BOOST } from "../../components";
 import { REGIONS, forEachLandTile } from "../../world/regions";
 import { findById } from "../entity-helpers";
@@ -54,7 +54,7 @@ export class CarpenterSystem implements System {
     if (!farmer || !farmer.inventory || !farmer.farmer?.homeRegion) return;
 
     const body = msg.body as Partial<CommissionBuildBody>;
-    const kind = body.kind as DecorationKind | undefined;
+    const kind = body.kind;
     const recipe = kind ? DECORATION_RECIPE[kind] : undefined;
     if (!kind || !recipe) {
       this.replyDone(ctx.tick, msg.sender, { ok: false, kind: kind ?? "scarecrow", reason: "invalid-commission" });

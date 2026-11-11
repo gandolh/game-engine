@@ -1,7 +1,7 @@
 import { ZERO_CROPS } from "../economy";
 import { describe, it, expect, beforeEach } from "vitest";
 import { World, MessageBus } from "@engine/core";
-import type { GameEntity, FarmerFsmState } from "../components";
+import type { GameEntity } from "../components";
 import { ActSystem } from "./act";
 import { maxApForDay, SHRINE_AP_BOOST, SHRINE_COOLDOWN_DAYS, HELPER_AP_BOOST, HELPER_AP_MARGIN } from "./economy/ap";
 import { ShopkeeperSystem } from "./shopkeeper";
@@ -30,7 +30,7 @@ function makeFarmer(
 ): GameEntity {
   return world.spawn({
     farmer: { name: "F", currentRegion: "village" as const },
-    fsm: { current: "ACT" as FarmerFsmState, enteredTick: 0 },
+    fsm: { current: "ACT", enteredTick: 0 },
     intentions: { queue: [] },
     inventory: {
       gold: opts.gold ?? 100,
@@ -162,7 +162,7 @@ describe("ActSystem upgrade-tool (blacksmith validates materials)", () => {
     const tier = opts.tier ?? "wooden";
     return world.spawn({
       farmer: { name: "Smith", currentRegion: "blacksmith" as const },
-      fsm: { current: "ACT" as FarmerFsmState, enteredTick: 0 },
+      fsm: { current: "ACT", enteredTick: 0 },
       intentions: { queue: [] },
       inventory: {
         gold: opts.gold ?? 100,
@@ -226,8 +226,8 @@ describe("ActSystem hire-help (tavern day-helper)", () => {
   }): GameEntity {
     const day = opts.day ?? 5;
     return world.spawn({
-      farmer: { name: "Hannah", currentRegion: (opts.region ?? "village") as never },
-      fsm: { current: "ACT" as FarmerFsmState, enteredTick: 0 },
+      farmer: { name: "Hannah", currentRegion: opts.region ?? "village" },
+      fsm: { current: "ACT", enteredTick: 0 },
       intentions: { queue: [] },
       inventory: { gold: opts.gold ?? 100, crops: { ...ZERO_CROPS }, seeds: { ...ZERO_CROPS } },
       ap: {
@@ -263,7 +263,7 @@ describe("ActSystem hire-help (tavern day-helper)", () => {
     const goldAfterFirst = farmer.inventory!.gold;
     const apAfterFirst = farmer.ap!.current;
 
-    farmer.fsm!.current = "ACT" as FarmerFsmState;
+    farmer.fsm!.current = "ACT";
     farmer.intentions!.queue.push({ kind: "hire-help", data: {}, priority: 0 });
     sys.run({ tick: 1 });
     expect(farmer.inventory!.gold).toBe(goldAfterFirst);
@@ -318,10 +318,10 @@ describe("ActSystem pray-at-shrine (interactive shrine)", () => {
     return world.spawn({
       farmer: {
         name: "Olin",
-        currentRegion: (opts.region ?? "shrine") as never,
+        currentRegion: opts.region ?? "shrine",
         ...(opts.prayedDay !== undefined ? { shrinePrayedDay: opts.prayedDay } : {}),
       },
-      fsm: { current: "ACT" as FarmerFsmState, enteredTick: 0 },
+      fsm: { current: "ACT", enteredTick: 0 },
       intentions: { queue: [] },
       inventory: { gold: 100, crops: { ...ZERO_CROPS }, seeds: { ...ZERO_CROPS } },
       ap: {

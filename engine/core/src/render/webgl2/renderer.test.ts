@@ -312,7 +312,7 @@ function makeCanvas(): HTMLCanvasElement {
 
 function stubAtlas(id = "a"): LoadedAtlasImage {
   return {
-    manifest: { id, imageUrl: "", frames: {}, width: 1, height: 1 } as never,
+    manifest: { id, imageUrl: "", frames: {}, width: 1, height: 1 },
     bitmap: {} as ImageBitmap,
     frameRect: () => ({ x: 0, y: 0, w: 1, h: 1 }),
   };
@@ -330,7 +330,7 @@ function makeSprite(over: Partial<Sprite> = {}): Sprite {
     layer: 0,
     alpha: 1,
     ...over,
-  } as Sprite;
+  };
 }
 
 function makeRenderer(): WebGl2Renderer {

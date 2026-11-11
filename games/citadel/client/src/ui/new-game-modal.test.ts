@@ -15,7 +15,7 @@ import { NewGameModal, type GameMode } from "./new-game-modal";
 function buttonsOf(node: UINode): ButtonNode[] {
   const out: ButtonNode[] = [];
   const walk = (n: UINode): void => {
-    if (n.kind === "button") out.push(n as ButtonNode);
+    if (n.kind === "button") out.push(n);
     const kids = (n as { children?: readonly UINode[] }).children;
     if (kids !== undefined) for (const c of kids) walk(c);
   };

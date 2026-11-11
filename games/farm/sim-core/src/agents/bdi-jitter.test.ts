@@ -8,7 +8,7 @@ function specOf(name: string, kind: FarmerSpec["personality"], reserve: number):
   return {
     name,
     personality: kind,
-    homeRegion: "farm-0" as FarmerSpec["homeRegion"],
+    homeRegion: "farm-0",
     homeX: 0,
     homeY: 0,
     startGold: 100,

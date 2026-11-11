@@ -60,6 +60,7 @@ export class MessageBus {
     // ontologies share one queue); BodyFor<K> is always structurally assignable
     // to it, so this cast just erases the per-call literal type, it asserts
     // nothing unsound.
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion -- the rule misses that the compiler needs it: without it BodyFor<K> does not narrow to the queue's untyped body
     this.inflight.push({ ...message, tickIssued } as QueuedMessage);
     if (this.auditEnabled && this.auditCurrent !== null) {
       this.auditCurrent.written.add(message.ontology);
@@ -127,7 +128,7 @@ export class MessageBus {
     }
     set.add(handler);
     return () => {
-      set!.delete(handler);
+      set.delete(handler);
     };
   }
 

@@ -49,7 +49,7 @@ export function handleWater(farmer: ActingFarmer, intent: Intention, ownedPlots:
         p.plot!.tileX === tileX &&
         p.plot!.tileY === tileY &&
         p.plot!.state.kind === "planted" &&
-        (p.plot!.state as Extract<PlotState, { kind: "planted" }>).wateredToday !== true,
+        p.plot!.state.wateredToday !== true,
     );
   } else {
     target = ownedPlots

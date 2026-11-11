@@ -96,7 +96,7 @@ export class GlContext {
       ...CONTEXT_ATTRIBUTES,
       depth: options?.depth ?? false,
     };
-    const gl = canvas.getContext("webgl2", attributes) as WebGL2RenderingContext | null;
+    const gl = canvas.getContext("webgl2", attributes);
     if (!gl) {
       throw new Error("webgl2: context unavailable");
     }

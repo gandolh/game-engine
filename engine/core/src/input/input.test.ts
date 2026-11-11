@@ -9,7 +9,7 @@ describe("Keyboard", () => {
 
   beforeEach(() => {
     dom = new JSDOM("<!DOCTYPE html>");
-    win = dom.window as unknown as EventTarget;
+    win = dom.window;
     kb = new Keyboard();
     kb.attach(win as Window);
   });
@@ -195,11 +195,11 @@ describe("Keyboard — focus loss releases held keys (audit-47)", () => {
     const instrument = (host: EventTarget, tag: string): void => {
       const origAdd = host.addEventListener.bind(host);
       const origRemove = host.removeEventListener.bind(host);
-      (host as EventTarget).addEventListener = (t: string, f: never, o?: never): void => {
+      host.addEventListener = (t: string, f: never, o?: never): void => {
         live.add(`${tag}:${t}:${String(live.size)}`);
         origAdd(t, f, o);
       };
-      (host as EventTarget).removeEventListener = (t: string, f: never, o?: never): void => {
+      host.removeEventListener = (t: string, f: never, o?: never): void => {
         for (const k of live)
           if (k.startsWith(`${tag}:${t}:`)) {
             live.delete(k);
@@ -208,8 +208,8 @@ describe("Keyboard — focus loss releases held keys (audit-47)", () => {
         origRemove(t, f, o);
       };
     };
-    instrument(win as unknown as EventTarget, "win");
-    instrument(dom.window.document as unknown as EventTarget, "doc");
+    instrument(win, "win");
+    instrument(dom.window.document, "doc");
 
     const kb2 = new Keyboard();
     kb2.attach(win);

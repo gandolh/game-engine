@@ -51,7 +51,7 @@ describe("handleSellShopkeeper", () => {
     handleSellShopkeeper(farmer, { kind: "sell-shopkeeper", data: { crop, quantity: 5 }, priority: 0 });
 
     expect(farmer.inventory.crops[crop]).toBe(0);
-    const q = farmer.inventory.cropQuality![crop]!;
+    const q = farmer.inventory.cropQuality[crop]!;
     expect(q).toEqual({ normal: 0, silver: 0, gold: 0 });
     // 2 gold + 1 silver + 2 normal, priced at their own multiplier each.
     const expectedGold =
@@ -78,7 +78,7 @@ describe("handleProcessCrop (mill)", () => {
 
     expect(farmer.inventory.crops[crop]).toBe(8 - MILL_BATCH);
     expect(farmer.inventory.gold).toBe(MILL_PRICE[crop] * MILL_BATCH);
-    const q = farmer.inventory.cropQuality![crop]!;
+    const q = farmer.inventory.cropQuality[crop]!;
     expect(q.normal + q.silver + q.gold).toBe(farmer.inventory.crops[crop]);
     expect(q).toEqual({ normal: 0, silver: 0, gold: 8 - MILL_BATCH });
   });

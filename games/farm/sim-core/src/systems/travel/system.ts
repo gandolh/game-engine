@@ -116,11 +116,7 @@ export class TravelSystem implements System {
     }
 
     if (farmer.path) {
-      const mutablePath = farmer.path as {
-        waypoints: ReadonlyArray<{ x: number; y: number }>;
-        nextIndex: number;
-        ticksUntilStep: number;
-      };
+      const mutablePath = farmer.path;
       mutablePath.ticksUntilStep -= 1;
 
       const from = mutablePath.waypoints[mutablePath.nextIndex - 1];

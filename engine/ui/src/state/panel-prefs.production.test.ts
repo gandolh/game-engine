@@ -49,7 +49,7 @@ function fakeStorage(seed: Record<string, string> = {}): Storage {
     setItem: (k: string, v: string) => {
       m.set(k, v);
     },
-  } as Storage;
+  };
 }
 
 function farmPrefs(storage: Storage) {

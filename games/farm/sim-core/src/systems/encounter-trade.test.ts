@@ -487,7 +487,7 @@ describe("EncounterTradeSystem", () => {
       expect(hannah.inventory!.crops.wheat).toBe(4);
       expect(otto.inventory!.crops.wheat).toBe(2);
 
-      const giverQ = hannah.inventory!.cropQuality!.wheat!;
+      const giverQ = hannah.inventory!.cropQuality.wheat!;
       expect(giverQ.normal + giverQ.silver + giverQ.gold).toBe(hannah.inventory!.crops.wheat);
       // Giver only ever had gold stock, so debitCrop's default (silver,
       // normal, gold) order falls through to gold.

@@ -39,7 +39,7 @@ describe("deliberatePortHop", () => {
   it("aboard with no existing same-day trip on record → returns to shore instead of inventing one (item 26)", () => {
     const f = makeFarmer(start.dock.x, start.dock.y, PERIOD, {
       farmer: { name: "Hopper", currentRegion: "fishing-isle", homeRegion: "fishing-isle", aboard: true },
-    } as Partial<GameEntity>);
+    });
     deliberatePortHop(f, PERIOD, 6, 140);
     expect(f.intentions!.queue.some((i) => i.kind === "return-to-shore")).toBe(true);
     expect(f.intentions!.queue.some((i) => i.kind === "travel")).toBe(false);
@@ -49,7 +49,7 @@ describe("deliberatePortHop", () => {
     const f = makeFarmer(start.dock.x, start.dock.y, PERIOD, {
       farmer: { name: "Hopper", currentRegion: "fishing-isle", homeRegion: "fishing-isle", aboard: true },
       beliefs: { data: { currentDay: PERIOD, portHopDay: PERIOD, portHopTarget: target.id }, revision: 0 },
-    } as Partial<GameEntity>);
+    });
     deliberatePortHop(f, PERIOD, 6, 140);
     const travel = f.intentions!.queue.find((i) => i.kind === "travel");
     expect(travel).toBeDefined();
@@ -60,7 +60,7 @@ describe("deliberatePortHop", () => {
     const f = makeFarmer(target.dock.x, target.dock.y, PERIOD, {
       farmer: { name: "Hopper", currentRegion: target.isle, homeRegion: "fishing-isle", aboard: true },
       beliefs: { data: { currentDay: PERIOD, portHopDay: PERIOD, portHopTarget: target.id }, revision: 0 },
-    } as Partial<GameEntity>);
+    });
     deliberatePortHop(f, PERIOD, 6, 140);
     expect(f.intentions!.queue.some((i) => i.kind === "return-to-shore")).toBe(true);
   });
@@ -74,7 +74,7 @@ describe("deliberatePortHop", () => {
   it("does not start a hop below the AP floor", () => {
     const f = makeFarmer(start.dock.x, start.dock.y, PERIOD, {
       ap: { current: 10, max: 200, penaltyPending: false, penaltyCapacity: 50, away: false },
-    } as Partial<GameEntity>);
+    });
     deliberatePortHop(f, PERIOD, 6, 140);
     expect(f.intentions!.queue.length).toBe(0);
   });

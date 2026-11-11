@@ -151,7 +151,7 @@ function positionSeedInput(
 
 async function boot(): Promise<void> {
   const canvasEl = document.getElementById("canvas") as HTMLCanvasElement | null;
-  const fatalEl = document.getElementById("fatal") as HTMLElement | null;
+  const fatalEl = document.getElementById("fatal");
   if (!canvasEl || !fatalEl) throw new Error("Missing #canvas/#fatal");
   const canvas: HTMLCanvasElement = canvasEl;
   const fatal: HTMLElement = fatalEl;

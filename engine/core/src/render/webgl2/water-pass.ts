@@ -12,7 +12,6 @@ import type { GlContext } from "./gl-context";
 import { compileProgram, uniformLocations } from "./program";
 import type { LoadedAtlasImage } from "../../assets/loader";
 import { createOffscreen } from "../raster2d";
-import type { Ctx2D } from "../sprite-types";
 import { EDG } from "../palette";
 import type { ViewUniform } from "../view-uniform";
 import { assertTextureWithinLimits } from "./static-layer-pass";
@@ -166,7 +165,7 @@ export class WaterPass {
     const size = Math.max(1, Math.ceil(tileSize) * scale);
 
     const surface = createOffscreen(size, size);
-    const tctx = surface.getContext("2d") as Ctx2D | null;
+    const tctx = surface.getContext("2d");
     if (!tctx) throw new Error("WaterPass.bakePattern: failed to acquire offscreen 2d context");
     tctx.imageSmoothingEnabled = false;
     const r = atlas.frameRect(frame);
@@ -236,9 +235,9 @@ export class WaterPass {
     gl.uniform4f(u.u_rect, visL, visT, visR, visB);
     gl.uniform1f(u.u_time, timeSec);
     gl.uniform1f(u.u_swellAlpha, this.swellAlpha);
-    gl.uniform4f(u.u_deepColor, WATER_DEEP[0]!, WATER_DEEP[1]!, WATER_DEEP[2]!, 1.0);
-    gl.uniform4f(u.u_shallowColor, WATER_SHALLOW[0]!, WATER_SHALLOW[1]!, WATER_SHALLOW[2]!, 1.0);
-    gl.uniform4f(u.u_glintColor, WATER_GLINT[0]!, WATER_GLINT[1]!, WATER_GLINT[2]!, 1.0);
+    gl.uniform4f(u.u_deepColor, WATER_DEEP[0], WATER_DEEP[1], WATER_DEEP[2], 1.0);
+    gl.uniform4f(u.u_shallowColor, WATER_SHALLOW[0], WATER_SHALLOW[1], WATER_SHALLOW[2], 1.0);
+    gl.uniform4f(u.u_glintColor, WATER_GLINT[0], WATER_GLINT[1], WATER_GLINT[2], 1.0);
 
     // Dormant plumbing (see ./shaders/water.frag.glsl's header) — set for parity even though the
     // shader doesn't read these today. `zoomedOut` lands here as `u_useLinear`, matching the WGSL
@@ -246,9 +245,9 @@ export class WaterPass {
     if (u.u_scroll) gl.uniform4f(u.u_scroll, this.scrollX, this.scrollY, this.swellScrollX, this.swellScrollY);
     if (u.u_tileSize) gl.uniform1f(u.u_tileSize, this.tileSize);
     if (u.u_useLinear) gl.uniform1f(u.u_useLinear, zoomedOut ? 1.0 : 0.0);
-    if (u.u_foamColor) gl.uniform4f(u.u_foamColor, WATER_FOAM[0]!, WATER_FOAM[1]!, WATER_FOAM[2]!, 1.0);
+    if (u.u_foamColor) gl.uniform4f(u.u_foamColor, WATER_FOAM[0], WATER_FOAM[1], WATER_FOAM[2], 1.0);
     if (u.u_causticsColor)
-      gl.uniform4f(u.u_causticsColor, WATER_CAUSTICS[0]!, WATER_CAUSTICS[1]!, WATER_CAUSTICS[2]!, 1.0);
+      gl.uniform4f(u.u_causticsColor, WATER_CAUSTICS[0], WATER_CAUSTICS[1], WATER_CAUSTICS[2], 1.0);
     if (u.u_depthParams) {
       gl.uniform4f(
         u.u_depthParams,

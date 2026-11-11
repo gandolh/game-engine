@@ -417,7 +417,7 @@ describe("brief 100 — the well-served cue", () => {
     for (let p = 0; p <= 1; p += 0.05) {
       const quads = wellServedGlowQuads([building({ type: "bakery", x: 2, y: 2, wellServed: true })], p);
       for (const q of quads) {
-        const alphaByte = (q.tintRgba as number) & 0xff;
+        const alphaByte = q.tintRgba & 0xff;
         expect(alphaByte).toBeLessThanOrEqual(Math.round(WELL_SERVED_MAX_ALPHA * 0xff));
         expect(alphaByte).toBeGreaterThan(0); // ...but always visible
       }
@@ -431,7 +431,7 @@ describe("brief 100 — the well-served cue", () => {
     const widest = sorted[0]!;
     const tightest = sorted[sorted.length - 1]!;
     expect(widest.width).toBeGreaterThan(tightest.width);
-    expect((widest.tintRgba as number) & 0xff).toBeLessThan((tightest.tintRgba as number) & 0xff);
+    expect(widest.tintRgba & 0xff).toBeLessThan(tightest.tintRgba & 0xff);
   });
 
   it("every ring is centred on the building footprint", () => {

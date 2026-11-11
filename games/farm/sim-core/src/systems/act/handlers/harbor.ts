@@ -37,7 +37,7 @@ export function handleCommitContract(
         contractId,
         farmerId: farmer.id,
         farmerName: farmer.farmer.name,
-      } as Record<string, unknown>,
+      },
     },
     tick,
   );

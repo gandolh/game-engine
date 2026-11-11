@@ -83,7 +83,7 @@ function tintBuffer(w: number, h: number): { canvas: OffscreenCanvas | HTMLCanva
     } catch {
       return null;
     }
-    tintCtx = (tintCanvas.getContext("2d") as Ctx2D | null) ?? null;
+    tintCtx = tintCanvas.getContext("2d") ?? null;
   }
   if (tintCtx === null) return null;
   return { canvas: tintCanvas, ctx: tintCtx };

@@ -61,7 +61,7 @@ async function runSeed(seed: number): Promise<void> {
       dominantLineCounts[topNon] = (dominantLineCounts[topNon] ?? 0) + 1;
       if (rank <= 5) wealthDominanceTop5[topNon] = (wealthDominanceTop5[topNon] ?? 0) + 1;
     }
-    const skStr = SKILL_KINDS.map((a) => `${a[0]!.toUpperCase()}${a[1]}${levels[a as Axis]}`).join(" ");
+    const skStr = SKILL_KINDS.map((a) => `${a[0]!.toUpperCase()}${a[1]}${levels[a]}`).join(" ");
     console.log(
       `  #${String(rank).padStart(2)} ${row.name.padEnd(10)} ${row.personality.padEnd(12)} tot=${String(Math.round(row.totalValue)).padStart(5)}  ${skStr}${leansNonFarm ? "  <=NONFARM(" + topNon + ")" : ""}`,
     );
@@ -74,7 +74,7 @@ async function runSeed(seed: number): Promise<void> {
   for (const row of rows) {
     const f = byId.get(row.id);
     const sk = f?.skills ?? { farming: 0, foraging: 0, fishing: 0, mining: 0 };
-    sheets.add(SKILL_KINDS.map((a) => skillLevel(sk[a as Axis])).join(","));
+    sheets.add(SKILL_KINDS.map((a) => skillLevel(sk[a])).join(","));
   }
   console.log(`  --- distinct skill sheets: ${sheets.size} / ${rows.length}`);
 }

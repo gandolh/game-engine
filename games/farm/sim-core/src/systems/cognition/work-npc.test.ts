@@ -26,7 +26,7 @@ function makeNpc(): { world: World<GameEntity>; e: GameEntity } {
 }
 
 function tick(world: World<GameEntity>, sys: WorkNpcSystem, n: number): void {
-  for (let i = 0; i < n; i++) sys.run({ tick: i } as never);
+  for (let i = 0; i < n; i++) sys.run({ tick: i });
 }
 
 describe("WorkNpcSystem", () => {

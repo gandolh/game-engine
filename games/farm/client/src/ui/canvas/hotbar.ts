@@ -341,9 +341,9 @@ export function createHotbar(actions: HotbarActions): Hotbar {
   window.addEventListener("mouseup", onMouseUp, { capture: true });
 
   function destroy(): void {
-    window.removeEventListener("mousedown", onMouseDown, { capture: true } as EventListenerOptions);
-    window.removeEventListener("mousemove", onMouseMove, { capture: true } as EventListenerOptions);
-    window.removeEventListener("mouseup", onMouseUp, { capture: true } as EventListenerOptions);
+    window.removeEventListener("mousedown", onMouseDown, { capture: true });
+    window.removeEventListener("mousemove", onMouseMove, { capture: true });
+    window.removeEventListener("mouseup", onMouseUp, { capture: true });
   }
 
   return { root, refresh, destroy };

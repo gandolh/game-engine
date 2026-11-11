@@ -18,13 +18,13 @@ function decision(over: Partial<Record<string, unknown>> = {}): ChronicleEvent {
     bdiKind: "trade",
     chosenKind: "trade",
     ...over,
-  } as ChronicleEvent;
+  };
 }
 
 describe("summarizeRationalizerDecisions", () => {
   it("returns null when the run used no seam, so a RATIONALIZER=off summary prints nothing", () => {
     expect(summarizeRationalizerDecisions([])).toBeNull();
-    expect(summarizeRationalizerDecisions([{ tick: 1, ontology: "social.gift" } as ChronicleEvent])).toBeNull();
+    expect(summarizeRationalizerDecisions([{ tick: 1, ontology: "social.gift" }])).toBeNull();
   });
 
   it("counts every outcome and reports adoption as a percentage of consultations", () => {
@@ -45,9 +45,9 @@ describe("summarizeRationalizerDecisions", () => {
 
   it("ignores non-rationalize chronicle rows rather than counting the whole log", () => {
     const s = summarizeRationalizerDecisions([
-      { tick: 1, ontology: "social.gift" } as ChronicleEvent,
+      { tick: 1, ontology: "social.gift" },
       decision({ outcome: "adopted", reason: null }),
-      { tick: 2, ontology: "death" } as ChronicleEvent,
+      { tick: 2, ontology: "death" },
     ]);
     expect(s!.consultations).toBe(1);
     expect(s!.adoptionPct).toBe(100);

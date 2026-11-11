@@ -1,6 +1,6 @@
 import type { SimContext, System, World, Intention } from "@engine/core";
 import type { GameEntity, ItemRef } from "../../components";
-import { regionAt, isWalkable, isFishingIsle, type RegionId } from "../../world/regions";
+import { regionAt, isWalkable, isFishingIsle } from "../../world/regions";
 import { isDockTile } from "../../world/coral";
 import { isPortDockTile, isPortLaneTile } from "../../world/ports";
 import { DIR_DELTA, PLAYER_STEP_TICKS } from "./hotbar";
@@ -21,9 +21,9 @@ export class PlayerControlSystem implements System {
 
   run(_ctx: SimContext): void {
     for (const entity of this.world.query("player", "transform", "farmer", "intentions")) {
-      const player = entity.player!;
-      const transform = entity.transform!;
-      const farmer = entity.farmer!;
+      const player = entity.player;
+      const transform = entity.transform;
+      const farmer = entity.farmer;
 
       farmer.movedThisTick = false;
       farmer.renderPos = undefined;
@@ -108,7 +108,7 @@ export class PlayerControlSystem implements System {
                   ? { kind: farmer.aboard ? "return-to-shore" : "board-boat", data: {}, priority: 0 }
                   : null;
         if (intent !== null) {
-          entity.intentions!.queue = [intent];
+          entity.intentions.queue = [intent];
           entity.fsm!.current = "ACT";
         }
       }
@@ -179,7 +179,7 @@ export class PlayerControlSystem implements System {
           if (region !== null && region === homeRegion) {
             return {
               kind: "till",
-              data: { tileX: tx, tileY: ty, regionId: homeRegion as RegionId },
+              data: { tileX: tx, tileY: ty, regionId: homeRegion },
               priority: 0,
             };
           }

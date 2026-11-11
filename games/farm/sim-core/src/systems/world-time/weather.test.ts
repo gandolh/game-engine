@@ -148,7 +148,7 @@ describe("WeatherSystem", () => {
         }
         sys.run(makeContext(day * 10));
         for (const s of w.query("weatherStation", "inbox")) {
-          runConditions.push(s.weatherStation!.current);
+          runConditions.push(s.weatherStation.current);
         }
       }
 
@@ -166,7 +166,7 @@ describe("WeatherSystem", () => {
     bus.flush();
 
     const stations = [...world.query("weatherStation")];
-    expect(stations[0]!.weatherStation!.season).toBe("summer");
+    expect(stations[0]!.weatherStation.season).toBe("summer");
 
     const nowMsg = bus.drain().find((m) => m.ontology === ONT_WEATHER.NOW);
     expect(nowMsg).toBeDefined();
@@ -246,7 +246,7 @@ describe("season biases the weather distribution", () => {
       }
       sys.run(makeContext(day * 10));
       for (const s of w.query("weatherStation")) {
-        counts[s.weatherStation!.current] += 1;
+        counts[s.weatherStation.current] += 1;
         break;
       }
     }

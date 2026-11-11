@@ -23,7 +23,7 @@ const wasmPath = resolve(__dirname, "../../../../../engine/wasm-modules/dist/pat
 
 function loadBytes(): ArrayBuffer {
   const buf = readFileSync(wasmPath);
-  return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer;
+  return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
 }
 
 interface Point {

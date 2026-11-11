@@ -27,7 +27,7 @@ function makeFakeStorage(initial?: Record<string, string>): Storage {
     get length() {
       return data.size;
     },
-  } as Storage;
+  };
 }
 
 function makeThrowingStorage(opts: { onGet?: boolean; onSet?: boolean }): Storage {
@@ -45,7 +45,7 @@ function makeThrowingStorage(opts: { onGet?: boolean; onSet?: boolean }): Storag
       return null;
     },
     length: 0,
-  } as Storage;
+  };
 }
 
 describe("createPanelPrefs — no per-id defaults (Farm's shape)", () => {

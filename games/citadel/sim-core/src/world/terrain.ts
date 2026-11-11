@@ -642,7 +642,7 @@ export function repairSolvability(cells: Uint8Array, width: number, height: numb
     // tile OUTSIDE the core box — deterministic (fixed neighbor order, distance
     // then scan order), so the painted blob location is a pure function of grid.
     const inCoreBox = (x: number, y: number): boolean =>
-      x >= anchor!.x && x < anchor!.x + CORE_BOX_W && y >= anchor!.y && y < anchor!.y + CORE_BOX_H;
+      x >= anchor.x && x < anchor.x + CORE_BOX_W && y >= anchor.y && y < anchor.y + CORE_BOX_H;
 
     const visited = new Uint8Array(width * height);
     let queue: number[] = [coreIdx];

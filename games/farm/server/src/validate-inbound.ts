@@ -148,7 +148,7 @@ export function validateInbound(raw: unknown): ValidationResult {
         seed: m["seed"] as number,
         ticksPerDay: m["ticksPerDay"] as number,
         maxDays: m["maxDays"] as number,
-        tickRateHz: m["tickRateHz"] as number,
+        tickRateHz: m["tickRateHz"],
       };
       if (typeof m["clientId"] === "string") msg.clientId = m["clientId"];
       // `pathfinderWasm` is deliberately NOT accepted over the wire: the server owns its own
@@ -198,7 +198,7 @@ export function validateInbound(raw: unknown): ValidationResult {
         moveX: m["moveX"] as "left" | "right" | null,
         moveY: m["moveY"] as "up" | "down" | null,
         action: m["action"],
-        selectSlot: slot as number | null,
+        selectSlot: slot,
       };
       if (tile !== undefined) {
         msg.actionTile = tile === null ? null : { x: (tile as { x: number }).x, y: (tile as { y: number }).y };

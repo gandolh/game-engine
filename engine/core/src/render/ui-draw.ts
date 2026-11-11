@@ -120,7 +120,7 @@ function tintedFrame(
   } catch {
     return null; // rare headless path: no offscreen canvas available
   }
-  const bctx = (canvas.getContext("2d") as Ctx2D | null) ?? null;
+  const bctx = canvas.getContext("2d") ?? null;
   if (bctx === null) return null;
 
   // Same composite the per-draw path ran (a fresh canvas starts transparent, so no

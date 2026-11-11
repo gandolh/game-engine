@@ -144,7 +144,7 @@ describe("LivestockSystem", () => {
     const farmer = [...world.query("farmer", "inventory")][0]!;
     if (farmer.id === undefined) throw new Error("farmer has no id");
 
-    farmer.farmer!.homeRegion = "farm-cora";
+    farmer.farmer.homeRegion = "farm-cora";
     const ranch = ranchForFarm("farm-cora");
     expect(ranch).toBeDefined();
     const ranchDef = getRegion(ranch!);
@@ -163,7 +163,7 @@ describe("LivestockSystem", () => {
     });
     const intent: Intention = { kind: "tend", data: { penKind: "coop" }, priority: 5 };
 
-    farmer.farmer!.currentRegion = "farm-cora";
+    farmer.farmer.currentRegion = "farm-cora";
     handleTend(farmer as never, intent, world);
     expect(penEntity.pen!.fedToday).toBe(false);
 
@@ -174,7 +174,7 @@ describe("LivestockSystem", () => {
     const travel = farmer.intentions!.queue.find((i) => i.kind === "travel" && i.data.targetRegionId === ranch);
     expect(travel, "should queue a travel to the ranch when away").toBeDefined();
 
-    farmer.farmer!.currentRegion = ranch!;
+    farmer.farmer.currentRegion = ranch!;
     const careBefore = penEntity.pen!.care;
     handleTend(farmer as never, intent, world);
     expect(penEntity.pen!.fedToday).toBe(true);

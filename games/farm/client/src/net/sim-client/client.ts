@@ -335,7 +335,7 @@ export class SimClient {
   }
 
   get slate(): ShopOffer[] {
-    return (this.currentSnapshot?.slate ?? []) as ShopOffer[];
+    return this.currentSnapshot?.slate ?? [];
   }
 
   get meets(): RenderSnapshot["meets"] {

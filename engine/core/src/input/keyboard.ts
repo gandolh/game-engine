@@ -93,7 +93,7 @@ export class Keyboard {
       return target as Window & typeof globalThis;
     }
     const doc = (target as HTMLElement).ownerDocument ?? null;
-    return (doc?.defaultView ?? null) as (Window & typeof globalThis) | null;
+    return doc?.defaultView ?? null;
   }
 
   isDown(code: string): boolean {

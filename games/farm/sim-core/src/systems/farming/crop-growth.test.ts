@@ -88,7 +88,7 @@ describe("CropGrowthSystem", () => {
 
     const stations = world.query("weatherStation", "inbox");
     for (const s of stations) {
-      s.weatherStation!.multiplier = 1.2;
+      s.weatherStation.multiplier = 1.2;
     }
 
     sendDayStart(world, 1);
@@ -106,7 +106,7 @@ describe("CropGrowthSystem", () => {
     const plotEntity = spawnPlot(world, 1);
 
     const stations = [...world.query("weatherStation", "inbox")];
-    stations[0]!.weatherStation!.multiplier = 1.2;
+    stations[0]!.weatherStation.multiplier = 1.2;
     sendDayStart(world, 1);
     system.run(makeContext(10));
 
@@ -115,7 +115,7 @@ describe("CropGrowthSystem", () => {
       if (s.kind === "planted") s.wateredToday = true;
     }
 
-    stations[0]!.weatherStation!.multiplier = 0.8;
+    stations[0]!.weatherStation.multiplier = 0.8;
     sendDayStart(world, 2);
     system.run(makeContext(20));
 
@@ -177,8 +177,8 @@ describe("CropGrowthSystem", () => {
 
   function setWeather(world: World<GameEntity>, cond: string, mult: number): void {
     for (const s of world.query("weatherStation")) {
-      s.weatherStation!.current = cond as never;
-      s.weatherStation!.multiplier = mult;
+      s.weatherStation.current = cond as never;
+      s.weatherStation.multiplier = mult;
     }
   }
 

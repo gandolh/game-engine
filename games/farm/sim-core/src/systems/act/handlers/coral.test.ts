@@ -89,10 +89,10 @@ describe("coral act handlers", () => {
       const bus = new MessageBus();
       let sent = 0;
       const origSend = bus.send.bind(bus);
-      bus.send = ((msg: Parameters<typeof origSend>[0], tick: number) => {
+      bus.send = (msg: Parameters<typeof origSend>[0], tick: number) => {
         sent++;
         return origSend(msg, tick);
-      }) as typeof bus.send;
+      };
       const f = makeFarmer({
         transform: { x: reef.x, y: reef.y, prevX: reef.x, prevY: reef.y, rotation: 0 },
         farmer: { name: "T", currentRegion: "fishing-isle", aboard: true },

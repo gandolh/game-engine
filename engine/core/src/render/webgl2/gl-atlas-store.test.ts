@@ -59,7 +59,7 @@ function fakeAtlas(
   frames: Record<string, { x: number; y: number; w: number; h: number }>,
 ): LoadedAtlasImage {
   return {
-    manifest: { id, imageUrl: "", width, height, frames } as unknown as LoadedAtlasImage["manifest"],
+    manifest: { id, imageUrl: "", width, height, frames },
     bitmap: {} as unknown as ImageBitmap,
     frameRect: (name: string) => {
       const r = frames[name];

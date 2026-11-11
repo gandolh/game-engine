@@ -160,8 +160,8 @@ describe("cause -> effect through deliberation, end-to-end (chunk hollow-06b)", 
     target.inventory!.goods[GOOD_MATERIALS] = 40;
     target.skills!.byKind[SKILL_MATERIAL] = 0.5;
 
-    const materialsBefore = target.inventory!.goods[GOOD_MATERIALS]!;
-    const skillBefore = target.skills!.byKind[SKILL_MATERIAL]!;
+    const materialsBefore = target.inventory!.goods[GOOD_MATERIALS];
+    const skillBefore = target.skills!.byKind[SKILL_MATERIAL];
 
     sim.tick(); // PERCEIVE -> DELIBERATE (chooses sabotage) -> ACT (executes it), same tick
 
@@ -204,7 +204,7 @@ describe("cause -> effect through deliberation, end-to-end (chunk hollow-06b)", 
     target.skills!.byKind[SKILL_MATERIAL] = 0.1;
     target.genome!.aptitude[SKILL_MATERIAL] = 1; // no artificial cap blocking the rise
 
-    const learnerSkillBefore = target.skills!.byKind[SKILL_MATERIAL]!;
+    const learnerSkillBefore = target.skills!.byKind[SKILL_MATERIAL];
 
     sim.tick();
 

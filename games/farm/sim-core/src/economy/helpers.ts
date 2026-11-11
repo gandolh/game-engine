@@ -12,7 +12,7 @@ export function cropInventoryValue(inv: Inventory): number {
     const totalUnits = crops[cropKey];
     if (totalUnits <= 0) continue;
     if (quality !== undefined && quality[cropKey] !== undefined) {
-      const q = quality[cropKey]!;
+      const q = quality[cropKey];
       total += q.normal * basePrice * QUALITY_MULTIPLIER.normal;
       total += q.silver * basePrice * QUALITY_MULTIPLIER.silver;
       total += q.gold * basePrice * QUALITY_MULTIPLIER.gold;
@@ -31,7 +31,7 @@ export function bankHarvest(inv: Inventory, crop: CropKind, qty: number, quality
   inv.crops[crop] += qty;
   if (!inv.cropQuality) inv.cropQuality = {};
   if (!inv.cropQuality[crop]) inv.cropQuality[crop] = { normal: 0, silver: 0, gold: 0 };
-  inv.cropQuality[crop]![quality] += qty;
+  inv.cropQuality[crop][quality] += qty;
 }
 
 export function totalProductCount(inv: Inventory, kind: ProductKind): number {
@@ -49,13 +49,13 @@ export function totalFruitCount(inv: Inventory, kind: FruitKind): number {
 export function bankProduct(inv: Inventory, kind: ProductKind, qty: number, quality: CropQuality): void {
   if (!inv.products) inv.products = {};
   if (!inv.products[kind]) inv.products[kind] = { normal: 0, silver: 0, gold: 0 };
-  inv.products[kind]![quality] += qty;
+  inv.products[kind][quality] += qty;
 }
 
 export function bankFruit(inv: Inventory, kind: FruitKind, qty: number, quality: CropQuality): void {
   if (!inv.fruit) inv.fruit = {};
   if (!inv.fruit[kind]) inv.fruit[kind] = { normal: 0, silver: 0, gold: 0 };
-  inv.fruit[kind]![quality] += qty;
+  inv.fruit[kind][quality] += qty;
 }
 
 export function productInventoryValue(inv: Inventory): number {
@@ -128,7 +128,7 @@ export function debitCropDetailed(
 
   let remaining = taken;
   if (inv.cropQuality?.[crop]) {
-    const q = inv.cropQuality[crop]!;
+    const q = inv.cropQuality[crop];
     const order: CropQuality[] = preferQuality
       ? ([preferQuality, "silver", "normal", "gold"].filter((v, i, a) => a.indexOf(v) === i) as CropQuality[])
       : (["silver", "normal", "gold"] as CropQuality[]);

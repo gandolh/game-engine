@@ -68,7 +68,7 @@ for (let tick = 0; tick < totalTicks; tick++) {
       if (f.player) continue;
       if (isWithinReach(f.transform, FESTIVAL_PODIUM_TILE.x, FESTIVAL_PODIUM_TILE.y)) {
         const gathers = podiumGathersByDay.get(day);
-        if (gathers) gathers.add(f.farmer!.name);
+        if (gathers) gathers.add(f.farmer.name);
       }
     }
   }

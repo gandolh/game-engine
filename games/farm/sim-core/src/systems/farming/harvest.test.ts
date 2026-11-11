@@ -52,7 +52,7 @@ describe("HarvestSystem crop quality", () => {
         }),
       );
     }
-    new HarvestSystem(worldInSeason, createRng(1)).run({ tick: 0 } as never);
+    new HarvestSystem(worldInSeason, createRng(1)).run({ tick: 0 });
 
     const worldOutOfSeason = new World<GameEntity>();
     const outOfSeasonFarmers: GameEntity[] = [];
@@ -68,7 +68,7 @@ describe("HarvestSystem crop quality", () => {
         }),
       );
     }
-    new HarvestSystem(worldOutOfSeason, createRng(1)).run({ tick: 0 } as never);
+    new HarvestSystem(worldOutOfSeason, createRng(1)).run({ tick: 0 });
 
     const inSeasonAvg = averageQualityScore(worldInSeason, inSeasonFarmers, crop);
     const outOfSeasonAvg = averageQualityScore(worldOutOfSeason, outOfSeasonFarmers, crop);

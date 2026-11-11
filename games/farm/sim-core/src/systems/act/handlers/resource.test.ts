@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { World, createRng } from "@engine/core";
-import type { GameEntity, FarmerFsmState, CropKind } from "../../../components";
+import type { GameEntity, CropKind } from "../../../components";
 import { ZERO_CROPS } from "../../../economy";
 import { ActSystem } from "../system";
 import { SEED_WEIGHTS, pickWeightedSeed } from "../seed-drops";
@@ -10,7 +10,7 @@ const CROP_KINDS = Object.keys(ZERO_CROPS) as CropKind[];
 function spawnFarmer(world: World<GameEntity>, atX: number, atY: number): GameEntity {
   return world.spawn({
     farmer: { name: "F", currentRegion: "forest-north" as const },
-    fsm: { current: "ACT" as FarmerFsmState, enteredTick: 0 },
+    fsm: { current: "ACT", enteredTick: 0 },
     intentions: { queue: [] },
     transform: { x: atX, y: atY, prevX: atX, prevY: atY, rotation: 0 },
     inventory: {

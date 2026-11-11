@@ -18,7 +18,7 @@ function pushMeet(entity: GameEntity, peerId: number, tick: number, region: Regi
     performative: PERFORMATIVE.INFORM,
     ontology: ONT_ENCOUNTER.MEET,
     sender: "world",
-    body: { peerId, regionId: region } as unknown as Record<string, unknown>,
+    body: { peerId, regionId: region },
     tickIssued: tick,
   });
 }

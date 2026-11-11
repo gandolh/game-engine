@@ -145,10 +145,10 @@ describe("jobs (chunk hollow-14b) wiring — real bootstrapHollowSim", () => {
     const [swing, ...rest] = founders;
     swing!.genome!.aptitude = { food: 0.55, material: 0.5 }; // baseline: food-gatherer wins narrowly
     for (const other of rest) {
-      other!.genome!.aptitude = { food: 0.1, material: 0.1 };
-      other!.genome!.behavior["curiosity"] = 1;
-      other!.genome!.behavior["sociability"] = 1;
-      other!.genome!.behavior["loyalty"] = 1; // -> teacher/caretaker territory, never a gatherer
+      other.genome!.aptitude = { food: 0.1, material: 0.1 };
+      other.genome!.behavior["curiosity"] = 1;
+      other.genome!.behavior["sociability"] = 1;
+      other.genome!.behavior["loyalty"] = 1; // -> teacher/caretaker territory, never a gatherer
     }
 
     // 30 ticks = 3 JOBS-assignment passes (interval 10) -- enough for a

@@ -34,7 +34,7 @@ function pushPhase(f: GameEntity, phase: PhaseStartBody["phase"], day = 1): void
     performative: "inform",
     ontology: ONT_SIMULATION.PHASE_START,
     sender: "world",
-    body: { day, phase } as unknown as Record<string, unknown>,
+    body: { day, phase },
     tickIssued: 0,
   });
 }

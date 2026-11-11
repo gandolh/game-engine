@@ -362,8 +362,8 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
     handler: (cmd: Extract<CitadelCommand, { type: T }>, ctx: import("@engine/core").SimContext) => void,
   ): void {
     commandSystem.register(type, (cmd, ctx) => {
-      state.commandLog.push({ tick: ctx.tick, command: cmd as CitadelCommand });
-      handler(cmd as Extract<CitadelCommand, { type: T }>, ctx);
+      state.commandLog.push({ tick: ctx.tick, command: cmd });
+      handler(cmd, ctx);
     });
   }
 

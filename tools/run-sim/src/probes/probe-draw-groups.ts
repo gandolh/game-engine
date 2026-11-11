@@ -83,7 +83,7 @@ interface Counted {
  * same `atlasId`. `groups` is what `drawRange` is called with, once each.
  */
 function countGroups(sprites: { atlasId: string; layer: number; y: number; sortY?: number }[]): Counted {
-  const sorted = [...sprites].sort((a, b) => compareSprite(a as never, b as never));
+  const sorted = [...sprites].sort((a, b) => compareSprite(a, b));
 
   let groups = 0;
   let prevAtlas: string | null = null;

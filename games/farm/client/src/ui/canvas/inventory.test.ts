@@ -26,8 +26,17 @@ function makeRenderer(): RendererLike {
 
 function makeInventory(overrides: Partial<InventoryOptions> = {}): Inventory {
   const canvas = document.createElement("canvas");
-  canvas.getBoundingClientRect = () =>
-    ({ left: 0, top: 0, width: 800, height: 600, right: 800, bottom: 600, x: 0, y: 0, toJSON() {} }) as DOMRect;
+  canvas.getBoundingClientRect = () => ({
+    left: 0,
+    top: 0,
+    width: 800,
+    height: 600,
+    right: 800,
+    bottom: 600,
+    x: 0,
+    y: 0,
+    toJSON() {},
+  });
   // `createUIHost` is the real host (matches how `panels.ts` wires the inventory) rather than a
   // hand-rolled fake, so the registered root's dispatcher/mirror plumbing is exercised too.
   const host = createUIHost(makeRenderer(), canvas);

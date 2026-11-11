@@ -187,7 +187,7 @@ function fakeAtlas(): LoadedAtlasImage {
     manifest: { id: "terrain", imageUrl: "", width: 64, height: 64, frames: {} },
     bitmap: {} as unknown as ImageBitmap,
     frameRect: () => ({ x: 0, y: 0, w: 16, h: 16 }),
-  } as unknown as LoadedAtlasImage;
+  };
 }
 
 function sprite(partial: Partial<Sprite>): Sprite {

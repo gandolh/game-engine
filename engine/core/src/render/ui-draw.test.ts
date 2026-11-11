@@ -79,7 +79,7 @@ beforeEach(() => {
   bufOps.length = 0;
   (globalThis as { OffscreenCanvas?: unknown }).OffscreenCanvas = class {
     constructor(w: number, h: number) {
-      return new FakeOffscreen(w, h, bufOps) as unknown as OffscreenCanvas;
+      return new FakeOffscreen(w, h, bufOps);
     }
   };
 });

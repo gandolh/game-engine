@@ -36,7 +36,7 @@ async function loadPathfinderWasm(): Promise<ArrayBuffer | null> {
   const wasmPath = resolve(here, "../../../../engine/wasm-modules/dist/pathfinding.wasm");
   try {
     const buf = await readFile(wasmPath);
-    return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer;
+    return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
   } catch (e) {
     const detail =
       `could not read pathfinding.wasm at ${wasmPath} — TravelSystem would be omitted and ` +

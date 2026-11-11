@@ -4,7 +4,7 @@ import { seasonForDay } from "../../protocols/weather";
 import { isWithinReach } from "../../systems/proximity";
 import { nearestTile, FORAGE_ZONES } from "./shared";
 import { deliberateBuyTool } from "./tools";
-import { getRegion, nearestResourceZone, type RegionId } from "../../world/regions";
+import { getRegion, nearestResourceZone } from "../../world/regions";
 
 export function deliberateResourceGather(
   farmer: GameEntity,
@@ -158,7 +158,7 @@ export function deliberateResourceZoneVisit(
   if (!farmer.intentions || !farmer.farmer) return;
   if (!force && ownFarmFeatures.some((f) => f.kind === preferKind)) return;
 
-  const homeRegion = farmer.farmer.homeRegion as RegionId | undefined;
+  const homeRegion = farmer.farmer.homeRegion;
   const farmCenter = homeRegion ? getRegion(homeRegion).center : { x: 0, y: 0 };
   const targetZone = nearestResourceZone(farmCenter, preferKind);
 

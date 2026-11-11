@@ -77,7 +77,7 @@ export function setupRegions(world: World<GameEntity>, farmers: GameEntity[]): S
   const farmerByRegion = new Map<RegionId, GameEntity>();
   for (const farmer of farmers) {
     const regionId = farmer.farmer?.homeRegion;
-    if (regionId) farmerByRegion.set(regionId as RegionId, farmer);
+    if (regionId) farmerByRegion.set(regionId, farmer);
   }
 
   for (const def of REGIONS) {
@@ -135,7 +135,7 @@ export function setupRegions(world: World<GameEntity>, farmers: GameEntity[]): S
       const fountain = world.spawn({
         transform: { x: ft.x, y: ft.y, prevX: ft.x, prevY: ft.y, rotation: 0 },
         sprite: { atlasId: "main", frame: "structure/fountain", layer: 40, tintRgba: 0xffffffff },
-        fountain: { isFountain: true, regionId: def.id as RegionId },
+        fountain: { isFountain: true, regionId: def.id },
       });
       fountainEntities.push(fountain);
 
@@ -145,7 +145,7 @@ export function setupRegions(world: World<GameEntity>, farmers: GameEntity[]): S
 
         world.spawn({
           transform: { x: hx, y: hy, prevX: hx, prevY: hy, rotation: 0 },
-          home: { isHome: true, regionId: def.id as RegionId, ownerId },
+          home: { isHome: true, regionId: def.id, ownerId },
         });
       }
     }

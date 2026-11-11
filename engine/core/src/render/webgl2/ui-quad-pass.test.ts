@@ -36,7 +36,7 @@ function makeAtlas(id = "ui"): LoadedAtlasImage {
       width: ATLAS_W,
       height: ATLAS_H,
       frames: { g: FRAME },
-    } as unknown as LoadedAtlasImage["manifest"],
+    },
     bitmap: { __tag: "bitmap" } as unknown as ImageBitmap,
     frameRect: (name: string) => {
       if (name !== "g") throw new Error(`no frame ${name}`);
@@ -47,7 +47,7 @@ function makeAtlas(id = "ui"): LoadedAtlasImage {
 
 /** A `GlAtlasStore` stand-in: real `uv()` arithmetic, tagged texture handles. */
 function makeStore(ids: readonly string[]): GlAtlasStore {
-  const textures = new Map(ids.map((id) => [id, { __tex: id } as unknown as WebGLTexture]));
+  const textures = new Map(ids.map((id) => [id, { __tex: id }]));
   const white = { __tex: "white" } as unknown as WebGLTexture;
   return {
     uvInto: (atlasId: string, _frame: string, out: { u0: number; v0: number; u1: number; v1: number }) => {

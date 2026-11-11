@@ -87,7 +87,7 @@ describe("every agent a real spawn path produces is reproduction-eligible", () =
     for (const k of queryKeys()) {
       minimal[k] = (template as unknown as Record<string, unknown>)[k];
     }
-    const spawned = world.spawn(minimal as HollowEntity);
+    const spawned = world.spawn(minimal);
 
     const eligible = [...world.query(...(queryKeys() as ["agent"]))];
     expect(eligible.some((e) => e.id === spawned.id)).toBe(true);

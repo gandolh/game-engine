@@ -99,7 +99,7 @@ export class EventFeedSystem implements System {
       for (const msg of wall.inbox.messages) {
         switch (msg.ontology) {
           case ONT_MARKET.TRADE_COMPLETED:
-            this.captureTrade(msg.body as TradeCompletedBody, tick, day, out);
+            this.captureTrade(msg.body, tick, day, out);
             break;
           case ONT_SHOP.AUCTION_RESULT:
             this.captureAuction(msg.body as unknown as AuctionResultBody, tick, day, out);

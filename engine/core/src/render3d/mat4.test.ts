@@ -85,7 +85,7 @@ describe("rotationZ", () => {
   it("rotationZ(0) is the identity", () => {
     const m = rotationZ(0);
     for (let i = 0; i < 16; i++) {
-      expect(m[i]).toBeCloseTo((identity() as Float32Array)[i] as number, 6);
+      expect(m[i]).toBeCloseTo(identity()[i] as number, 6);
     }
   });
 });

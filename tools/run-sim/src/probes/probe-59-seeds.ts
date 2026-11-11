@@ -31,14 +31,14 @@ async function main(): Promise<void> {
     for (const f of world.query("farmer", "inventory")) {
       if (f.player) continue;
       const kind = f.personality?.kind ?? "?";
-      const w = f.inventory!.crops["wheat"];
+      const w = f.inventory.crops["wheat"];
       if (w > (peakWheatByKind[kind] ?? 0)) peakWheatByKind[kind] = w;
       for (const crop of CROPS) {
-        const n = f.inventory!.seeds[crop];
+        const n = f.inventory.seeds[crop];
         if (n > (peakSingle[crop] ?? 0)) peakSingle[crop] = n;
         if (n >= 3) surplusFarmerDays[crop] = (surplusFarmerDays[crop] ?? 0) + 1;
         const ck = `CROP:${crop}`;
-        const cn = f.inventory!.crops[crop];
+        const cn = f.inventory.crops[crop];
         if (cn > (peakSingle[ck] ?? 0)) peakSingle[ck] = cn;
         if (cn >= 3) surplusFarmerDays[ck] = (surplusFarmerDays[ck] ?? 0) + 1;
       }
@@ -48,7 +48,7 @@ async function main(): Promise<void> {
       console.log(`\n=== DAY ${dayClock.day} seed holdings (AI farmers, nonzero only) ===`);
       for (const f of world.query("farmer", "inventory")) {
         if (f.player) continue;
-        const held = CROPS.map((c) => [c, f.inventory!.seeds[c]] as const).filter(([, n]) => n > 0);
+        const held = CROPS.map((c) => [c, f.inventory.seeds[c]] as const).filter(([, n]) => n > 0);
         if (held.length === 0) continue;
         console.log(
           `  ${(f.farmer?.name ?? "?").padEnd(10)} ${(f.personality?.kind ?? "?").padEnd(12)} ` +

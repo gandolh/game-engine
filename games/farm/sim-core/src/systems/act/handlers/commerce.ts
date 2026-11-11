@@ -30,7 +30,7 @@ function sendIntentMessage(
       ontology,
       sender: senderId,
       recipient: recipientId,
-      body: body as unknown as Record<string, unknown>,
+      body: body,
     },
     tick,
   );
@@ -70,7 +70,7 @@ export function handleSellShopkeeper(farmer: ActingFarmer, intent: Intention): v
   const basePrice = SELL_PRICE[crop];
   const quality = farmer.inventory.cropQuality;
   if (quality?.[crop]) {
-    const q = quality[crop]!;
+    const q = quality[crop];
     // Price by reading the tiers gold-first (sell the best stock first, same
     // order as before) WITHOUT mutating; the actual crops/cropQuality debit
     // happens once below via debitCrop(..., "gold"), which drains tiers in

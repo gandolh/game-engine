@@ -97,7 +97,7 @@ function makeActor(spec: ActorSpec): SocialAgent {
     skills: { byKind: { food: 0, material: spec.materialSkill ?? 0 } },
     communityId: spec.communityId ?? null,
     householdId: null,
-  } as unknown as SocialAgent;
+  };
 }
 
 function neighbor(id: number, materials: number, food: number, materialSkill = 0): NeighborView {

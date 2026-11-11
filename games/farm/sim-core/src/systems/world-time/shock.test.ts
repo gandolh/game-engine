@@ -1,7 +1,7 @@
 import { ZERO_CROPS } from "../../economy";
 import { describe, it, expect } from "vitest";
 import { World, MessageBus, createRng } from "@engine/core";
-import type { GameEntity, FarmerFsmState } from "../../components";
+import type { GameEntity } from "../../components";
 import { ShockSystem, defaultShockDay } from "./shock";
 import { ONT_SIMULATION, type ShockBody } from "../../protocols";
 
@@ -10,7 +10,7 @@ const TICKS_PER_DAY = 20;
 function spawnFarmer(world: World<GameEntity>, name: string): GameEntity {
   return world.spawn({
     farmer: { name, currentRegion: "village" as const },
-    fsm: { current: "WAIT_DAY" as FarmerFsmState, enteredTick: 0 },
+    fsm: { current: "WAIT_DAY", enteredTick: 0 },
     personality: { kind: "conservative" },
     inventory: {
       gold: 0,
@@ -24,7 +24,7 @@ function plantPlot(world: World<GameEntity>, ownerId: number, tileX: number): Ga
   return world.spawn({
     plot: {
       ownerId,
-      regionId: "farm-cora" as import("../../world/regions").RegionId,
+      regionId: "farm-cora",
       tileX,
       tileY: 5,
       state: { kind: "planted", crop: "radish", daysGrowing: 1, readyAtDay: 3, weatherSum: 0 },
@@ -133,7 +133,7 @@ describe("ShockSystem (mid-game blight)", () => {
       w2.spawn({
         plot: {
           ownerId: a2.id!,
-          regionId: "farm-cora" as import("../../world/regions").RegionId,
+          regionId: "farm-cora",
           tileX: 30,
           tileY: 5,
           state: { kind: "empty" },
@@ -163,7 +163,7 @@ describe("ShockSystem (mid-game blight)", () => {
     world.spawn({
       plot: {
         ownerId: f.id!,
-        regionId: "farm-cora" as import("../../world/regions").RegionId,
+        regionId: "farm-cora",
         tileX: 17,
         tileY: 5,
         state: { kind: "empty" },

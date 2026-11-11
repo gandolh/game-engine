@@ -31,7 +31,7 @@ function makeSpec(name: string, personality: FarmerSpec["personality"] = "conser
 }
 
 function totalCrops(farmer: GameEntity): number {
-  return (Object.values(inv(farmer).crops) as number[]).reduce((a, b) => a + b, 0);
+  return Object.values<number>(inv(farmer).crops).reduce((a, b) => a + b, 0);
 }
 
 describe("starting crop surplus", () => {

@@ -18,7 +18,7 @@ function makeFarmer(over: Partial<GameEntity> = {}): GameEntity {
     },
     farmer: { name: "Tester", currentRegion: "farm-cora" },
     ...over,
-  } as GameEntity;
+  };
 }
 
 describe("deliberateCoralFishing", () => {

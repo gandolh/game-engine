@@ -490,7 +490,7 @@ describe("boat hull sprite — review item 18", () => {
   it("carries a non-null id distinct from the farmer's own id, so the client's id!=null interpolation gate applies to the hull without colliding with id-keyed farmer lookups", () => {
     const sim = bootAndTick(5);
     const f = firstFarmer(sim);
-    f.farmer!.aboard = true;
+    f.farmer.aboard = true;
 
     const snap = snapAt(sim, 5);
     const hull = snap.sprites.find((s) => s.frame === "structure/boat");
@@ -504,7 +504,7 @@ describe("boat hull sprite — review item 18", () => {
   it("hull id is stable across consecutive snapshot builds for the same aboard farmer", () => {
     const sim = bootAndTick(5);
     const f = firstFarmer(sim);
-    f.farmer!.aboard = true;
+    f.farmer.aboard = true;
 
     const snap1 = snapAt(sim, 5);
     const snap2 = snapAt(sim, 5);
@@ -518,7 +518,7 @@ describe("boat hull sprite — review item 18", () => {
   it("no boat hull sprite is emitted for a farmer not aboard", () => {
     const sim = bootAndTick(5);
     const f = firstFarmer(sim);
-    f.farmer!.aboard = false;
+    f.farmer.aboard = false;
 
     const snap = snapAt(sim, 5);
     const hull = snap.sprites.find((s) => s.frame === "structure/boat");
@@ -530,9 +530,9 @@ describe("visual state indicators — farmers", () => {
   it("an unrested farmer sprite is exhausted: tinted + dimmed, tooltip says exhausted", () => {
     const sim = bootAndTick(5);
     const f = firstFarmer(sim);
-    f.ap!.unrested = true;
+    f.ap.unrested = true;
 
-    if (f.inventory!.wateringCan) f.inventory!.wateringCan.charges = f.inventory!.wateringCan.maxCharges;
+    if (f.inventory.wateringCan) f.inventory.wateringCan.charges = f.inventory.wateringCan.maxCharges;
     const snap = snapAt(sim, 5);
     const s = farmerSprite(snap, f.id!);
     expect(s).toBeDefined();
@@ -544,10 +544,10 @@ describe("visual state indicators — farmers", () => {
   it("a low-AP farmer (below threshold) is exhausted", () => {
     const sim = bootAndTick(5);
     const f = firstFarmer(sim);
-    f.ap!.unrested = false;
-    f.ap!.max = 100;
-    f.ap!.current = Math.floor(100 * EXHAUSTED_AP_FRACTION) - 1;
-    if (f.inventory!.wateringCan) f.inventory!.wateringCan.charges = f.inventory!.wateringCan.maxCharges;
+    f.ap.unrested = false;
+    f.ap.max = 100;
+    f.ap.current = Math.floor(100 * EXHAUSTED_AP_FRACTION) - 1;
+    if (f.inventory.wateringCan) f.inventory.wateringCan.charges = f.inventory.wateringCan.maxCharges;
     const snap = snapAt(sim, 5);
     const s = farmerSprite(snap, f.id!);
     expect(s).toBeDefined();
@@ -558,11 +558,11 @@ describe("visual state indicators — farmers", () => {
     const sim = bootAndTick(5);
     const f = firstFarmer(sim);
 
-    f.ap!.unrested = false;
-    f.ap!.max = 100;
-    f.ap!.current = 100;
-    if (!f.inventory!.wateringCan) f.inventory!.wateringCan = { charges: 0, maxCharges: 10 };
-    else f.inventory!.wateringCan.charges = 0;
+    f.ap.unrested = false;
+    f.ap.max = 100;
+    f.ap.current = 100;
+    if (!f.inventory.wateringCan) f.inventory.wateringCan = { charges: 0, maxCharges: 10 };
+    else f.inventory.wateringCan.charges = 0;
     const snap = snapAt(sim, 5);
     const s = farmerSprite(snap, f.id!);
     expect(s).toBeDefined();
@@ -573,9 +573,9 @@ describe("visual state indicators — farmers", () => {
   it("broken tool takes precedence over exhausted", () => {
     const sim = bootAndTick(5);
     const f = firstFarmer(sim);
-    f.ap!.unrested = true;
-    if (!f.inventory!.wateringCan) f.inventory!.wateringCan = { charges: 0, maxCharges: 10 };
-    else f.inventory!.wateringCan.charges = 0;
+    f.ap.unrested = true;
+    if (!f.inventory.wateringCan) f.inventory.wateringCan = { charges: 0, maxCharges: 10 };
+    else f.inventory.wateringCan.charges = 0;
     const snap = snapAt(sim, 5);
     const s = farmerSprite(snap, f.id!);
     expect(s!.description).toContain("tool broken");
@@ -585,11 +585,11 @@ describe("visual state indicators — farmers", () => {
   it("a healthy, rested farmer with a usable tool is UNTINTED with full alpha", () => {
     const sim = bootAndTick(5);
     const f = firstFarmer(sim);
-    f.ap!.unrested = false;
-    f.ap!.max = 100;
-    f.ap!.current = 100;
-    if (f.inventory!.wateringCan) f.inventory!.wateringCan.charges = f.inventory!.wateringCan.maxCharges;
-    if (f.inventory!.tools) for (const t of f.inventory!.tools) t.durability = Math.max(t.durability, 10);
+    f.ap.unrested = false;
+    f.ap.max = 100;
+    f.ap.current = 100;
+    if (f.inventory.wateringCan) f.inventory.wateringCan.charges = f.inventory.wateringCan.maxCharges;
+    if (f.inventory.tools) for (const t of f.inventory.tools) t.durability = Math.max(t.durability, 10);
     const cue = farmerCue(f, sim.dayClock.day);
     expect(cue.tintRgba).toBe(UNTINTED_RGBA);
     expect(cue.alpha).toBe(1);

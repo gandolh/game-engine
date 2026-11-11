@@ -174,7 +174,7 @@ export class SimHost {
     const bytes = this.opts.pathfinderWasm ?? init.pathfinderWasm ?? null;
     if (bytes) {
       try {
-        return (await createPathfinderFromBytes(bytes)) as unknown as PathfinderLike;
+        return await createPathfinderFromBytes(bytes);
       } catch (e) {
         console.warn("[sim-host] pathfinder failed to load:", e);
       }
@@ -208,18 +208,18 @@ export class SimHost {
 
     this.applyInput = (moveX, moveY, action, selectSlot, actionTile) => {
       for (const e of world.query("player")) {
-        e.player!.pendingMoveX = moveX;
-        e.player!.pendingMoveY = moveY;
-        if (action) e.player!.pendingAction = true;
-        if (selectSlot !== null) e.player!.selectedSlot = selectSlot;
-        e.player!.pendingActionTile = actionTile;
+        e.player.pendingMoveX = moveX;
+        e.player.pendingMoveY = moveY;
+        if (action) e.player.pendingAction = true;
+        if (selectSlot !== null) e.player.selectedSlot = selectSlot;
+        e.player.pendingActionTile = actionTile;
         break;
       }
     };
 
     this.applySwapSlots = (a, b) => {
       for (const e of world.query("player")) {
-        const slots = e.player!.itemSlots;
+        const slots = e.player.itemSlots;
         if (!slots) break;
         if (!isValidSwapIndex(a, slots.length) || !isValidSwapIndex(b, slots.length)) break;
         const tmp = slots[a]!;

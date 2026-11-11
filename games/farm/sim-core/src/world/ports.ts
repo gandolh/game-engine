@@ -116,7 +116,7 @@ export const PORTS: readonly Port[] = new Proxy([] as Port[], {
   get(_t, prop) {
     return Reflect.get(ports() as Port[], prop);
   },
-}) as readonly Port[];
+});
 
 export function isPortDockTile(x: number, y: number): boolean {
   const rx = Math.round(x);

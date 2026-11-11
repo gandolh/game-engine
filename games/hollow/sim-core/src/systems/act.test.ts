@@ -7,7 +7,7 @@
  * hand-built World" harness pattern.
  */
 import { describe, it, expect } from "vitest";
-import { World, createRng, type SimContext } from "@engine/core";
+import { World, createRng } from "@engine/core";
 import { makeNeed } from "@engine/core/agent";
 import type { HollowEntity, Genome } from "../components";
 import { NEED_WEALTH, MATERIAL_HARVEST_PER_TICK, WEALTH_PER_MATERIAL_UNIT } from "../economy";
@@ -66,7 +66,7 @@ describe("HollowActSystem's runWork: material skill -> production wiring (chunk 
     const zeroSkill = spawnWorker(world, nodeA!.id, nodeA!.gx, nodeA!.gy, 0, 1);
     const highSkill = spawnWorker(world, nodeB!.id, nodeB!.gx, nodeB!.gy, 1, 1);
 
-    act.run({ tick: 0 } as SimContext);
+    act.run({ tick: 0 });
 
     const zeroWealth = zeroSkill.needs!.byKind[NEED_WEALTH]!.value;
     const highWealth = highSkill.needs!.byKind[NEED_WEALTH]!.value;
@@ -99,7 +99,7 @@ describe("HollowActSystem's runWork: material skill -> production wiring (chunk 
 
     let previous = 0;
     for (let tick = 0; tick < 100; tick++) {
-      act.run({ tick } as SimContext);
+      act.run({ tick });
       const current = worker.skills!.byKind["material"]!;
       expect(current).toBeGreaterThanOrEqual(previous); // monotonically non-decreasing
       expect(current).toBeLessThanOrEqual(cap); // never exceeds the aptitude cap
@@ -132,7 +132,7 @@ describe("HollowActSystem's runWork: material skill -> production wiring (chunk 
       // No `skills`, no `genome` -- pre-hollow-06a hand-built entity shape.
     } satisfies HollowEntity) as Agent;
 
-    expect(() => act.run({ tick: 0 } as SimContext)).not.toThrow();
+    expect(() => act.run({ tick: 0 })).not.toThrow();
     const wealth = worker.needs!.byKind[NEED_WEALTH]!.value;
     expect(wealth).toBeCloseTo(MATERIAL_HARVEST_PER_TICK * WEALTH_PER_MATERIAL_UNIT, 6); // no skill bonus without a `skills` component
   });

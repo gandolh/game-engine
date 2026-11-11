@@ -77,7 +77,7 @@ export class Query<E extends object, K extends keyof E = keyof E> implements Ite
           return { value: buf[i++]!, done: false };
         }
         release();
-        return { value: undefined as unknown as With<E, K>, done: true };
+        return { value: undefined, done: true };
       },
       return(value?: unknown) {
         release();

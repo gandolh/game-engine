@@ -40,7 +40,7 @@ class StubHost {
     if ((msg as SimInitMsg).type === "init") {
       this.inboundLog.push(msg as SimInitMsg);
     } else {
-      this.controlLog.push(msg as SimOutbound);
+      this.controlLog.push(msg);
     }
   }
 

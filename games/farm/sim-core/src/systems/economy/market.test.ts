@@ -48,7 +48,7 @@ function dispatch(world: World<GameEntity>, bus: MessageBus): void {
   for (const msg of bus.drain()) {
     for (const entity of world.query("inbox")) {
       if (entity.id !== msg.recipient) continue;
-      entity.inbox!.messages.push({
+      entity.inbox.messages.push({
         performative: msg.performative,
         ontology: msg.ontology,
         sender: msg.sender,

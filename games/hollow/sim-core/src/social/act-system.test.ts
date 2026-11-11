@@ -6,7 +6,7 @@
  * which CHOOSES these verbs, is out of scope here; see the brief).
  */
 import { describe, it, expect } from "vitest";
-import { World, MessageBus, createRng, type SimContext, type Intention } from "@engine/core";
+import { World, MessageBus, createRng, type Intention } from "@engine/core";
 import { makeNeed } from "@engine/core/agent";
 import type { HollowEntity, Genome } from "../components";
 import {
@@ -107,7 +107,7 @@ function makeHarness(opts?: {
     events,
     spawn: (o?: Parameters<typeof spawnAgent>[1]) => spawnAgent(world, o),
     step(tick = 0): void {
-      system.run({ tick } as SimContext);
+      system.run({ tick });
       bus.flush();
       bus.notifySubscribers();
     },

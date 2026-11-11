@@ -10,7 +10,7 @@ function makeFarmer(over: Partial<GameEntity> = {}): GameEntity {
     intentions: { queue: [] },
     farmer: { name: "Tester", currentRegion: "farm-cora", homeRegion: "farm-cora" },
     ...over,
-  } as GameEntity;
+  };
 }
 
 const bush: TileFeature = { kind: "bush", tileX: 1, tileY: 1, regionId: "farm-cora", ownerId: 1 };

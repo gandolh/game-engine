@@ -110,7 +110,7 @@ describe("ChaseSystem", () => {
       sender: a.id!,
       body: { challengerId: a.id!, context: "street" },
       tickIssued: 1,
-    } as never);
+    });
     combat.run({ tick: 2 });
     expect(combat.isFighting(a.id!)).toBe(true);
   });

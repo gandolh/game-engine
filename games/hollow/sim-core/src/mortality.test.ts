@@ -23,7 +23,7 @@ function spawnAgent(
     agent: { gx, gy, moveTarget: null },
     beliefs: { data: {}, revision: 0 },
     ...extra,
-  } as HollowEntity);
+  });
 }
 
 describe("day helpers (chunk hollow-15)", () => {
@@ -45,7 +45,7 @@ describe("HollowCorpseSystem — rot + disease spread (chunk hollow-15)", () => 
   it("an unburied corpse starts rotting once past the rot delay", () => {
     const world = new World<HollowEntity>();
     const bus = new MessageBus();
-    const corpse = world.spawn({ id: 500, corpse: makeCorpse(9, 0, 5, 5) } as HollowEntity);
+    const corpse = world.spawn({ id: 500, corpse: makeCorpse(9, 0, 5, 5) });
     const sys = new HollowCorpseSystem(world, bus, createRng(1), {
       ticksPerDay: 20,
       rotDelayDays: 1, // 20 ticks
@@ -60,7 +60,7 @@ describe("HollowCorpseSystem — rot + disease spread (chunk hollow-15)", () => 
   it("a rotting corpse infects a nearby uninfected agent (forced prob=1), but not one out of range", () => {
     const world = new World<HollowEntity>();
     const bus = new MessageBus();
-    world.spawn({ id: 500, corpse: { ...makeCorpse(9, 0, 5, 5), rotting: true } } as HollowEntity);
+    world.spawn({ id: 500, corpse: { ...makeCorpse(9, 0, 5, 5), rotting: true } });
     const near = spawnAgent(world, 1, 6, 6); // Chebyshev 1 — in range
     const far = spawnAgent(world, 2, 40, 40); // far away
     const infected: number[] = [];
@@ -87,7 +87,7 @@ describe("HollowCorpseSystem — rot + disease spread (chunk hollow-15)", () => 
     const corpse = world.spawn({
       id: 500,
       corpse: { ...makeCorpse(9, 0, 5, 5), rotting: true, carriedBy: 2 },
-    } as HollowEntity);
+    });
     const victim = spawnAgent(world, 1, 5, 5); // still standing where the body fell
     const sys = new HollowCorpseSystem(world, bus, createRng(1), {
       ticksPerDay: 20,
@@ -108,7 +108,7 @@ describe("HollowCorpseSystem — rot + disease spread (chunk hollow-15)", () => 
     const corpse = world.spawn({
       id: 500,
       corpse: { ...makeCorpse(9, 0, 5, 5), carriedBy: 999 }, // no live agent 999
-    } as HollowEntity);
+    });
     const sys = new HollowCorpseSystem(world, bus, createRng(1), { ticksPerDay: 20, infectProbPerTick: 0 });
     sys.run(ctxAt(100));
     expect(corpse.corpse!.carriedBy).toBeNull();
@@ -190,13 +190,13 @@ describe("HollowCareActSystem — grave-digger + medic (chunk hollow-15)", () =>
       fsm: { current: "ACT", enteredTick: 0 },
       intentions: { queue: [{ ...intention, priority: 40 }] },
       beliefs: { data: {}, revision: 0 },
-    } as HollowEntity);
+    });
   }
 
   it("collect_corpse picks up an adjacent, unburied, un-carried body", () => {
     const world = new World<HollowEntity>();
     const bus = new MessageBus();
-    const corpse = world.spawn({ id: 500, corpse: makeCorpse(9, 0, 5, 5) } as HollowEntity);
+    const corpse = world.spawn({ id: 500, corpse: makeCorpse(9, 0, 5, 5) });
     const d = digger(world, 1, 5, 5, { kind: "collect_corpse", data: { corpseId: 500 } });
     const sys = new HollowCareActSystem(world, bus, { ticksPerDay: 20 });
     sys.run(ctxAt(1));
@@ -208,7 +208,7 @@ describe("HollowCareActSystem — grave-digger + medic (chunk hollow-15)", () =>
   it("bury_corpse at the graveyard despawns the body and emits BURIED", () => {
     const world = new World<HollowEntity>();
     const bus = new MessageBus();
-    world.spawn({ id: 500, corpse: { ...makeCorpse(9, 0, 5, 5), carriedBy: 1 } } as HollowEntity);
+    world.spawn({ id: 500, corpse: { ...makeCorpse(9, 0, 5, 5), carriedBy: 1 } });
     const d = digger(world, 1, GRAVEYARD_TILE.gx, GRAVEYARD_TILE.gy, { kind: "bury_corpse", data: {} }, 500);
     const buried: number[] = [];
     bus.subscribeOntology(ONT_MORTALITY.BURIED, (m) => buried.push(m.body.corpseId as number));
@@ -235,7 +235,7 @@ describe("HollowCareActSystem — grave-digger + medic (chunk hollow-15)", () =>
       fsm: { current: "ACT", enteredTick: 0 },
       intentions: { queue: [] },
       beliefs: { data: {}, revision: 0 },
-    } as HollowEntity);
+    });
     const sys = new HollowCareActSystem(world, bus, { ticksPerDay: 20, medicMaxTreatmentsPerDay: 3 });
 
     // Feed one treat intention per patient across four ticks of the SAME day.

@@ -130,7 +130,7 @@ describe("ShopkeeperSystem", () => {
     sys.run({ tick: 1 });
 
     expect(farmer.inventory!.crops.radish).toBe(2);
-    const q = farmer.inventory!.cropQuality!.radish!;
+    const q = farmer.inventory!.cropQuality.radish!;
     expect(q.normal + q.silver + q.gold).toBe(farmer.inventory!.crops.radish);
     expect(q).toEqual({ normal: 0, silver: 0, gold: 2 });
   });

@@ -14,9 +14,7 @@ export interface ProfileExportDeps {
 function probeGpu(): { vendor: string; renderer: string } | null {
   try {
     const c = document.createElement("canvas");
-    const gl =
-      (c.getContext("webgl") as WebGLRenderingContext | null) ??
-      (c.getContext("experimental-webgl") as WebGLRenderingContext | null);
+    const gl = c.getContext("webgl") ?? (c.getContext("experimental-webgl") as WebGLRenderingContext | null);
     if (gl === null) return null;
     const ext = gl.getExtension("WEBGL_debug_renderer_info");
     if (ext === null) return null;

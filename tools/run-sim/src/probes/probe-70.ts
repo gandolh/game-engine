@@ -49,7 +49,7 @@ async function runSeed(seed: number): Promise<SeedResult> {
   let firstCloseDay: number | null = null;
 
   for (const f of world.query("farmer", "inbox")) {
-    const arr = f.inbox!.messages;
+    const arr = f.inbox.messages;
     const origPush = arr.push.bind(arr);
     (arr as unknown as { push: (...m: AgentMessage[]) => number }).push = (...msgs: AgentMessage[]) => {
       for (const m of msgs) {

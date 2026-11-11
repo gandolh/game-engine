@@ -6,7 +6,7 @@
  * community/dynamics.test.ts's multi-system harness.
  */
 import { describe, it, expect } from "vitest";
-import { World, MessageBus, createRng, type SimContext } from "@engine/core";
+import { World, MessageBus, createRng } from "@engine/core";
 import { makeNeed } from "@engine/core/agent";
 import type { HollowEntity, Genome } from "../components";
 import { NEED_WEALTH, GOOD_FOOD } from "../economy";
@@ -79,8 +79,8 @@ function makeHarness() {
      *  social/witness-system.ts's header — a rumor/steal-detected emitted
      *  during tick T's ACT is only folded during tick T+1's `run()`. */
     step(tick: number): void {
-      witness.run({ tick } as SimContext);
-      act.run({ tick } as SimContext);
+      witness.run({ tick });
+      act.run({ tick });
       bus.flush();
       bus.notifySubscribers();
     },

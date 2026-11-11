@@ -49,7 +49,7 @@ function formTestCommunity(sim: BootedHollowSim, count: number): number {
     founder.communityId = community.id;
     for (const other of founders) {
       if (other === founder) continue;
-      founder.relationships!.byId.set(other.id as number, 0.75);
+      founder.relationships.byId.set(other.id as number, 0.75);
     }
   }
   return community.id;

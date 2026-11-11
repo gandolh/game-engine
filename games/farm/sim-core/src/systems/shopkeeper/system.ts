@@ -114,13 +114,13 @@ export class ShopkeeperSystem implements System {
     const farmer = findById(this.world, sender, "farmer", "inventory");
     if (!farmer || !farmer.inventory) return;
 
-    const crop = body.crop as CropKind | undefined;
+    const crop = body.crop;
     const qty = body.quantity ?? 0;
     if (!crop || qty <= 0 || !(crop in SHOP_BUY_PRICE)) {
       this.replyConfirm(ctx.tick, sender, {
         ok: false,
         goldDelta: 0,
-        itemDelta: { crop: (crop ?? "radish") as CropKind, quantity: 0 },
+        itemDelta: { crop: crop ?? "radish", quantity: 0 },
         reason: "invalid-buy-request",
       });
       return;

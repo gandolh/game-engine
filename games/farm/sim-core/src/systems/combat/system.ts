@@ -174,7 +174,7 @@ export class CombatSystem implements System {
             this.currentDay = body.day;
             this.initiationsToday.clear();
           }
-          f.health!.current = f.health!.max;
+          f.health.current = f.health.max;
           break;
         }
       }
