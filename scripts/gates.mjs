@@ -26,6 +26,9 @@ import { spawnSync } from "node:child_process";
 /** @type {{ name: string, cmd: string, env?: Record<string,string> }[]} */
 const STEPS = [
   { name: "typecheck", cmd: "npm run typecheck" },
+  { name: "lint", cmd: "npm run lint" },
+  { name: "format:check", cmd: "npm run format:check" },
+  { name: "conventions", cmd: "npm run check:conventions" },
   { name: "test", cmd: "npm run test" },
   { name: "build (Farm client)", cmd: "npm run build" },
   { name: "smoke - sim (Farm)", cmd: "npm run sim", env: { MAX_DAYS: "1", TICKS_PER_DAY: "20" } },
