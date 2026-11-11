@@ -4147,3 +4147,16 @@ manifest, its README and the committed `dist/`), `scripts/sync-os-app.mjs`, the 
 script and the `.gitignore` exception for that `dist/`. [status.md](wiki/status.md),
 [hollow-overview.md](wiki/hollow-overview.md), `docs/games.md` and `docs/getting-started.md` no
 longer point at it. `build:os` is unchanged.
+
+## [2026-11-11] close | Brief 03: the house style and the quality harness
+
+[Brief 03](briefs/done/03-the-house-style-harness.md) is done, and `npm run check` exits 0. The house-style
+1.1.0 copy is vendored; Prettier runs at 120 columns in one reformat commit (954 files, none differs under
+the esbuild comparison, and the sims' `EXPORT=json` hashes and the Citadel and Hollow output are unchanged
+through every step). `erasableSyntaxOnly`, `noUnusedLocals` and `verbatimModuleSyntax` are on: 168
+parameter properties became fields (declared first, which is where TypeScript already emitted them),
+`TerrainType` an `as const` object, 75 unused locals gone. ESLint runs the six typed rules through
+`projectService`; `!` is a warning under a ceiling of 3,574 that only goes down. dependency-cruiser is in
+`check:conventions` with `no-circular` (37) a dated warning; knip is not wired. The atlas manifests'
+`inputsHash` changed with the recipe sources, twice. [decisions.md](wiki/decisions.md) has the entry, and
+[routing.md](routing.md)'s stale deviations table is fixed.

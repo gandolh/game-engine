@@ -241,3 +241,57 @@ One commit per step. Each step ends with `npm run typecheck` and `npm run test` 
 - **The skills library's checkers** (`check-base-ui`, `check-structure`) do not run here, so no `conventions.json` is needed. If one is added later, its roots are `engine`, `games` and `tools`, not `web/` and `server/`.
 - **Cost of the reformat on open work:** 970 files change. Any branch or unmerged work in the owner's clone conflicts on it. Run step 2 when nothing else is open, and use `.git-blame-ignore-revs` for blame.
 - **Not done here, left for later briefs:** `!` removal (596 in source, 3,072 in tests, then the ceiling to zero), knip, `exactOptionalPropertyTypes` follow-ups (already on), and JSON/CSS/HTML formatting.
+
+## Outcome (2026-11-11)
+
+Built on `main`, committed locally and not pushed. The house-style 1.1.0 harness is in: `npm run check` exits 0.
+
+**Commits, in order:** `a17f9f4d` vendor house-style 1.1.0, pin its tools, `.npmrc`; `5d3e47b4` Prettier at 120 and the format scripts; `fdabace6` `style: format with Prettier`; `95349981` the blame-ignore file; `b94b54c8` atlas `inputsHash` refresh; `427280e9` `erasableSyntaxOnly`, parameter properties and the enum; `9498b2de` `noUnusedLocals` and `verbatimModuleSyntax`; `09eaa434` the ESLint config; `4431953b` the hand fixes; `3d9b9c1c` auto-fix `no-unnecessary-type-assertion`; `a8f7aece` auto-fix the type-import rules; `607d536e` atlas `inputsHash` refresh; `f15f075a` the gate; `ecc12eb9` rules, `CLAUDE.md`, corpus.
+
+**The reformat.** 954 files changed (15,363 added, 13,409 removed lines; 970 in the brief's measurement, which counted files this repo's ignore list now skips). The esbuild equivalence check (`minifyWhitespace` and `minifySyntax`, identifiers kept) over all 954: 0 differ, 0 unparseable. The brief expected 4: the two generated glyph files and `docs/` are out of the reformat, and `disease-counterplay.test.ts` differed only under identifier minification. The `EXPORT=json` hashes of seeds 1, 7 and 424242 (`MAX_DAYS=5 TICKS_PER_DAY=200`) and the full output of `npm run sim:citadel` and `npm run sim:hollow` are identical before the reformat, after it, after each of the three tsconfig and lint-fix steps, and at the end. A full `npm run test` after the reformat passed, apart from `games/farm/client/src/main/ambient.test.ts` ("never pushes a sprite ... multi-bird flock") timing out at 5 s once, while a sim comparison ran beside it; alone it passes in 2.2 s.
+
+**Atlas.** The atlas builder hashes the recipe sources into each manifest's `inputsHash`, so the reformat and the later type-import fix changed all six manifests (one line each; the PNGs are byte-identical). The hashes are refreshed in two commits (`b94b54c8`, `607d536e`); a test or `npm run preview` would otherwise rebuild the sheets and dirty the tree.
+
+**Flags.**
+- `erasableSyntaxOnly`: 168 parameter properties in 83 files, and `TerrainType`. The brief says to declare the new fields after the existing initialised fields. Measured with `tsc` and `esbuild` at `ES2022`, a parameter property is emitted as a field declaration *before* every initialised field, so the key order today is parameter order first. The fields are therefore declared at the top of the class, in parameter order, which keeps every instance's key order (shown by the hashes). `TerrainType` is an `as const` object with a derived union, values 0 to 4 unchanged; no reverse lookups (`TerrainType[n]`) exist.
+- `noUnusedLocals`: 75 findings. Calls stay as bare statements (`makeRenderer()`, `host.attach(...)`, `bootstrapSim(...)`); only side-effect-free initialisers are deleted. The settings modal's write-only `settingsLaidOut` flag, its setter and its one call go. Two private fields that were only stored (`CloudShadowPass.gl`, `TileFeatureSystem.rng` and `.bus`) are removed, and the unused `bus` argument is `_bus`. `engine/core/src/conventions.test.ts:295` (a protected file) has one loop variable renamed to `_match`: the flag asks for it and nothing else in the file changed.
+- `verbatimModuleSyntax`: the 2 known sites, plus the 257 all-inline type imports `no-import-type-side-effects` found (now `import type`, so they are erased as they were before the flag).
+
+**ESLint.** 1,442 files, `projectService`, 53 to 70 s wall. Counts per rule, source / tests, from the first run with this repo's config to the last (what is left is warnings only):
+
+| Rule | First run | Left |
+|---|---|---|
+| `no-non-null-assertion` | 609 / 3,078 | 555 / 3,015 (warn) |
+| `no-unnecessary-type-assertion` | 115 / 198 | 0 / 0 (auto-fixed, one site kept with a reason) |
+| `no-import-type-side-effects` | 242 / 1 | 0 (auto-fixed) |
+| `consistent-type-imports` | 11 / 3 | 0 (auto-fixed) |
+| `no-useless-assignment` (new in ESLint 10) | 6 / 1 | 0 |
+| `no-console` | 5 / 0 (after allowing `warn` and `error`) | 0 |
+| `switch-exhaustiveness-check` | 3 / 0 | 1 (warn, the MP client) |
+| `n/no-process-env` | 3 / 0 | 3 (warn) |
+| `prefer-const` 3, `no-empty-object-type` 3, `no-empty` 2, `no-unused-expressions` 2, `no-explicit-any` 2, `await-thenable` 2, `no-misused-promises` 1, `prefer-as-const` 1, `preserve-caught-error` 1, `no-commented-out-tests` 1, `no-standalone-expect` 1 | each as listed | 0 |
+| `vitest/expect-expect` | 15 | 0 (seven helper names given to `assertFunctionNames`) |
+| `no-warning-comments` | 0 on `TODO:`; 4 on the word `todo` with the house terms | 0 |
+
+The warning ceiling is **3,574** (555 + 3,015 `!`, 1 switch, 3 env reads); `npm run lint` exits 0 at exactly that and 1 above it.
+
+**Checkers.** `check-base-ui` and `check-structure` have no web or server roots here, so `scripts/conventions.json` lists none and both run strict and report 0 errors, 0 warnings, "nothing to check". Measured with the roots filled in for the record: `check-structure` rule 2 two errors (the two WebSocket hosts have no `buildApp`), rule 3 34 errors (`process.env` in `tools/` and servers), rule 11 52 warnings (files over 400 lines); `check-base-ui` rule 5 five errors. dependency-cruiser: 1,466 modules, 37 `no-circular` cycles, lowered to a dated warning. knip is not in `check:conventions` (decision 9 of the brief): measured, it reports 38 unused files (hand-run probes and tools), 3 unused dependencies, 9 unused devDependencies, 2 unlisted dependencies, 2 unlisted binaries, 145 unused exports and 43 unused types, so entries have to be decided first.
+
+**Timings** (warm; this machine, load from nothing else): `npm run check` 3 min 32 s (typecheck 37 s forced, 0.3 s cached; `eslint .` 53 to 70 s; `format:check` 14 s; `check:conventions` 3 to 12 s; test 2 min 8 s). `check:fast` with one leaf file changed (a Farm sim-core file): 18.7 s the first run, 3.7 to 4.1 s when repeated (turbo caches the typecheck). With `engine/core` changed: 34.7 s the first run, 3.6 s repeated. Over about 30 s only for an engine edit, whose typecheck reaches all 19 workspaces.
+
+**Checks run:** `npm run check` (exit 0), `npm run house-style:sync -- --check` (0), `npx prettier --check "**/*.{ts,tsx,js,mjs,cjs}"` (0), `npm run test -w @engine/wasm-modules` (0), `npm run build` and `npm run build -w @farm/server` (the Dockerfile's compile; 0), `git ls-files .github` (nothing), `git check-ignore .claude/rules/engine.md` (prints nothing). A deliberate `enum`, `// TODO: x`, unawaited promise, `export default` and `console.log` in `engine/core/src/index.ts` each made `eslint` exit 1 on that file and were reverted. The plugin's hooks run by hand with Claude Code's event JSON: the formatter hook formatted a messy `engine/core/src/zz-hook.ts` and left a messy `docs/` file alone; the Stop hook, after a note of the saved file, exited 2 with a typecheck error and 0 once it was reverted.
+
+**Checks skipped:** `npm run gates` (the owner runs it: the smokes, `preview` and `pack-smoke` need a quiet machine; its first four steps and the builds ran separately); the live-session hook check waits for the plugin update; no docker build.
+
+**Deviations:**
+- The parameter-property fields go first in the class, not after the initialised ones (above).
+- `no-console` allows `warn` and `error`, and the 5 `console.info` and `console.log` calls in clients keep a one-line `eslint-disable-next-line` with their reason, rather than the rule allowing `info`.
+- `eslint.config.js` lets `tools/*/src`, `engine/*/scripts`, `portal/scripts` and `examples` print and read the environment (the `scripts` option), and `games/*/server/src/index.ts` print (the `console` option); the servers' three `process.env` reads are a dated warning.
+- `tsconfig.base.json` keeps its own `ESNext` and `Bundler` settings and the three flags, instead of extending the vendored base (which is `NodeNext`; the image's `deps` stage copies this one file).
+- knip is not wired (brief decision 9; the common mechanics list it).
+- `consistent-type-imports`' fix style (inline `type`) and `no-import-type-side-effects` make most converted imports `import type { ... }`.
+- `scripts/gates.mjs` gets `lint`, `format:check` and `conventions` steps, not two.
+
+**Owner questions** (on the board): the `!` ceiling and a dated warning, instead of an error in source; the Citadel MP client's switch (it ignores the server's roster, presence and emote messages: a gap, or the end of that deprecated path); whether to wire knip, and with which entries; `docs/` staying out of Prettier and ESLint.
+
+**Handoff.** `npm run check` before every hand-back and `npm run check:fast` while working. The vendored copy is `vendor/house-style/`, refreshed with `npm run house-style:sync -- <ref>`. The ceiling is the `--max-warnings` number in the root `package.json`'s `lint` script; lower it as `!` goes. The dated warning blocks in `eslint.config.js` (`!`, the two servers' `process.env`, the MP client's switch) and in `.dependency-cruiser.cjs` (`no-circular`) each name what removes them. After a change to `games/farm/atlas-recipes/src`, run `npm run atlas` and commit the manifests' `inputsHash`. The image's `npm ci` now installs the 12 pinned tools in its build stage (devDependencies); `--omit=dev` in the runtime stage leaves them out.
