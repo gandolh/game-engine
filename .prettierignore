@@ -1,0 +1,25 @@
+# Markdown stays out of Prettier (decided 2026-11-10).
+*.md
+
+# The vendored house-style copy is generated.
+vendor/house-style/
+
+# The Docusaurus site has its own conventions (React, default exports) and its own build.
+docs/
+
+# AssemblyScript: Prettier's TypeScript parser rejects its decorators, and the package's drift test
+# hashes each source against the committed .wasm, so a reformat would fail it.
+engine/wasm-modules/
+
+# Vendored, generated and committed build output.
+engine/ui/vendor/
+engine/ui/src/text/glyphs/unscii8.ts
+engine/ui/src/text/glyphs/unscii16.ts
+**/public/
+**/dist/
+.turbo/
+
+# Not source.
+media/
+inspirations/
+package-lock.json

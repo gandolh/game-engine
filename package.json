@@ -42,7 +42,9 @@
     "docs:dev": "npm run dev -w @game-engine/docs-site",
     "codegraph:init": "codegraph init && codegraph telemetry off && codegraph status",
     "codegraph:sync": "codegraph sync",
-    "house-style:sync": "node vendor/house-style/bin/sync.mjs"
+    "house-style:sync": "node vendor/house-style/bin/sync.mjs",
+    "format": "prettier --write \"**/*.{ts,tsx,js,mjs,cjs}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,mjs,cjs}\""
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
