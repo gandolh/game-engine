@@ -41,12 +41,24 @@
     "docs": "turbo run docs",
     "docs:dev": "npm run dev -w @game-engine/docs-site",
     "codegraph:init": "codegraph init && codegraph telemetry off && codegraph status",
-    "codegraph:sync": "codegraph sync"
+    "codegraph:sync": "codegraph sync",
+    "house-style:sync": "node vendor/house-style/bin/sync.mjs"
   },
   "devDependencies": {
+    "@eslint/js": "10.0.1",
     "@types/node": "25.9.1",
+    "@vitest/eslint-plugin": "1.6.28",
+    "dependency-cruiser": "18.7.2",
+    "eslint": "10.9.1",
+    "eslint-plugin-better-tailwindcss": "4.10.0",
+    "eslint-plugin-import-x": "4.18.1",
+    "eslint-plugin-n": "18.5.0",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "knip": "6.44.2",
+    "prettier": "3.9.10",
     "turbo": "2.10.5",
     "typescript": "6.0.3",
+    "typescript-eslint": "8.72.2",
     "vite": "8.3.5",
     "vitest": "4.1.12"
   }
