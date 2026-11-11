@@ -162,6 +162,7 @@ vite.config.ts.timestamp-*
 # Claude Code worktrees + local config (but DO track shared project skills)
 .claude/*
 !.claude/skills/
+!.claude/rules/
 .worktrees/
 
 # Playwright MCP working directory + debug screenshots

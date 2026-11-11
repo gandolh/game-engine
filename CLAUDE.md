@@ -18,7 +18,7 @@ See [README.md](README.md) for the player-facing pitch and [corpus/](corpus/) fo
 `corpus/` is an LLM-maintained wiki and the source of truth for design intent — prefer it over scattered notes, and fold durable, reusable findings back into it (a wiki page + a `log.md` entry) instead of leaving them in chat or personal memory. Before non-trivial work:
 - Start at [corpus/index.md](corpus/index.md), then drill into [corpus/wiki/architecture.md](corpus/wiki/architecture.md), [corpus/wiki/decisions.md](corpus/wiki/decisions.md), and [corpus/wiki/status.md](corpus/wiki/status.md).
 - **Use the project's words.** [corpus/wiki/glossary.md](corpus/wiki/glossary.md) is the vocabulary of record — one name per concept plus the synonyms it displaces (a *tick* is not a *frame*; new work is a *spec* in `corpus/todos/`, not a *brief*; `villager` always gets qualified with the game). A term used against its definition is a finding, not a typo.
-- [corpus/routing.md](corpus/routing.md) says which layer answers which question and how work routes here — including where the personal skills' paths differ from this repo's (the queue is `corpus/todos/`, **not** `corpus/briefs/todo/`).
+- [corpus/routing.md](corpus/routing.md) says which layer answers which question and how work routes here — including where the personal skills' paths differ from this repo's (work specs go to `corpus/briefs/todo/`, captured ideas to `corpus/todos/`).
 - For player-facing / interaction systems (the playable farmer **Pip**, hotbar, hover tooltips, feature collision, bridges, plot layout, world widening), see [corpus/wiki/player-and-interaction.md](corpus/wiki/player-and-interaction.md).
 - Each game has one design-of-record page: [citadel-overview.md](corpus/wiki/citadel-overview.md), [hollow-overview.md](corpus/wiki/hollow-overview.md), [mathquest-overview.md](corpus/wiki/mathquest-overview.md) (Farm's is [overview.md](corpus/wiki/overview.md)).
 - [corpus/CLAUDE.md](corpus/CLAUDE.md) explains the brief/wiki workflow and the source-of-truth ordering (actual code > a `done/` brief > wiki > prototype README).
@@ -76,7 +76,11 @@ npm run mathquest      # MateQuest client (vite :5176) — sim runs in an in-bro
 npm run portal         # the games portal (vite :5177); `npm run serve-all -w @game-engine/portal` serves it with the four built games from one origin
 npm run build          # production build of the Farm client
 npm run typecheck      # tsc --noEmit across all workspaces — run before committing
-npm run gates          # the FULL gate sequence: typecheck -> test -> build -> four startup smokes
+npm run check          # typecheck, lint, format:check, check:conventions, test — run before every hand-back
+npm run check:fast     # typecheck, then ESLint on the files changed against HEAD (what the Stop hook runs)
+npm run lint           # eslint . --max-warnings <ceiling>; the ceiling only goes down
+npm run format         # Prettier at 120 columns over the code files (format:check just checks)
+npm run gates          # the FULL gate sequence: typecheck -> lint -> format:check -> conventions -> test -> build -> four startup smokes
                         # (sim, sim:citadel, sim:hollow, preview) -> pack-smoke. There is NO hosted
                         # CI — the GitHub Actions workflow was removed 2026-09-19 — so nothing runs
                         # this for you. The smokes are the point: typecheck and tests both stayed
@@ -109,6 +113,7 @@ Headless sim knobs (env vars on `npm run sim`): `SEED`, `TICKS_PER_DAY` (default
 
 - **No `.js` import suffixes.** TypeScript-style extensionless imports throughout.
 - **Pinned versions.** No `^`/`~` in any `package.json` — reproducibility wins.
+- **Prettier at 120 columns; the house style is vendored.** The reformat commit is in `.git-blame-ignore-revs` (`git config blame.ignoreRevsFile .git-blame-ignore-revs`); `vendor/house-style/` is a generated copy (`npm run house-style:sync`), never hand-edited; `!` has a lint ceiling that only goes down.
 - **TypeScript strict**, plus `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes` (see [tsconfig.base.json](tsconfig.base.json)). No `any` without a comment.
 - **A fixed palette is enforced per game.** Every color (sprites, tiles, particles, day/night wash, HTML/canvas UI) must come from named palette-role constants, never a raw hex literal. **Engine + Farm use EDG32** (`EDG.*` in [palette.ts](engine/core/src/render/palette.ts)); **Citadel and Hollow use Apollo-46** (`CITADEL_PAL.*` in [citadel-palette.ts](games/citadel/client/src/render/citadel-palette.ts), imported as `CITADEL_PAL as EDG` so role names are shared; `HOLLOW_PAL` in [hollow-palette.ts](games/hollow/client/src/render/hollow-palette.ts)); **MateQuest uses Resurrect-64** (`MATE_PAL` in [mate-palette.ts](games/mathquest/client/src/render/mate-palette.ts)). The guard test ([palette.test.ts](engine/core/src/render/palette.test.ts)) is **per-scope by path**: `games/citadel/` and `games/hollow/` are validated against Apollo, `games/mathquest/` against Resurrect-64, everything else against EDG32. The engine never imports a game, so each non-EDG swatch list is inlined in the engine-side scan and pinned to its game's module by a colocated test there. (Decision 2026-07-13; see corpus citadel-decisions #28.)
 - **WebGL2 is the only render backend.** Canvas2D and WebGPU were both deleted 2026-08-18; `createRenderer` takes no `backend` option. Shaders are **GLSL ES 3.00** (`#version 300 es`, a `precision` qualifier in fragment shaders, no colour literals) and a per-directory `glsl-lint.test.ts` enforces it. Hollow's 3D layer lives in `engine/core/src/render3d/webgl2/`. See corpus [decisions.md](corpus/wiki/decisions.md) (Renderer).

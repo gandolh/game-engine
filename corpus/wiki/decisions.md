@@ -1,6 +1,6 @@
 ---
 summary: Locked tech choices that future briefs must not relitigate — stack, sim, ECS, renderer (WebGL2-only as of 2026-08-18; static-layer patches past 4096 px and the no-flip texture upload, 2026-11-03), assets, palette, concurrency, tick-pump/speed semantics, build & verify gates (the turbo cache-key rule, the Node-importable barrel rule), WASM, and the gameplay source-of-truth.
-updated: 2026-11-04
+updated: 2026-11-11
 ---
 
 # Locked Decisions
@@ -529,6 +529,39 @@ the render loop still running.
 A test seam, `SimHostOptions.onSchedulerReady` (test-only; never set in production), lets tests
 `scheduler.add(...)` a throwing system without touching any real `@farm/sim-core` system — this is a
 policy fix, not a claim that any real system throws today.
+
+## The house style, formatted and checked (2026-11-11)
+
+The estate's house style is vendored into `vendor/house-style/` (a generated copy, refreshed by
+`npm run house-style:sync`, never a git dependency: the image's `npm ci` runs without git). Prettier
+runs at **120 columns** over the code files, in one reformat commit listed in `.git-blame-ignore-revs`.
+The width is the estate's, not this repo's minimum: 120 and 130 tie on changed lines, and 970 files
+move at any width, because Prettier lowercases hex literals and rewraps hand-wrapped lines. It is
+behaviour-free: every changed file transforms to the same esbuild output before and after, and three
+seeds' `EXPORT=json` hashes and the Citadel and Hollow summaries match.
+
+- **The source guards stay tests.** `conventions.test.ts` (no `Math.random` or wall clock in sim code,
+  no `.js` suffixes, no `^`/`~`), `layering.test.ts` and `palette.test.ts` already run in `npm run test`,
+  and they scan by path with allow-lists a lint rule would have to copy. The lint config does not
+  repeat them.
+- **`!` is a warning with a ceiling, not an error.** About 550 in source and 3,000 in tests, each one an
+  index read that `noUncheckedIndexedAccess` makes the compiler ask for. Removing them by hand from a
+  deterministic sim is a job of its own, so `npm run lint` is `eslint . --max-warnings <n>` and the
+  number only goes down. The house default (an error in source) comes back when it reaches zero.
+- **Three tsconfig flags came on** with their fixes: `erasableSyntaxOnly` (168 parameter properties are
+  declared fields, placed first in the class, which is where TypeScript already emitted them, so every
+  instance keeps its key order; `TerrainType` is an `as const` object with the same five values),
+  `noUnusedLocals` (a call whose result was unused stays a bare statement, so no `Rng` draw moves) and
+  `verbatimModuleSyntax`. The module style is unchanged: `ESNext`, `Bundler`, extensionless imports.
+- **`no-warning-comments` matches `TODO:`, `fixme` and `xxx`**, not the word `todo`: this repo's word for
+  a spec is "todo" ("Todo 2026-07-16: ..."), and 17 comments say it that way.
+- **`docs/` is out of Prettier and ESLint.** It is the Docusaurus site, with React, default exports and
+  its own build. AssemblyScript (`engine/wasm-modules/`, whose drift test hashes the sources) and the
+  generated glyph tables are out too.
+- **dependency-cruiser runs, with `no-circular` a warning.** 37 cycles between two files, mostly a client
+  panel or system and the module that builds it. knip and the two house checkers are not wired in: the
+  checkers have no web or server roots here, and knip's 38 unused files (hand-run probes and tools)
+  need entries decided first.
 
 ## Source-of-truth for gameplay
 

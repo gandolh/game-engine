@@ -1,6 +1,6 @@
 ---
 summary: The current-state snapshot — where each game stands, current sim/determinism behaviour, which gates run, architecture milestones, and open gaps. Brief-by-brief history lives in log.md and the todos/briefs directories, not here.
-updated: 2026-11-09
+updated: 2026-11-11
 ---
 
 # Project Status
@@ -64,8 +64,8 @@ edit the matching line below.
 
 - **There is no hosted CI.** `.github/` and its Actions workflow were **removed 2026-09-19** at the
   user's request. The workflow is gone; the checks are not — the sequence it ran is now
-  [`scripts/gates.mjs`](../../scripts/gates.mjs), run with **`npm run gates`**: typecheck → test →
-  build → four **startup smokes** (`sim`, `sim:citadel`, `sim:hollow`, `preview`) → `pack-smoke`. It
+  [`scripts/gates.mjs`](../../scripts/gates.mjs), run with **`npm run gates`**: typecheck → lint →
+  format:check → conventions → test → build → four **startup smokes** (`sim`, `sim:citadel`, `sim:hollow`, `preview`) → `pack-smoke`. It
   keeps going after a failure and exits non-zero with the list.
   - **The smokes are the part that matters.** `typecheck` and `test` both stayed green through a
     `.glsl` dynamic-import break that made every Node consumer of the renderer throw at import
@@ -76,6 +76,10 @@ edit the matching line below.
   - `sim:hollow` takes **`MAX_YEARS`**, not `MAX_DAYS`/`TICKS_PER_DAY` like the other two sims —
     `tools/hollow-sim` reads a different env var for run length (`tools/hollow-sim/src/env.ts`), and
     passing `MAX_DAYS` silently no-ops into a full-length run.
+- **`npm run check` is the agents' gate** (typecheck, lint, format:check, check:conventions, test) and
+  `npm run check:fast` its changed-file subset. Lint is `eslint . --max-warnings <ceiling>`: about 3,570
+  warnings, nearly all `!`, and the number only goes down. See [decisions.md](decisions.md) → The house
+  style, formatted and checked.
 - **Node `>=24`** is pinned in the root `package.json` `engines` field. It matches
   `infrastructure/Dockerfile`'s `node:24-alpine` — the one pin backed by a real deploy constraint —
   and clears both vite's and vitest's own `engines` ranges. (README's old "Node 20+" was the drift.)

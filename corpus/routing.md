@@ -13,21 +13,20 @@ executor chunks on Sonnet 5 successfully.)
 **Never route a chunk to a fable-model subagent** on this repo (pixel-art chunks included) — use opus.
 **Review skill:** /code-review (repo skill) over the diff; `npm run typecheck` + `npm run test` are the gates
 **PR skill:** propose git commands (gh CLI available). **Commit completed specs at closeout** (one commit for code + one for the corpus change); never push / open a PR / tag without the user's say-so.
-**Issue tracker:** none — the work queue is `corpus/todos/` (ready/in-progress specs) and **every finished spec, of any era, is in `corpus/todos/closed/`** (the separate `corpus/briefs/` tree was folded in on 2026-09-19)
+**Issue tracker:** brief-board mirrors `corpus/briefs/` (`brief-board guide`). The work queue is `corpus/briefs/todo/` since 2026-11-03, finished briefs go to `corpus/briefs/done/` (or `superseded/`), and **every spec from before 2026-11-03, of any era, is in `corpus/todos/closed/`** (the old numbered `briefs/` tree was folded in on 2026-09-19, then `briefs/` came back as the queue). `corpus/todos/` keeps captured ideas.
 **Code host:** GitHub (gh) — `github.com/<owner>/game-engine`
 
-> **Skill-contract deviations — read before invoking any personal skill.** This corpus predates the
-> orchestrate convention, so three of the paths the skills name do not exist here:
+> **Skill-contract deviations — read before invoking any personal skill.** Since 2026-11-03 the skills'
+> `corpus/briefs/` paths exist here too. Two paths still differ:
 >
 > | The skill says | Here it is | Applies to |
 > |---|---|---|
-> | `corpus/briefs/todo/` (the queue) | **`corpus/todos/`** — dated specs, finished ones move to `corpus/todos/closed/` | `orchestrate`, `improve`, `plan-split-dispatch` (backlog mode) |
-> | `corpus/briefs/` (writes new work) | **does not exist** — it was folded into `corpus/todos/closed/` on 2026-09-19. New work is a dated spec in `corpus/todos/`; finished ones move to `corpus/todos/closed/`. | all |
+> | `corpus/briefs/todo/` (the queue) | the same: numbered briefs `briefs/todo/<NN>-<slug>.md`, finished ones in `briefs/done/` or `briefs/superseded/`. Captured ideas stay in `corpus/todos/`, and everything finished before 2026-11-03 is in `corpus/todos/closed/`, where it never moves out | `orchestrate`, `improve`, `plan-split-dispatch` (backlog mode) |
 > | `corpus/wiki/index.md` (the catalog) | **`corpus/index.md`** | `improve` step 1 |
 >
-> A spec's state is **the directory it sits in** (`corpus/todos/` vs `corpus/todos/closed/`), not a
-> table — `corpus/wiki/status.md` stopped duplicating one on 2026-09-19. Read `corpus/CLAUDE.md` for the
-> spec/wiki/log workflow, the domain-modeling rules, and the source-of-truth ordering.
+> A brief's state is **the directory it sits in** (`briefs/todo/` vs `briefs/done/`), not a table —
+> `corpus/wiki/status.md` stopped duplicating one on 2026-09-19. Read `corpus/CLAUDE.md` for the
+> workflow, the domain-modeling rules, and the source-of-truth ordering.
 
 ## Intent routing
 | Signal | Intent | Route to |
@@ -101,4 +100,4 @@ before you *act*.
 - Fixed palette enforced per game (palette.test guard, per-scope) — every color from a named role constant, never raw hex: engine + Farm = EDG32 (`EDG.*`); Citadel = Apollo-46 (`CITADEL_PAL as EDG`); Hollow = `HOLLOW_PAL`; MateQuest = Resurrect-64 (`MATE_PAL`). See citadel-decisions #28.
 - Engine never imports a game; no game imports another game (four of them: farm, citadel, hollow, mathquest).
 - Determinism is load-bearing — no `Math.random`/`Date.now` in sim; all randomness via seeded `Rng.fork(label)`.
-- `npm run typecheck` + `npm run test` before any commit. Commit completed briefs at closeout (code + corpus as separate commits); never push without the user's go.
+- `npm run check` (typecheck, lint, format:check, conventions, test) before any commit; `npm run check:fast` while working. Commit completed briefs at closeout (code + corpus as separate commits); never push without the user's go.
