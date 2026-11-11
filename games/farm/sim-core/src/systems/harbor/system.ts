@@ -15,17 +15,20 @@ import { deductCrops } from "../../economy";
 import { generateContracts, canFulfillContract } from "./contracts";
 
 export class HarborSystem implements System {
+  private readonly world: World<GameEntity>;
+  private readonly bus: MessageBus;
+  private readonly ticksPerDay: number;
+
   readonly name = "HarborSystem";
 
   private lastDayProcessed = -1;
   private readonly harborRng: Rng;
 
-  constructor(
-    private readonly world: World<GameEntity>,
-    private readonly bus: MessageBus,
-    rng: Rng,
-    private readonly ticksPerDay: number,
-  ) {
+  constructor(world: World<GameEntity>, bus: MessageBus, rng: Rng, ticksPerDay: number) {
+    this.world = world;
+    this.bus = bus;
+    this.ticksPerDay = ticksPerDay;
+
     this.harborRng = rng.fork("harbor");
   }
 

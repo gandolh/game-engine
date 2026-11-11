@@ -12,15 +12,18 @@ export interface RunHistoryRow {
 }
 
 export class RunHistorySystem implements System {
+  private readonly world: World<GameEntity>;
+  private readonly bus?: MessageBus | undefined;
+
   readonly name = "RunHistorySystem";
 
   private readonly rows: RunHistoryRow[] = [];
   private lastDayProcessed = -1;
 
-  constructor(
-    private readonly world: World<GameEntity>,
-    private readonly bus?: MessageBus,
-  ) {}
+  constructor(world: World<GameEntity>, bus?: MessageBus) {
+    this.world = world;
+    this.bus = bus;
+  }
 
   run(_ctx: SimContext): void {
     let newDay: number | null = null;

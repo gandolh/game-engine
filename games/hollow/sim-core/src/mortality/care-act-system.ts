@@ -53,16 +53,18 @@ function chebyshev(ax: number, ay: number, bx: number, by: number): number {
 }
 
 export class HollowCareActSystem implements System {
+  private readonly world: World<HollowEntity>;
+  private readonly bus: MessageBus;
+
   readonly name = "HollowCareActSystem";
 
   private readonly ticksPerDay: number;
   private readonly medicCap: number;
 
-  constructor(
-    private readonly world: World<HollowEntity>,
-    private readonly bus: MessageBus,
-    opts: CareActSystemOptions,
-  ) {
+  constructor(world: World<HollowEntity>, bus: MessageBus, opts: CareActSystemOptions) {
+    this.world = world;
+    this.bus = bus;
+
     this.ticksPerDay = opts.ticksPerDay;
     this.medicCap = opts.medicMaxTreatmentsPerDay ?? MEDIC_MAX_TREATMENTS_PER_DAY;
   }

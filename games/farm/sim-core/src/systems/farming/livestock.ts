@@ -21,14 +21,15 @@ function computeProductQuality(care: number, rng: Rng): CropQuality {
 }
 
 export class LivestockSystem implements System {
+  private readonly world: World<GameEntity>;
+
   readonly name = "LivestockSystem";
   private lastDayProcessed = -1;
   private readonly productRng: Rng;
 
-  constructor(
-    private readonly world: World<GameEntity>,
-    rng: Rng,
-  ) {
+  constructor(world: World<GameEntity>, rng: Rng) {
+    this.world = world;
+
     this.productRng = rng.fork("livestock");
   }
 

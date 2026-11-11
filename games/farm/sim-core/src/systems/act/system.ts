@@ -44,17 +44,19 @@ import { handlePrayAtShrine } from "./handlers/shrine";
 import { handleChallenge } from "./handlers/combat";
 
 export class ActSystem implements System {
+  private readonly world: World<GameEntity>;
+  private readonly bus?: MessageBus | undefined;
+
   readonly name = "ActSystem";
 
   private readonly fishRng: Rng;
   private readonly mineRng: Rng;
   private readonly forageRng: Rng;
 
-  constructor(
-    private readonly world: World<GameEntity>,
-    rng: Rng,
-    private readonly bus?: MessageBus,
-  ) {
+  constructor(world: World<GameEntity>, rng: Rng, bus?: MessageBus) {
+    this.world = world;
+    this.bus = bus;
+
     this.fishRng = rng.fork("fish");
     this.mineRng = rng.fork("mine");
     this.forageRng = rng.fork("forage-seed");

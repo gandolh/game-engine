@@ -11,16 +11,18 @@ const CROPS: readonly CropKind[] = ["radish", "wheat", "pumpkin"];
 const BOUNTY_CHANCE = 0.6; // probability a given day has a bounty
 
 export class NoticeBoardSystem implements System {
+  private readonly world: World<GameEntity>;
+  private readonly bus: MessageBus;
+
   readonly name = "NoticeBoardSystem";
 
   private lastDayProcessed = -1;
   private readonly bountyRng: Rng;
 
-  constructor(
-    private readonly world: World<GameEntity>,
-    private readonly bus: MessageBus,
-    rng: Rng,
-  ) {
+  constructor(world: World<GameEntity>, bus: MessageBus, rng: Rng) {
+    this.world = world;
+    this.bus = bus;
+
     this.bountyRng = rng.fork("bounty");
   }
 

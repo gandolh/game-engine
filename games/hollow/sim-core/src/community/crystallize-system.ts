@@ -83,6 +83,10 @@ type CommunityEntity = HollowEntity & {
 };
 
 export class HollowCommunitySystem implements System {
+  private readonly world: World<HollowEntity>;
+  private readonly registry: CommunityRegistry;
+  private readonly bus: MessageBus;
+
   readonly name = "HollowCommunitySystem";
 
   private readonly checkIntervalTicks: number;
@@ -96,11 +100,15 @@ export class HollowCommunitySystem implements System {
   private readonly mergeTerritoryRadius: number;
 
   constructor(
-    private readonly world: World<HollowEntity>,
-    private readonly registry: CommunityRegistry,
-    private readonly bus: MessageBus,
+    world: World<HollowEntity>,
+    registry: CommunityRegistry,
+    bus: MessageBus,
     opts: CommunitySystemOptions = {},
   ) {
+    this.world = world;
+    this.registry = registry;
+    this.bus = bus;
+
     this.checkIntervalTicks = opts.checkIntervalTicks ?? COMMUNITY_CHECK_INTERVAL_TICKS;
     this.minSize = opts.minSize ?? COMMUNITY_MIN_SIZE;
     this.minMembers = opts.minMembers ?? COMMUNITY_MIN_MEMBERS;

@@ -58,6 +58,11 @@ interface ActivePlague {
 const RESOURCE_KINDS: readonly ResourceKind[] = ["food", "material"];
 
 export class HollowShockSystem implements System {
+  private readonly world: World<HollowEntity>;
+  private readonly resources: ResourceWorld;
+  private readonly bus: MessageBus;
+  private readonly shockRng: Rng;
+
   readonly name = "HollowShockSystem";
 
   private readonly pendingByTick = new Map<number, Intervention[]>();
@@ -66,12 +71,12 @@ export class HollowShockSystem implements System {
   private readonly activeWindows: ActiveWindow[] = [];
   private readonly activePlagues: ActivePlague[] = [];
 
-  constructor(
-    private readonly world: World<HollowEntity>,
-    private readonly resources: ResourceWorld,
-    private readonly bus: MessageBus,
-    private readonly shockRng: Rng,
-  ) {}
+  constructor(world: World<HollowEntity>, resources: ResourceWorld, bus: MessageBus, shockRng: Rng) {
+    this.world = world;
+    this.resources = resources;
+    this.bus = bus;
+    this.shockRng = shockRng;
+  }
 
   /** Live scheduling API (`BootedHollowSim.scheduleShock`) — enqueues
    *  `shock` to apply at `applyTick` (the NEXT tick boundary, per the

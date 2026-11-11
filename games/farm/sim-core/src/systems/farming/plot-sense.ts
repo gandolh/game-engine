@@ -14,9 +14,13 @@ export interface PlotWaterSense {
 }
 
 export class PlotSenseSystem implements System {
+  private readonly world: World<GameEntity>;
+
   readonly name = "PlotSenseSystem";
 
-  constructor(private readonly world: World<GameEntity>) {}
+  constructor(world: World<GameEntity>) {
+    this.world = world;
+  }
 
   run(_ctx: SimContext): void {
     const byOwnerPlanted = new Map<

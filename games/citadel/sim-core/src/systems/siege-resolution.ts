@@ -310,6 +310,8 @@ function applyCozyPilfer(state: SimState, p: PlayerState, raider: RaiderState, r
 }
 
 export class SiegeResolutionSystem implements System {
+  private readonly state: SimState;
+
   readonly name = "SiegeResolutionSystem";
 
   /**
@@ -320,10 +322,9 @@ export class SiegeResolutionSystem implements System {
    */
   private readonly cozy: boolean;
 
-  constructor(
-    private readonly state: SimState,
-    opts: { cozy?: boolean } = {},
-  ) {
+  constructor(state: SimState, opts: { cozy?: boolean } = {}) {
+    this.state = state;
+
     this.cozy = opts.cozy ?? true;
   }
 

@@ -66,14 +66,18 @@ function rollWeighted(rng: Rng, weights: WeatherWeights): WeatherCondition {
 }
 
 export class WeatherSystem implements System {
+  private readonly bus: MessageBus;
+  private readonly world: World<GameEntity>;
+  private readonly rng: Rng;
+
   readonly name = "WeatherSystem";
   private lastDayProcessed = -1;
 
-  constructor(
-    private readonly bus: MessageBus,
-    private readonly world: World<GameEntity>,
-    private readonly rng: Rng,
-  ) {}
+  constructor(bus: MessageBus, world: World<GameEntity>, rng: Rng) {
+    this.bus = bus;
+    this.world = world;
+    this.rng = rng;
+  }
 
   run(_ctx: SimContext): void {
     const stations = this.world.query("weatherStation", "inbox");

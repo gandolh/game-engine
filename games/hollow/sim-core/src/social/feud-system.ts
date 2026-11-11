@@ -150,6 +150,9 @@ function dyadKey(holderId: number, towardId: number): string {
 }
 
 export class HollowFeudSystem implements System {
+  private readonly world: World<HollowEntity>;
+  private readonly bus: MessageBus;
+
   readonly name = "HollowFeudSystem";
 
   private readonly feudMax: number;
@@ -167,11 +170,10 @@ export class HollowFeudSystem implements System {
   /** Hysteresis-band state — see this file's header. Keyed `"holderId:towardId"`. */
   private readonly activeFeuds = new Set<string>();
 
-  constructor(
-    private readonly world: World<HollowEntity>,
-    private readonly bus: MessageBus,
-    opts: FeudSystemOptions = {},
-  ) {
+  constructor(world: World<HollowEntity>, bus: MessageBus, opts: FeudSystemOptions = {}) {
+    this.world = world;
+    this.bus = bus;
+
     this.feudMax = opts.feudMax ?? FEUD_MAX;
     this.incrementAttack = opts.feudIncrementAttack ?? FEUD_INCREMENT_ATTACK;
     this.incrementSabotage = opts.feudIncrementSabotage ?? FEUD_INCREMENT_SABOTAGE;

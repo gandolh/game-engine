@@ -19,16 +19,18 @@ import type { CitadelSimHost, Peer } from "./sim-host";
 const BUILD_TYPES = ["house", "farm", "house", "woodcutter"] as const;
 
 export class CitadelBot {
+  private readonly host: CitadelSimHost;
+  private readonly peer: Peer;
+
   private readonly rng: Rng;
   private anchor: { x: number; y: number } | null = null;
   private placedAnchor = false;
   private updates = 0;
 
-  constructor(
-    private readonly host: CitadelSimHost,
-    private readonly peer: Peer,
-    seed: number,
-  ) {
+  constructor(host: CitadelSimHost, peer: Peer, seed: number) {
+    this.host = host;
+    this.peer = peer;
+
     this.rng = createRng(seed).fork(`citadel-bot-${peer.playerId}`);
   }
 

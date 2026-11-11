@@ -107,6 +107,8 @@ const COZY_WELL_EXTINGUISH_BONUS = 2;
 const COZY_FIRE_MOOD_DENT = 8;
 
 export class FireSystem implements System {
+  private readonly state: SimState;
+
   readonly name = "FireSystem";
 
   private lastDay = -1;
@@ -155,10 +157,9 @@ export class FireSystem implements System {
    */
   private buildingCountWatermark = -1;
 
-  constructor(
-    private readonly state: SimState,
-    opts: { cozy?: boolean; deferUntilBuildings?: number } = {},
-  ) {
+  constructor(state: SimState, opts: { cozy?: boolean; deferUntilBuildings?: number } = {}) {
+    this.state = state;
+
     this.cozy = opts.cozy ?? true;
     this.deferUntilBuildings = opts.deferUntilBuildings ?? 0;
     // Fork the base RNG ONCE in constructor, never per-tick.

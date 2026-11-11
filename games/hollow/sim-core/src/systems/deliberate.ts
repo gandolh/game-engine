@@ -42,6 +42,17 @@ const PERCEIVE_STATE: HollowFsmState = "PERCEIVE";
 const ACT_STATE: HollowFsmState = "ACT";
 
 export class HollowDeliberateSystem implements System {
+  private readonly world: World<HollowEntity>;
+  /**
+   * Chunk hollow-13's optional LLM-rationalizer seam (`rationalize/`).
+   * `undefined` is OFF and is the default — the sim then behaves exactly
+   * as it did pre-hollow-13 (see `agents/registry.ts`'s
+   * `HollowDeliberationContext.rationalizer` for the OFF contract). Only
+   * `sim-bootstrap.ts` ever passes a real one, and only when
+   * `HollowSimOptions.rationalizer` was set by the caller.
+   */
+  private readonly rationalizer: RationalizerSeam | undefined;
+
   readonly name = "HollowDeliberateSystem";
   private readonly inner: System;
   private neighbors: readonly NeighborView[] = [];
@@ -49,21 +60,16 @@ export class HollowDeliberateSystem implements System {
   private sick: readonly SickTargetView[] = [];
 
   constructor(
-    private readonly world: World<HollowEntity>,
+    world: World<HollowEntity>,
     resources: ResourceWorld,
     communities: CommunityRegistry,
     ticksPerDay: number,
     medicMaxTreatmentsPerDay: number = MEDIC_MAX_TREATMENTS_PER_DAY,
-    /**
-     * Chunk hollow-13's optional LLM-rationalizer seam (`rationalize/`).
-     * `undefined` is OFF and is the default — the sim then behaves exactly
-     * as it did pre-hollow-13 (see `agents/registry.ts`'s
-     * `HollowDeliberationContext.rationalizer` for the OFF contract). Only
-     * `sim-bootstrap.ts` ever passes a real one, and only when
-     * `HollowSimOptions.rationalizer` was set by the caller.
-     */
-    private readonly rationalizer: RationalizerSeam | undefined = undefined,
+    rationalizer: RationalizerSeam | undefined = undefined,
   ) {
+    this.world = world;
+    this.rationalizer = rationalizer;
+
     this.inner = createDeliberateSystem(world, {
       name: "HollowDeliberateSystem",
       registry: personalityRegistry,

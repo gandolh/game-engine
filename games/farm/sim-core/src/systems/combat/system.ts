@@ -44,6 +44,10 @@ function pairKey(a: number, b: number): string {
 }
 
 export class CombatSystem implements System {
+  private readonly world: World<GameEntity>;
+  private readonly bus: MessageBus;
+  private readonly rng: Rng;
+
   readonly name = "CombatSystem";
 
   private readonly bouts = new Map<string, Bout>();
@@ -57,12 +61,11 @@ export class CombatSystem implements System {
 
   private currentDay = 0;
 
-  constructor(
-    private readonly world: World<GameEntity>,
-    private readonly bus: MessageBus,
-    private readonly rng: Rng,
-    ticksPerDay: number,
-  ) {
+  constructor(world: World<GameEntity>, bus: MessageBus, rng: Rng, ticksPerDay: number) {
+    this.world = world;
+    this.bus = bus;
+    this.rng = rng;
+
     this.swingInterval = swingIntervalTicks(ticksPerDay);
   }
 

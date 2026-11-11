@@ -6,16 +6,19 @@ import { pursuitWindowTicks } from "./constants";
 import type { CombatSystem } from "./system";
 
 export class ChaseSystem implements System {
+  private readonly world: World<GameEntity>;
+  private readonly bus: MessageBus;
+  private readonly combat: CombatSystem;
+
   readonly name = "ChaseSystem";
 
   private readonly pursuitWindow: number;
 
-  constructor(
-    private readonly world: World<GameEntity>,
-    private readonly bus: MessageBus,
-    private readonly combat: CombatSystem,
-    ticksPerDay: number,
-  ) {
+  constructor(world: World<GameEntity>, bus: MessageBus, combat: CombatSystem, ticksPerDay: number) {
+    this.world = world;
+    this.bus = bus;
+    this.combat = combat;
+
     this.pursuitWindow = pursuitWindowTicks(ticksPerDay);
   }
 

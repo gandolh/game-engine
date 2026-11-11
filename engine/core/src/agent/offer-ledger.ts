@@ -19,10 +19,14 @@ export interface PendingOffer<T> {
 }
 
 export class OfferLedger<T> {
+  private readonly ttlTicks: number;
+
   private readonly pending = new Map<string, PendingOffer<T>>();
   private readonly resolvedThisRound = new Set<string>();
 
-  constructor(private readonly ttlTicks: number) {}
+  constructor(ttlTicks: number) {
+    this.ttlTicks = ttlTicks;
+  }
 
   /** Drop offers older than the TTL. Preserves insertion order of survivors. */
   expire(now: number): void {

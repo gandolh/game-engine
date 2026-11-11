@@ -7,6 +7,9 @@ import { ONT_SIMULATION, PERFORMATIVE } from "../../protocols";
 import type { DailySlateBody } from "../../protocols/shop";
 
 export class ShopSlateSystem implements System {
+  private readonly world: World<GameEntity>;
+  private readonly bus: MessageBus;
+
   readonly name = "ShopSlateSystem";
 
   private lastDayProcessed = -1;
@@ -17,11 +20,10 @@ export class ShopSlateSystem implements System {
   // by design — the draw sequence differs from the raw-stream version.)
   private readonly rng: Rng;
 
-  constructor(
-    private readonly world: World<GameEntity>,
-    private readonly bus: MessageBus,
-    rng: Rng,
-  ) {
+  constructor(world: World<GameEntity>, bus: MessageBus, rng: Rng) {
+    this.world = world;
+    this.bus = bus;
+
     this.rng = rng.fork("shop-slate");
   }
 

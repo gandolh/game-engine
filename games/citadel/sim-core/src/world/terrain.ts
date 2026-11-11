@@ -57,16 +57,17 @@ export const RESOURCE_MAX_DISTANCE = 70;
  * Terrain types for the Citadel world.
  * Grass and rough are walkable; water and forest and stone are obstacles.
  *
- * Using a plain numeric enum (not const enum) so it is compatible with
- * isolatedModules + esbuild (vitest).
+ * A plain `as const` object with a derived union, not an enum: the house writes only erasable
+ * TypeScript. The numeric values are the cell bytes of `TerrainGrid.cells`, so none may change.
  */
-export enum TerrainType {
-  Grass = 0,
-  Water = 1,
-  Forest = 2,
-  Stone = 3,
-  Rough = 4,
-}
+export const TerrainType = {
+  Grass: 0,
+  Water: 1,
+  Forest: 2,
+  Stone: 3,
+  Rough: 4,
+} as const;
+export type TerrainType = (typeof TerrainType)[keyof typeof TerrainType];
 
 export interface TerrainGrid {
   readonly cells: Uint8Array; // length WORLD_WIDTH * WORLD_HEIGHT

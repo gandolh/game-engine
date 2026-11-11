@@ -91,9 +91,13 @@ function isSellIntent(kind: string): boolean {
 }
 
 export class ApSystem implements System {
+  private readonly world: World<GameEntity>;
+
   readonly name = "ApSystem";
 
-  constructor(private readonly world: World<GameEntity>) {}
+  constructor(world: World<GameEntity>) {
+    this.world = world;
+  }
 
   run(_ctx: SimContext): void {
     const farmers = this.world.query("fsm", "ap", "intentions");

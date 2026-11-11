@@ -21,13 +21,17 @@ import type { TradeCompletedBody } from "../event-feed/types";
  * "read farmer inboxes before Perceive wipes them" contract.
  */
 export class WallTradeSystem implements System {
+  private readonly world: World<GameEntity>;
+  private readonly bus: MessageBus;
+  private readonly market: MarketSystem;
+
   readonly name = "WallTradeSystem";
 
-  constructor(
-    private readonly world: World<GameEntity>,
-    private readonly bus: MessageBus,
-    private readonly market: MarketSystem,
-  ) {}
+  constructor(world: World<GameEntity>, bus: MessageBus, market: MarketSystem) {
+    this.world = world;
+    this.bus = bus;
+    this.market = market;
+  }
 
   run(ctx: SimContext): void {
     const wall = firstEntity(this.world, "marketWall", "inbox");

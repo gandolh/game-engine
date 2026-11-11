@@ -11,11 +11,15 @@ export interface MeetIndicatorEntry {
 }
 
 export class MeetIndicatorSystem implements System {
+  private readonly world: World<GameEntity>;
+
   readonly name = "MeetIndicatorSystem";
 
   private readonly indicators = new Map<string, MeetIndicatorEntry>();
 
-  constructor(private readonly world: World<GameEntity>) {}
+  constructor(world: World<GameEntity>) {
+    this.world = world;
+  }
 
   run(ctx: SimContext): void {
     for (const entity of this.world.query("farmer", "inbox")) {

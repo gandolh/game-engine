@@ -14,9 +14,13 @@ import { getProductionDef } from "../entities/building";
 import type { SimState } from "../sim-state";
 
 export class RoadConnectivitySystem implements System {
+  private readonly state: SimState;
+
   readonly name = "RoadConnectivitySystem";
 
-  constructor(private readonly state: SimState) {}
+  constructor(state: SimState) {
+    this.state = state;
+  }
 
   run(_ctx: SimContext): void {
     const state = this.state;

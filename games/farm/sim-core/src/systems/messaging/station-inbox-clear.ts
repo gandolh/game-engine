@@ -32,9 +32,13 @@ import { ONT_SHOP } from "../../protocols/shop";
  * check, so retaining every remaining `AUCTION_RESULT` here keeps the set bounded.
  */
 export class StationInboxClearSystem implements System {
+  private readonly world: World<GameEntity>;
+
   readonly name = "StationInboxClearSystem";
 
-  constructor(private readonly world: World<GameEntity>) {}
+  constructor(world: World<GameEntity>) {
+    this.world = world;
+  }
 
   run(_ctx: SimContext): void {
     // Discriminates farmers by `beliefs`, while PerceiveSystem queries

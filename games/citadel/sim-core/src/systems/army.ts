@@ -75,9 +75,13 @@ function destroyBuilding(state: SimState, entity: BuildingEntity, owner: PlayerS
 }
 
 export class ArmySystem implements System {
+  private readonly state: SimState;
+
   readonly name = "ArmySystem";
 
-  constructor(private readonly state: SimState) {}
+  constructor(state: SimState) {
+    this.state = state;
+  }
 
   run(ctx: SimContext): void {
     const state = this.state;

@@ -6,16 +6,28 @@ import { PERFORMATIVE } from "../../protocols/performatives";
 import { STEP_TICKS, smoothPath } from "./path";
 
 export class TravelSystem implements System {
+  private readonly world: World<GameEntity>;
+  private readonly pathfinder: Pathfinder;
+  private readonly grid: PathfinderGrid;
+  private readonly bus: MessageBus;
+  private readonly boatGrid?: PathfinderGrid | undefined;
+
   readonly name = "TravelSystem";
 
   constructor(
-    private readonly world: World<GameEntity>,
-    private readonly pathfinder: Pathfinder,
-    private readonly grid: PathfinderGrid,
-    private readonly bus: MessageBus,
+    world: World<GameEntity>,
+    pathfinder: Pathfinder,
+    grid: PathfinderGrid,
+    bus: MessageBus,
 
-    private readonly boatGrid?: PathfinderGrid,
-  ) {}
+    boatGrid?: PathfinderGrid,
+  ) {
+    this.world = world;
+    this.pathfinder = pathfinder;
+    this.grid = grid;
+    this.bus = bus;
+    this.boatGrid = boatGrid;
+  }
 
   private gridFor(entity: GameEntity): PathfinderGrid {
     if (entity.farmer?.aboard && this.boatGrid) return this.boatGrid;

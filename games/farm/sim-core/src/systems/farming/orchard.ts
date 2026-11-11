@@ -10,10 +10,14 @@ import { ORCHARD_MATURATION_DAYS, FRUIT_SEASON, FRUIT_YIELD_PER_HARVEST } from "
 const DAYS_PER_SEASON = 25; // 4 seasons × 25 days = 100-day run
 
 export class OrchardSystem implements System {
+  private readonly world: World<GameEntity>;
+
   readonly name = "OrchardSystem";
   private lastDayProcessed = -1;
 
-  constructor(private readonly world: World<GameEntity>) {}
+  constructor(world: World<GameEntity>) {
+    this.world = world;
+  }
 
   run(_ctx: SimContext): void {
     const stations = this.world.query("weatherStation", "inbox");

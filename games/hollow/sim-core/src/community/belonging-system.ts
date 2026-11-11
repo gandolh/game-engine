@@ -59,15 +59,16 @@ function chebyshevDistance(ax: number, ay: number, bx: number, by: number): numb
 }
 
 export class HollowBelongingSystem implements System {
+  private readonly world: World<HollowEntity>;
+
   readonly name = "HollowBelongingSystem";
   private readonly replenishPerTick: number;
   private readonly decayPerTick: number;
   private readonly ticksPerDay: number;
 
-  constructor(
-    private readonly world: World<HollowEntity>,
-    opts: BelongingSystemOptions,
-  ) {
+  constructor(world: World<HollowEntity>, opts: BelongingSystemOptions) {
+    this.world = world;
+
     this.replenishPerTick = opts.attendanceReplenishPerTick ?? BELONGING_ATTENDANCE_REPLENISH_PER_TICK;
     this.decayPerTick = opts.absenceDecayPerTick ?? BELONGING_ABSENCE_DECAY_PER_TICK;
     this.ticksPerDay = opts.ticksPerDay;

@@ -7,15 +7,19 @@ import type { EventFeedSystem, EventEntry } from "../event-feed";
 const GOSSIP_WINDOW = 12;
 
 export class TavernSystem implements System {
+  private readonly world: World<GameEntity>;
+  private readonly eventFeed: EventFeedSystem;
+  private readonly bus?: MessageBus | undefined;
+
   readonly name = "TavernSystem";
 
   private lastDayProcessed = -1;
 
-  constructor(
-    private readonly world: World<GameEntity>,
-    private readonly eventFeed: EventFeedSystem,
-    private readonly bus?: MessageBus,
-  ) {}
+  constructor(world: World<GameEntity>, eventFeed: EventFeedSystem, bus?: MessageBus) {
+    this.world = world;
+    this.eventFeed = eventFeed;
+    this.bus = bus;
+  }
 
   run(_ctx: SimContext): void {
     const tavern = this.findTavern();

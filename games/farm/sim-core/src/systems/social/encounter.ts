@@ -7,14 +7,17 @@ import { PERFORMATIVE } from "../../protocols/performatives";
 export const MEET_COOLDOWN_TICKS = 20;
 
 export class EncounterSystem implements System {
+  private readonly world: World<GameEntity>;
+  private readonly bus: MessageBus;
+
   readonly name = "EncounterSystem";
 
   private readonly lastMet = new Map<string, number>();
 
-  constructor(
-    private readonly world: World<GameEntity>,
-    private readonly bus: MessageBus,
-  ) {
+  constructor(world: World<GameEntity>, bus: MessageBus) {
+    this.world = world;
+    this.bus = bus;
+
     void this.bus;
   }
 

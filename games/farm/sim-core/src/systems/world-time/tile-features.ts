@@ -15,16 +15,20 @@ const ZONE_BUSH_CHANCE = 0.08;
 const MAX_PER_ZONE = 20;
 
 export class TileFeatureSystem implements System {
+  private readonly world: World<GameEntity>;
+  private readonly rng: Rng;
+  private readonly bus?: MessageBus | undefined;
+
   readonly name = "TileFeatureSystem";
   private lastDayProcessed = -1;
 
   private readonly cluster: Rng;
 
-  constructor(
-    private readonly world: World<GameEntity>,
-    private readonly rng: Rng,
-    private readonly bus?: MessageBus,
-  ) {
+  constructor(world: World<GameEntity>, rng: Rng, bus?: MessageBus) {
+    this.world = world;
+    this.rng = rng;
+    this.bus = bus;
+
     this.cluster = rng.fork("tile-cluster");
   }
 

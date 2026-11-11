@@ -54,6 +54,10 @@ type SickEntity = HollowEntity & {
 };
 
 export class HollowDiseaseSystem implements System {
+  private readonly world: World<HollowEntity>;
+  private readonly bus: MessageBus;
+  private readonly mortalityRng: Rng;
+
   readonly name = "HollowDiseaseSystem";
 
   private readonly ticksPerDay: number;
@@ -61,12 +65,11 @@ export class HollowDiseaseSystem implements System {
   private readonly selfRecoveryDays: number;
   private readonly medicRecoveryDays: number;
 
-  constructor(
-    private readonly world: World<HollowEntity>,
-    private readonly bus: MessageBus,
-    private readonly mortalityRng: Rng,
-    opts: DiseaseSystemOptions,
-  ) {
+  constructor(world: World<HollowEntity>, bus: MessageBus, mortalityRng: Rng, opts: DiseaseSystemOptions) {
+    this.world = world;
+    this.bus = bus;
+    this.mortalityRng = mortalityRng;
+
     this.ticksPerDay = opts.ticksPerDay;
     this.mortalityProbPerDay = opts.mortalityProbPerDay ?? DISEASE_MORTALITY_PROB_PER_DAY;
     this.selfRecoveryDays = opts.selfRecoveryDays ?? DISEASE_SELF_RECOVERY_DAYS;

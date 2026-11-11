@@ -3,9 +3,13 @@ import type { GameEntity } from "../../components";
 import { getNpcBehavior, npcRoleOf } from "../../agents/npc-behaviors";
 
 export class NpcDeliberateSystem implements System {
+  private readonly world: World<GameEntity>;
+
   readonly name = "NpcDeliberateSystem";
 
-  constructor(private readonly world: World<GameEntity>) {}
+  constructor(world: World<GameEntity>) {
+    this.world = world;
+  }
 
   run(ctx: SimContext): void {
     for (const e of this.world.query("workNpc")) {

@@ -55,6 +55,10 @@ interface LivingView {
 type CorpseEntity = HollowEntity & { id: number; corpse: NonNullable<HollowEntity["corpse"]> };
 
 export class HollowCorpseSystem implements System {
+  private readonly world: World<HollowEntity>;
+  private readonly bus: MessageBus;
+  private readonly spreadRng: Rng;
+
   readonly name = "HollowCorpseSystem";
 
   private readonly ticksPerDay: number;
@@ -62,12 +66,11 @@ export class HollowCorpseSystem implements System {
   private readonly spreadRadius: number;
   private readonly infectProbPerTick: number;
 
-  constructor(
-    private readonly world: World<HollowEntity>,
-    private readonly bus: MessageBus,
-    private readonly spreadRng: Rng,
-    opts: CorpseSystemOptions,
-  ) {
+  constructor(world: World<HollowEntity>, bus: MessageBus, spreadRng: Rng, opts: CorpseSystemOptions) {
+    this.world = world;
+    this.bus = bus;
+    this.spreadRng = spreadRng;
+
     this.ticksPerDay = opts.ticksPerDay;
     this.rotDelayDays = opts.rotDelayDays ?? CORPSE_ROT_DELAY_DAYS;
     this.spreadRadius = opts.spreadRadius ?? DISEASE_SPREAD_RADIUS;

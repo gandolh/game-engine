@@ -54,18 +54,28 @@ type PairBondEntity = HollowEntity & {
 };
 
 export class HollowPairBondSystem implements System {
+  private readonly world: World<HollowEntity>;
+  private readonly bus: MessageBus;
+  private readonly households: HouseholdRegistry;
+  private readonly lineage: LineageRegistry;
+
   readonly name = "HollowPairBondSystem";
   private readonly trustThreshold: number;
   private readonly compatThreshold: number;
   private readonly proximityTiles: number;
 
   constructor(
-    private readonly world: World<HollowEntity>,
-    private readonly bus: MessageBus,
-    private readonly households: HouseholdRegistry,
-    private readonly lineage: LineageRegistry,
+    world: World<HollowEntity>,
+    bus: MessageBus,
+    households: HouseholdRegistry,
+    lineage: LineageRegistry,
     opts: PairBondSystemOptions = {},
   ) {
+    this.world = world;
+    this.bus = bus;
+    this.households = households;
+    this.lineage = lineage;
+
     this.trustThreshold = opts.trustThreshold ?? PAIRBOND_TRUST_THRESHOLD;
     this.compatThreshold = opts.compatThreshold ?? PAIRBOND_COMPAT_THRESHOLD;
     this.proximityTiles = opts.proximityTiles ?? PAIRBOND_PROXIMITY_TILES;

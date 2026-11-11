@@ -38,14 +38,15 @@ export function computeQuality(
 }
 
 export class HarvestSystem implements System {
+  private readonly world: World<GameEntity>;
+
   readonly name = "HarvestSystem";
 
   private readonly qualityRng: Rng | null;
 
-  constructor(
-    private readonly world: World<GameEntity>,
-    rng?: Rng,
-  ) {
+  constructor(world: World<GameEntity>, rng?: Rng) {
+    this.world = world;
+
     this.qualityRng = rng ? rng.fork("crop-quality") : null;
   }
 

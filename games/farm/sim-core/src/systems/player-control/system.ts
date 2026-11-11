@@ -11,9 +11,13 @@ export const PLAYER_SPEED = 1 / PLAYER_STEP_TICKS;
 const AABB_HALF = 0.3;
 
 export class PlayerControlSystem implements System {
+  private readonly world: World<GameEntity>;
+
   readonly name = "PlayerControlSystem";
 
-  constructor(private readonly world: World<GameEntity>) {}
+  constructor(world: World<GameEntity>) {
+    this.world = world;
+  }
 
   run(_ctx: SimContext): void {
     for (const entity of this.world.query("player", "transform", "farmer", "intentions")) {

@@ -35,12 +35,15 @@ const GIVE_QTY = 5;
 const RECEIVE_QTY = 3;
 
 export class TraderSystem implements System {
+  private readonly state: SimState;
+  private readonly ticksPerDay: number;
+
   readonly name = "TraderSystem";
 
-  constructor(
-    private readonly state: SimState,
-    private readonly ticksPerDay: number,
-  ) {}
+  constructor(state: SimState, ticksPerDay: number) {
+    this.state = state;
+    this.ticksPerDay = ticksPerDay;
+  }
 
   run(ctx: SimContext): void {
     if (ctx.tick === 0 || ctx.tick % this.ticksPerDay !== 0) return;

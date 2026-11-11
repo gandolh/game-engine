@@ -12,6 +12,8 @@ import {
 } from "./types";
 
 export class RivalrySystem implements System {
+  private readonly world: World<GameEntity>;
+
   readonly name = "RivalrySystem";
 
   private readonly latchedRivalKeys = new Set<string>();
@@ -20,7 +22,9 @@ export class RivalrySystem implements System {
 
   private readonly freshThisTick: FreshRivalry[] = [];
 
-  constructor(private readonly world: World<GameEntity>) {}
+  constructor(world: World<GameEntity>) {
+    this.world = world;
+  }
 
   run(_ctx: SimContext): void {
     this.freshThisTick.length = 0;

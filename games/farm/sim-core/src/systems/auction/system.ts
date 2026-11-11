@@ -19,6 +19,9 @@ import {
 export type { DutchAuctionOptions, EnglishAuctionOptions };
 
 export class AuctionSystem implements System {
+  private readonly bus: MessageBus;
+  private readonly world: World<GameEntity>;
+
   readonly name = "AuctionSystem";
 
   readonly auctions = new Map<string, AuctionState>();
@@ -27,12 +30,15 @@ export class AuctionSystem implements System {
   private readonly englishDefaults: Required<EnglishAuctionOptions>;
 
   constructor(
-    private readonly bus: MessageBus,
-    private readonly world: World<GameEntity>,
+    bus: MessageBus,
+    world: World<GameEntity>,
     rng: Rng,
     dutchDefaults: DutchAuctionOptions = {},
     englishDefaults: EnglishAuctionOptions = {},
   ) {
+    this.bus = bus;
+    this.world = world;
+
     this._rng = rng.fork("auction");
     void this._rng;
     this.dutchDefaults = {

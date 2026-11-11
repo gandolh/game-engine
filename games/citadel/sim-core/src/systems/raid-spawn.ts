@@ -88,6 +88,9 @@ export function computeRaiderPath(
 }
 
 export class RaidSpawnSystem implements System {
+  private readonly state: SimState;
+  private readonly terrain: TerrainGrid;
+
   readonly name = "RaidSpawnSystem";
   private readonly baseRng: Rng;
   private readonly rivalBase: Rng;
@@ -101,11 +104,10 @@ export class RaidSpawnSystem implements System {
    */
   private readonly deferUntilBuildings: number;
 
-  constructor(
-    private readonly state: SimState,
-    private readonly terrain: TerrainGrid,
-    opts: { deferUntilBuildings?: number } = {},
-  ) {
+  constructor(state: SimState, terrain: TerrainGrid, opts: { deferUntilBuildings?: number } = {}) {
+    this.state = state;
+    this.terrain = terrain;
+
     this.deferUntilBuildings = opts.deferUntilBuildings ?? 0;
     // Fork the base RNG ONCE at construction — never per tick.
     this.baseRng = state.rng.fork("raids");

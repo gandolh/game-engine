@@ -154,6 +154,8 @@ interface Track {
  * so ids never collide across sets. Stateful but render-only.
  */
 export class EntityInterpolator {
+  private readonly segmentIntervals: number;
+
   private readonly tracks = new Map<number, Track>();
 
   /**
@@ -166,7 +168,9 @@ export class EntityInterpolator {
    * sets" section of the header for why that switches `positionOf` to a different
    * glide.
    */
-  constructor(private readonly segmentIntervals: number = 1) {}
+  constructor(segmentIntervals: number = 1) {
+    this.segmentIntervals = segmentIntervals;
+  }
 
   /**
    * Ingest a new snapshot's entities: shift each known id's current→previous and

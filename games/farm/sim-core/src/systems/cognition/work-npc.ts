@@ -12,9 +12,13 @@ function scaled(base: number, busyFactor: number | undefined): number {
 }
 
 export class WorkNpcSystem implements System {
+  private readonly world: World<GameEntity>;
+
   readonly name = "WorkNpcSystem";
 
-  constructor(private readonly world: World<GameEntity>) {}
+  constructor(world: World<GameEntity>) {
+    this.world = world;
+  }
 
   run(_ctx: SimContext): void {
     for (const e of this.world.query("workNpc", "transform")) {

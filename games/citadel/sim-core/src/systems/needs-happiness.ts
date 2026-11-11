@@ -75,12 +75,15 @@ function easeHappiness(prior: number, target: number): number {
 const SAFETY_PROVIDERS: ReadonlySet<string> = new Set(["watchpost", "tower", "garrison", "keep", "town-hall"]);
 
 export class NeedsHappinessSystem implements System {
+  private readonly state: SimState;
+  private readonly ticksPerDay: number;
+
   readonly name = "NeedsHappinessSystem";
 
-  constructor(
-    private readonly state: SimState,
-    private readonly ticksPerDay: number,
-  ) {}
+  constructor(state: SimState, ticksPerDay: number) {
+    this.state = state;
+    this.ticksPerDay = ticksPerDay;
+  }
 
   run(ctx: SimContext): void {
     if (ctx.tick === 0 || ctx.tick % this.ticksPerDay !== 0) return;

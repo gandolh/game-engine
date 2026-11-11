@@ -93,6 +93,13 @@ type LifecycleEntity = HollowEntity & {
 };
 
 export class HollowLifecycleSystem implements System {
+  private readonly world: World<HollowEntity>;
+  private readonly bus: MessageBus;
+  private readonly households: HouseholdRegistry;
+  private readonly communities: CommunityRegistry;
+  private readonly lineage: LineageRegistry;
+  private readonly rng: Rng;
+
   readonly name = "HollowLifecycleSystem";
 
   private readonly childAdultTicks: number;
@@ -103,14 +110,21 @@ export class HollowLifecycleSystem implements System {
   private readonly starvationDeathTicks: number;
 
   constructor(
-    private readonly world: World<HollowEntity>,
-    private readonly bus: MessageBus,
-    private readonly households: HouseholdRegistry,
-    private readonly communities: CommunityRegistry,
-    private readonly lineage: LineageRegistry,
-    private readonly rng: Rng,
+    world: World<HollowEntity>,
+    bus: MessageBus,
+    households: HouseholdRegistry,
+    communities: CommunityRegistry,
+    lineage: LineageRegistry,
+    rng: Rng,
     opts: LifecycleSystemOptions = {},
   ) {
+    this.world = world;
+    this.bus = bus;
+    this.households = households;
+    this.communities = communities;
+    this.lineage = lineage;
+    this.rng = rng;
+
     this.childAdultTicks = opts.childAdultTicks ?? STAGE_CHILD_ADULT_TICKS;
     this.adultElderTicks = opts.adultElderTicks ?? STAGE_ADULT_ELDER_TICKS;
     this.oldAgeHazardBase = opts.oldAgeHazardBase ?? OLD_AGE_HAZARD_BASE;

@@ -91,12 +91,15 @@ export function canBuildAt(state: SimState, p: PlayerState, x: number, y: number
 }
 
 export class TerritorySystem implements System {
+  private readonly state: SimState;
+  private readonly radius: number;
+
   readonly name = "TerritorySystem";
 
-  constructor(
-    private readonly state: SimState,
-    private readonly radius: number,
-  ) {}
+  constructor(state: SimState, radius: number) {
+    this.state = state;
+    this.radius = radius;
+  }
 
   run(_ctx: SimContext): void {
     // Recompute on building-change. Runs BEFORE RoadConnectivitySystem (same

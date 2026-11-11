@@ -9,12 +9,15 @@ import { ONT_COMMISSION, type CommissionBuildBody, type CommissionDoneBody } fro
 export const COMMISSION_BUILD_TICKS = 30;
 
 export class CarpenterSystem implements System {
+  private readonly world: World<GameEntity>;
+  private readonly bus: MessageBus;
+
   readonly name = "CarpenterSystem";
 
-  constructor(
-    private readonly world: World<GameEntity>,
-    private readonly bus: MessageBus,
-  ) {}
+  constructor(world: World<GameEntity>, bus: MessageBus) {
+    this.world = world;
+    this.bus = bus;
+  }
 
   run(ctx: SimContext): void {
     const carpenter = this.findCarpenter();

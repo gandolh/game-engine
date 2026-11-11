@@ -82,9 +82,9 @@ describe("generateTerrain", () => {
     expect(differs).toBe(true);
   });
 
-  it("all terrain type values are valid TerrainType enum values", () => {
+  it("all terrain type values are valid TerrainType values", () => {
     const grid = generateTerrain(7);
-    const validValues = new Set([
+    const validValues = new Set<number>([
       TerrainType.Grass,
       TerrainType.Water,
       TerrainType.Forest,

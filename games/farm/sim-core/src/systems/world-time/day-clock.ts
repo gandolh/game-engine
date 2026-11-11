@@ -13,15 +13,18 @@ export interface DayClockConfig {
 }
 
 export class DayClockSystem implements System {
+  private readonly bus: MessageBus;
+  private readonly config: DayClockConfig;
+
   readonly name = "DayClockSystem";
   private currentDay = 0;
   private lastBoundary = -1;
   private lastPhase: DayPhase | null = null;
 
-  constructor(
-    private readonly bus: MessageBus,
-    private readonly config: DayClockConfig,
-  ) {}
+  constructor(bus: MessageBus, config: DayClockConfig) {
+    this.bus = bus;
+    this.config = config;
+  }
 
   get day(): number {
     return this.currentDay;

@@ -30,15 +30,16 @@ function bubbleRingsByIsle(): ReadonlyArray<ReadonlyArray<{ x: number; y: number
 }
 
 export class BubbleSystem implements System {
+  private readonly world: World<GameEntity>;
+
   readonly name = "BubbleSystem";
   private lastDayProcessed = -1;
   private readonly rings = bubbleRingsByIsle();
   private readonly rng: Rng;
 
-  constructor(
-    private readonly world: World<GameEntity>,
-    rng: Rng,
-  ) {
+  constructor(world: World<GameEntity>, rng: Rng) {
+    this.world = world;
+
     this.rng = rng.fork("bubbles");
   }
 

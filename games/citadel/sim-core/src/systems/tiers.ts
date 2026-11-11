@@ -163,10 +163,14 @@ export function countNonRoadBuildings(state: SimState, playerId: number): number
  * tick of each day) and fires a pushEvent on promotion.
  */
 export class TierSystem implements System {
+  private readonly state: SimState;
+
   readonly name = "TierSystem";
   private lastCheckedDay = -1;
 
-  constructor(private readonly state: SimState) {}
+  constructor(state: SimState) {
+    this.state = state;
+  }
 
   run(ctx: SimContext): void {
     // Only evaluate once per day (at tick 0 of each day).

@@ -2,12 +2,15 @@ import type { SimContext, System, MessageBus, World } from "@engine/core";
 import type { GameEntity } from "../../components";
 
 export class InboxDispatchSystem implements System {
+  private readonly bus: MessageBus;
+  private readonly world: World<GameEntity>;
+
   readonly name = "InboxDispatchSystem";
 
-  constructor(
-    private readonly bus: MessageBus,
-    private readonly world: World<GameEntity>,
-  ) {}
+  constructor(bus: MessageBus, world: World<GameEntity>) {
+    this.bus = bus;
+    this.world = world;
+  }
 
   run(_ctx: SimContext): void {
     this.bus.flush();

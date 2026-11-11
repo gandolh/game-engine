@@ -23,14 +23,15 @@ interface TradeCompletedBody {
 }
 
 export class TrustSystem implements System {
+  private readonly world: World<GameEntity>;
+
   readonly name = "TrustSystem";
 
   private readonly config: TrustConfig;
 
-  constructor(
-    private readonly world: World<GameEntity>,
-    configOverrides?: Partial<TrustConfig>,
-  ) {
+  constructor(world: World<GameEntity>, configOverrides?: Partial<TrustConfig>) {
+    this.world = world;
+
     this.config = { ...DEFAULT_TRUST_CONFIG, ...(configOverrides ?? {}) };
   }
 

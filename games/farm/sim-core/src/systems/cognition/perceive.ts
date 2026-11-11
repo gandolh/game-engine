@@ -11,9 +11,13 @@ import { ONT_HARBOR } from "../../protocols/harbor";
 import { CAMP_REGION_ID } from "../../world/regions";
 
 export class PerceiveSystem implements System {
+  private readonly world: World<GameEntity>;
+
   readonly name = "PerceiveSystem";
 
-  constructor(private readonly world: World<GameEntity>) {}
+  constructor(world: World<GameEntity>) {
+    this.world = world;
+  }
 
   run(ctx: SimContext): void {
     const farmers = this.world.query("inbox", "beliefs", "fsm");

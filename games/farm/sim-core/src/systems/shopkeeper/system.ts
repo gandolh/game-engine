@@ -33,6 +33,10 @@ export interface ShopkeeperSystemOptions {
 }
 
 export class ShopkeeperSystem implements System {
+  private readonly bus: MessageBus;
+  private readonly world: World<GameEntity>;
+  private readonly auctionSystem: AuctionSystem;
+
   readonly name = "ShopkeeperSystem";
 
   private lastAuctionDay = -Infinity;
@@ -44,11 +48,15 @@ export class ShopkeeperSystem implements System {
   private readonly auctionDurationTicks: number;
 
   constructor(
-    private readonly bus: MessageBus,
-    private readonly world: World<GameEntity>,
-    private readonly auctionSystem: AuctionSystem,
+    bus: MessageBus,
+    world: World<GameEntity>,
+    auctionSystem: AuctionSystem,
     options: ShopkeeperSystemOptions = {},
   ) {
+    this.bus = bus;
+    this.world = world;
+    this.auctionSystem = auctionSystem;
+
     this.auctionEveryDays = options.auctionEveryDays ?? AUCTION_TRIGGER_INTERVAL_DAYS;
     this.auctionReservePrice = options.auctionReservePrice ?? AUCTION_RESERVE_PRICE;
     this.auctionDurationTicks = options.auctionDurationTicks ?? AUCTION_DURATION_TICKS;

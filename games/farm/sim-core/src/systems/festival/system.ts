@@ -17,6 +17,10 @@ import {
 import { Submission, QUALITY_RANK, rankSubmissions } from "./scoring";
 
 export class FestivalSystem implements System {
+  private readonly bus: MessageBus;
+  private readonly world: World<GameEntity>;
+  private readonly ticksPerDay: number;
+
   readonly name = "FestivalSystem";
 
   private readonly rng: Rng;
@@ -27,12 +31,16 @@ export class FestivalSystem implements System {
   private readonly submissions = new Map<number, Map<number, Submission>>();
 
   constructor(
-    private readonly bus: MessageBus,
-    private readonly world: World<GameEntity>,
+    bus: MessageBus,
+    world: World<GameEntity>,
     rng: Rng,
 
-    private readonly ticksPerDay: number,
+    ticksPerDay: number,
   ) {
+    this.bus = bus;
+    this.world = world;
+    this.ticksPerDay = ticksPerDay;
+
     this.rng = rng.fork("festival");
   }
 

@@ -177,6 +177,8 @@ function requestKey(request: RationalizerRequest): string {
 }
 
 export class RationalizerSeam {
+  private readonly provider: Rationalizer;
+
   private readonly requestTimeoutTicks: number;
   private readonly maxInFlight: number;
   private readonly maxDecisionLog: number;
@@ -190,10 +192,9 @@ export class RationalizerSeam {
   private droppedDecisions = 0;
   private lastDrainedTick = -1;
 
-  constructor(
-    private readonly provider: Rationalizer,
-    opts: RationalizerSeamOptions = {},
-  ) {
+  constructor(provider: Rationalizer, opts: RationalizerSeamOptions = {}) {
+    this.provider = provider;
+
     this.requestTimeoutTicks = opts.requestTimeoutTicks ?? DEFAULT_REQUEST_TIMEOUT_TICKS;
     this.maxInFlight = opts.maxInFlight ?? DEFAULT_MAX_IN_FLIGHT;
     this.maxDecisionLog = opts.maxDecisionLog ?? DEFAULT_MAX_DECISION_LOG;

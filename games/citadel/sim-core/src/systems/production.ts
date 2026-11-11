@@ -181,9 +181,13 @@ export function productivityFactor(h: number): number {
 const TOWN_HALL_OUTPUT_LIFT = 1.2;
 
 export class ProductionSystem implements System {
+  private readonly state: SimState;
+
   readonly name = "ProductionSystem";
 
-  constructor(private readonly state: SimState) {}
+  constructor(state: SimState) {
+    this.state = state;
+  }
 
   run(ctx: SimContext): void {
     const state = this.state;

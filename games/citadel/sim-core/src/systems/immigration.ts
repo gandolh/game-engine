@@ -112,6 +112,8 @@ export function arrivalFactor(happiness: number, townService: number): number {
 }
 
 export class ImmigrationSystem implements System {
+  private readonly state: SimState;
+
   readonly name = "ImmigrationSystem";
 
   private lastDay = -1;
@@ -134,10 +136,9 @@ export class ImmigrationSystem implements System {
   private readonly rng: Rng;
   private readonly cozy: boolean;
 
-  constructor(
-    private readonly state: SimState,
-    opts: { cozy?: boolean } = {},
-  ) {
+  constructor(state: SimState, opts: { cozy?: boolean } = {}) {
+    this.state = state;
+
     this.rng = state.rng.fork("immigration");
     this.cozy = opts.cozy ?? true;
   }

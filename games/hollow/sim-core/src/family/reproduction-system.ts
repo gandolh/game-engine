@@ -73,6 +73,14 @@ type ReproductionEntity = HollowEntity & {
 };
 
 export class HollowReproductionSystem implements System {
+  private readonly world: World<HollowEntity>;
+  private readonly bus: MessageBus;
+  private readonly households: HouseholdRegistry;
+  private readonly lineage: LineageRegistry;
+  private readonly resources: ResourceWorld;
+  private readonly reproductionRng: Rng;
+  private readonly geneticsRng: Rng;
+
   readonly name = "HollowReproductionSystem";
   private readonly birthWindowTicks: number;
   private readonly birthChance: number;
@@ -84,15 +92,23 @@ export class HollowReproductionSystem implements System {
   private readonly foodSupplyPerTick: number;
 
   constructor(
-    private readonly world: World<HollowEntity>,
-    private readonly bus: MessageBus,
-    private readonly households: HouseholdRegistry,
-    private readonly lineage: LineageRegistry,
-    private readonly resources: ResourceWorld,
-    private readonly reproductionRng: Rng,
-    private readonly geneticsRng: Rng,
+    world: World<HollowEntity>,
+    bus: MessageBus,
+    households: HouseholdRegistry,
+    lineage: LineageRegistry,
+    resources: ResourceWorld,
+    reproductionRng: Rng,
+    geneticsRng: Rng,
     opts: ReproductionSystemOptions = {},
   ) {
+    this.world = world;
+    this.bus = bus;
+    this.households = households;
+    this.lineage = lineage;
+    this.resources = resources;
+    this.reproductionRng = reproductionRng;
+    this.geneticsRng = geneticsRng;
+
     this.birthWindowTicks = opts.birthWindowTicks ?? BIRTH_WINDOW_TICKS;
     this.birthChance = opts.birthChance ?? BIRTH_CHANCE;
     this.foodSecurityFraction = opts.foodSecurityFraction ?? BIRTH_FOOD_SECURITY_FRACTION;

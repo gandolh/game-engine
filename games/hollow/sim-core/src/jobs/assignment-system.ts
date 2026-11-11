@@ -90,16 +90,24 @@ function clamp(v: number, lo: number, hi: number): number {
 }
 
 export class HollowJobAssignmentSystem implements System {
+  private readonly world: World<HollowEntity>;
+  private readonly communities: CommunityRegistry;
+  private readonly bus: MessageBus;
+
   readonly name = "HollowJobAssignmentSystem";
 
   private readonly intervalTicks: number;
 
   constructor(
-    private readonly world: World<HollowEntity>,
-    private readonly communities: CommunityRegistry,
-    private readonly bus: MessageBus,
+    world: World<HollowEntity>,
+    communities: CommunityRegistry,
+    bus: MessageBus,
     opts: JobAssignmentSystemOptions = {},
   ) {
+    this.world = world;
+    this.communities = communities;
+    this.bus = bus;
+
     this.intervalTicks = opts.intervalTicks ?? JOBS_ASSIGN_INTERVAL_TICKS;
   }
 

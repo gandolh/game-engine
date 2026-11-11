@@ -82,12 +82,15 @@ function stepToward(agent: HollowAgent, targetGx: number, targetGy: number): boo
 }
 
 export class HollowActSystem implements System {
+  private readonly world: World<HollowEntity>;
+  private readonly resources: ResourceWorld;
+
   readonly name = "HollowActSystem";
 
-  constructor(
-    private readonly world: World<HollowEntity>,
-    private readonly resources: ResourceWorld,
-  ) {}
+  constructor(world: World<HollowEntity>, resources: ResourceWorld) {
+    this.world = world;
+    this.resources = resources;
+  }
 
   run(_ctx: SimContext): void {
     for (const entity of this.world.query("agent", "needs", "inventory", "fsm", "intentions")) {

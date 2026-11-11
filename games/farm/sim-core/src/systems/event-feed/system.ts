@@ -22,6 +22,11 @@ import { type EventEntry, type TradeCompletedBody, EVENT_FEED_CAP } from "./type
 export const EVENT_SEEN_CAP = 4096;
 
 export class EventFeedSystem implements System {
+  private readonly world: World<GameEntity>;
+  private readonly dayClock: DayClockSystem;
+  private readonly rivalry?: RivalrySystem | undefined;
+  private readonly runHistory?: RunHistorySystem | undefined;
+
   readonly name = "EventFeedSystem";
 
   private readonly events: EventEntry[] = [];
@@ -36,12 +41,17 @@ export class EventFeedSystem implements System {
   private readonly seenCap: number;
 
   constructor(
-    private readonly world: World<GameEntity>,
-    private readonly dayClock: DayClockSystem,
-    private readonly rivalry?: RivalrySystem,
-    private readonly runHistory?: RunHistorySystem,
+    world: World<GameEntity>,
+    dayClock: DayClockSystem,
+    rivalry?: RivalrySystem,
+    runHistory?: RunHistorySystem,
     seenCap: number = EVENT_SEEN_CAP,
   ) {
+    this.world = world;
+    this.dayClock = dayClock;
+    this.rivalry = rivalry;
+    this.runHistory = runHistory;
+
     this.seenCap = seenCap;
   }
 

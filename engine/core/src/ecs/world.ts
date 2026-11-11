@@ -18,10 +18,14 @@ export type Entity<E extends EngineEntity = EngineEntity> = E;
 export type With<E, K extends keyof E> = E & Required<Pick<E, K>>;
 
 export class Query<E extends object, K extends keyof E = keyof E> implements Iterable<With<E, K>> {
+  readonly components: readonly K[];
+
   readonly entities: With<E, K>[] = [];
   private readonly members = new Set<E>();
 
-  constructor(readonly components: readonly K[]) {}
+  constructor(components: readonly K[]) {
+    this.components = components;
+  }
 
   matches(entity: E): boolean {
     for (const k of this.components) {

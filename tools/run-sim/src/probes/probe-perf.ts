@@ -82,13 +82,14 @@ interface ClientStats {
 }
 
 class DrainClient {
+  readonly id: number;
+
   readonly stats: ClientStats = { snapshots: 0, payloadBytes: 0, lastProfile: null };
   private readonly ws: WebSocket;
 
-  constructor(
-    readonly id: number,
-    profile: boolean,
-  ) {
+  constructor(id: number, profile: boolean) {
+    this.id = id;
+
     this.ws = new WebSocket(`ws://localhost:${PORT}`);
     this.ws.on("open", () => {
       this.ws.send(JSON.stringify(INIT));

@@ -67,6 +67,8 @@ export interface CitadelSimHostOptions {
 }
 
 export class CitadelSimHost {
+  private readonly opts: CitadelSimHostOptions;
+
   private sim: CitadelSimResult | null = null;
   private readonly peers = new Set<Peer>();
   private tick = 0;
@@ -87,7 +89,9 @@ export class CitadelSimHost {
   private readonly reapGraceMs: number;
   private reapTimer: ReturnType<typeof setTimeout> | null = null;
 
-  constructor(private readonly opts: CitadelSimHostOptions = {}) {
+  constructor(opts: CitadelSimHostOptions = {}) {
+    this.opts = opts;
+
     this.reapGraceMs = opts.reapGraceMs ?? 10_000;
   }
 

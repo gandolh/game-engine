@@ -10,14 +10,17 @@ import { farmingGrowthMultiplier } from "../skills";
 export const DRY_DEATH_GRACE_DAYS = 2;
 
 export class CropGrowthSystem implements System {
+  private readonly world: World<GameEntity>;
+  private readonly bus?: MessageBus | undefined;
+
   readonly name = "CropGrowthSystem";
   private lastDayProcessed = -1;
   private readonly plotScratch: With<GameEntity, "plot">[] = [];
 
-  constructor(
-    private readonly world: World<GameEntity>,
-    private readonly bus?: MessageBus,
-  ) {}
+  constructor(world: World<GameEntity>, bus?: MessageBus) {
+    this.world = world;
+    this.bus = bus;
+  }
 
   run(ctx: SimContext): void {
     const stations = this.world.query("weatherStation", "inbox");

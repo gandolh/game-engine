@@ -27,12 +27,15 @@ const PERCEIVE_STATE: HollowFsmState = "PERCEIVE";
 const ACT_STATE: HollowFsmState = "ACT";
 
 export class HollowPerceiveSystem implements System {
+  private readonly world: World<HollowEntity>;
+  private readonly bus: MessageBus;
+
   readonly name = "HollowPerceiveSystem";
 
-  constructor(
-    private readonly world: World<HollowEntity>,
-    private readonly bus: MessageBus,
-  ) {}
+  constructor(world: World<HollowEntity>, bus: MessageBus) {
+    this.world = world;
+    this.bus = bus;
+  }
 
   run(ctx: SimContext): void {
     for (const entity of this.world.query("needs", "fsm", "beliefs", "intentions")) {

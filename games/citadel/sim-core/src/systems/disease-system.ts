@@ -22,6 +22,8 @@ import type { Rng } from "@engine/core";
 import { createRng } from "@engine/core";
 
 export class DiseaseSystem implements System {
+  private readonly state: SimState;
+
   readonly name = "DiseaseSystem";
 
   private lastDay = -1;
@@ -45,10 +47,9 @@ export class DiseaseSystem implements System {
    */
   private readonly deferUntilBuildings: number;
 
-  constructor(
-    private readonly state: SimState,
-    opts: { cozy?: boolean; deferUntilBuildings?: number } = {},
-  ) {
+  constructor(state: SimState, opts: { cozy?: boolean; deferUntilBuildings?: number } = {}) {
+    this.state = state;
+
     this.cozy = opts.cozy ?? true;
     this.deferUntilBuildings = opts.deferUntilBuildings ?? 0;
     // Fork the base RNG ONCE in constructor, never per-tick.

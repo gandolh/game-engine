@@ -95,6 +95,8 @@ function tierBucketKey(wantGoods: boolean, wantPrimary: boolean): TierBucketKey 
 }
 
 export class VillagerSystem implements System {
+  private readonly state: SimState;
+
   readonly name = "VillagerSystem";
 
   /**
@@ -132,7 +134,9 @@ export class VillagerSystem implements System {
    */
   private buildingCountWatermark = -1;
 
-  constructor(private readonly state: SimState) {}
+  constructor(state: SimState) {
+    this.state = state;
+  }
 
   run(ctx: SimContext): void {
     const state = this.state;

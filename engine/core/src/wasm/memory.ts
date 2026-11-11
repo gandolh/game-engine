@@ -4,10 +4,13 @@ export interface WasmAllocator {
 }
 
 export class WasmHeap {
-  constructor(
-    readonly memory: WebAssembly.Memory,
-    readonly allocator: WasmAllocator,
-  ) {}
+  readonly memory: WebAssembly.Memory;
+  readonly allocator: WasmAllocator;
+
+  constructor(memory: WebAssembly.Memory, allocator: WasmAllocator) {
+    this.memory = memory;
+    this.allocator = allocator;
+  }
 
   u8(ptr: number, length: number): Uint8Array {
     return new Uint8Array(this.memory.buffer, ptr, length);

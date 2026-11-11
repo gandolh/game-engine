@@ -12,11 +12,15 @@ import type { Command, CommandQueue } from "./command-queue";
 export type CommandHandler<C extends Command = Command> = (cmd: C, ctx: SimContext) => void;
 
 export class CommandSystem<C extends Command = Command> implements System {
+  private readonly queue: CommandQueue<C>;
+
   readonly name = "CommandSystem";
 
   private readonly handlers = new Map<string, CommandHandler<Command>>();
 
-  constructor(private readonly queue: CommandQueue<C>) {}
+  constructor(queue: CommandQueue<C>) {
+    this.queue = queue;
+  }
 
   /**
    * Register a handler for a specific command type.

@@ -5,12 +5,15 @@ import { deliberateRivalChallenge } from "../../agents/watering/social";
 import type { CombatSystem } from "./system";
 
 export class AggressionSystem implements System {
+  private readonly world: World<GameEntity>;
+  private readonly combat: CombatSystem;
+
   readonly name = "AggressionSystem";
 
-  constructor(
-    private readonly world: World<GameEntity>,
-    private readonly combat: CombatSystem,
-  ) {}
+  constructor(world: World<GameEntity>, combat: CombatSystem) {
+    this.world = world;
+    this.combat = combat;
+  }
 
   run(ctx: SimContext): void {
     const byRegion = new Map<string, GameEntity[]>();

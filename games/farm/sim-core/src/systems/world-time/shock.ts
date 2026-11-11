@@ -9,6 +9,10 @@ export interface ShockConfig {
 }
 
 export class ShockSystem implements System {
+  private readonly bus: MessageBus;
+  private readonly world: World<GameEntity>;
+  private readonly ticksPerDay: number;
+
   readonly name = "ShockSystem";
 
   private readonly shockRng: Rng;
@@ -17,13 +21,11 @@ export class ShockSystem implements System {
   private lastBoundary = -1;
   private fired = false;
 
-  constructor(
-    private readonly bus: MessageBus,
-    private readonly world: World<GameEntity>,
-    rng: Rng,
-    private readonly ticksPerDay: number,
-    config: ShockConfig,
-  ) {
+  constructor(bus: MessageBus, world: World<GameEntity>, rng: Rng, ticksPerDay: number, config: ShockConfig) {
+    this.bus = bus;
+    this.world = world;
+    this.ticksPerDay = ticksPerDay;
+
     this.shockRng = rng.fork("shock");
     this.shockDay = config.shockDay;
     this.kind = config.kind;

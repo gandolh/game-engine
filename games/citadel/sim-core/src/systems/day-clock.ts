@@ -5,10 +5,14 @@ import type { System, SimContext } from "@engine/core";
  * Day advances when tick % ticksPerDay === 0 (and tick > 0).
  */
 export class DayClockSystem implements System {
+  private readonly ticksPerDay: number;
+
   readonly name = "DayClockSystem";
   day = 0;
 
-  constructor(private readonly ticksPerDay: number) {}
+  constructor(ticksPerDay: number) {
+    this.ticksPerDay = ticksPerDay;
+  }
 
   run(ctx: SimContext): void {
     if (ctx.tick > 0 && ctx.tick % this.ticksPerDay === 0) {

@@ -2,16 +2,19 @@ import type { SimContext, System, World, PathfinderGrid } from "@engine/core";
 import type { GameEntity } from "../../components";
 
 export class FeatureCollisionSystem implements System {
+  private readonly world: World<GameEntity>;
+  private readonly grid: PathfinderGrid;
+
   readonly name = "FeatureCollisionSystem";
 
   private readonly base: Uint8Array;
 
   private blocked: number[] = [];
 
-  constructor(
-    private readonly world: World<GameEntity>,
-    private readonly grid: PathfinderGrid,
-  ) {
+  constructor(world: World<GameEntity>, grid: PathfinderGrid) {
+    this.world = world;
+    this.grid = grid;
+
     this.base = Uint8Array.from(grid.cells);
   }
 

@@ -46,6 +46,9 @@ export interface MarketSettlement {
 }
 
 export class MarketSystem implements System {
+  private readonly bus: MessageBus;
+  private readonly world: World<GameEntity>;
+
   readonly name = "MarketSystem";
 
   readonly offersById = new Map<string, WallOffer>();
@@ -53,11 +56,14 @@ export class MarketSystem implements System {
   private readonly ttlTicks: number;
 
   constructor(
-    private readonly bus: MessageBus,
-    private readonly world: World<GameEntity>,
+    bus: MessageBus,
+    world: World<GameEntity>,
     rng: Rng,
     opts: { ticksPerDay?: number; ttlDays?: number } = {},
   ) {
+    this.bus = bus;
+    this.world = world;
+
     this.offerIdRng = rng.fork("market.offerId");
     this.ttlTicks = (opts.ttlDays ?? OFFER_TTL_DAYS) * (opts.ticksPerDay ?? DEFAULT_TICKS_PER_DAY);
   }

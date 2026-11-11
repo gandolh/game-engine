@@ -26,13 +26,17 @@ interface PendingOffer {
 }
 
 export class EncounterTradeSystem implements System {
+  private readonly world: World<GameEntity>;
+
   readonly name = "EncounterTradeSystem";
 
   // Contract-net handshake bookkeeping (in-flight offers + TTL + reply dedup)
   // is the engine's generic OfferLedger; the payload carries Farm's trade data.
   private readonly ledger = new OfferLedger<PendingOffer>(OFFER_TTL_TICKS);
 
-  constructor(private readonly world: World<GameEntity>) {}
+  constructor(world: World<GameEntity>) {
+    this.world = world;
+  }
 
   _resetForTests(): void {
     this.ledger.clear();

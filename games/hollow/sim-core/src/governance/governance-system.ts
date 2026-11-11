@@ -198,6 +198,10 @@ function sumGoods(inventory: HollowEntity["inventory"]): number {
 }
 
 export class HollowGovernanceSystem implements System {
+  private readonly world: World<HollowEntity>;
+  private readonly communities: CommunityRegistry;
+  private readonly bus: MessageBus;
+
   readonly name = "HollowGovernanceSystem";
 
   private readonly intervalTicks: number;
@@ -226,11 +230,15 @@ export class HollowGovernanceSystem implements System {
   private seenCommunityIds = new Set<number>();
 
   constructor(
-    private readonly world: World<HollowEntity>,
-    private readonly communities: CommunityRegistry,
-    private readonly bus: MessageBus,
+    world: World<HollowEntity>,
+    communities: CommunityRegistry,
+    bus: MessageBus,
     opts: GovernanceSystemOptions = {},
   ) {
+    this.world = world;
+    this.communities = communities;
+    this.bus = bus;
+
     this.intervalTicks = opts.intervalTicks ?? GOVERNANCE_INTERVAL_TICKS;
     this.standingContributionWeight = opts.standingContributionWeight ?? STANDING_CONTRIBUTION_WEIGHT;
     this.standingHelpWeight = opts.standingHelpWeight ?? STANDING_HELP_WEIGHT;

@@ -129,6 +129,14 @@ function ensureSkills(entity: HollowEntity): Skills {
 }
 
 export class HollowSocialActSystem implements System {
+  private readonly world: World<HollowEntity>;
+  private readonly resources: ResourceWorld;
+  private readonly communities: CommunityRegistry;
+  private readonly bus: MessageBus;
+  private readonly stealDetectionRng: Rng;
+  private readonly attackRng: Rng;
+  private readonly sabotageDetectionRng: Rng;
+
   readonly name = "HollowSocialActSystem";
 
   private readonly stealDetectionProb: number;
@@ -137,15 +145,23 @@ export class HollowSocialActSystem implements System {
   private readonly tradeOffers = new OfferLedger<TradeOfferPayload>(TRADE_OFFER_TTL_TICKS);
 
   constructor(
-    private readonly world: World<HollowEntity>,
-    private readonly resources: ResourceWorld,
-    private readonly communities: CommunityRegistry,
-    private readonly bus: MessageBus,
-    private readonly stealDetectionRng: Rng,
-    private readonly attackRng: Rng,
-    private readonly sabotageDetectionRng: Rng,
+    world: World<HollowEntity>,
+    resources: ResourceWorld,
+    communities: CommunityRegistry,
+    bus: MessageBus,
+    stealDetectionRng: Rng,
+    attackRng: Rng,
+    sabotageDetectionRng: Rng,
     opts: SocialActSystemOptions = {},
   ) {
+    this.world = world;
+    this.resources = resources;
+    this.communities = communities;
+    this.bus = bus;
+    this.stealDetectionRng = stealDetectionRng;
+    this.attackRng = attackRng;
+    this.sabotageDetectionRng = sabotageDetectionRng;
+
     this.stealDetectionProb = opts.stealDetectionProb ?? STEAL_DETECTION_PROB;
     this.attackLethalityProb = opts.attackLethalityProb ?? ATTACK_LETHALITY_PROB;
     this.sabotageDetectionProb = opts.sabotageDetectionProb ?? SABOTAGE_DETECTION_PROB;

@@ -78,6 +78,8 @@ type TrustEntity = HollowEntity & {
 };
 
 export class HollowTrustAccrualSystem implements System {
+  private readonly world: World<HollowEntity>;
+
   readonly name = "HollowTrustAccrualSystem";
   private readonly proximityDelta: number;
   private readonly sharedNodeDelta: number;
@@ -85,10 +87,9 @@ export class HollowTrustAccrualSystem implements System {
   private readonly gatheringDelta: number;
   private readonly ticksPerDay: number;
 
-  constructor(
-    private readonly world: World<HollowEntity>,
-    opts: TrustAccrualSystemOptions,
-  ) {
+  constructor(world: World<HollowEntity>, opts: TrustAccrualSystemOptions) {
+    this.world = world;
+
     this.proximityDelta = opts.proximityDelta ?? TRUST_PROXIMITY_DELTA;
     this.sharedNodeDelta = opts.sharedNodeDelta ?? TRUST_SHARED_NODE_DELTA;
     this.decayRate = opts.decayRate ?? TRUST_DECAY_TOWARD_NEUTRAL_RATE;

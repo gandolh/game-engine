@@ -68,6 +68,8 @@ function chebyshev(ax: number, ay: number, bx: number, by: number): number {
 }
 
 export class HollowSocialWitnessSystem implements System {
+  private readonly world: World<HollowEntity>;
+
   readonly name = "HollowSocialWitnessSystem";
 
   private readonly witnessProximityTiles: number;
@@ -78,11 +80,9 @@ export class HollowSocialWitnessSystem implements System {
   private pendingRumors: RumorBody[] = [];
   private pendingStealDetections: StealDetectedBody[] = [];
 
-  constructor(
-    private readonly world: World<HollowEntity>,
-    bus: MessageBus,
-    opts: SocialWitnessSystemOptions = {},
-  ) {
+  constructor(world: World<HollowEntity>, bus: MessageBus, opts: SocialWitnessSystemOptions = {}) {
+    this.world = world;
+
     this.witnessProximityTiles = opts.witnessProximityTiles ?? WITNESS_PROXIMITY_TILES;
     this.rumorTrustDelta = opts.rumorTrustDelta ?? RUMOR_TRUST_DELTA;
     this.rumorConnectedFactor = opts.rumorConnectedFactor ?? RUMOR_CONNECTED_FACTOR;
