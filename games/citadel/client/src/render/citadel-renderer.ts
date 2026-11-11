@@ -51,7 +51,7 @@ import type { IsoProjection } from "./iso";
 import { isoNetworkTiles } from "./autotile";
 import type { IsoNetworkTile } from "./autotile";
 import { FRAME_DIAMOND, FRAME_ROAD, FRAME_BRIDGE, flameFrameAt } from "./sprites/recipes";
-import { clusterBuildings, clusterBorderQuads } from "./clustering";
+import { clusterBuildings } from "./clustering";
 import type { Cluster } from "./clustering";
 import { makeTerrainDecorate } from "./terrain-dither";
 import type { TileWindow } from "./render-window";
@@ -157,7 +157,6 @@ export function cloudOptionsFor(season: string, day: number, dayFraction: number
 // Sprite layers — higher draws on top. Terrain is the baked static layer
 // (below everything); these stack coverage < buildings < villagers < raiders
 // < disconnect pip < ghost.
-const LAYER_SHADOW = 8;
 // Isometric: buildings, villagers, and raiders share ONE entity layer so they
 // inter-sort back-to-front by their iso depth (set as each sprite's `sortY`),
 // which is what makes a villager in front correctly occlude a building behind.

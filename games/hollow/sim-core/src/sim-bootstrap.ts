@@ -149,7 +149,7 @@ import { MessageBus, Scheduler, World, createRng, type Rng } from "@engine/core"
 import { createNeedsDecaySystem } from "@engine/core/agent";
 import type { HollowEntity } from "./components";
 import { spawnPopulation } from "./population";
-import { ResourceWorld, createResourceRegenSystem, HEARTH_TILE, GRAVEYARD_TILE } from "./world";
+import { ResourceWorld, createResourceRegenSystem } from "./world";
 import { HollowPerceiveSystem } from "./systems/perceive";
 import { HollowDeliberateSystem } from "./systems/deliberate";
 import { HollowActSystem } from "./systems/act";
@@ -180,7 +180,6 @@ import {
   COMMUNITY_LEAVE_TRUST_THRESHOLD,
   COMMUNITY_MERGE_CROSS_TRUST_THRESHOLD,
   COMMUNITY_MERGE_TERRITORY_RADIUS,
-  COMMUNITY_DEFAULT_ADMISSION_POLICY,
   BELONGING_ATTENDANCE_REPLENISH_PER_TICK,
   BELONGING_ABSENCE_DECAY_PER_TICK,
 } from "./community";

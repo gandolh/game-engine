@@ -8,15 +8,12 @@ import {
 import { _resetComponentMap } from "../../world/connectivity";
 import type { GameEntity } from "../../components";
 import { SHRINE_REGION_ID, getRegion } from "../../world/regions";
-import { SHRINE_COOLDOWN_DAYS } from "../../systems/economy/ap";
 
 afterEach(() => {
   _resetComponentMap();
 });
 
 const VILLAGE = getRegion("village").center;
-
-const SHRINE = getRegion(SHRINE_REGION_ID).center;
 
 function makeFarmer(overrides: {
   region?: string;

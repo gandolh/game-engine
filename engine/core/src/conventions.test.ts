@@ -292,7 +292,7 @@ describe("no .js import suffixes in engine/games/tools source", () => {
       const stripped = stripComments(readFileSync(file, "utf8"));
       const lines = stripped.split("\n");
       lines.forEach((line, i) => {
-        for (const m of line.matchAll(JS_SUFFIX_IMPORT_RE)) {
+        for (const _match of line.matchAll(JS_SUFFIX_IMPORT_RE)) {
           violations.push(`${rel}:${i + 1} (extensionless imports only, no ".js") ${line.trim()}`);
         }
       });

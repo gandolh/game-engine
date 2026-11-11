@@ -5,7 +5,7 @@
  * don't need a real WebGPU surface. The render/input/a11y plumbing is the framework's own
  * (covered in @engine/ui); here we just prove this consumer drives them correctly.
  */
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import { CITADEL_PAL as EDG } from "../render/citadel-palette";
 import { MIN_VIEWPORT, assertFitsViewport, computeLayout } from "@engine/ui";
 import type { ButtonNode, LabelNode, UINode } from "@engine/ui";

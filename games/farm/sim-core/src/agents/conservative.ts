@@ -2,7 +2,7 @@ import type { GameEntity, CropKind } from "../components";
 import { recordReason, resetDecisionTrace } from "../components";
 import { registerPersonality } from "./registry";
 import { registerPeerTradeHooks } from "./peer-trade-registry";
-import { makeRespondPeerOffer, makeInitiatePeerTrade } from "./peer-trade-policy";
+import { makeRespondPeerOffer } from "./peer-trade-policy";
 import { deliberateBean } from "./bean-valuation";
 import { nonFarmFocus, gatherBias, TEMPERAMENT } from "./skill-valuation";
 import {

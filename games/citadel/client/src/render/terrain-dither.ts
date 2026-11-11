@@ -225,16 +225,6 @@ export function ditherAccents(type: TerrainType): DitherAccents {
 // ---------------------------------------------------------------------------
 
 /**
- * The terrain KIND at (tx, ty), clamped to the grid edge so a neighbour probe at
- * the border reads the border cell (no wrap, no out-of-bounds). Pure.
- */
-function terrainTypeAt(grid: TerrainGrid, tx: number, ty: number): TerrainType {
-  const cx = tx < 0 ? 0 : tx >= grid.width ? grid.width - 1 : tx;
-  const cy = ty < 0 ? 0 : ty >= grid.height ? grid.height - 1 : ty;
-  return grid.cells[cy * grid.width + cx] as TerrainType;
-}
-
-/**
  * Build a memoized {@link HeightSampler} over a terrain grid: each cell's height
  * is `landformHeight(fBm-relief, terrain-kind)` (see `hillshade.ts`) — the fBm
  * rolling blended with the kind's pseudo-elevation, so water sits low (valleys /

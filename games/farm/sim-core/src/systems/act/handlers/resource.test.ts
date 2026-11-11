@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { World, MessageBus, createRng } from "@engine/core";
+import { World, createRng } from "@engine/core";
 import type { GameEntity, FarmerFsmState, CropKind } from "../../../components";
 import { ZERO_CROPS } from "../../../economy";
 import { ActSystem } from "../system";

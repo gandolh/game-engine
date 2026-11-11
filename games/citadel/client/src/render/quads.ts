@@ -16,10 +16,8 @@ import {
   LIT_BUILDING_TYPES,
   millFrameAt,
   unitFrameAt,
-  villagerFrameName,
   villagerNameForJob,
   raiderFrameName,
-  VILLAGER_FRAME,
   RAIDER_FRAME,
 } from "./sprites/recipes";
 

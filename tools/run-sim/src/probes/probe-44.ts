@@ -123,7 +123,7 @@ for (let tick = 0; tick < totalTicks; tick++) {
 }
 
 let tavernReachable = false;
-for (const t of world.query("tavern", "transform")) tavernReachable = true;
+for (const _tavern of world.query("tavern", "transform")) tavernReachable = true;
 
 console.log("\n=== DAY-100 STANDINGS ===");
 for (const row of leaderboard(world)) {

@@ -1,5 +1,5 @@
 import { ZERO_CROPS } from "../../economy";
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import { World, MessageBus, createRng } from "@engine/core";
 import type { GameEntity, FarmerFsmState } from "../../components";
 import { ShockSystem, defaultShockDay } from "./shock";

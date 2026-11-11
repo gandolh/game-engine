@@ -47,7 +47,7 @@ describe("seedTown", () => {
   });
 
   it("forms a foundable, worker-slotted bread chain", () => {
-    const sim = bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, seedTown: true });
+    bootstrapSim({ seed: SEED, ticksPerDay: TICKS_PER_DAY, seedTown: true });
     for (const t of ["farm", "mill", "bakery"]) {
       const def = getProductionDef(t);
       expect(def).toBeDefined();

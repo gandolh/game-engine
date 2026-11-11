@@ -1,5 +1,5 @@
 import type { Intention, MessageBus } from "@engine/core";
-import type { GameEntity, CropKind } from "../../../components";
+import type { CropKind } from "../../../components";
 import { TOOL_PRICE } from "../../../components";
 import { PRODUCT_SELL_PRICE, FRUIT_SELL_PRICE, QUALITY_MULTIPLIER, debitCrop } from "../../../economy";
 import { CROP_SELL_PRICE as SELL_PRICE } from "../../../economy";

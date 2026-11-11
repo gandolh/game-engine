@@ -28,7 +28,7 @@
  * agent spawn/despawn and pre-first-snapshot states): zero mismatches.
  */
 import { lerpEntityPositions, SnapshotInterpBuffer, type InterpPosition } from "@engine/core/render";
-import type { HollowAgentSnapshot, HollowSnapshot } from "@hollow/sim-core/sim-bootstrap";
+import type { HollowSnapshot } from "@hollow/sim-core/sim-bootstrap";
 
 /** Minimal shape {@link lerpAgentPositions} needs from a snapshot agent —
  *  structural, not tied to the full `HollowAgentSnapshot` shape, so tests

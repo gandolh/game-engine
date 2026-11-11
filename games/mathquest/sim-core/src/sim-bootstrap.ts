@@ -66,7 +66,7 @@ import { buildGameSnapshot } from "./snapshot-builder";
 import { enemyFor } from "./run/enemies";
 import { generateMap, type MapNode, type NodeType, type RunMap } from "./run/map";
 import { REST_HEAL } from "./run/constants";
-import { rollLoot, toItemView, foldItemBonus, type Item, type ItemView, type LootTier } from "./run/loot";
+import { rollLoot, foldItemBonus, type Item, type ItemView, type LootTier } from "./run/loot";
 import { STARTING_LIFELINES, type LifelineCharges, type LifelineKind } from "./run/lifelines";
 import {
   blueprintItemsFor,
@@ -77,7 +77,6 @@ import {
   type MasteryStore,
 } from "./run/mastery";
 import {
-  describeUpgrade,
   offerUpgrades,
   xpToNext,
   UPGRADES,

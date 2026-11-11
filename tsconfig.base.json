@@ -8,6 +8,8 @@
     "noImplicitOverride": true,
     "noUncheckedIndexedAccess": true,
     "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "verbatimModuleSyntax": true,
     "exactOptionalPropertyTypes": true,
     "useUnknownInCatchVariables": true,
     "isolatedModules": true,

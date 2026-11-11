@@ -10,7 +10,7 @@ import { bootstrapSim } from "../sim-bootstrap";
 import { TerrainType, WORLD_WIDTH } from "../world/terrain";
 import type { TerrainGrid } from "../world/terrain";
 import type { CitadelCommand, RenderSnapshot } from "../snapshot/index";
-import { computeRaiderPath, raiderWalkable } from "./raid-spawn";
+import { computeRaiderPath } from "./raid-spawn";
 import { bfsPath } from "../world/pathfinder";
 
 const SEED = 0xc17ade1;

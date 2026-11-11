@@ -26,7 +26,6 @@ import type { BuildingEntity } from "./entities/building";
 import type { VillagerEntity } from "./entities/villager";
 import type { SimState } from "./sim-state";
 import { makePlayerState } from "./sim-state";
-import { TerrainType } from "./world/terrain";
 import type { TerrainGrid } from "./world/terrain";
 import { createPlacementContext, placeOne, removeBuildingTiles } from "./systems/placement";
 import { getBuildings, getVillagers } from "./snapshot-builder";

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { buildBoatGrid, CORAL_REEFS, isCoralReefTile, isDockTile, nearestReef } from "./coral";
 import { buildWalkableGrid } from "./walkable-grid";
-import { PORTS, portLaneTiles } from "./ports";
+import { PORTS } from "./ports";
 import { WORLD_WIDTH, WORLD_HEIGHT, isWalkable, REGIONS, ROADS, getRegion, forEachLandTile } from "./regions";
 
 const VILLAGE = getRegion("village").center;

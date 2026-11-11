@@ -1,7 +1,7 @@
 import { describe, expect, it, beforeEach, vi } from "vitest";
 import { computeLayout } from "../layout/layout";
 import { DEFAULT_THEME } from "../theme/theme";
-import { box, button, checkbox, label, panel, slider, resetNodeIds } from "../widget/node";
+import { box, button, checkbox, panel, slider, resetNodeIds } from "../widget/node";
 import type { UINode } from "../widget/node";
 import { createInputDispatcher } from "./dispatcher";
 import type { DragEvent } from "./dispatcher";

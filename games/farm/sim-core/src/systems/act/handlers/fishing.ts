@@ -40,7 +40,6 @@ export function handleFish(farmer: ActingFarmer, bubbleTiles: ReadonlySet<string
     { dx: 0, dy: -1 },
   ];
   let castX: number | null = null;
-  let castY: number | null = null;
   let nearBubble = false;
   for (const { dx, dy } of NEIGHBOURS) {
     const ox = fx + dx;
@@ -48,7 +47,6 @@ export function handleFish(farmer: ActingFarmer, bubbleTiles: ReadonlySet<string
     if (isWalkable(ox, oy)) continue;
     if (castX === null) {
       castX = ox;
-      castY = oy;
     }
     if (bubbleTiles.has(`${ox},${oy}`)) nearBubble = true;
   }

@@ -24,7 +24,7 @@ import type { CitadelSimResult } from "../sim-bootstrap";
 import { playerById } from "../sim-state";
 import type { SimState, PlayerState } from "../sim-state";
 import { getProductionDef } from "../entities/building";
-import type { BuildingRuntimeState, GoodType } from "../entities/building";
+import type { BuildingRuntimeState } from "../entities/building";
 import type { VillagerComponent } from "../entities/villager";
 import { VillagerSystem } from "./villager-system";
 

@@ -98,15 +98,6 @@ export const settingsModal = new SettingsModal({
 // exist.
 export let settingsDispatcher: InputDispatcher | undefined;
 export let settingsMirror: A11yMirror | undefined;
-// Tracks whether the settings modal had its post-open layout/mirror reconcile run, so a fresh
-// open re-syncs the (just-mutated) control state into the a11y view exactly once. (Note: no
-// code currently branches on this flag's value — both writers just set it — but the writes
-// are preserved verbatim per the original's "kept for the openSettings() gate" comment below.)
-let settingsLaidOut = false;
-export function setSettingsLaidOut(v: boolean): void {
-  settingsLaidOut = v;
-}
-
 /**
  * Settings modal (DOM-overlay removal): wire its dispatcher (root null while closed → inert)
  * + a11y mirror in its own hidden mount (#ui-a11y-settings), so its Tab order is distinct.
@@ -127,13 +118,11 @@ export function initSettingsDispatcher(): void {
 }
 
 // Open/close the in-canvas settings modal. `show()` resyncs the controls from live state but
-// does NOT relayout/render or touch the a11y mirror — so on every (re)open we drop the
-// laid-out flag, and the render loop runs one layout + mirror reconcile to push the synced
-// state to the screen + AT view. On close we clear the modal's a11y mirror so its hidden DOM
+// does NOT relayout/render or touch the a11y mirror — so the render loop runs a layout +
+// mirror reconcile every frame while open to push the synced state to the screen + AT view. On close we clear the modal's a11y mirror so its hidden DOM
 // stops advertising controls that are no longer visible.
 export function openSettings(): void {
   settingsModal.show();
-  settingsLaidOut = false;
 }
 export function closeSettings(): void {
   settingsModal.close();

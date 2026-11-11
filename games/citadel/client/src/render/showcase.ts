@@ -25,7 +25,6 @@ import {
   cloudOptionsFor,
   quadToSprite,
   packTint,
-  isoSpriteDims,
   fitCameraToCanvas,
   ISO_TILE_W,
   ISO_TILE_H,

@@ -54,7 +54,6 @@ const UNIFORM_NAMES = [
 const COVERAGE_EPSILON = 0.001;
 
 export class CloudShadowPass {
-  private readonly gl: WebGL2RenderingContext;
   private readonly program: WebGLProgram;
   private readonly uniforms: Record<(typeof UNIFORM_NAMES)[number], WebGLUniformLocation | null>;
   private readonly vao: WebGLVertexArrayObject;
@@ -67,7 +66,6 @@ export class CloudShadowPass {
   };
 
   constructor(gl: WebGL2RenderingContext) {
-    this.gl = gl;
     this.program = compileProgram(gl, vertSrc, fragSrc, "cloud");
     this.uniforms = uniformLocations(gl, this.program, UNIFORM_NAMES);
     // Fullscreen triangle needs no vertex attributes (gl_VertexID-driven) —

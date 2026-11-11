@@ -7,7 +7,6 @@ import {
   generateTerrain,
   findCoreBox,
   CORE_BOX_W,
-  CORE_BOX_H,
   WORLD_WIDTH as DEFAULT_WORLD_WIDTH,
   WORLD_HEIGHT as DEFAULT_WORLD_HEIGHT,
 } from "./world/terrain";
@@ -34,7 +33,6 @@ import {
   placeOne,
   placeDragged,
   describeReject,
-  actsAsKeepAnchor,
   createPlacementContext,
   rebakeWalkable,
   removeBuildingTiles,
@@ -745,7 +743,6 @@ export function bootstrapSim(opts: CitadelSimOptions): CitadelSimResult {
    * dims AND the box search (findCoreBox), so they can never disagree.
    */
   const SEED_CLUSTER_W = CORE_BOX_W;
-  const SEED_CLUSTER_H = CORE_BOX_H;
   function seededLayout(
     ax: number,
     ay: number,

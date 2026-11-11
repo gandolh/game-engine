@@ -25,7 +25,7 @@
  */
 import type { DayClockSystem } from "./systems/day-clock";
 import type { BuildingSnapshot, VillagerSnapshot, RenderSnapshot } from "./snapshot/index";
-import { getProductionDef, jobForBuildingType, JOB_IDLE } from "./entities/building";
+import { jobForBuildingType, JOB_IDLE } from "./entities/building";
 import type { GoodType } from "./entities/building";
 import { isTravellingFsm } from "./entities/villager";
 import type { SimState } from "./sim-state";

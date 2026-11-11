@@ -113,11 +113,6 @@ describe("summarizeRun — standings with midRankDelta", () => {
   it("computes midRankDelta correctly", () => {
     const DAYS = 100;
 
-    const history = makeHistory(DAYS, 2, (id, day) => {
-      if (id === 1) return day <= 50 ? 3 : 1;
-      return day <= 50 ? 1 : 2;
-    });
-
     const history2 = makeHistory(DAYS, 2, (id, day) => {
       if (id === 1) return day <= 50 ? 2 : 1;
       return day <= 50 ? 1 : 2;

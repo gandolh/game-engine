@@ -14,7 +14,7 @@ import {
   type FestivalAnnounceBody,
   type FestivalResultBody,
 } from "../../protocols";
-import { Submission, QUALITY_RANK, rankSubmissions } from "./scoring";
+import { type Submission, QUALITY_RANK, rankSubmissions } from "./scoring";
 
 export class FestivalSystem implements System {
   private readonly bus: MessageBus;

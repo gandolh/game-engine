@@ -24,7 +24,7 @@
 import type { CombatSnapshot } from "./combat/types";
 import type { Locale } from "./i18n";
 import type { RunMap } from "./run/map";
-import { toItemView, type Item, type ItemView } from "./run/loot";
+import { toItemView, type Item } from "./run/loot";
 import type { LifelineCharges } from "./run/lifelines";
 import type { MasteryStore } from "./run/mastery";
 import { describeUpgrade, xpToNext, type StatBonuses, type UpgradeKind } from "./run/progression";

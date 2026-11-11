@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { World } from "@engine/core";
-import { REGIONS, ROADS, ranchForFarm, regionAt, WORLD_WIDTH, WORLD_HEIGHT, forEachLandTile } from "./regions";
+import { REGIONS, ranchForFarm, regionAt, WORLD_WIDTH, WORLD_HEIGHT, forEachLandTile } from "./regions";
 import type { RegionId } from "./regions";
 import { sameComponent, _resetComponentMap } from "./connectivity";
 import { ZERO_CROPS } from "../economy";
@@ -18,14 +18,6 @@ function oceanGap(
   const gx = Math.max(b.minX - a.maxX - 1, a.minX - b.maxX - 1);
   const gy = Math.max(b.minY - a.maxY - 1, a.minY - b.maxY - 1);
   return Math.max(gx, gy);
-}
-
-function roadTouches(
-  road: { minX: number; minY: number; maxX: number; maxY: number },
-  b: { minX: number; minY: number; maxX: number; maxY: number },
-): boolean {
-  const exp = { minX: road.minX - 1, minY: road.minY - 1, maxX: road.maxX + 1, maxY: road.maxY + 1 };
-  return !(exp.maxX < b.minX || b.maxX < exp.minX || exp.maxY < b.minY || b.maxY < exp.minY);
 }
 
 describe("per-farm ranch islands", () => {

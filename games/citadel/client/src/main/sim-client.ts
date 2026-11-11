@@ -3,7 +3,6 @@ import type {
   BuildingSnapshot,
   VillagerSnapshot,
   RaiderSnapshot,
-  SettlementTier,
   RenderSnapshot,
   BarterOffer,
 } from "@citadel/sim-core";

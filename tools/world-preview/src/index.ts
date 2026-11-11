@@ -5,7 +5,6 @@ import { PNG } from "pngjs";
 import { bootstrapSim } from "@farm/sim-core/sim-bootstrap";
 import { WORLD_WIDTH, WORLD_HEIGHT, REGIONS, regionAt, isWalkable } from "@farm/sim-core/world/regions";
 import type { AtlasManifest } from "@engine/core";
-import type { GameEntity } from "@farm/sim-core/components";
 import { PREFIX_TO_SHEET } from "@farm/atlas-recipes";
 import { TILE } from "@engine/core/render";
 const WORLD_W = WORLD_WIDTH * TILE;

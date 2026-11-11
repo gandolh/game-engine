@@ -1,7 +1,7 @@
 import type { SimContext, System, World, MessageBus, Rng } from "@engine/core";
 import type { GameEntity } from "../../components";
 import { actionTicks } from "./helpers";
-import type { ActContext, ActingFarmer } from "./types";
+import type { ActContext } from "./types";
 
 import { handlePlant, handleWater, handleTill } from "./handlers/farming";
 import {

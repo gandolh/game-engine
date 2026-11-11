@@ -5,7 +5,7 @@ import { ONT_MARKET, type MarketOffer } from "../protocols/market";
 import type { WeatherCondition, Season } from "../protocols/weather";
 import { seasonForDay } from "../protocols/weather";
 import { registerPeerTradeHooks } from "./peer-trade-registry";
-import { makeRespondPeerOffer, makeInitiatePeerTrade } from "./peer-trade-policy";
+import { makeRespondPeerOffer } from "./peer-trade-policy";
 import { CROP_SELL_PRICE, SEED_COST, CROP_SEASON } from "../economy";
 import { deliberateBean } from "./bean-valuation";
 import { nonFarmFocus, gatherBias, TEMPERAMENT } from "./skill-valuation";

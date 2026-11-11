@@ -4,7 +4,6 @@ import type { GameEntity, CropKind, PlotState } from "../../../components";
 import { GROWTH_DAYS } from "../../../economy";
 import { grantSkillXp } from "../../skills";
 import { isWithinReach } from "../../proximity";
-import { REGIONS } from "../../../world/regions";
 import type { ActingFarmer } from "../types";
 
 export function handlePlant(farmer: ActingFarmer, intent: Intention, ownedPlots: GameEntity[], day: number): void {

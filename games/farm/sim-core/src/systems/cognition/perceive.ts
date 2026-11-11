@@ -7,7 +7,6 @@ import { ONT_MARKET, type OffersListBody } from "../../protocols/market";
 import { isActivePhase, isNightPhase, type DayPhase } from "../day-phase";
 import { ONT_TRAVEL, type TravelArrivedBody } from "../../protocols/travel";
 import { maxApForDay } from "../economy/ap";
-import { ONT_HARBOR } from "../../protocols/harbor";
 import { CAMP_REGION_ID } from "../../world/regions";
 
 export class PerceiveSystem implements System {

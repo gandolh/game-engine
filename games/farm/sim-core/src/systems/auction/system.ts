@@ -4,7 +4,6 @@ import { ONT_SHOP, type AuctionCfpBody, type AuctionBidBody, type AuctionResultB
 import { PERFORMATIVE } from "../../protocols/performatives";
 import { firstEntity, findById } from "../entity-helpers";
 import {
-  type SealedBid,
   compareSealedBids,
   type VickreyState,
   type FpsbState,

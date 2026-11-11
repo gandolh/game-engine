@@ -3,7 +3,6 @@ import { TILE } from "./config";
 import {
   focusedFarmerId,
   playerFarmerId,
-  panOffset,
   _camera,
   setFocusedFarmerId,
   setPanOffset,

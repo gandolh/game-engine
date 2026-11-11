@@ -9,7 +9,6 @@ import {
   HARBOR_DOCK_TILE,
   scaleAroundNearestIsland,
   snapPropToLand,
-  regionAt,
   type RegionId,
   type RegionDef,
 } from "../regions";

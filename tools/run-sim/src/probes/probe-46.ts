@@ -6,7 +6,7 @@ const SEED = 0xc0ffee;
 const TICKS_PER_DAY = 20;
 const MAX_DAYS = 100;
 
-const { world, scheduler, dayClock, eventFeed } = bootstrapSim({
+const { world, scheduler, eventFeed } = bootstrapSim({
   seed: SEED,
   ticksPerDay: TICKS_PER_DAY,
   maxDays: MAX_DAYS,
@@ -18,19 +18,6 @@ function findFarmer(id: number): GameEntity | undefined {
   return undefined;
 }
 
-interface ContractEvent {
-  kind: "posted" | "committed" | "delivered" | "missed" | "expired";
-  day: number;
-  contractId: string;
-  farmerName?: string;
-  reward?: number;
-  rep?: number;
-}
-
-const contractEvents: ContractEvent[] = [];
-const contractsPostedByDay = new Map<number, number>();
-let totalContractsPosted = 0;
-let totalCommits = 0;
 let totalDeliveries = 0;
 let totalMisses = 0;
 

@@ -88,7 +88,6 @@ describe("stepFocusGlide", () => {
   });
 
   it("(c) force-lock after 0.6s even if target keeps moving (elapsedSec cap)", () => {
-    const state = makeState(true, 0);
     const prev = { x: 0, y: 0 };
 
     let cx = 0;

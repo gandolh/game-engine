@@ -208,7 +208,6 @@ function assertAllRegionsReachable(regions: readonly RegionDef[], roads: readonl
   while (head < queue.length) {
     const k = queue[head++]!;
     const x = k % WORLD_WIDTH;
-    const y = (k - x) / WORLD_WIDTH;
     const nbrs = [k - 1, k + 1, k - WORLD_WIDTH, k + WORLD_WIDTH];
     if (x === 0) nbrs[0] = -1;
     if (x === WORLD_WIDTH - 1) nbrs[1] = -1;

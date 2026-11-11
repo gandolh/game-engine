@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
-import { AddressInfo } from "node:net";
+import type { AddressInfo } from "node:net";
 import { WebSocketServer, WebSocket } from "ws";
 import { createPathfinderFromBytes } from "@engine/core";
 import type { Scheduler, System, SimContext } from "@engine/core/sim";

@@ -8,7 +8,7 @@ const SEED = 0xc0ffee;
 const TICKS_PER_DAY = 20;
 const MAX_DAYS = 100;
 
-const { world, scheduler, dayClock, eventFeed } = bootstrapSim({
+const { world, scheduler, eventFeed } = bootstrapSim({
   seed: SEED,
   ticksPerDay: TICKS_PER_DAY,
   maxDays: MAX_DAYS,
@@ -20,9 +20,6 @@ const FESTIVAL_PODIUM_TILE = { x: 43, y: 39 };
 function findFarmer(id: number): GameEntity | undefined {
   for (const f of world.query("farmer")) if (f.id === id) return f;
   return undefined;
-}
-function nameOf(id: number): string {
-  return findFarmer(id)?.farmer?.name ?? `#${id}`;
 }
 
 interface FestivalResult {
@@ -37,7 +34,6 @@ interface FestivalResult {
 }
 
 const festivalResults: FestivalResult[] = [];
-const festivalAnnouncements: { day: number; festivalId: string; name: string }[] = [];
 let feedFestivalLines = 0;
 
 const podiumGathersByDay = new Map<number, Set<string>>();
@@ -170,7 +166,6 @@ for (const row of leaderboard(world)) {
 
 console.log("\n=== ACCEPTANCE (brief 45 festivals) ===");
 const believedCount = believedFestivalDays.size;
-const resolvedCount = festivalResults.length;
 const resultsWithWinner = festivalResults.filter((r) => r.winnerId !== null).length;
 console.log(
   `  festival-today belief written on ${believedCount} day(s): ${[...believedFestivalDays].sort((a, b) => a - b).join(", ")}`,

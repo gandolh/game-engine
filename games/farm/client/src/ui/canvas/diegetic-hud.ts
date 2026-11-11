@@ -17,7 +17,7 @@
  * EDG32-only: every colour is an `EDG.*` constant.
  */
 import { EDG } from "@engine/core";
-import { box, label, panel } from "@engine/ui";
+import { label, panel } from "@engine/ui";
 import type { ContainerNode, LabelNode } from "@engine/ui";
 import type { EventFeedRow } from "./event-feed";
 import type { LeaderboardRow } from "./leaderboard";

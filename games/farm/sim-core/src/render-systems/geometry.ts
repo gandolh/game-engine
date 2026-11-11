@@ -12,7 +12,6 @@ import {
 } from "../world/regions";
 import { CORAL_REEFS } from "../world/coral";
 import { PORTS } from "../world/ports";
-import { TILE } from "@engine/core/render";
 
 export const TALL_ISLANDS: ReadonlyArray<{ region: RegionId; rows: 1 | 2 }> = [
   { region: "heritage-ruin", rows: 1 },
@@ -590,12 +589,6 @@ function bakedAt(frame: string, x: number, y: number, wPx: number, hPx: number):
   // Scale design coords, then snap the base tile onto real mask land so the
   // structure never floats on a carved-out ocean tile (organic masks, brief 91).
   const t = snapPropToLand(scaleAroundNearestIsland({ x, y }));
-  return { frame, baseTileX: t.x, baseTileY: t.y, wPx, hPx };
-}
-
-/** Like a literal baked structure, but snaps the (already world-space) base to land. */
-function bakedFixed(frame: string, x: number, y: number, wPx: number, hPx: number): BigStructure {
-  const t = snapPropToLand({ x, y });
   return { frame, baseTileX: t.x, baseTileY: t.y, wPx, hPx };
 }
 

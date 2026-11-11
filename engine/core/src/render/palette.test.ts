@@ -9,7 +9,6 @@ import {
   isEdg32,
   nearestEdg32,
   normalizeHex,
-  rgbOf,
   APOLLO,
   APOLLO_SET,
   RESURRECT64,

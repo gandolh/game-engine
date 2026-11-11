@@ -12,8 +12,8 @@
 import type { PixelRecipe } from "../types";
 import { MESH_MODELS } from "../mesh/models";
 import { MILL_FRAME_COUNT, millFrameName } from "./buildings";
-import { UNIT_RECIPES, FRAME_VILLAGER, FRAME_RAIDER, FRAME_PEDESTRIAN } from "./units";
-import { FX_RECIPES, FRAME_DIAMOND, FLAME_FRAME_COUNT, flameFrameName } from "./fx";
+import { UNIT_RECIPES, FRAME_VILLAGER, FRAME_RAIDER } from "./units";
+import { FX_RECIPES, FLAME_FRAME_COUNT, flameFrameName } from "./fx";
 
 export { MILL_FRAME_COUNT, millFrameName, buildingLitFrameName, LIT_BUILDING_TYPES } from "./buildings";
 export {

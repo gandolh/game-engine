@@ -16,7 +16,7 @@ describe("Citadel 36 — presence / roster / emotes (ephemeral, off-log)", () =>
     const aMsgs: WorkerOutbound[] = [];
     const bMsgs: WorkerOutbound[] = [];
     const peerA = host.attach((m) => aMsgs.push(m));
-    const peerB = host.attach((m) => bMsgs.push(m));
+    host.attach((m) => bMsgs.push(m));
     host.handleInbound(peerA, { type: "init", seed: 1, ticksPerDay: 20 });
 
     const logLenBefore = host.simResult!.state.commandLog.length;

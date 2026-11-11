@@ -1,5 +1,4 @@
 import { bootstrapSim, leaderboard } from "@farm/sim-core/sim-bootstrap";
-import type { GameEntity } from "@farm/sim-core/components";
 import { ONT_ENCOUNTER } from "@farm/sim-core/protocols/encounter";
 import type { AgentMessage } from "@engine/core";
 import { makePathfinder } from "../pathfinder";

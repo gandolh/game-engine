@@ -5,7 +5,6 @@ import {
   REGIONS,
   EXTRA_FARM_COUNT,
   nearestResourceZone,
-  getRegion,
   WORLD_WIDTH,
   WORLD_HEIGHT,
   generateWorld,

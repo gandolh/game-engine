@@ -8,7 +8,7 @@
  * (replays a CitadelSave to reconstruct identical sim state).
  */
 import { bootstrapSim, loadFromSave } from "@citadel/sim-core/sim-bootstrap";
-import type { WorkerInbound, WorkerOutbound, CitadelSave } from "@citadel/sim-core/snapshot";
+import type { WorkerInbound, WorkerOutbound } from "@citadel/sim-core/snapshot";
 import { createTickPump } from "@engine/core/runtime";
 
 let paused = false;

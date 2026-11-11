@@ -719,7 +719,7 @@ describe("WebGl2Renderer context-loss recovery", () => {
   });
 
   it("re-creates the passes and re-uploads atlases on restore", () => {
-    const r = makeRenderer();
+    makeRenderer();
     rec.life.length = 0;
     ctx().simulateLossAndRestore();
 

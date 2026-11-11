@@ -87,7 +87,6 @@ describe("visibleTileWindow — ISO space, not axis-aligned (brief 110 / finding
     const { cx, cy } = centredOn(200, 40); // far from origin, strongly skewed
     const viewW = 640,
       viewH = 480;
-    const w = visibleTileWindow(mp, cx, cy, viewW, viewH, 1, 0);
 
     // Reproduce the old maths: treat iso px as if they were tile·TILE_SIZE px.
     const TILE = 16;

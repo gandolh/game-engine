@@ -172,7 +172,6 @@ export function createInventory(opts: InventoryOptions): Inventory {
 
   let open = false;
   const slots: SlotEls[] = [];
-  let hotbarSize = 8;
   let changed = false;
   let firstRefresh = true;
 
@@ -238,7 +237,6 @@ export function createInventory(opts: InventoryOptions): Inventory {
       return result;
     }
 
-    hotbarSize = inv.hotbarSize;
     ensureSlots(inv.slots.length, inv.hotbarSize);
     if (setText(title, `Inventory - ${inv.gold}g`)) changed = true;
 

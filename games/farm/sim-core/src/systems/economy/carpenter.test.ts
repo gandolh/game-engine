@@ -5,7 +5,7 @@ import type { GameEntity, FarmerFsmState } from "../../components";
 import { CarpenterSystem, COMMISSION_BUILD_TICKS } from "./carpenter";
 import { ActSystem } from "../act";
 import { InboxDispatchSystem } from "../messaging/inbox-dispatch";
-import { ONT_COMMISSION, type CommissionBuildBody } from "../../protocols/commission";
+import { ONT_COMMISSION } from "../../protocols/commission";
 import { PERFORMATIVE } from "../../protocols/performatives";
 import { REGIONS, forEachLandTile } from "../../world/regions";
 

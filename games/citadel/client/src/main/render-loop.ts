@@ -98,7 +98,7 @@ import {
   followId,
   modeLabelText,
 } from "./build-controls";
-import { settingsModal, settingsMirror, setSettingsLaidOut } from "./settings";
+import { settingsModal, settingsMirror } from "./settings";
 import { newGameModal, newGameMirror } from "./new-game";
 import { minimap } from "./minimap-wiring";
 import { tileToCanvasCss } from "./screen-mapping";
@@ -592,7 +592,7 @@ export function loop(): void {
     // open. Centred on the canvas (measure → re-anchor, like the toasts). show() resyncs the
     // controls but doesn't lay out / reconcile the mirror; we do that every frame so hover/active
     // colours and tab-swap content changes are reflected live in both the canvas and the AT view.
-    // Fix 2: reconcile the mirror every frame while open (not just once via settingsLaidOut).
+    // Fix 2: reconcile the mirror every frame while open (not just once on open).
     // The modal's tab buttons call settingsModal.selectTab(i) which swaps the visible content
     // panel; without a per-frame update the screen-reader sees the previous tab's controls (stale
     // DOM). mirror.update() is idempotent + diffs by node id — per-frame is safe and cheap for a
@@ -603,7 +603,6 @@ export function loop(): void {
       const sy = Math.max(8, (canvas.clientHeight - settingsModal.root.rect.height) / 2);
       computeLayout(settingsModal.root, sx, sy); // anchor centred
       settingsMirror?.update(settingsModal.root); // reconcile every frame (tab-swap + first open)
-      setSettingsLaidOut(true); // kept for the openSettings() gate (signals boot is past first frame)
       renderTree(uiSurface, settingsModal.root, CITADEL_THEME);
     }
 

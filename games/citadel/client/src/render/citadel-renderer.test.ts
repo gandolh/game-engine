@@ -11,7 +11,7 @@ import { rgbOf } from "@engine/core";
 import { CITADEL_PAL as EDG } from "./citadel-palette";
 import type { RendererLike } from "@engine/core";
 import type { Sprite } from "@engine/core/render";
-import { TerrainType, TILE_SIZE, WORLD_WIDTH, WORLD_HEIGHT } from "@citadel/sim-core";
+import { TerrainType, TILE_SIZE, WORLD_WIDTH } from "@citadel/sim-core";
 import type { BuildingSnapshot, VillagerSnapshot, RaiderSnapshot } from "@citadel/sim-core";
 import {
   packTint,

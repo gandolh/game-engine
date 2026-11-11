@@ -16,18 +16,14 @@ const MAX_PER_ZONE = 20;
 
 export class TileFeatureSystem implements System {
   private readonly world: World<GameEntity>;
-  private readonly rng: Rng;
-  private readonly bus?: MessageBus | undefined;
 
   readonly name = "TileFeatureSystem";
   private lastDayProcessed = -1;
 
   private readonly cluster: Rng;
 
-  constructor(world: World<GameEntity>, rng: Rng, bus?: MessageBus) {
+  constructor(world: World<GameEntity>, rng: Rng, _bus?: MessageBus) {
     this.world = world;
-    this.rng = rng;
-    this.bus = bus;
 
     this.cluster = rng.fork("tile-cluster");
   }
