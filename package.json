@@ -30,7 +30,7 @@
     "gates": "node scripts/gates.mjs",
     "check": "npm run typecheck && npm run lint && npm run format:check && npm run check:conventions && npm run test",
     "check:fast": "npm run typecheck && node scripts/check-fast.mjs",
-    "check:conventions": "depcruise \"engine/*/src\" \"games/*/*/src\" \"tools/*/src\" portal/src && node vendor/house-style/bin/check-base-ui.mjs && node vendor/house-style/bin/check-structure.mjs",
+    "check:conventions": "knip && depcruise \"engine/*/src\" \"games/*/*/src\" \"tools/*/src\" portal/src && node vendor/house-style/bin/check-base-ui.mjs && node vendor/house-style/bin/check-structure.mjs",
     "atlas": "npm run build -w @tool/atlas-builder",
     "sim": "npm start -w @tool/run-sim",
     "sim:citadel": "npm start -w @tool/citadel-sim",
