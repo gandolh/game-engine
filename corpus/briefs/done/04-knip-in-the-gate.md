@@ -31,3 +31,16 @@ Brief 03 left knip out of `check:conventions`. Run by hand it reported unused fi
 - `npx knip` exits 0.
 - `npm run check` exits 0 with knip in it; `bash corpus/lint.sh` passes.
 - The outcome note lists every deletion and every ignore.
+
+## Outcome (2026-11-13)
+
+`knip.config.js` spreads the house preset and `knip` runs first in `check:conventions`; `npx knip` and `npm run check` exit 0. Unused exports (53) stay warnings.
+
+**Entries added:** `inspirations/fetch.mjs`, `scripts/*.mjs`, house-style bins; engine/core `node-import-check.ts`; engine/ui `tools/*.ts`; wasm-modules `build/*.mjs` and `src/*.ts` (AssemblyScript sources); library-consumer `smoke*.mjs`; Hollow client `render3d-demo.ts`; citadel-sim `*.mts`; hollow-sim `rationalizer/index.ts`; image-patches `harness/main.ts`; every run-sim probe; docs pages and components.
+
+**Deleted (2):** `tools/world-preview/shrink.mjs` and `tools/world-preview/src/measure-land.ts`: one-off scratch scripts, no script, import or doc refers to them.
+
+**Ignored (with the reason in `knip.config.js`):**
+- `corpus/verify/**` (evidence pages, not code);
+- binaries `codegraph`, `agent-browser` (global CLIs);
+- dependencies: the two Docusaurus search/docs plugins and `prism-react-renderer` (loaded from the Docusaurus config); `tsx` (spawned by `node-import.test.ts`); `jsdom` and `@types/jsdom` (listed in three sim-cores that never import them: removing them touches the lockfile, a later cleanup); `@farm/client` (world-preview build order); `ws` (Farm server's, used by `probe-perf` by hand).

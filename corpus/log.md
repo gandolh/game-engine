@@ -4167,3 +4167,7 @@ Brief 03 left a dated warning on `games/citadel/client/src/worker/server-client.
 skipped `ready`, `roster`, `presence` and `emote`. Multiplayer is deprecated (decision #21), so
 the controller answered the owner question: not a gap. The switch now names the four kinds and
 ignores them, as the solo client does; the warn block is gone and the lint ceiling is 3,573.
+
+## [2026-11-13] close | Brief 04: knip in the gate
+
+[Brief 04](briefs/done/04-knip-in-the-gate.md) is done. `knip.config.js` spreads the house preset with entries for the probes, tools, demos, smoke scripts and AssemblyScript sources, and knip runs first in `check:conventions`. Two dead scratch scripts in `tools/world-preview` went; a short ignore list (jsdom, tsx, ws and others) is explained in the config and the outcome note. Unused exports stay warnings.
