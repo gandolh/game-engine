@@ -11,6 +11,8 @@ Each game is a `sim-core` package plus a browser client, built on the shared eng
 
 The online builds come from a separate deploy setup and can be older than `main`.
 
+The games portal in [portal/](../portal/README.md) lists the four as cards and plays each in a frame served from the same origin, with a Fullscreen button. Below 1280×640, the smallest screen the games fit, a play page shows a warning instead of the frame. It is built but not deployed; [portal.md](../corpus/wiki/portal.md) records the design and the frame check per game.
+
 ## Farm Valley
 
 You mostly watch. A 240×240 archipelago of rectangular islands, generated from a seed and joined by bridges along a spanning tree plus a few loops. 21 farmers work it for 100 in-game days: four named farmers, sixteen clones of their personalities on their own farm islands, and Pip.

@@ -7,7 +7,7 @@ An in-house TypeScript game engine and the four browser games built on it, kept 
 </p>
 <p align="center"><sub>Top: Farm Valley, Citadel. Bottom: Hollow, MateQuest.</sub></p>
 
-**Status:** Personal project, in active development since May 2026. Farm Valley, Citadel and Hollow are playable online; MateQuest runs locally only. The engine packages are used only inside this repo.
+**Status:** Personal project, in active development since May 2026. Farm Valley, Citadel and Hollow are playable online; MateQuest runs locally only. A games portal that frames all four is built but not deployed. The engine packages are used only inside this repo.
 
 ## What it does
 
@@ -34,7 +34,7 @@ MateQuest: pick a path on the map, choose Attack, answer the problem, and the an
 
 | Hollow's chronicle and live metrics | Farm Valley's Farmers panel |
 |---|---|
-| ![Hollow's left panel: a chronicle of year-18 events such as villagers joining community #1 and gifting food, above population, births and deaths charts, beside the 3D town](docs/images/hollow-chronicle.webp) | ![Farm Valley at midday on day 1: Pip's island on the left and the Farmers panel on the right, listing Cora, Atticus and Hannah with their gold, crops, state, action points and region](docs/images/farm-farmers-panel.webp) |
+| ![Hollow's left panel: a chronicle of year-18 events such as villagers joining community #1 and gifting food, above population, births and deaths charts, beside the 3D town](docs/images/hollow-chronicle.webp) | ![Farm Valley at midday on the first day, which the panel labels Day 0: Pip's island on the left and the Farmers panel on the right, listing Cora, Atticus and Hannah with their gold, crops, state, action points and region](docs/images/farm-farmers-panel.webp) |
 
 ## How it works
 
@@ -61,7 +61,7 @@ npm run hollow       # Hollow on http://localhost:5175
 npm run mathquest    # MateQuest on http://localhost:5176
 ```
 
-In Farm Valley, click Start or press Enter and the farmers play themselves; Tab opens the leaderboard. The WASM files are committed, so a fresh clone needs no WASM build. Tests, the gate sequence, the headless sims and their settings: [docs/getting-started.md](docs/getting-started.md).
+In Farm Valley, click Start or press Enter and the farmers play themselves; Tab opens the leaderboard. The WASM files are committed, so a fresh clone needs no WASM build. Other ports, the games portal, tests, the gate sequence, the headless sims and their settings: [docs/getting-started.md](docs/getting-started.md).
 
 ## Project layout
 
@@ -69,12 +69,14 @@ In Farm Valley, click Start or press Enter and the farmers play themselves; Tab 
 |---|---|
 | `engine/` | `@engine/core` (ECS, sim loop, renderer, input), `@engine/ui`, `@engine/wasm-modules` |
 | `games/` | One folder per game: `sim-core` and `client`, plus a `server` for Farm Valley and Citadel |
-| `tools/` | Headless sims for Farm Valley, Citadel and Hollow, the Farm world preview, the atlas builder |
+| `tools/` | Headless sims for Farm Valley, Citadel and Hollow, the Farm world preview, the atlas builder, and a tool that cuts a painted image into patches |
+| `portal/` | The games portal at `/games`: a card per game, each played in a frame. It imports no game |
 | `docs/` | The Docusaurus docs site, plus the guides and images this README links |
 | `corpus/` | The design wiki: decisions, status, glossary and the work queue |
 | `infrastructure/` | The container image for Farm Valley's sim server |
 | `examples/` | An outside-the-workspace project that installs the packed engine libraries |
-| `scripts/` | The dev runner and the gate sequence (`npm run gates`) |
+| `scripts/` | The dev runner, the gate sequence (`npm run gates`) and the changed-file lint behind `npm run check:fast` |
+| `vendor/` | A generated copy of house-style, the shared ESLint, Prettier, TypeScript and knip configs. `npm run house-style:sync` refreshes it; do not edit it by hand |
 
 ## Docs
 

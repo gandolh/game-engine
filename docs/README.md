@@ -4,8 +4,8 @@ Start with the [main README](../README.md). This folder is two things: the guide
 
 | File | What it covers |
 |---|---|
-| [getting-started.md](getting-started.md) | Prerequisites, running each game, ports and env vars, tests and gates, the headless sims, where the code lives |
-| [games.md](games.md) | The four games in more detail, where each runs and where each is deployed |
+| [getting-started.md](getting-started.md) | Prerequisites, running each game and the portal, ports and env vars, checks and gates, the headless sims, where the code lives |
+| [games.md](games.md) | The four games in more detail, where each runs, where each is deployed, and the portal |
 | [images/](images/shots.md) | The screenshots and GIF used in the README, and how each was made |
 
 Going deeper:
@@ -28,16 +28,17 @@ The sync is a curated subset. A `DENY` set in the sync script drops working note
 
 There is no generated API reference (no TypeDoc or Compodoc) on purpose. The engine packages are used only inside this monorepo, so generated API docs would be noise. The site tells the design story, not the type surface.
 
-Diagram sources live in [`diagrams/`](diagrams/) as archify JSON; [`scripts/build-diagrams.mjs`](scripts/build-diagrams.mjs) renders them to `static/diagrams/` when archify is installed and otherwise checks that the committed HTML is there.
+Diagram sources live in [`diagrams/`](diagrams/) as archify JSON; [`scripts/build-diagrams.mjs`](scripts/build-diagrams.mjs) renders them to `static/diagrams/` when archify is installed and otherwise checks that the committed HTML is there. [`sidebars.ts`](sidebars.ts) orders the sidebar, and `package.json` and `tsconfig.json` belong to the site workspace.
 
 ### Commands
 
-Run from `docs/` (or use the root `npm run docs`, which runs the turbo `docs` task):
+Run from `docs/` (or from the root: `npm run docs` runs the turbo `docs` task, `npm run docs:dev` the dev server):
 
 ```bash
 npm run sync-corpus   # render corpus/ into docs/wiki/ (runs before start and docs)
-npm run dev           # local dev server (= npm run start; prestart syncs first)
-npm run docs          # sync + docusaurus build → dist/
+npm run diagrams      # render or check the diagrams (runs before start and docs)
+npm run dev           # local dev server (= npm run start; prestart runs the two above first)
+npm run docs          # sync-corpus + diagrams + docusaurus build → dist/
 npm run typecheck     # tsc over the config, sidebars and components
 ```
 
