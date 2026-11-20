@@ -20,6 +20,8 @@ mean something on SwiftShader. Brief 07 runs the same scenes on real hardware.
 - A bench module in each game client, for example `src/main/bench.ts`, and the line in each boot
   path that starts it under `?bench`
 - `scripts/bench.ts` (new) and a root `npm run bench` script
+- `portal/src/main.ts`: only passing `bench` and `profile` from the play page's URL into the game's
+  frame
 - `corpus/` pages for this brief: the outcome, `log.md`, the "Measuring" section of
   [performance-measurements.md](../../wiki/performance-measurements.md), and [frame-budget.md](../../wiki/frame-budget.md)
   if a scene changes what the bar measures
@@ -44,15 +46,21 @@ mean something on SwiftShader. Brief 07 runs the same scenes on real hardware.
 
    Start sampling after a 3 s warm-up. Use the camera's own API and the game's own seed path, and
    don't add sim entry points.
-2. **The result.** When the run ends, the bench sets `window.__benchResult` to the brief-05 export
+
+   `?bench` works in production builds. Don't gate it on `import.meta.env.DEV` as `?card` is,
+   because brief 07 runs it on the deployed games, from a phone.
+2. **The portal passes it on.** The portal's play page opens a game in an iframe with
+   `src: game.path` and drops its own query string. Pass `bench` and `profile` through, so Hollow can
+   be read framed. The portal still imports no game.
+3. **The result.** When the run ends, the bench sets `window.__benchResult` to the brief-05 export
    plus the scene name. It also offers the result as a download, so the owner can save it on a phone.
-3. **The headless runner.** `npm run bench` starts each game's dev server, opens `?bench&profile` in
+4. **The headless runner.** `npm run bench` starts each game's dev server, opens `?bench&profile` in
    headless Chromium through `agent-browser`, as `portal/scripts/cards.ts` does, and waits for
    `__benchResult`. It writes one JSON per game to a folder you pass in. The runner stamps the
    frame-time fields `"gpu-not-real"` when the renderer string names SwiftShader. Only the counters
    are compared: draw groups, GL calls, UI quads, texture bytes and the CPU milliseconds of named
    steps.
-4. **Write it down.** Explain in [performance-measurements.md](../../wiki/performance-measurements.md)
+5. **Write it down.** Explain in [performance-measurements.md](../../wiki/performance-measurements.md)
    how to run a scene by hand (`?bench&profile`) and headless (`npm run bench`), and which fields
    mean something on SwiftShader.
 
@@ -62,6 +70,8 @@ mean something on SwiftShader. Brief 07 runs the same scenes on real hardware.
   seed, the counters and the `"gpu-not-real"` stamp.
 - Two runs of one game give the same draw-group and UI-quad means within 5%. Put both runs'
   numbers in the outcome.
+- A production build of one game (`npm run build`, served) runs its scene at `?bench&profile`, and
+  the portal's play page at `?bench&profile` runs Hollow's scene inside the frame.
 - `npm run check` exits 0, and `bash corpus/lint.sh` passes.
 
 ## Owner steps

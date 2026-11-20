@@ -14,15 +14,19 @@ into the baseline that every later brief and todo is measured against.
 
 ## Owner step first
 
-On each reference device, the Windows laptop with the AMD integrated GPU and the Android phone,
-both in Chrome:
-
-1. Open each game at `?bench&profile` from a production build (`npm run serve-all -w
-   @game-engine/portal`, or the deployed games) and save the result file when the run ends.
-2. On the laptop, also run Hollow through the portal's play page and then directly, both with
+1. **Deploy what briefs 05 and 06 changed,** so the phone can reach the bench. Push game-engine,
+   then from the vps-deploy checkout run `node cli.ts farm-valley deploy`, `node cli.ts citadel
+   deploy`, `node cli.ts hollow deploy`, `node cli.ts mathquest deploy` and `node cli.ts
+   games-portal deploy`. The laptop can use `npm run serve-all -w @game-engine/portal` instead.
+2. **Sit before briefs 08 and 10 ship,** if you want a real-GPU "before" for those two reverts.
+   After them, the baseline only has the "after".
+3. **On each reference device,** the Windows laptop with the AMD integrated GPU and the Android
+   phone, both in Chrome, open each game at `?bench&profile` and save the result file when the run
+   ends.
+4. **On the laptop, also run Hollow** through the portal's play page and then directly, both with
    `?bench&profile`.
-3. Put the files in `corpus/verify/` under a folder named for the date, and say which file is which
-   device.
+5. **Put the files in `corpus/verify/`** under a folder named for the date, and say which file is
+   which device.
 
 That makes ten files: four games on two devices, plus Hollow framed and direct.
 
@@ -65,4 +69,4 @@ That makes ten files: four games on two devices, plus Hollow framed and direct.
 
 ## Owner steps
 
-- The sitting above, before the brief starts.
+- The deploy and the sitting above, before the brief starts.

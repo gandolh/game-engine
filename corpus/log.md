@@ -4195,7 +4195,7 @@ reverted where that helps. The plan is [frame-budget.md](wiki/frame-budget.md).
   AMD laptop and the Android phone. Builders gate on GPU-independent counters, and the owner reads
   frame times.
 - **Three reverts.** Farm's six sheets become one runtime page (brief 10; the probe's 49 draw groups
-  should drop to 8). The atlas cook serves every game (brief 09). Farm renders on
+  should drop to 1). The atlas cook serves every game (brief 09). Farm renders on
   `requestAnimationFrame` instead of brief 84's uncapped timer (brief 08).
 - **Art.** Recipes and fixed palettes stay. sprite-gen's checks become recipe tests (brief 11).
   MateQuest's creatures move onto an atlas (brief 12). A blind trial of `pixel-draw` against an agent

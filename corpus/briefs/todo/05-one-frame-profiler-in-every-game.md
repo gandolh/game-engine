@@ -40,14 +40,15 @@ bench scenes on top of it, and brief 07 reads them on real hardware.
 
 ## What to do
 
-1. **Frame stats in the engine.** Add a frame-stats module next to `Profiler`. It keeps a rolling
-   window of `requestAnimationFrame` timestamps and reports:
+1. **Frame stats in the engine.** Add a frame-stats module next to `Profiler`. It counts two things
+   apart: display ticks, from `requestAnimationFrame` callbacks, and frames drawn. They differ in
+   Farm until brief 08, because its loop draws on a timer. From the display ticks it reports:
    - the frame interval at p50, p95 and p99;
    - the share of frames over 16.7 ms and over 33.3 ms;
    - frames per second.
 
-   It also keeps the CPU frame time per frame, which the `frame` timer already measures. Pure
-   functions, unit-tested.
+   From the frames drawn it reports the CPU frame time, which the `frame` timer already measures, and
+   frames drawn per second. Pure functions, unit-tested.
 2. **GPU time where the browser allows it.** Probe for `EXT_disjoint_timer_query_webgl2` and wrap
    each frame's draw in a `TIME_ELAPSED_EXT` query. Read results a few frames later without
    stalling, and throw away a result when `GPU_DISJOINT_EXT` is set. Without the extension the export
@@ -69,7 +70,8 @@ bench scenes on top of it, and brief 07 reads them on real hardware.
    Add the same for the 3D renderer (draw calls and instances per frame) and count bytes uploaded by
    `texImage2D` and `texSubImage2D` in both renderers.
 6. **Wire all four games.** `?profile` turns on the overlay and the export in Farm, Citadel, Hollow
-   and MateQuest. MateQuest's UI-pass ring becomes named timers in the shared profiler. Hollow's HUD
+   and MateQuest. It works in production builds, as Farm's does today: don't gate it on
+   `import.meta.env.DEV`, because brief 07 reads it on the deployed games. MateQuest's UI-pass ring becomes named timers in the shared profiler. Hollow's HUD
    and Farm's sub-timers stay, under the shared names.
 7. **Record the bar.** Add a "Frame budget" entry to [decisions.md](../../wiki/decisions.md). It
    gives the rule, the reference devices, why builders gate on counters, and a link to

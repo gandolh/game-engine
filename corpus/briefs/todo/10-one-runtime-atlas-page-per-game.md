@@ -14,8 +14,9 @@ as one group. A change of texture ends a group (`engine/core/src/render/webgl2/r
 `_recordGroup`).
 
 Farm uploads its six sheets as six textures: `characters`, `buildings`, `terrain`, `crops`, `props`
-and `items-ui`. All six are 128 px wide and stack to 2,432 px tall, so they fit in one 1024×512 or
-512×1024 page. The 2026-09-19 probe (`tools/run-sim/src/probes/probe-draw-groups.ts`, seed
+and `items-ui`. All six are 128 px wide and stack to 2,432 px tall. Packed as whole blocks they fit
+one 512×1024 page: `buildings` (1024 tall) in one column, `characters` and `props` (512 each) in the
+next, and the three 128 px sheets in a third. The 2026-09-19 probe (`tools/run-sim/src/probes/probe-draw-groups.ts`, seed
 `0xc0ffee`) counted 49 draw groups for 419 sprites, against a floor of 4. Layer 40 alone gives 40
 groups, because world dressing alternates `props` and `buildings` frames in y order
 ([performance-measurements.md](../../wiki/performance-measurements.md), 2026-09-19).
@@ -66,8 +67,10 @@ resolve to one texture, and the batcher groups by texture.
 
 ## Acceptance
 
-- `probe-draw-groups.ts` on seed `0xc0ffee` gives at most one group per non-empty layer: 8 on the
-  2026-09-19 scene, down from 49. `draw.atlases` is 1 for the world pass. Put before and after in
+- `probe-draw-groups.ts` on seed `0xc0ffee` gives as many groups as distinct textures in the queue:
+  1 for Farm's world sprites, down from 49 on the 2026-09-19 scene. Groups already run on across
+  layer boundaries when the texture stays the same, which is why the old per-layer rows add up to
+  52 against a total of 49. `draw.atlases` is 1 for the world pass. Put before and after in
   the outcome and on [performance-measurements.md](../../wiki/performance-measurements.md).
 - Farm uploads one world atlas texture at boot instead of six, counted with the brief-05 texture
   counter, or a texture-creation count if brief 05 is not done.

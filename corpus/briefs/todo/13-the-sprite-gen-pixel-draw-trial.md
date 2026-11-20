@@ -29,14 +29,16 @@ mode refused installing it, and a builder would be refused too. The owner runs i
 
 1. In a folder outside the repo, install it: `python3 -m venv .venv`, `source .venv/bin/activate`,
    `pip install git+https://github.com/aldegad/sprite-gen`. Sign `claude` in to the plan.
-2. Run the two drawings below and copy both run folders into
-   `corpus/verify/<date>-pixel-draw-trial/pixel-draw/`. The palette files hold one `#RRGGBB` per line.
-   The builder can write them ahead into the verify folder from `MATE_PAL` and `EDG32`.
+2. From the repo's `corpus/verify/2026-11-20-pixel-draw-trial/` folder, which already holds the two
+   palette files (`mate-pal.hex` from `MATE_PAL`, `edg32.hex` from EDG32), run the two drawings below
+   into a `pixel-draw/` folder there.
+3. Don't open the pictures. The trial is blind, and you pick between the two methods later. The
+   commands print a report, which is safe to read.
 
    ```bash
-   sprite-gen pixel-draw --out-dir strigoi --size 32 --palette mate-pal.hex --candidates 2 \
+   sprite-gen pixel-draw --out-dir pixel-draw/strigoi --size 32 --palette mate-pal.hex --candidates 2 \
      --subject "A strigoi from Romanian folklore: a pale undead figure in a dark ragged cloak, side view facing left, standing."
-   sprite-gen pixel-draw --out-dir apple-icon --kind icon --size 16 --palette edg32.hex --candidates 2 \
+   sprite-gen pixel-draw --out-dir pixel-draw/apple-icon --kind icon --size 16 --palette edg32.hex --candidates 2 \
      --subject "An inventory icon of a red apple with a small green leaf."
    ```
 
@@ -46,7 +48,7 @@ login they count against the plan's usage.
 ## Files you OWN
 
 - `tools/recipe-import/` (new): `grid.txt` to a recipe `.ts` for a given game
-- `corpus/verify/<date>-pixel-draw-trial/` (palette files, imported recipes, the comparison sheet,
+- `corpus/verify/2026-11-20-pixel-draw-trial/` (imported recipes, the comparison sheet,
   the check results)
 - `corpus/` pages for this brief: the outcome, `log.md`, and the sprite-gen paragraph of
   [frame-budget.md](../../wiki/frame-budget.md)

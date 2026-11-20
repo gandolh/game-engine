@@ -70,7 +70,9 @@ is never installed in this repo or its build.
 
 ## The briefs, in order
 
-One builder works in this repo at a time, so `Depends on` sets the order.
+One builder works in this repo at a time, so `Depends on` sets the order. Briefs 08 and 10 don't
+wait for the sitting in 07. If the owner wants a real-GPU reading from before those two reverts, the
+sitting comes right after 06.
 
 | Brief | What it delivers | Depends on |
 |---|---|---|
@@ -79,7 +81,7 @@ One builder works in this repo at a time, so `Depends on` sets the order.
 | [07](../briefs/todo/07-the-real-gpu-baseline.md) | The owner's real-GPU sitting, recorded, with budgets set and todos promoted | 06 and the owner |
 | [08](../briefs/todo/08-farm-renders-on-request-animation-frame.md) | Farm renders on `requestAnimationFrame` | 05 |
 | [09](../briefs/todo/09-the-atlas-cook-serves-every-game.md) | The atlas cook takes any game's recipe set, with Farm's output unchanged | none |
-| [10](../briefs/todo/10-one-runtime-atlas-page-per-game.md) | One runtime page per game, so draw groups drop to about one per layer | 09 |
+| [10](../briefs/todo/10-one-runtime-atlas-page-per-game.md) | One runtime page per game, so Farm's world sprites draw as one group, not 49 | 09 |
 | [11](../briefs/todo/11-recipe-checks-as-tests.md) | Stray-pixel, floor-row and corner checks on every recipe | 09 |
 | [12](../briefs/todo/12-mathquest-draws-combat-sprites-from-an-atlas.md) | MateQuest's seven combat sprites become recipes on an atlas | 10 |
 | [13](../briefs/todo/13-the-sprite-gen-pixel-draw-trial.md) | A blind trial of `pixel-draw` against an agent writing recipes | 11, 12 and the owner |
@@ -104,7 +106,8 @@ baseline, and so does any later bench reading.
 ## Checked and dropped
 
 - **Weather particle caps.** [performance.md](performance.md) lists uncapped spawns and an O(n)
-  `splice`. Both are gone: `particles.ts` caps the pool at 512 and no longer splices.
+  `splice`. Both are gone: `particles.ts` caps its pool at 512 and no longer splices, and rain now
+  goes through `RainField` (`rain-field.ts`), which caps its drops at 900.
 - **Texture compression (KTX2, Basis).** It is lossy, and pixel art needs exact colours. It would
   only help a large painted image, and no game draws one.
 - **Mipmaps.** Off for pixel art, as [asset-pipeline.md](asset-pipeline.md) says.
