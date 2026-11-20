@@ -9,10 +9,11 @@ Live list of what's **genuinely unresolved**. Shipped/resolved items are deleted
 
 ## Open
 
-- **Model-drafted pixel art (2026-11-20).** Should sprites drafted by `sprite-gen pixel-draw` (Claude
-  writes a keyed grid in the game's palette) be committed as recipes once a person has touched them up?
-  It would fill MateQuest's placeholder combat art first, after MateQuest gets an atlas. This is a
-  taste call for the owner. Research and proposed trial:
+- **A sprite-gen trial (2026-11-20).** Does `sprite-gen pixel-draw` draw better recipes than a coding
+  agent writing one directly, as agents do today? It has Claude write a keyed grid in the game's palette,
+  then runs gates and a vision pick. A trial waits for the owner's go-ahead, because it installs an
+  outside Python tool and spends plan usage. MateQuest's placeholder combat art would gain most, once
+  MateQuest has an atlas. The research and the proposed trial are in
   [sprite-gen research](../todos/2026-11-20-sprite-gen-research.md).
 
 Both questions of 2026-10-28 were answered the same day: npm 11.19.1 is canonical

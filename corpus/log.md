@@ -4174,9 +4174,13 @@ ignores them, as the solo client does; the warn block is gone and the lint ceili
 
 ## [2026-11-20] research | sprite-gen as an art tool
 
-[Research](todos/2026-11-20-sprite-gen-research.md). Of sprite-gen's parts, only `pixel-draw` fits: Claude
-writes a keyed character grid in a fixed palette, which is the shape of our `PixelRecipe`. Its image and
-video pipelines make raster art and would reopen the art-as-source and fixed-palette decisions. MateQuest's
-combat art would gain most, but MateQuest has no sprite atlas and the atlas builder is Farm-only, so that
-needs a brief whichever tool draws. Resurrect 64 is over `pixel-draw`'s 62-colour cap; the 32 `MATE_PAL`
-colours fit. Nothing was installed or run. Open for the owner in [open-questions.md](wiki/open-questions.md).
+[Research](todos/2026-11-20-sprite-gen-research.md). Of sprite-gen's parts only `pixel-draw` fits. Claude
+writes a keyed character grid in a fixed palette, the shape of our `PixelRecipe`. The image and video
+pipelines make raster art and would reopen the art-as-source and fixed-palette decisions. Coding agents
+already write our recipes (48 of 97 recipe and template commits carry a Claude co-author line), so the
+proposed trial pits `pixel-draw` against an agent writing the recipe directly. If the trial is lost, its
+gates for stray pixels, floor row and safe area are still worth copying as recipe tests. MateQuest's combat
+art would gain most, but MateQuest has no sprite atlas and the atlas builder is Farm-only, so that needs a
+brief whichever way the recipes get written. Resurrect 64 is over `pixel-draw`'s 62-colour cap, and the 32
+`MATE_PAL` colours fit. Nothing was installed or run. The trial waits for the owner, see
+[open-questions.md](wiki/open-questions.md).
