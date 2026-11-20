@@ -1,6 +1,6 @@
 # sprite-gen as an art tool (research)
 
-status: open. Researched 2026-11-20. A trial waits for the owner's go-ahead, see "For the owner".
+status: closed 2026-11-20. Promoted to briefs 11 (the checks as tests), 13 (the blind trial) and 14 (MateQuest's sprites), see frame-budget.md.
 created: 2026-11-20
 context: the owner, 2026-11-20: "Can you do a research about https://github.com/aldegad/sprite-gen. It
 might help with the asset work in the game-engine." Research only. This note comes from reading the
@@ -12,7 +12,7 @@ One verb fits, `sprite-gen pixel-draw`. Claude writes the sprite as a keyed char
 palette. That is the shape of our `PixelRecipe`, so it can draft recipes without changing how art lives
 in this repo. The rest of sprite-gen makes raster images with image and video models, chroma keys and
 packed PNG atlases. Adopting any of that would reopen two locked decisions, that art is source code and
-that every colour comes from the game's fixed palette ([decisions.md](../wiki/decisions.md), sections
+that every colour comes from the game's fixed palette ([decisions.md](../../wiki/decisions.md), sections
 Assets and Art / Palette).
 
 Model-written pixel art is not new here. Coding agents already write recipes: 48 of the 97 commits that
@@ -46,17 +46,17 @@ any tool can help.
 ## What this repo asks of art
 
 - **Art is source.** A sprite is a `PixelRecipe`, an ASCII grid of palette characters
-  ([types.ts](../../games/farm/atlas-recipes/src/types.ts)). Farm has about 240 recipe files, and
-  [`tools/atlas-builder`](../../tools/atlas-builder/) bakes them into atlases.
+  ([types.ts](../../../games/farm/atlas-recipes/src/types.ts)). Farm has about 240 recipe files, and
+  [`tools/atlas-builder`](../../../tools/atlas-builder/) bakes them into atlases.
 - **One fixed palette per game, held by a guard test.** EDG32 for the engine and Farm, Apollo-46 for
   Citadel and Hollow, Resurrect 64 for MateQuest.
 - **Not everything is a grid.** Citadel's buildings are iso painters written in code
-  ([citadel-art-style.md](../wiki/citadel-art-style.md)), Hollow is vertex-coloured 3D, and Farm's
+  ([citadel-art-style.md](../../wiki/citadel-art-style.md)), Hollow is vertex-coloured 3D, and Farm's
   farmer frames come from templates with substitution maps and guard tests.
 - **MateQuest has placeholder art.** Its hero and six enemies are rectangles and triangles
-  ([sprites.ts](../../games/mathquest/client/src/ui/sprites.ts)). Its design page plans to "commission
+  ([sprites.ts](../../../games/mathquest/client/src/ui/sprites.ts)). Its design page plans to "commission
   pixel art via the atlas-recipe pipeline once the fun is confirmed"
-  ([mathquest-overview.md](../wiki/mathquest-overview.md)).
+  ([mathquest-overview.md](../../wiki/mathquest-overview.md)).
 
 ## Each part against that bar
 
@@ -65,10 +65,10 @@ any tool can help.
 | `pixel-draw` | **Yes** | It writes a keyed grid in a palette we choose. Details below. |
 | A, atlas rows | No | It paints raster frames and packs a PNG atlas. Its pixel-art mode, [pixel-unfake](https://github.com/aldegad/sprite-gen/blob/main/docs/pixel-unfake.md), quantises to a median-cut palette of N colours, not to a fixed palette. The recipe would stop being the source, and the palette guard would never see the colours. |
 | B, video to loop | No | It needs xAI's Grok Imagine, ffmpeg and RIFE, and it makes painterly loops. Wrong style and wrong scale for 16 px sprites. |
-| Recolour | Not needed | Farm already makes variants in code, with the personality substitution maps in [templates.ts](../../games/farm/atlas-recipes/src/templates.ts). |
+| Recolour | Not needed | Farm already makes variants in code, with the personality substitution maps in [templates.ts](../../../games/farm/atlas-recipes/src/templates.ts). |
 | Aseprite export, manifest | Not needed | The atlas builder writes our own manifest. |
 | Cutout, slice-sheet | Not today | They help only when importing third-party raster art, such as the CC0 packs Citadel used as references. |
-| Background tile, shadow, scene | No | Raster tools for painted scenes. No game draws a painted image through [`@tool/image-patches`](../wiki/asset-pipeline.md) yet. |
+| Background tile, shadow, scene | No | Raster tools for painted scenes. No game draws a painted image through [`@tool/image-patches`](../../wiki/asset-pipeline.md) yet. |
 
 ## `pixel-draw` in detail
 
@@ -106,11 +106,11 @@ people has to use an API key.
 
 1. **A palette file per game.** A fixed palette holds at most 62 colours, one key each. EDG32 with 32
    and Apollo-46 with 46 fit. Resurrect 64 does not, so MateQuest would pass its 32 `MATE_PAL` role
-   colours ([mate-palette.ts](../../games/mathquest/client/src/render/mate-palette.ts)), the only ones
+   colours ([mate-palette.ts](../../../games/mathquest/client/src/render/mate-palette.ts)), the only ones
    its code draws with anyway.
 2. **A converter from hex to our characters.** It is not one to one. Farm's `SWATCH` gives several
    colours more than one character by role, for example `G` and `C`, `g` and `L`, `D` and `m`
-   ([palette.ts](../../games/farm/atlas-recipes/src/palette.ts)). The converter writes one canonical
+   ([palette.ts](../../../games/farm/atlas-recipes/src/palette.ts)). The converter writes one canonical
    character per colour, and whoever touches up the draft swaps in role characters where they matter.
 3. **A crop for non-square recipes.** Drawings are square, so the 32×24 blackjack table would be drawn
    at 32×32 and cropped. `--grid` reads non-square grids.

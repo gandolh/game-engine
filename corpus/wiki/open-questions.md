@@ -9,14 +9,8 @@ Live list of what's **genuinely unresolved**. Shipped/resolved items are deleted
 
 ## Open
 
-- **A sprite-gen trial (2026-11-20).** Does `sprite-gen pixel-draw` draw better recipes than a coding
-  agent writing one directly, as agents do today? It has Claude write a keyed grid in the game's palette,
-  then runs gates and a vision pick. A trial waits for the owner's go-ahead, because it installs an
-  outside Python tool and spends plan usage. MateQuest's placeholder combat art would gain most, once
-  MateQuest has an atlas. The research and the proposed trial are in
-  [sprite-gen research](../todos/2026-11-20-sprite-gen-research.md).
-
-Both questions of 2026-10-28 were answered the same day: npm 11.19.1 is canonical
+_Nothing open._ The sprite-gen question of 2026-11-20 became brief 13, a blind trial
+([frame-budget.md](frame-budget.md)). Both questions of 2026-10-28 were answered the same day: npm 11.19.1 is canonical
 (`packageManager` bumped), and the two Hollow sim tests get no time budgets; computation-heavy
 tests are simply not run on agent brief runs (see [log.md](../log.md)).
 

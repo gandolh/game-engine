@@ -4174,7 +4174,7 @@ ignores them, as the solo client does; the warn block is gone and the lint ceili
 
 ## [2026-11-20] research | sprite-gen as an art tool
 
-[Research](todos/2026-11-20-sprite-gen-research.md). Of sprite-gen's parts only `pixel-draw` fits. Claude
+[Research](todos/closed/2026-11-20-sprite-gen-research.md). Of sprite-gen's parts only `pixel-draw` fits. Claude
 writes a keyed character grid in a fixed palette, the shape of our `PixelRecipe`. The image and video
 pipelines make raster art and would reopen the art-as-source and fixed-palette decisions. Coding agents
 already write our recipes (48 of 97 recipe and template commits carry a Claude co-author line), so the
@@ -4184,3 +4184,26 @@ art would gain most, but MateQuest has no sprite atlas and the atlas builder is 
 brief whichever way the recipes get written. Resurrect 64 is over `pixel-draw`'s 62-colour cap, and the 32
 `MATE_PAL` colours fit. Nothing was installed or run. The trial waits for the owner, see
 [open-questions.md](wiki/open-questions.md).
+
+## [2026-11-20] plan | Holding 60 fps: ten briefs and eight todos
+
+The owner asked for at least 60 fps in every game, built to industry practice, with old decisions
+reverted where that helps. The plan is [frame-budget.md](wiki/frame-budget.md).
+
+- **Measure first.** No game has a real-GPU reading since the WebGL2 migration. Briefs 05 to 07
+  build one profiler for all four games, a seeded bench scene in each and the owner's sitting on the
+  AMD laptop and the Android phone. Builders gate on GPU-independent counters, and the owner reads
+  frame times.
+- **Three reverts.** Farm's six sheets become one runtime page (brief 10; the probe's 49 draw groups
+  should drop to 8). The atlas cook serves every game (brief 09). Farm renders on
+  `requestAnimationFrame` instead of brief 84's uncapped timer (brief 08).
+- **Art.** Recipes and fixed palettes stay. sprite-gen's checks become recipe tests (brief 11).
+  MateQuest's creatures move onto an atlas (brief 12). A blind trial of `pixel-draw` against an agent
+  (brief 13) picks the method for redrawing them (brief 14).
+- **Todos.** Eight measure-first todos, each with the number that promotes it: static layer as tile
+  chunks, sort on change, ghost scan, worker snapshot transfer, Hollow 3D culling, allocation-free
+  frames, animation tags, recipe and PNG round trip.
+- **Dropped after checking.** Particle caps (already in `particles.ts`), texture compression and
+  mipmaps (wrong for pixel art), and a binary codec for Farm (measured not worth it on 2026-06-10).
+
+The sprite-gen research moved to `todos/closed/`, and its open question was closed into brief 13.
