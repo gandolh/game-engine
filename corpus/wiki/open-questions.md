@@ -1,6 +1,6 @@
 ---
 summary: Live list of what is genuinely unresolved, plus settled premises that must not be re-litigated. Resolved items are deleted, not archived.
-updated: 2026-10-28
+updated: 2026-11-20
 ---
 
 # Open Questions & Gaps
@@ -9,7 +9,13 @@ Live list of what's **genuinely unresolved**. Shipped/resolved items are deleted
 
 ## Open
 
-_Nothing open._ Both questions of 2026-10-28 were answered the same day: npm 11.19.1 is canonical
+- **Model-drafted pixel art (2026-11-20).** Should sprites drafted by `sprite-gen pixel-draw` (Claude
+  writes a keyed grid in the game's palette) be committed as recipes once a person has touched them up?
+  It would fill MateQuest's placeholder combat art first, after MateQuest gets an atlas. This is a
+  taste call for the owner. Research and proposed trial:
+  [sprite-gen research](../todos/2026-11-20-sprite-gen-research.md).
+
+Both questions of 2026-10-28 were answered the same day: npm 11.19.1 is canonical
 (`packageManager` bumped), and the two Hollow sim tests get no time budgets; computation-heavy
 tests are simply not run on agent brief runs (see [log.md](../log.md)).
 

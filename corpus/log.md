@@ -4171,3 +4171,12 @@ ignores them, as the solo client does; the warn block is gone and the lint ceili
 ## [2026-11-13] close | Brief 04: knip in the gate
 
 [Brief 04](briefs/done/04-knip-in-the-gate.md) is done. `knip.config.js` spreads the house preset with entries for the probes, tools, demos, smoke scripts and AssemblyScript sources, and knip runs first in `check:conventions`. Two dead scratch scripts in `tools/world-preview` went; a short ignore list (jsdom, tsx, ws and others) is explained in the config and the outcome note. Unused exports stay warnings.
+
+## [2026-11-20] research | sprite-gen as an art tool
+
+[Research](todos/2026-11-20-sprite-gen-research.md). Of sprite-gen's parts, only `pixel-draw` fits: Claude
+writes a keyed character grid in a fixed palette, which is the shape of our `PixelRecipe`. Its image and
+video pipelines make raster art and would reopen the art-as-source and fixed-palette decisions. MateQuest's
+combat art would gain most, but MateQuest has no sprite atlas and the atlas builder is Farm-only, so that
+needs a brief whichever tool draws. Resurrect 64 is over `pixel-draw`'s 62-colour cap; the 32 `MATE_PAL`
+colours fit. Nothing was installed or run. Open for the owner in [open-questions.md](wiki/open-questions.md).
