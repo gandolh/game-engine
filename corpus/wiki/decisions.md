@@ -72,6 +72,24 @@ Tech choices that are settled. Listed here so future briefs and reviews don't re
   A mock GL can't see orientation, so the check is in a browser: the patch harness puts a sand band on its
   top edge only. Do not "restore" the flip.
 
+## Frame budget (2026-11-20)
+
+- **Every game holds 60 fps on the reference devices, measured as a percentile, gated on counters.**
+  *(The owner, 2026-11-20; recorded by brief 05.)* The rule: in each game's bench scene, on each
+  reference device, the frame interval's 95th percentile is at most 16.7 ms and fewer than 1% of frames
+  take longer than 33.3 ms. A 120 Hz display does not raise it. The reference devices are the Windows 11
+  laptop with the AMD Radeon integrated GPU (Chrome, ANGLE on Direct3D 11) and the owner's Android phone
+  (Chrome). The plan and the briefs that build toward it are on [frame-budget.md](frame-budget.md).
+  - **Why a percentile and not an average fps.** An average hides the hitches players feel; p95 and the
+    long-frame share are what studios gate on.
+  - **Why builders gate on counters.** A builder's sandbox renders on SwiftShader, a CPU rasteriser whose
+    frame times this repo has twice learned not to trust. So a brief's acceptance uses what the GPU does
+    not change (draw groups, GL draw calls, UI quads, texture bytes uploaded, the CPU milliseconds of
+    named steps), and the real-GPU reading is an owner step. The shared `?profile` export
+    (`game-engine-profile/1`, [performance-measurements.md](performance-measurements.md) → Measuring)
+    carries both.
+  - **Rejected: frame times read in the sandbox as the gate.** They measure the rasteriser, not the game.
+
 ## Assets
 
 - **Build-time procedural atlas** via [tools/atlas-builder](../../tools/atlas-builder/). PNG + JSON manifest. No external art pipeline.

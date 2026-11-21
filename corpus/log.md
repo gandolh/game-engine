@@ -4207,3 +4207,15 @@ reverted where that helps. The plan is [frame-budget.md](wiki/frame-budget.md).
   mipmaps (wrong for pixel art), and a binary codec for Farm (measured not worth it on 2026-06-10).
 
 The sprite-gen research moved to `todos/closed/`, and its open question was closed into brief 13.
+
+## [2026-11-21] done | Brief 05: one frame profiler in every game
+
+Every game has one `?profile` now, in production builds too: the engine's `FrameProfile` reports the frame
+interval from display ticks (p50, p95, p99, the share over 16.7 ms and 33.3 ms), frames drawn and their CPU
+time, the GPU's own time where `EXT_disjoint_timer_query_webgl2` is exposed, the JS heap where Chrome shows
+it, named timers and GL counters, in one export, `game-engine-profile/1`. Without `?profile` nothing is
+created. Headless Chromium exports for all four games are in `verify/2026-11-21-frame-profiler/`, and their
+counters are on [performance-measurements.md](wiki/performance-measurements.md), whose "Measuring" section
+describes the export. The texture counter found Farm re-uploading a full-canvas light overlay every frame,
+filed as a measure-first todo with its trigger on [frame-budget.md](wiki/frame-budget.md). The bar is now a
+"Frame budget" entry in [decisions.md](wiki/decisions.md). `npm run check` and `npm run gates` pass.

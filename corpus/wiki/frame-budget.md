@@ -76,7 +76,7 @@ sitting comes right after 06.
 
 | Brief | What it delivers | Depends on |
 |---|---|---|
-| [05](../briefs/todo/05-one-frame-profiler-in-every-game.md) | One frame profiler in all four games: percentiles, long frames, GPU time where the browser exposes it, one export format | none |
+| [05](../briefs/done/05-one-frame-profiler-in-every-game.md) | One frame profiler in all four games: percentiles, long frames, GPU time where the browser exposes it, one export format | none |
 | [06](../briefs/todo/06-a-bench-scene-in-every-game.md) | A scripted, seeded bench scene per game and a headless runner for the counters | 05 |
 | [07](../briefs/todo/07-the-real-gpu-baseline.md) | The owner's real-GPU sitting, recorded, with budgets set and todos promoted | 06 and the owner |
 | [08](../briefs/todo/08-farm-renders-on-request-animation-frame.md) | Farm renders on `requestAnimationFrame` | 05 |
@@ -102,6 +102,7 @@ baseline, and so does any later bench reading.
 | [Allocation-free frames](../todos/2026-11-20-allocation-free-frames.md) | Long frames line up with garbage-collection drops in the heap reading |
 | [Animation tags in the manifest](../todos/2026-11-20-animation-tags-in-the-manifest.md) | The first animated MateQuest sprite, or the next new Farm animation |
 | [Recipe and PNG round trip](../todos/2026-11-20-recipe-and-png-round-trip.md) | Someone wants to edit art in a pixel editor such as Aseprite |
+| [Light overlay as a full-canvas upload](../todos/2026-11-21-light-overlay-full-canvas-upload.md) | Farm's light overlay (its canvas paint plus the upload) takes more than 1 ms at p95, or the GPU time drops by more than 1 ms with it off. Measured on SwiftShader by brief 05: 4,096,000 bytes uploaded every frame at 1280×800 |
 
 ## Checked and dropped
 
