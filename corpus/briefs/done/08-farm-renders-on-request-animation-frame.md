@@ -68,3 +68,42 @@ That call is reverted, for four reasons:
   baseline.
 - Deploy: the `farm-valley` stack's static client (`node cli.ts farm-valley deploy` from the
   vps-deploy checkout).
+
+## Outcome (2026-11-21)
+
+Done. [render-loop.ts](../../../games/farm/client/src/main/render-loop.ts) gained `animationFrameLoop(frame)`:
+one `frame(nowMs)` per `requestAnimationFrame` callback with the callback's timestamp, the next frame
+requested after this one is drawn, `start()` idempotent and `stop()` cancelling the pending handle.
+`createRenderLoop` returns that loop instead of a self-scheduling `renderFrame`, and `main.ts` calls
+`renderLoop.start()` once, after the home and loading loops it already cancels. `dt` keeps its 0.1 s
+clamp (0 on the first frame), and keyboard input is still read at the top of the frame. No `setTimeout` is
+left in the loop.
+
+**Acceptance.**
+
+- [render-loop.test.ts](../../../games/farm/client/src/main/render-loop.test.ts) drives the loop with a fake
+  `requestAnimationFrame` and fake timers: exactly one frame per callback, with its timestamp; nothing drawn
+  when the timers run between callbacks; one loop however often it is started; `stop()` cancels the pending
+  frame, and a frame that stops the loop requests no other.
+- Frames drawn and rAF callbacks per second, Farm's bench scene with `?bench&profile` in headless Chromium
+  (SwiftShader), 30 s sampled:
+
+  | Viewport | Before: rAF ticks/s | Before: drawn/s | After: rAF ticks/s | After: drawn/s |
+  |---|---:|---:|---:|---:|
+  | 480×300 | 18.97 | 13.32 | 13.30 | 13.30 (398 of 398) |
+  | 1280×800 | 12.36 | 7.82 | 7.37 | 7.37 (220 of 220) |
+
+  After the change they match exactly. **Before, the timer loop drew fewer frames than rAF fired, not
+  more**, which is the reverse of what the brief expected. On SwiftShader a Farm frame costs more than a
+  display interval, so the timer loop never got ahead of the display, and rAF callbacks ran between its long
+  tasks. The brief's "more frames than shown" (brief 84's ~40% discarded) needs a machine where a frame fits
+  in a refresh, such as the 2026-06-12 laptop reading; brief 07's sitting is where that shows. The draws per
+  second didn't drop (13.32 to 13.30 at 480×300).
+- One loop: home screen then game, twice (a new run is a page load; Farm has no way back to the home screen
+  within a page), counting rAF callbacks by function name for 3 s each. Home: `renderHome` 181 both times.
+  Game: `tick` (the loop's callback) 36 and 38, and no `renderHome` or `renderLoading` left.
+- `npm run check` exits 0, and `bash corpus/lint.sh` passes.
+
+The revert is a Renderer line on [decisions.md](../../wiki/decisions.md) and a note beside brief 84's on
+[performance.md](../../wiki/performance.md).
+

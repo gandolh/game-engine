@@ -4233,3 +4233,14 @@ on a whole screen first, since its map draws ten times the quads of its other sc
 `bench` and `profile` into its frame. The scenes, how to run them and the two runs' numbers are on a new
 page, [bench-scenes.md](wiki/bench-scenes.md); evidence in
 `verify/2026-11-21-bench-scenes/`.
+
+## [2026-11-21] done | Brief 08: Farm renders on requestAnimationFrame
+
+Farm's draw loop is display-paced now: `animationFrameLoop` in `render-loop.ts` draws one frame per
+`requestAnimationFrame` callback with its timestamp, and replaces brief 84's `setTimeout(renderFrame, 0)`.
+That reverts brief 84's call, recorded under Renderer on [decisions.md](wiki/decisions.md) and beside brief
+84's note on [performance.md](wiki/performance.md). A fake-rAF test shows one frame per callback and none
+between; in headless Chromium frames drawn now equal rAF callbacks (398 of 398 at 480×300). On SwiftShader
+the timer loop had drawn fewer frames than rAF fired, not more, because a frame there costs more than a
+refresh; the discarded-frames case shows on real hardware. After a home-to-game switch, twice, only the game
+loop's callbacks run.

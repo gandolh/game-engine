@@ -1,6 +1,6 @@
 ---
-summary: Locked tech choices that future briefs must not relitigate — stack, sim, ECS, renderer (WebGL2-only as of 2026-08-18; static-layer patches past 4096 px and the no-flip texture upload, 2026-11-03), assets, palette, concurrency, tick-pump/speed semantics, build & verify gates (the turbo cache-key rule, the Node-importable barrel rule), WASM, and the gameplay source-of-truth.
-updated: 2026-11-11
+summary: Locked tech choices that future briefs must not relitigate — stack, sim, ECS, renderer (WebGL2-only as of 2026-08-18; static-layer patches past 4096 px and the no-flip texture upload, 2026-11-03; every game on requestAnimationFrame, 2026-11-21), assets, palette, concurrency, tick-pump/speed semantics, build & verify gates (the turbo cache-key rule, the Node-importable barrel rule), WASM, and the gameplay source-of-truth.
+updated: 2026-11-21
 ---
 
 # Locked Decisions
@@ -63,6 +63,16 @@ Tech choices that are settled. Listed here so future briefs and reviews don't re
     onto patches and its window code is deleted.
   - **Rejected: a quick cap in Citadel first.** The owner folded the boot fix into the patches work
     instead of writing code that would be deleted.
+
+- **Every game draws on `requestAnimationFrame`, Farm included (2026-11-21, brief 08).** This reverts brief 84's
+  call (2026-06-12) to keep Farm's uncapped `setTimeout(renderFrame, 0)` loop for input latency. Farm now
+  draws one frame per animation-frame callback, with its timestamp as `nowMs`
+  ([render-loop.ts](../../games/farm/client/src/main/render-loop.ts), `animationFrameLoop`). **Why:** a frame the
+  display never shows still costs CPU, GPU and battery, which on a phone is heat and then throttling; a
+  timer loop drifts against vsync, so the frames shown are spaced unevenly; input read at the top of a
+  display-paced frame is at most one frame old, which is what browser games ship; and the other three games
+  already ran this way. Do not bring the timer loop back for "lower latency".
+  ([brief](../briefs/done/08-farm-renders-on-request-animation-frame.md))
 
 - **Every texture upload keeps `UNPACK_FLIP_Y_WEBGL` off; a source's top row is v=0 (fixed 2026-11-03).**
   Every shader here reads v=0 as the top edge, which is WebGL's default for any source. The WebGL2 port

@@ -60,7 +60,8 @@ the same way: authoring files stay small for diffs, and the cook packs them into
    input latency, accepting that about 40% of frames are never shown on a 60 Hz display. Those frames
    still cost CPU, GPU and battery, which matters on the Android phone, and the timer drifts against
    the display. `requestAnimationFrame` is the browser's frame clock, and the other three games
-   already use it ([brief 08](../briefs/todo/08-farm-renders-on-request-animation-frame.md)).
+   already use it ([brief 08](../briefs/done/08-farm-renders-on-request-animation-frame.md), reverted
+   2026-11-21).
 
 **sprite-gen.** Of [sprite-gen](../todos/closed/2026-11-20-sprite-gen-research.md), the checks are
 borrowed as tests now ([brief 11](../briefs/todo/11-recipe-checks-as-tests.md)). Its `pixel-draw`
@@ -80,7 +81,7 @@ sitting comes right after 06.
 | [05](../briefs/done/05-one-frame-profiler-in-every-game.md) | One frame profiler in all four games: percentiles, long frames, GPU time where the browser exposes it, one export format | none |
 | [06](../briefs/done/06-a-bench-scene-in-every-game.md) | A scripted, seeded bench scene per game and a headless runner for the counters | 05 |
 | [07](../briefs/todo/07-the-real-gpu-baseline.md) | The owner's real-GPU sitting, recorded, with budgets set and todos promoted | 06 and the owner |
-| [08](../briefs/todo/08-farm-renders-on-request-animation-frame.md) | Farm renders on `requestAnimationFrame` | 05 |
+| [08](../briefs/done/08-farm-renders-on-request-animation-frame.md) | Farm renders on `requestAnimationFrame` | 05 |
 | [09](../briefs/todo/09-the-atlas-cook-serves-every-game.md) | The atlas cook takes any game's recipe set, with Farm's output unchanged | none |
 | [10](../briefs/todo/10-one-runtime-atlas-page-per-game.md) | One runtime page per game, so Farm's world sprites draw as one group, not 49 | 09 |
 | [11](../briefs/todo/11-recipe-checks-as-tests.md) | Stray-pixel, floor-row and corner checks on every recipe | 09 |
