@@ -55,7 +55,7 @@ the same way: authoring files stay small for diffs, and the cook packs them into
    ([brief 10](../briefs/todo/10-one-runtime-atlas-page-per-game.md)).
 2. **An atlas builder only Farm can use.** `tools/atlas-builder` imports Farm's recipes and writes
    into Farm's client, so MateQuest's combat art is drawn from rectangles every frame. The cook takes
-   any game's recipe set ([brief 09](../briefs/todo/09-the-atlas-cook-serves-every-game.md)).
+   any game's recipe set ([brief 09](../briefs/done/09-the-atlas-cook-serves-every-game.md)).
 3. **Farm's uncapped render loop.** Brief 84 (2026-06-12) kept `setTimeout(renderFrame, 0)` for
    input latency, accepting that about 40% of frames are never shown on a 60 Hz display. Those frames
    still cost CPU, GPU and battery, which matters on the Android phone, and the timer drifts against
@@ -82,7 +82,7 @@ sitting comes right after 06.
 | [06](../briefs/done/06-a-bench-scene-in-every-game.md) | A scripted, seeded bench scene per game and a headless runner for the counters | 05 |
 | [07](../briefs/todo/07-the-real-gpu-baseline.md) | The owner's real-GPU sitting, recorded, with budgets set and todos promoted | 06 and the owner |
 | [08](../briefs/done/08-farm-renders-on-request-animation-frame.md) | Farm renders on `requestAnimationFrame` | 05 |
-| [09](../briefs/todo/09-the-atlas-cook-serves-every-game.md) | The atlas cook takes any game's recipe set, with Farm's output unchanged | none |
+| [09](../briefs/done/09-the-atlas-cook-serves-every-game.md) | The atlas cook takes any game's recipe set, with Farm's output unchanged | none |
 | [10](../briefs/todo/10-one-runtime-atlas-page-per-game.md) | One runtime page per game, so Farm's world sprites draw as one group, not 49 | 09 |
 | [11](../briefs/todo/11-recipe-checks-as-tests.md) | Stray-pixel, floor-row and corner checks on every recipe | 09 |
 | [12](../briefs/todo/12-mathquest-draws-combat-sprites-from-an-atlas.md) | MateQuest's seven combat sprites become recipes on an atlas | 10 |

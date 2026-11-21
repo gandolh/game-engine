@@ -103,6 +103,12 @@ Tech choices that are settled. Listed here so future briefs and reviews don't re
 ## Assets
 
 - **Build-time procedural atlas** via [tools/atlas-builder](../../tools/atlas-builder/). PNG + JSON manifest. No external art pipeline.
+  **One cook for every game's recipes (2026-11-21, brief 09).** The cook takes a per-game `AtlasConfig`
+  (recipes, sheets, swatches and palette, hashed files, output) instead of Farm's values written into its code,
+  as TexturePacker, Unity's sprite atlas and Godot's import step take a project's configuration. **Why:** with
+  Farm hard-coded no other game could have an atlas, and MateQuest's combat sprites are drawn from rectangles
+  every frame. Still no external art pipeline: recipes stay code. How to add a game:
+  [asset-pipeline.md](asset-pipeline.md) → *One cook for every game*.
 
 ## Art / Palette
 

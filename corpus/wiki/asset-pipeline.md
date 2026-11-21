@@ -1,6 +1,6 @@
 ---
-summary: The bake principle (assets are code, not images), asset-cooking and atlas research, the cache-key/incremental-build recommendations that became brief 71, the 2026-10-28 large-image research, and the static layer's patches as built 2026-11-03 (the 4096 px single-texture ceiling, lazy per-patch bakes, painted images, the dev page, the upside-down upload fix).
-updated: 2026-11-03
+summary: The bake principle (assets are code, not images), one atlas cook for every game's recipes (a config per game, 2026-11-21), asset-cooking and atlas research, the cache-key/incremental-build recommendations that became brief 71, the 2026-10-28 large-image research, and the static layer's patches as built 2026-11-03 (the 4096 px single-texture ceiling, lazy per-patch bakes, painted images, the dev page, the upside-down upload fix).
+updated: 2026-11-21
 ---
 
 # Asset Pipeline — Baking, Caching, and Atlas Strategy
@@ -72,6 +72,31 @@ nothing), but the reason changed from ergonomics-only to ergonomics **plus** bat
 3. **Pin PNG encoder options** for byte-stable committed artifacts (one-time whole-atlas diff when this lands).
 4. Keep shelf packing, 1px padding, pow2, 6 sheets; document maxrects-packer as the future upgrade path.
 5. Load-time: verify/adopt `createImageBitmap` per sheet. *(Verified 2026-06-10: already the case in [loader.ts](../../engine/core/src/assets/loader.ts).)*
+
+## One cook for every game (2026-11-21, brief 09)
+
+[tools/atlas-builder](../../tools/atlas-builder/) knows no game. Each recipe package exports an
+`AtlasConfig` ([config.ts](../../tools/atlas-builder/src/config.ts)): its recipes and the frame-to-sheet
+function, the sheet order, the swatch table and the palette it is checked against, the files hashed into
+each sheet, the output folder and the URL prefix. `buildAtlas(config, { force })` cooks one game, `npm run
+atlas` cooks every registered game, and `npm run atlas -- farm` (or `-- --force`) one. Shelf packing, the
+1 px padding, power-of-two sides, pinned PNG bytes and the per-sheet `inputsHash` skip are unchanged, and
+`BUILDER_VERSION` is in every hash.
+
+**Adding a game's recipe set:**
+
+1. A recipe package in the game (`games/<game>/atlas-recipes/`) with recipes as character grids and a
+   swatch table, colours from the game's palette.
+2. An `atlas-config.ts` exporting `ATLAS_CONFIG`, as Farm's
+   ([atlas-config.ts](../../games/farm/atlas-recipes/src/atlas-config.ts), exported as
+   `@farm/atlas-recipes/atlas`). `palette` names an engine palette (`"EDG32"`) or lists the game's own
+   colours (`{ name, colors }`). `hashInputs` lists every file a sheet's pixels come from, so a change re-cooks
+   it. The game never imports the tool: the shape is checked where the cook registers it.
+3. Add it to [games.ts](../../tools/atlas-builder/src/games.ts) and to the builder's dependencies.
+
+A swatch outside the config's palette, or a character with no swatch, fails the cook with the recipe and
+the character named. Farm's config is the values that were written into the cook, moved; its PNGs and
+manifests came out byte for byte the same.
 
 ## Art direction (2026-06-10 art pass)
 

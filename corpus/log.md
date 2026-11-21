@@ -4244,3 +4244,12 @@ between; in headless Chromium frames drawn now equal rAF callbacks (398 of 398 a
 the timer loop had drawn fewer frames than rAF fired, not more, because a frame there costs more than a
 refresh; the discarded-frames case shows on real hardware. After a home-to-game switch, twice, only the game
 loop's callbacks run.
+
+## [2026-11-21] done | Brief 09: the atlas cook serves every game
+
+`tools/atlas-builder` takes a per-game `AtlasConfig` (recipes, sheets, swatches and palette, hashed files,
+output) instead of Farm's values written into its code. `npm run atlas` cooks every registered game and
+`npm run atlas -- farm` one. Farm's config moved to `@farm/atlas-recipes/atlas` and cooks byte for byte as
+before, `inputsHash` included. A swatch outside a config's palette fails the cook naming the recipe and the
+character. How to add a game is on [asset-pipeline.md](wiki/asset-pipeline.md); the Assets entry of
+[decisions.md](wiki/decisions.md) records one cook for every game, still with no external art pipeline.

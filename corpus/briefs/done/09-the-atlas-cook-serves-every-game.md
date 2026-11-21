@@ -68,3 +68,43 @@ import step all take a project's own configuration instead of hard-coding one pr
 ## Owner steps
 
 - None. Nothing shipped changes.
+
+## Outcome (2026-11-21)
+
+Done. [tools/atlas-builder](../../../tools/atlas-builder/) is now a cook that knows no game:
+
+- [config.ts](../../../tools/atlas-builder/src/config.ts): `AtlasConfig` (id, recipes, `sheetOf`, `sheetOrder`,
+  `swatches`, `palette`, `hashInputs`, `outDir`, `urlBase`) and `checkSwatches`. `palette` is an engine
+  palette by name (`"EDG32"`, resolved by the cook) or a game's own `{ name, colors }`. Naming keeps the
+  recipe package free of an engine import, which would have pulled the render barrel's shader typings into
+  it; MateQuest's `MATE_PAL` subset (brief 12) will be listed.
+- [cook.ts](../../../tools/atlas-builder/src/cook.ts): `buildAtlas(config, { force })`, with the same shelf
+  packing, 1 px padding, power-of-two sizes, pinned PNG options and per-sheet `inputsHash` skip. A cached
+  manifest that points at a different URL base is cooked again, since the base is config, not a hashed file.
+- [fingerprint.ts](../../../tools/atlas-builder/src/fingerprint.ts): `computeSheetHash(sheetId, files)`, still
+  `BUILDER_VERSION`, the PNG options and the pack constants, then the config's files in order.
+- [games.ts](../../../tools/atlas-builder/src/games.ts) registers Farm; [index.ts](../../../tools/atlas-builder/src/index.ts)
+  is the CLI. The root script is `npm run build -w @tool/atlas-builder --`, so `npm run atlas -- farm` and
+  `npm run atlas -- --force` reach the cook (before, `--force` after `npm run atlas --` went to npm). An
+  unknown id exits 2 naming the registered games.
+- Farm's config is [atlas-config.ts](../../../games/farm/atlas-recipes/src/atlas-config.ts), exported as
+  `@farm/atlas-recipes/atlas`. It is a subpath export rather than a line in `index.ts` because `index.ts` is a
+  hashed input of the four sheets with generated frames: a first try that exported it from there changed
+  those four `inputsHash` values with no pixel changed. The one-time legacy `main.png` clean-up was dropped.
+
+**Acceptance.**
+
+- `npm run atlas -- --force` rewrote all six PNGs and manifests with no diff at all (`git diff --stat
+  games/farm/client/public/atlas` empty): `inputsHash` is unchanged too, because the hashed files and their
+  order are the same.
+- A second `npm run atlas` reports 6 sheets cached; `npm run atlas -- farm` the same.
+- [cook.test.ts](../../../tools/atlas-builder/src/cook.test.ts) cooks a fixture game (two recipes, a two-colour
+  palette) into a temporary folder, checks the manifest, index and pixels, finds it cached, re-cooks on a
+  changed input or URL base, and fails the cook on an off-palette swatch (`recipe "gem/blue": character "b"
+  is #010203, not in fixture-2`) and on a character with no swatch. Farm's existing builder tests run against
+  its config.
+- `npm run check` exits 0, and `bash corpus/lint.sh` passes.
+
+**For brief 12:** the layering test gives `tools/atlas-builder` Farm's scope, so registering MateQuest's
+recipe package there needs that scope widened for the cook alone.
+
