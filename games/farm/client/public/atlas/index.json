@@ -30,5 +30,46 @@
       "imageUrl": "/atlas/items-ui.png",
       "manifestUrl": "/atlas/items-ui.json"
     }
-  ]
+  ],
+  "pages": [
+    {
+      "id": "page-0",
+      "imageUrl": "/atlas/page-0.png",
+      "width": 512,
+      "height": 1024
+    }
+  ],
+  "placements": {
+    "buildings": {
+      "page": "page-0",
+      "x": 0,
+      "y": 0
+    },
+    "characters": {
+      "page": "page-0",
+      "x": 128,
+      "y": 0
+    },
+    "props": {
+      "page": "page-0",
+      "x": 128,
+      "y": 512
+    },
+    "terrain": {
+      "page": "page-0",
+      "x": 256,
+      "y": 0
+    },
+    "crops": {
+      "page": "page-0",
+      "x": 256,
+      "y": 128
+    },
+    "items-ui": {
+      "page": "page-0",
+      "x": 256,
+      "y": 256
+    }
+  },
+  "pagesHash": "1660389525f650bcef84ebc9aa856ce420257211327ddf7db2bb615018a6d480"
 }

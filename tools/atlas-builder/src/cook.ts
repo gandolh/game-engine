@@ -3,11 +3,13 @@
  * padding into a power-of-two PNG with pinned encoder options, beside a JSON manifest that carries the
  * sheet's `inputsHash`. A sheet whose hash is unchanged is not cooked again.
  */
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { PNG } from "pngjs";
 import { checkSwatches, recipeHeight, recipeWidth, type AtlasConfig, type AtlasRecipe } from "./config";
-import { computeSheetHash, PACK_CONSTANTS, PNG_OPTIONS } from "./fingerprint";
+import { BUILDER_VERSION, computeSheetHash, PACK_CONSTANTS, PNG_OPTIONS } from "./fingerprint";
+import { MAX_PAGE_SIDE, packPages } from "./pages";
 
 interface PackedFrame {
   x: number;
@@ -86,8 +88,83 @@ function rasterize(packed: Packed, recipes: readonly AtlasRecipe[], config: Atla
 }
 
 export interface BuildResult {
+  /** Sheets cooked this run, and sheets whose hash was unchanged. */
   built: string[];
   cached: string[];
+  /** Whether the runtime pages were composed again (a sheet's hash changed, or `force`). */
+  pagesBuilt: boolean;
+}
+
+interface PageEntry {
+  id: string;
+  imageUrl: string;
+  width: number;
+  height: number;
+}
+
+interface IndexJson {
+  sheets: { id: string; imageUrl: string; manifestUrl: string }[];
+  pages?: PageEntry[];
+  placements?: Record<string, { page: string; x: number; y: number }>;
+  pagesHash?: string;
+}
+
+/** The index already on disk, or `null` when there is none or it can't be read (the pages are then composed). */
+function parseIndex(json: string | null): IndexJson | null {
+  if (json === null) return null;
+  try {
+    return JSON.parse(json) as IndexJson;
+  } catch {
+    return null;
+  }
+}
+
+/** The pages' hash: the cook's version and options, the URL base, and every sheet's own hash in order. */
+function pagesHashOf(config: AtlasConfig, sheetHashes: readonly (readonly [string, string])[]): string {
+  const h = createHash("sha256");
+  h.update(`BUILDER_VERSION=${BUILDER_VERSION}\nPNG_OPTIONS=${JSON.stringify(PNG_OPTIONS)}\n`);
+  h.update(`MAX_PAGE_SIDE=${MAX_PAGE_SIDE}\nURL_BASE=${config.urlBase}\n`);
+  for (const [id, hash] of sheetHashes) h.update(`${id}=${hash}\n`);
+  return h.digest("hex");
+}
+
+/**
+ * Composes the runtime pages from the sheet PNGs on disk (corpus brief 10), writes `page-<n>.png`, removes
+ * page files a smaller set no longer needs, and returns the index fields that describe them.
+ */
+function composePages(
+  config: AtlasConfig,
+  sheetIds: readonly string[],
+): Required<Omit<IndexJson, "sheets" | "pagesHash">> {
+  const images = new Map(
+    sheetIds.map((id) => [id, PNG.sync.read(readFileSync(resolve(config.outDir, `${id}.png`)))] as const),
+  );
+  const packed = packPages(
+    sheetIds.map((id) => ({ id, w: images.get(id)?.width ?? 0, h: images.get(id)?.height ?? 0 })),
+  );
+  const pages: PageEntry[] = [];
+  const placements: Record<string, { page: string; x: number; y: number }> = {};
+  packed.forEach((page, n) => {
+    const id = `page-${n}`;
+    const png = new PNG({ width: page.width, height: page.height });
+    png.data.fill(0);
+    for (const place of page.placements) {
+      const sheet = images.get(place.id);
+      if (sheet === undefined) continue;
+      for (let row = 0; row < sheet.height; row++) {
+        const from = row * sheet.width * 4;
+        sheet.data.copy(png.data, ((place.y + row) * page.width + place.x) * 4, from, from + sheet.width * 4);
+      }
+      placements[place.id] = { page: id, x: place.x, y: place.y };
+    }
+    writeFileSync(resolve(config.outDir, `${id}.png`), PNG.sync.write(png, { ...PNG_OPTIONS }));
+    pages.push({ id, imageUrl: `${config.urlBase}${id}.png`, width: page.width, height: page.height });
+  });
+  const keep = new Set(pages.map((p) => `${p.id}.png`));
+  for (const file of readdirSync(config.outDir)) {
+    if (/^page-\d+\.png$/.test(file) && !keep.has(file)) rmSync(resolve(config.outDir, file));
+  }
+  return { pages, placements };
 }
 
 /** Cooks one game's atlas. `force` cooks every sheet whatever its hash. */
@@ -121,6 +198,7 @@ export function buildAtlas(config: AtlasConfig, opts: { force?: boolean } = {}):
   const indexEntries: SheetIndexEntry[] = [];
   const built: string[] = [];
   const cached: string[] = [];
+  const sheetHashes: (readonly [string, string])[] = [];
   const entry = (sheetId: string): SheetIndexEntry => ({
     id: sheetId,
     imageUrl: `${config.urlBase}${sheetId}.png`,
@@ -135,6 +213,7 @@ export function buildAtlas(config: AtlasConfig, opts: { force?: boolean } = {}):
     }
 
     const inputsHash = computeSheetHash(sheetId, config.hashInputs(sheetId, recipes));
+    sheetHashes.push([sheetId, inputsHash]);
     const manifestPath = resolve(config.outDir, `${sheetId}.json`);
 
     if (!force && existsSync(manifestPath)) {
@@ -169,9 +248,32 @@ export function buildAtlas(config: AtlasConfig, opts: { force?: boolean } = {}):
     console.log(`${tag}: [${sheetId}] built: ${recipes.length} frames → ${packed.width}x${packed.height}`);
   }
 
-  const newIndexJson = JSON.stringify({ sheets: indexEntries }, null, 2);
+  // The runtime pages: composed again only when a sheet's hash (or the cook) changed, so their bytes stay put.
   const indexPath = resolve(config.outDir, "index.json");
   const existingIndexJson = existsSync(indexPath) ? readFileSync(indexPath, "utf8") : null;
+  const existing = parseIndex(existingIndexJson);
+  const pagesHash = pagesHashOf(config, sheetHashes);
+  const reuse =
+    !force &&
+    existing?.pagesHash === pagesHash &&
+    existing.pages !== undefined &&
+    existing.placements !== undefined &&
+    existing.pages.every((p) => existsSync(resolve(config.outDir, `${p.id}.png`)));
+  let pageFields: Required<Omit<IndexJson, "sheets" | "pagesHash">>;
+  if (reuse && existing?.pages !== undefined && existing.placements !== undefined) {
+    pageFields = { pages: existing.pages, placements: existing.placements };
+    console.log(`${tag}: pages cached (${pageFields.pages.length})`);
+  } else {
+    pageFields = composePages(
+      config,
+      indexEntries.map((e) => e.id),
+    );
+    const sizes = pageFields.pages.map((p) => `${p.width}x${p.height}`).join(", ");
+    console.log(`${tag}: pages built: ${indexEntries.length} sheets → ${pageFields.pages.length} page(s) (${sizes})`);
+  }
+
+  const newIndex: IndexJson = { sheets: indexEntries, ...pageFields, pagesHash };
+  const newIndexJson = JSON.stringify(newIndex, null, 2);
   if (existingIndexJson !== newIndexJson) {
     writeFileSync(indexPath, newIndexJson);
     console.log(`${tag}: wrote index.json (${indexEntries.length} sheets)`);
@@ -182,5 +284,5 @@ export function buildAtlas(config: AtlasConfig, opts: { force?: boolean } = {}):
   console.log(
     `${tag}: ${config.recipes.length} recipes, ${built.length} sheet(s) built, ${cached.length} sheet(s) cached`,
   );
-  return { built, cached };
+  return { built, cached, pagesBuilt: !reuse };
 }

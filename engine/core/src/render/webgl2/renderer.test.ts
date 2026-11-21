@@ -81,8 +81,17 @@ vi.mock("./gl-atlas-store", () => ({
       out.u1 = 1;
       out.v1 = 1;
     }
-    texture(): object {
-      return { __tex: true };
+    // One stable texture per id, except the two "page:" sheets, which share their page's texture as the
+    // sheets of a runtime page do (corpus brief 10).
+    private readonly textures = new Map<string, object>();
+    texture(id: string): object {
+      const key = id.startsWith("page:") ? "page" : id;
+      let tex = this.textures.get(key);
+      if (tex === undefined) {
+        tex = { __tex: key };
+        this.textures.set(key, tex);
+      }
+      return tex;
     }
     whiteTexture(): object {
       return { __white: true };
@@ -478,6 +487,21 @@ describe("WebGl2Renderer draw-group profiling seam (sweep-05)", () => {
     expect(r.lastDrawStats.groups).toBe(3); // a, b, a — three groups, two atlases
     expect(r.lastDrawStats.atlases).toBe(2);
     expect(r.lastDrawStats.ghostGroups).toBe(0); // no occludable sprites pushed
+  });
+
+  it("runs one group across sheets that share a texture, and counts textures, not sheet ids (brief 10)", () => {
+    const r = makeRenderer();
+    r.profileUi = true;
+    r.beginFrame();
+    r.push(makeSprite({ atlasId: "page:a", y: 0 }));
+    r.push(makeSprite({ atlasId: "page:b", y: 1 }));
+    r.push(makeSprite({ atlasId: "page:a", y: 2 }));
+    r.push(makeSprite({ atlasId: "c", y: 3 }));
+    r.endFrame();
+
+    expect(r.lastDrawStats.groups).toBe(2); // page (a, b, a), then c
+    expect(r.lastDrawStats.atlases).toBe(2);
+    expect(rec.order.filter((s) => s === "sprites")).toHaveLength(2);
   });
 });
 

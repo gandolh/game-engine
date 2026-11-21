@@ -39,7 +39,7 @@ describe("buildAtlas with a game's config", () => {
   it("cooks a small fixture game into its own folder, then finds it cached", () => {
     vi.spyOn(console, "log").mockImplementation(() => {});
     const config = fixtureGame();
-    expect(buildAtlas(config)).toEqual({ built: ["gem"], cached: [] });
+    expect(buildAtlas(config)).toEqual({ built: ["gem"], cached: [], pagesBuilt: true });
 
     const manifest = JSON.parse(readFileSync(join(config.outDir, "gem.json"), "utf8")) as {
       imageUrl: string;
@@ -52,9 +52,14 @@ describe("buildAtlas with a game's config", () => {
     expect([manifest.width, manifest.height]).toEqual([128, 8]);
     expect(manifest.frames).toEqual({ "gem/red": { x: 1, y: 1, w: 2, h: 2 }, "gem/blue": { x: 4, y: 1, w: 2, h: 3 } });
     const index = JSON.parse(readFileSync(join(config.outDir, "index.json"), "utf8")) as unknown;
-    expect(index).toEqual({
+    expect(index).toMatchObject({
       sheets: [{ id: "gem", imageUrl: "/fixture-atlas/gem.png", manifestUrl: "/fixture-atlas/gem.json" }],
+      pages: [{ id: "page-0", imageUrl: "/fixture-atlas/page-0.png", width: 128, height: 8 }],
+      placements: { gem: { page: "page-0", x: 0, y: 0 } },
     });
+    // One sheet: its page is the same pixels.
+    const page = PNG.sync.read(readFileSync(join(config.outDir, "page-0.png")));
+    expect(page.data.equals(PNG.sync.read(readFileSync(join(config.outDir, "gem.png"))).data)).toBe(true);
 
     const png = PNG.sync.read(readFileSync(join(config.outDir, "gem.png")));
     const at = (x: number, y: number) => [...png.data.subarray((y * png.width + x) * 4, (y * png.width + x) * 4 + 4)];
@@ -62,7 +67,7 @@ describe("buildAtlas with a game's config", () => {
     expect(at(2, 2)).toEqual([0, 0, 0, 0]);
     expect(at(5, 2)).toEqual([0, 0, 255, 255]);
 
-    expect(buildAtlas(config)).toEqual({ built: [], cached: ["gem"] });
+    expect(buildAtlas(config)).toEqual({ built: [], cached: ["gem"], pagesBuilt: false });
     // A new URL base cooks the sheet again, so no manifest points at the old one.
     expect(buildAtlas({ ...config, urlBase: "/elsewhere/" }).built).toEqual(["gem"]);
     expect(buildAtlas(config).built).toEqual(["gem"]);
