@@ -1,0 +1,37 @@
+{
+  "counters": {
+    "drawGroups": {
+      "mean": 1,
+      "p95": 1
+    },
+    "glDrawCalls": {
+      "mean": 93.54852320675106,
+      "p95": 95
+    },
+    "drawInstances": {
+      "mean": 3691.143459915612,
+      "p95": 6905
+    },
+    "uiQuads": {
+      "mean": 1775.9071729957807,
+      "p95": 1808
+    },
+    "textureBytesPerFrame": {
+      "mean": 4096000,
+      "p95": 4096000
+    },
+    "textureBytesTotal": 1425144324,
+    "textureUploads": 339,
+    "texturesCreated": 6
+  },
+  "drawAtlases": {
+    "count": 237,
+    "mean": 1,
+    "p95": 1
+  },
+  "drawSprites": {
+    "count": 237,
+    "mean": 1753.7215189873418,
+    "p95": 4617
+  }
+}

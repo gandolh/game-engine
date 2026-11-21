@@ -52,7 +52,7 @@ the same way: authoring files stay small for diffs, and the cook packs them into
    per texture, and the 2026-09-19 probe counted 49 draw groups against a floor of 4. Layer 40 alone
    makes 40 of them, because world dressing alternates between the `props` and `buildings` sheets.
    The sheets stay as authoring and cache units, and the cook packs them into one page texture
-   ([brief 10](../briefs/todo/10-one-runtime-atlas-page-per-game.md)).
+   ([brief 10](../briefs/done/10-one-runtime-atlas-page-per-game.md)).
 2. **An atlas builder only Farm can use.** `tools/atlas-builder` imports Farm's recipes and writes
    into Farm's client, so MateQuest's combat art is drawn from rectangles every frame. The cook takes
    any game's recipe set ([brief 09](../briefs/done/09-the-atlas-cook-serves-every-game.md)).
@@ -83,7 +83,7 @@ sitting comes right after 06.
 | [07](../briefs/todo/07-the-real-gpu-baseline.md) | The owner's real-GPU sitting, recorded, with budgets set and todos promoted | 06 and the owner |
 | [08](../briefs/done/08-farm-renders-on-request-animation-frame.md) | Farm renders on `requestAnimationFrame` | 05 |
 | [09](../briefs/done/09-the-atlas-cook-serves-every-game.md) | The atlas cook takes any game's recipe set, with Farm's output unchanged | none |
-| [10](../briefs/todo/10-one-runtime-atlas-page-per-game.md) | One runtime page per game, so Farm's world sprites draw as one group, not 49 | 09 |
+| [10](../briefs/done/10-one-runtime-atlas-page-per-game.md) | One runtime page per game, so Farm's world sprites draw as one group, not 49 | 09 |
 | [11](../briefs/todo/11-recipe-checks-as-tests.md) | Stray-pixel, floor-row and corner checks on every recipe | 09 |
 | [12](../briefs/todo/12-mathquest-draws-combat-sprites-from-an-atlas.md) | MateQuest's seven combat sprites become recipes on an atlas | 10 |
 | [13](../briefs/todo/13-the-sprite-gen-pixel-draw-trial.md) | A blind trial of `pixel-draw` against an agent writing recipes | 11, 12 and the owner |

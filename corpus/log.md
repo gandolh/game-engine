@@ -4253,3 +4253,14 @@ output) instead of Farm's values written into its code. `npm run atlas` cooks ev
 before, `inputsHash` included. A swatch outside a config's palette fails the cook naming the recipe and the
 character. How to add a game is on [asset-pipeline.md](wiki/asset-pipeline.md); the Assets entry of
 [decisions.md](wiki/decisions.md) records one cook for every game, still with no external art pipeline.
+
+## [2026-11-21] done | Brief 10: one runtime atlas page per game
+
+The cook packs each game's sheets as whole blocks into power-of-two runtime pages (Farm: one 512×1024
+page) and lists them in `index.json`; the loader gives every sheet on a page the page's bitmap with offset
+frames, the GL store uploads one texture per bitmap, and the renderer groups by texture. Farm's world went
+from 49 draw groups to 1 in the probe, and from 47.8 to 1 a frame in the bench scene; boot creates 6
+textures instead of 11. The card scene and the world preview are byte for byte the same. The sheets stay
+the authoring and cache units, which reverts "don't merge" at run time only (Assets on
+[decisions.md](wiki/decisions.md)). The cook's record moved to a new page, [atlas-cook.md](wiki/atlas-cook.md),
+to keep [asset-pipeline.md](wiki/asset-pipeline.md) under the size cap.

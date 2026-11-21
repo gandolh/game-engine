@@ -1,5 +1,5 @@
 ---
-summary: The bake principle (assets are code, not images), one atlas cook for every game's recipes (a config per game, 2026-11-21), asset-cooking and atlas research, the cache-key/incremental-build recommendations that became brief 71, the 2026-10-28 large-image research, and the static layer's patches as built 2026-11-03 (the 4096 px single-texture ceiling, lazy per-patch bakes, painted images, the dev page, the upside-down upload fix).
+summary: The bake principle (assets are code, not images), asset-cooking and atlas research, the cache-key/incremental-build recommendations that became brief 71, the 2026-10-28 large-image research, and the static layer's patches as built 2026-11-03 (the 4096 px single-texture ceiling, lazy per-patch bakes, painted images, the dev page, the upside-down upload fix).
 updated: 2026-11-21
 ---
 
@@ -43,7 +43,7 @@ Because our artifacts are **committed**, the natural cache store is the manifest
 
 ## Atlas best practice — filtered for a pixel-art game
 
-**How many sheets / what sizes.** Web-safe max texture is 4096² (99% of devices; only ~50% support more). Irrelevant at our scale: ~170 frames of 16×16 (a few 32px) ≈ 45k px² of content — everything fits in one 256² sheet. Our 6-sheet split is justified by **authoring ergonomics and git-diff locality** (regenerate just `crops` when a crop changes), not by GPU limits. Keep ~6; don't over-split (per-sheet decode + HTTP fetch overhead) and don't merge (kills the per-sheet cache win). Power-of-two dimensions (already done via `nextPow2`) remain the safe default.
+**How many sheets / what sizes.** Web-safe max texture is 4096² (99% of devices; only ~50% support more). Irrelevant at our scale: ~170 frames of 16×16 (a few 32px) ≈ 45k px² of content — everything fits in one 256² sheet. Our 6-sheet split is justified by **authoring ergonomics and git-diff locality** (regenerate just `crops` when a crop changes), not by GPU limits. Keep ~6; don't over-split (per-sheet decode + HTTP fetch overhead) and don't merge (kills the per-sheet cache win). *Reverted at run time only, 2026-11-21 (brief 10): the sheets stay the authoring and cache units, and the cook packs them into one runtime page; see [atlas-cook.md](atlas-cook.md).* Power-of-two dimensions (already done via `nextPow2`) remain the safe default.
 
 **Packing algorithm.** Jylänki's survey ("A Thousand Ways to Pack the Bin", 2010) ranks MaxRects-BSSF best for occupancy (95–98% vs 85–92% for shelf/guillotine) — but the gap only matters for *mixed-size* inputs. Our frames are near-uniform 16×16, where shelf packing is already near-optimal, deterministic, and ~50 lines of in-repo code. **Verdict: keep shelf**; note [maxrects-packer](https://www.npmjs.com/package/maxrects-packer) (TypeScript, zero deps, `smart`/`pot`/`allowRotation:false` options) as the drop-in upgrade if multi-tile structures ever bloat a sheet. Never enable rotation for pixel art.
 
@@ -73,30 +73,10 @@ nothing), but the reason changed from ergonomics-only to ergonomics **plus** bat
 4. Keep shelf packing, 1px padding, pow2, 6 sheets; document maxrects-packer as the future upgrade path.
 5. Load-time: verify/adopt `createImageBitmap` per sheet. *(Verified 2026-06-10: already the case in [loader.ts](../../engine/core/src/assets/loader.ts).)*
 
-## One cook for every game (2026-11-21, brief 09)
+## The cook today (2026-11-21)
 
-[tools/atlas-builder](../../tools/atlas-builder/) knows no game. Each recipe package exports an
-`AtlasConfig` ([config.ts](../../tools/atlas-builder/src/config.ts)): its recipes and the frame-to-sheet
-function, the sheet order, the swatch table and the palette it is checked against, the files hashed into
-each sheet, the output folder and the URL prefix. `buildAtlas(config, { force })` cooks one game, `npm run
-atlas` cooks every registered game, and `npm run atlas -- farm` (or `-- --force`) one. Shelf packing, the
-1 px padding, power-of-two sides, pinned PNG bytes and the per-sheet `inputsHash` skip are unchanged, and
-`BUILDER_VERSION` is in every hash.
-
-**Adding a game's recipe set:**
-
-1. A recipe package in the game (`games/<game>/atlas-recipes/`) with recipes as character grids and a
-   swatch table, colours from the game's palette.
-2. An `atlas-config.ts` exporting `ATLAS_CONFIG`, as Farm's
-   ([atlas-config.ts](../../games/farm/atlas-recipes/src/atlas-config.ts), exported as
-   `@farm/atlas-recipes/atlas`). `palette` names an engine palette (`"EDG32"`) or lists the game's own
-   colours (`{ name, colors }`). `hashInputs` lists every file a sheet's pixels come from, so a change re-cooks
-   it. The game never imports the tool: the shape is checked where the cook registers it.
-3. Add it to [games.ts](../../tools/atlas-builder/src/games.ts) and to the builder's dependencies.
-
-A swatch outside the config's palette, or a character with no swatch, fails the cook with the recipe and
-the character named. Farm's config is the values that were written into the cook, moved; its PNGs and
-manifests came out byte for byte the same.
+One cook serves every game's recipes through a per-game config (brief 09), and packs each game's sheets
+into one runtime page (brief 10): [atlas-cook.md](atlas-cook.md), with how to add a game.
 
 ## Art direction (2026-06-10 art pass)
 

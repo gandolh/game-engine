@@ -1,0 +1,28 @@
+sweep-05 draw-group probe — seed 0xc0ffee, 3 day(s) @ 1200 ticks/day
+counting maximal same-atlas runs after sorting by compareSprite (layer, sortY)
+
+day  1 — sprites  414  atlases 4  groups   49  groups/atlas 12.3x  groups/sprite 0.118
+day  2 — sprites  419  atlases 4  groups   49  groups/atlas 12.3x  groups/sprite 0.117
+
+── final sample breakdown (day 3) ──
+sprites in queue : 419
+distinct atlases : 4  <- the theoretical floor for groups
+draw groups      : 49
+fragmentation    : 12.3x the floor
+GL calls/frame   : 1421 at 29/group (was 2107 at 43)
+
+per atlas:
+  buildings     273 sprites
+  crops          65 sprites
+  props          56 sprites
+  characters     25 sprites
+
+per layer (approximate attribution — see comment in source):
+  layer   4  sprites   10  atlases 1  groups    1  [buildings]
+  layer  10  sprites   65  atlases 1  groups    1  [crops]
+  layer  20  sprites    7  atlases 1  groups    1  [props]
+  layer  30  sprites  206  atlases 1  groups    1  [buildings]
+  layer  40  sprites   92  atlases 2  groups   40  [buildings, props]
+  layer  45  sprites    5  atlases 1  groups    1  [buildings]
+  layer  50  sprites   13  atlases 2  groups    6  [buildings, characters]
+  layer 100  sprites   21  atlases 1  groups    1  [characters]

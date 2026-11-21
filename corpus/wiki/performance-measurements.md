@@ -52,9 +52,9 @@ across the map and then sorts them by Y — maximal alternation by construction.
 `LAYER.ACTOR === LAYER.BUILDING === 50` as the mechanism. The *mechanism* — atlas alternation inside
 one layer — is right, but layer 50 contributes 6 groups, not the bulk. So the spec's ranked fix list
 reads differently now: option **(b)**, texture arrays across the whole sprite path, is a large change
-aimed at a problem living in **one layer with two sheets**. Merging `props` and `buildings`, or giving
-layer-40 dressing its own sheet, collapses 40 groups to 1 for an atlas-builder change. Not yet done —
-it needs its own spec.
+aimed at a problem living in **one layer with two sheets**. **Done 2026-11-21 by brief 10:** groups follow
+textures and Farm's sheets share one page, so the probe counts **1 group** and the bench scene's main pass
+fell from 47.8 groups a frame to 1 ([atlas-cook.md](atlas-cook.md)).
 
 **Scope, so the number is not over-quoted:** this counts the `buildSprites` snapshot queue only. The
 live client also pushes the static layer, ambient scenery, occluder ghosts and indicator quads into

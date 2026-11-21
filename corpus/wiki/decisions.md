@@ -108,7 +108,13 @@ Tech choices that are settled. Listed here so future briefs and reviews don't re
   as TexturePacker, Unity's sprite atlas and Godot's import step take a project's configuration. **Why:** with
   Farm hard-coded no other game could have an atlas, and MateQuest's combat sprites are drawn from rectangles
   every frame. Still no external art pipeline: recipes stay code. How to add a game:
-  [asset-pipeline.md](asset-pipeline.md) → *One cook for every game*.
+  [atlas-cook.md](atlas-cook.md).
+  **One runtime page per game (2026-11-21, brief 10).** The sheets stay the authoring and cache units, and the
+  cook packs them as whole blocks into one power-of-two page (a second only past 2048 px); the renderer groups
+  by texture. This reverts "keep about six sheets, don't merge" at run time only. **Why:** WebGL2 batches per
+  texture, and Farm's world went from 49 draw groups to 1, and from six atlas textures to one, with nothing
+  drawn differently. Rejected: texture arrays across the sprite path (a large change for one layer's problem)
+  and merging the sheets themselves (loses the per-sheet cache and small diffs).
 
 ## Art / Palette
 
