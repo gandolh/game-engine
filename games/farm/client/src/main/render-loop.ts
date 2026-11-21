@@ -82,7 +82,49 @@ export interface RenderLoopDeps {
   onFirstFrame?: () => void;
 }
 
-export function createRenderLoop(deps: RenderLoopDeps): () => void {
+/** A draw loop paced by the display: `start()` it once, `stop()` it to cancel the pending frame. */
+export interface FrameLoop {
+  start(): void;
+  stop(): void;
+  readonly running: boolean;
+}
+
+/**
+ * One `frame(nowMs)` per `requestAnimationFrame` callback, with the callback's timestamp, and nothing
+ * between callbacks (corpus brief 08, which reverted brief 84's `setTimeout(renderFrame, 0)`). The next
+ * frame is requested after this one is drawn, so a frame that throws ends the loop, as before. `start()`
+ * while running does nothing, so only one loop ever runs.
+ */
+export function animationFrameLoop(
+  frame: (nowMs: number) => void,
+  request: (cb: (ts: number) => void) => number = (cb) => requestAnimationFrame(cb),
+  cancel: (handle: number) => void = (handle) => cancelAnimationFrame(handle),
+): FrameLoop {
+  let handle: number | null = null;
+  let running = false;
+  const tick = (ts: number): void => {
+    handle = null;
+    frame(ts);
+    if (running) handle = request(tick);
+  };
+  return {
+    start(): void {
+      if (running) return;
+      running = true;
+      handle = request(tick);
+    },
+    stop(): void {
+      running = false;
+      if (handle !== null) cancel(handle);
+      handle = null;
+    },
+    get running(): boolean {
+      return running;
+    },
+  };
+}
+
+export function createRenderLoop(deps: RenderLoopDeps): FrameLoop {
   const {
     client,
     renderer,
@@ -181,7 +223,8 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
     { capture: true, passive: false },
   );
 
-  let lastFrameMs = performance.now();
+  /** The previous frame's animation-frame timestamp; `null` before the first frame. */
+  let lastFrameMs: number | null = null;
   let gameOverShown = false;
   // Layout caches: relayout a fixed-content panel on canvas-size change even when refresh() is
   // unchanged (its screen anchor depends on canvas dimensions).
@@ -299,15 +342,15 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
     canvas.style.cursor = url ? `url(${url}) 16 16, crosshair` : "crosshair";
   }
 
-  function renderFrame(): void {
+  /** Draws one frame. `nowMs` is the animation frame's timestamp, aligned to the display. */
+  function renderFrame(nowMs: number): void {
     if (!staleInputDrained) {
       staleInputDrained = true;
       keyboard.endFrame();
     }
     profile.beginFrame();
-    const frameStart = performance.now();
-    const nowMs = frameStart;
-    const dt = Math.min((nowMs - lastFrameMs) / 1000, 0.1);
+    // Clamped to 0.1 s so the first frame after a hidden tab doesn't jump.
+    const dt = lastFrameMs === null ? 0 : Math.min(Math.max(0, nowMs - lastFrameMs) / 1000, 0.1);
     lastFrameMs = nowMs;
 
     const interpolatedSprites = frameProfiler.time("interp", () => client.getInterpolatedSprites());
@@ -646,9 +689,7 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
     // The `frame` timer, the draw-group and UI-quad counters, the GL counters and the overlay's report
     // all come from the shared profile (brief 05).
     profile.endFrame({ drawGroups: renderer.lastDrawStats?.groups, uiQuads: renderer.lastUiFlush?.quads });
-
-    setTimeout(renderFrame, 0);
   }
 
-  return renderFrame;
+  return animationFrameLoop(renderFrame);
 }

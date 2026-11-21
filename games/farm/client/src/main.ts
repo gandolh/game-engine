@@ -391,7 +391,9 @@ async function startGame(
       clientId: hostClientId(),
     });
 
-    const renderFrame = createRenderLoop({
+    // One display-paced loop for the rest of the page's life: the home and loading screens' own loops
+    // are cancelled by then (corpus brief 08).
+    const renderLoop = createRenderLoop({
       client,
       renderer,
       profile: runtime.profile,
@@ -414,7 +416,7 @@ async function startGame(
       },
     });
 
-    requestAnimationFrame(renderFrame);
+    renderLoop.start();
   } catch (err) {
     loadingActive = false;
     cancelAnimationFrame(loadingRafId);
