@@ -134,5 +134,5 @@ ticks past 30 s (`mayEndAt` on the scene), and the two runs below match exactly.
 
 **Found on the way:** Farm records `draw.sprites`, `draw.atlases` and `draw.ghostGroups` through its timer
 object, so the export lists sprite counts under `timers` as if they were milliseconds. Noted on
-[performance-measurements.md](../../wiki/performance-measurements.md); not changed here.
+[bench-scenes.md](../../wiki/bench-scenes.md); not changed here.
 

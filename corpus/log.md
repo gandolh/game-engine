@@ -4219,3 +4219,17 @@ counters are on [performance-measurements.md](wiki/performance-measurements.md),
 describes the export. The texture counter found Farm re-uploading a full-canvas light overlay every frame,
 filed as a measure-first todo with its trigger on [frame-budget.md](wiki/frame-budget.md). The bar is now a
 "Frame budget" entry in [decisions.md](wiki/decisions.md). `npm run check` and `npm run gates` pass.
+
+## [2026-11-21] done | Brief 06: a bench scene in every game
+
+`?bench` on any game's URL (production builds too) runs that game's fixed scene: a fixed seed, menus
+skipped, a 3 s warm-up, 30 s sampled, then `window.__benchResult` (the `game-engine-profile/1` export plus
+the scene name) and a Save button for phones. Farm pans at the default and widest zoom with its panels
+open, Citadel circles the town close and at the whole map, Hollow orbits its town at 1x with the
+chronicle open, and MateQuest plays the map, answered combat turns and loot in a loop. `npm run bench --
+<folder>` runs all four headless and stamps frame times `"gpu-not-real"` on SwiftShader. Two cold runs
+agree on the counters (Farm's draw groups within 0.5%, the rest exactly); MateQuest needed its run to end
+on a whole screen first, since its map draws ten times the quads of its other screens. The portal passes
+`bench` and `profile` into its frame. The scenes, how to run them and the two runs' numbers are on a new
+page, [bench-scenes.md](wiki/bench-scenes.md); evidence in
+`verify/2026-11-21-bench-scenes/`.

@@ -1,5 +1,5 @@
 ---
-summary: How every game measures itself since 2026-11-21 (the shared ?profile, its game-engine-profile/1 export and which fields mean something on SwiftShader), plus the measured tick/frame/draw-group results every optimization claim is scored against.
+summary: How every game measures itself since 2026-11-21 (the shared ?profile, its game-engine-profile/1 export and which fields mean something on SwiftShader; the ?bench scenes are on bench-scenes.md), plus the measured tick/frame/draw-group results every optimization claim is scored against.
 updated: 2026-11-21
 ---
 
@@ -121,6 +121,8 @@ The export, `game-engine-profile/1`:
 **On SwiftShader** (a builder's sandbox) only the counters and the named steps' CPU milliseconds mean
 something: frame intervals and fps measure the rasteriser. Read frame times on a reference device
 ([frame-budget.md](frame-budget.md)).
+
+The fixed `?bench` scenes and `npm run bench` (brief 06) are on [bench-scenes.md](bench-scenes.md).
 
 ### The first exports (2026-11-21, headless Chromium on SwiftShader, brief 05)
 

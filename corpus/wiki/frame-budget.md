@@ -1,6 +1,6 @@
 ---
 summary: The 60 fps rule (the bar, the reference devices, the metric), the 2026-11-20 asset pick and the three decisions it reverts, the brief order 05-14, and the measure-first todos with the trigger that promotes each.
-updated: 2026-11-20
+updated: 2026-11-21
 ---
 
 # Frame budget: holding 60 fps
@@ -20,7 +20,8 @@ measurement, and nothing that only helps speed gets built before a number says i
 
 ## The bar
 
-- **The rule.** In each game's bench scene ([brief 06](../briefs/todo/06-a-bench-scene-in-every-game.md)),
+- **The rule.** In each game's bench scene ([brief 06](../briefs/done/06-a-bench-scene-in-every-game.md);
+  the four scenes and how to run them are on [bench-scenes.md](bench-scenes.md)),
   on each reference device, the frame interval's 95th percentile is at most 16.7 ms, and fewer than
   1% of frames take longer than 33.3 ms. A 120 Hz display does not raise the bar. The rule stays 60 fps.
 - **The reference devices.**
@@ -77,7 +78,7 @@ sitting comes right after 06.
 | Brief | What it delivers | Depends on |
 |---|---|---|
 | [05](../briefs/done/05-one-frame-profiler-in-every-game.md) | One frame profiler in all four games: percentiles, long frames, GPU time where the browser exposes it, one export format | none |
-| [06](../briefs/todo/06-a-bench-scene-in-every-game.md) | A scripted, seeded bench scene per game and a headless runner for the counters | 05 |
+| [06](../briefs/done/06-a-bench-scene-in-every-game.md) | A scripted, seeded bench scene per game and a headless runner for the counters | 05 |
 | [07](../briefs/todo/07-the-real-gpu-baseline.md) | The owner's real-GPU sitting, recorded, with budgets set and todos promoted | 06 and the owner |
 | [08](../briefs/todo/08-farm-renders-on-request-animation-frame.md) | Farm renders on `requestAnimationFrame` | 05 |
 | [09](../briefs/todo/09-the-atlas-cook-serves-every-game.md) | The atlas cook takes any game's recipe set, with Farm's output unchanged | none |
