@@ -3,7 +3,11 @@ import { readdirSync, statSync, readFileSync, writeFileSync, existsSync } from "
 import { join, relative, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { BASE_RECIPES, RECIPES, RECIPES_SRC_DIR } from "@farm/atlas-recipes";
-import { buildAtlas } from "./index";
+import { ATLAS_CONFIG } from "@farm/atlas-recipes/atlas";
+import { buildAtlas as cook } from "./cook";
+
+/** Cooks Farm, the one registered game these tests are about. */
+const buildAtlas = (opts: { force?: boolean } = {}) => cook(ATLAS_CONFIG, opts);
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ASSETS_DIR = join(RECIPES_SRC_DIR, "assets");
