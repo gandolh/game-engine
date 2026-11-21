@@ -4264,3 +4264,11 @@ textures instead of 11. The card scene and the world preview are byte for byte t
 the authoring and cache units, which reverts "don't merge" at run time only (Assets on
 [decisions.md](wiki/decisions.md)). The cook's record moved to a new page, [atlas-cook.md](wiki/atlas-cook.md),
 to keep [asset-pipeline.md](wiki/asset-pipeline.md) under the size cap.
+
+## [2026-11-21] done | Brief 11: recipe checks as tests
+
+Every recipe of every game the cook knows is now checked in `npm run test` for three pixel-art habits
+borrowed from sprite-gen: no lone opaque pixel, clear corners (tiles exempt for both), and one floor row and
+height per set of frames of one size. Farm's 263 findings are all on its allowlist under 38 entries with
+reasons, two marked "to review"; a stale entry fails the test. The rules and how to allow a frame are on
+[asset-pipeline.md](wiki/asset-pipeline.md); every finding is in `verify/2026-11-21-recipe-checks/`.

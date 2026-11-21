@@ -1,5 +1,5 @@
 ---
-summary: The bake principle (assets are code, not images), asset-cooking and atlas research, the cache-key/incremental-build recommendations that became brief 71, the 2026-10-28 large-image research, and the static layer's patches as built 2026-11-03 (the 4096 px single-texture ceiling, lazy per-patch bakes, painted images, the dev page, the upside-down upload fix).
+summary: The bake principle (assets are code, not images), the recipe checks every recipe passes (2026-11-21), asset-cooking and atlas research, the cache-key/incremental-build recommendations that became brief 71, the 2026-10-28 large-image research, and the static layer's patches as built 2026-11-03 (the 4096 px single-texture ceiling, lazy per-patch bakes, painted images, the dev page, the upside-down upload fix).
 updated: 2026-11-21
 ---
 
@@ -77,6 +77,17 @@ nothing), but the reason changed from ergonomics-only to ergonomics **plus** bat
 
 One cook serves every game's recipes through a per-game config (brief 09), and packs each game's sheets
 into one runtime page (brief 10): [atlas-cook.md](atlas-cook.md), with how to add a game.
+
+## Recipe checks (2026-11-21, brief 11)
+
+`npm run test` checks every recipe of every game the cook knows
+([recipe-checks.ts](../../tools/atlas-builder/src/recipe-checks.ts), rules borrowed from sprite-gen's
+`pixel-draw`): no **lone** opaque pixel (tiles exempt), **clear corners** (tiles exempt), and the frames of one
+set (name up to the last segment, same frame size) on one **floor row** and within a pixel of one **height**.
+A failure names the frame, the rule and the pixel. Frames that break a rule on purpose go on the recipe
+package's allowlist with a reason, `set/*` for a whole set (Farm's:
+[recipe-check-allowlist.ts](../../games/farm/atlas-recipes/src/recipe-check-allowlist.ts)); "to review" marks
+one a later brief judges by eye, and a test fails an entry that no longer matches anything.
 
 ## Art direction (2026-06-10 art pass)
 

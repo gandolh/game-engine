@@ -62,3 +62,75 @@ Borrow the rules, not the code. They are a few lines each over a recipe's charac
 ## Owner steps
 
 - None.
+
+## Outcome (2026-11-21)
+
+Done. [recipe-checks.ts](../../../tools/atlas-builder/src/recipe-checks.ts) holds the three rules over a recipe's
+character grid (opaque = a swatch with alpha above 0): `lone-pixel` and `corners` per frame, tiles exempt, and
+`floor-row` and `height` across the frames of a set. A set is the name up to the last segment, **compared within
+one frame size**. Without that, Farm's 24 px walks and 16 px action poses fell in one set, and every farmer
+failed for drawing at two scales, which says nothing about the art. The most common floor and height in a set
+are the reference. A finding prints the frame, the rule, the pixel and what is wrong.
+
+An `AtlasConfig` takes a `recipeCheckAllowlist` (entries: a frame or `set/*`, a rule, a reason). Farm's is
+[recipe-check-allowlist.ts](../../../games/farm/atlas-recipes/src/recipe-check-allowlist.ts).
+[recipe-checks.test.ts](../../../tools/atlas-builder/src/recipe-checks.test.ts) runs inside `npm run test`: fixture
+grids pass and fail each rule, every registered game's recipes pass with their allowlist, and an entry that no
+longer matches any finding fails the test, so the list can't go stale.
+
+**What Farm's recipes trip:** 263 findings (25 lone pixels, 12 corners, 114 floor rows, 112 heights), all
+covered by 38 allowlist entries. Every finding with its pixel is in
+[farm-findings.md](../../verify/2026-11-21-recipe-checks/farm-findings.md). The entries, with the frames and
+findings each covers:
+
+| Entry | Rule | Frames | Findings | Reason |
+|---|---|---:|---:|---|
+| `structure/big-tree-bare` | lone-pixel | 1 | 19 | snowflakes around the winter tree |
+| `structure/big-tree-autumn` | lone-pixel | 1 | 4 | falling leaves under the autumn canopy |
+| `decoration/duck-b` | lone-pixel | 1 | 1 | the last dash of the ripple under the swimming duck |
+| `structure/weather-beacon-b` | lone-pixel | 1 | 1 | the beacon's blink frame is its lamp alone, drawn over the beacon |
+| `indicator/hpbar-bg` | corners | 1 | 4 | the health bar's background fills its frame |
+| `structure/dock` | corners | 1 | 4 | to review: a dock piece drawn edge to edge, like a tile |
+| `structure/cargo-ship` | corners | 1 | 4 | to review: the ship fills its frame to the corners |
+| `structure/*` | floor-row | 52 | 52 | a catalogue of different buildings and objects |
+| `structure/*` | height | 51 | 51 | a catalogue of different buildings and objects |
+| `decoration/*` | floor-row | 35 | 35 | a catalogue of different decorations |
+| `decoration/*` | height | 36 | 36 | a catalogue of different decorations |
+| `indicator/*` | floor-row | 4 | 4 | different icons and bars, each placed on its own |
+| `indicator/*` | height | 2 | 2 | different icons and bars, each placed on its own |
+| `tool/*` | floor-row | 3 | 3 | different tools, drawn as hotbar icons |
+| `tool/*` | height | 2 | 2 | different tools, drawn as hotbar icons |
+| `fish/*` | floor-row | 2 | 2 | different fish species |
+| `fish/*` | height | 2 | 2 | different fish species |
+| `product/*` | floor-row | 2 | 2 | different products |
+| `product/*` | height | 1 | 1 | different products |
+| `fruit/*` | floor-row | 1 | 1 | different fruits |
+| `fruit/*` | height | 1 | 1 | different fruits |
+| `farmer/opportunist` | height | 1 | 1 | the five farmers' base frames are different people; the opportunist's hat is taller |
+| `crop/carrot/*` | floor-row | 2 | 2 | growth stages, from seed to ripe |
+| `crop/carrot/*` | height | 2 | 2 | growth stages, from seed to ripe |
+| `crop/corn/*` | floor-row | 2 | 2 | growth stages, from seed to ripe |
+| `crop/corn/*` | height | 2 | 2 | growth stages, from seed to ripe |
+| `crop/grape/*` | floor-row | 2 | 2 | growth stages, from seed to ripe |
+| `crop/grape/*` | height | 2 | 2 | growth stages, from seed to ripe |
+| `crop/pumpkin/*` | floor-row | 1 | 1 | growth stages, from seed to ripe |
+| `crop/pumpkin/*` | height | 2 | 2 | growth stages, from seed to ripe |
+| `crop/radish/*` | floor-row | 2 | 2 | growth stages, from seed to ripe |
+| `crop/radish/*` | height | 2 | 2 | growth stages, from seed to ripe |
+| `crop/tomato/*` | floor-row | 2 | 2 | growth stages, from seed to ripe |
+| `crop/tomato/*` | height | 2 | 2 | growth stages, from seed to ripe |
+| `crop/wheat/*` | floor-row | 2 | 2 | growth stages, from seed to ripe |
+| `crop/wheat/*` | height | 2 | 2 | growth stages, from seed to ripe |
+| `crop/winter-squash/*` | floor-row | 2 | 2 | growth stages, from seed to ripe |
+| `crop/winter-squash/*` | height | 2 | 2 | growth stages, from seed to ripe |
+
+Two are **to review** (`structure/dock` and `structure/cargo-ship`, opaque corners), for the later brief that
+judges art by eye. The set-level entries say the name grouping is wrong for catalogues (`structure/`,
+`decoration/` and the item sets hold different objects, not one subject's frames) and for crop growth stages.
+No pixel changed.
+
+**Acceptance.** The fixture tests pass and fail each rule. `npm run test` runs the checks over every recipe of
+every game the cook knows (Farm, until brief 12 adds MateQuest), and they pass with the allowlist. The table
+above lists every entry, and the findings file lists every frame. `npm run check` exits 0, and `bash
+corpus/lint.sh` passes.
+
