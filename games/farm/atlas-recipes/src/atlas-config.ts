@@ -7,6 +7,7 @@ import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { SWATCH } from "./palette";
+import { RECIPE_CHECK_ALLOWLIST } from "./recipe-check-allowlist";
 import { RECIPES } from "./index";
 import { frameToSheetId } from "./sheet-map";
 import type { PixelRecipe } from "./types";
@@ -52,4 +53,5 @@ export const ATLAS_CONFIG = {
   },
   outDir: resolve(SRC_DIR, "..", "..", "client", "public", "atlas"),
   urlBase: "/atlas/",
+  recipeCheckAllowlist: RECIPE_CHECK_ALLOWLIST,
 };

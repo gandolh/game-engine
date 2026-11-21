@@ -17,6 +17,16 @@ export interface AtlasRecipe {
 
 export type Rgba = readonly [number, number, number, number];
 
+/** The recipe checks (`recipe-checks.ts`, corpus brief 11). */
+export type RecipeRule = "lone-pixel" | "corners" | "floor-row" | "height";
+
+/** A frame (or every frame of a set, written `set/*`) that breaks a recipe check on purpose. */
+export interface RecipeAllowance {
+  frame: string;
+  rule: RecipeRule;
+  reason: string;
+}
+
 export interface AtlasConfig {
   /** The game's id, as `npm run atlas -- <id>` names it. */
   id: string;
@@ -38,6 +48,8 @@ export interface AtlasConfig {
   outDir: string;
   /** The URL prefix the manifests point at, for example `/atlas/`. */
   urlBase: string;
+  /** Frames that break a recipe check on purpose, each with a reason (`recipe-checks.ts`, corpus brief 11). */
+  recipeCheckAllowlist?: readonly RecipeAllowance[];
 }
 
 /** The palettes the engine exports, which a config can name instead of listing. */
