@@ -60,6 +60,7 @@ import {
   type A11yMirror,
 } from "@engine/ui";
 import {
+  DEFAULT_LOCALE,
   EMPTY_MASTERY_STORE,
   LIFELINE_KINDS,
   LOCALE_STORAGE_KEY,
@@ -69,6 +70,7 @@ import {
 } from "@mathquest/sim-core";
 import type { AnswerResponse, GameSnapshot, Locale, MasteryStore } from "@mathquest/sim-core";
 import { MATE_PAL } from "./render/mate-palette";
+import { benchRequested, mateBenchScene, runBench } from "./bench";
 import { MATE_THEME } from "./render/mate-theme";
 import { getStrings, type Strings } from "./strings";
 import { createCombatScreen, type CombatScreen, type CombatScreenActions } from "./ui/combat-screen";
@@ -91,7 +93,9 @@ const MAX_ANSWER_DIGITS = 5;
 // ?profile — the shared frame profile (corpus brief 05): the frame interval, GPU time, GL counters and
 // the widget UI pass's own timers (`ui.refresh`, `ui.layout`, `ui.draw`, `ui.mirror`), exported as
 // `window.__exportProfile()`. Off by default; it doesn't change the default path.
-const PROFILE = new URLSearchParams(location.search).has("profile");
+// `?bench` (corpus brief 06) is the fixed benchmark scene, and implies `?profile`.
+const BENCH = benchRequested();
+const PROFILE = new URLSearchParams(location.search).has("profile") || BENCH;
 
 const canvasRaw = document.getElementById("scene");
 if (!(canvasRaw instanceof HTMLCanvasElement)) {
@@ -183,7 +187,8 @@ async function main(): Promise<void> {
   // --- Locale (M5 slice 2) ----------------------------------------------------------------------
   // The sim's OWN language, re-init'd on every toggle — see the module doc. `strings` is the
   // CLIENT UI chrome bundle resolved from the SAME `locale`, kept in lockstep.
-  let locale: Locale = loadLocale();
+  // `?bench` reads nothing saved, so every run plays the same problems.
+  let locale: Locale = BENCH ? DEFAULT_LOCALE : loadLocale();
   let strings: Strings = getStrings(locale);
 
   // --- Worker ---------------------------------------------------------------------------------
@@ -198,14 +203,15 @@ async function main(): Promise<void> {
   // M5 slice 2: the run's CURRENT mastery store, kept in lockstep with every snapshot — `toggleLocale`
   // hands this straight back into the re-`init`'d sim so mastery survives the language switch
   // (only the run's POSITION is lost, per the module doc — never progression).
-  let currentMastery: MasteryStore = loadMastery();
+  let currentMastery: MasteryStore = BENCH ? EMPTY_MASTERY_STORE : loadMastery();
   worker.addEventListener("message", (event: MessageEvent<WorkerOutbound>) => {
     const msg = event.data;
     if (msg.type === "snapshot") {
       latest = msg.snapshot;
       currentMastery = msg.snapshot.run.mastery;
       const serialized = JSON.stringify(msg.snapshot.run.mastery);
-      if (serialized !== lastPersistedMastery) {
+      // `?bench` saves nothing: its run must not change the player's progress.
+      if (!BENCH && serialized !== lastPersistedMastery) {
         lastPersistedMastery = serialized;
         saveMastery(serialized);
       }
@@ -693,6 +699,11 @@ async function main(): Promise<void> {
   }
   requestAnimationFrame(frame);
   profile.start();
+  if (BENCH)
+    runBench(
+      profile,
+      mateBenchScene(post, () => latest),
+    );
 }
 
 // DEV only: `?card` draws the games portal's card art instead of the game (see ./card.ts).

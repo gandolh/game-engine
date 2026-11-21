@@ -20,6 +20,7 @@ import { SimClient } from "./net/sim-client";
 import { parseRun, serializeRun } from "@farm/sim-core/run-descriptor";
 
 import { CONFIG, CAMERA_CONFIG, PROFILE_ENABLED } from "./main/config";
+import { benchRequested, farmBenchScene, runBench } from "./main/bench";
 import {
   setupCameraListeners,
   setSimClient,
@@ -180,6 +181,16 @@ async function boot(): Promise<void> {
   }
   const { renderer, uiHost } = runtime;
 
+  // `?bench` (corpus brief 06): the fixed scene starts a run on the boot seed, with no home screen.
+  if (benchRequested()) {
+    void startGame(canvas, fatal, runtime, {
+      seed: CONFIG.seed,
+      maxDays: CONFIG.maxDays,
+      ticksPerDay: CONFIG.ticksPerDay,
+    });
+    return;
+  }
+
   // --- Home screen (in-canvas) ---------------------------------------------------------------
   // Rendered through the shared UI host each frame until Start is clicked. The seed field is the
   // one DOM exception (canvas has no text-input widget); we position it over the panel each frame.
@@ -261,11 +272,14 @@ async function startGame(
 
   let staticBaked = false;
   let firstFrame = false;
+  /** Set once the panels exist; starts the `?bench` scene when the loading screen goes. */
+  let startBench: (() => void) | null = null;
   function maybeDismiss(): void {
-    if (staticBaked && firstFrame) {
+    if (staticBaked && firstFrame && loadingActive) {
       loadingActive = false;
       cancelAnimationFrame(loadingRafId);
       loadingRoot.mirror?.update(loading.root); // clears the AT view (getRoot() now null)
+      startBench?.();
     }
   }
 
@@ -335,15 +349,23 @@ async function startGame(
       if (_camera !== null) applyFocusAndPan(_camera);
     };
 
-    const panels = buildPanels(document.body, uiHost, canvas, {
-      onSelectFarmer: focusFarmer,
-      playback: playbackActions,
-      onShare,
-      swapSlots: (from, to) => {
-        if (client.owner) client.swapSlots(from, to);
+    const panels = buildPanels(
+      document.body,
+      uiHost,
+      canvas,
+      {
+        onSelectFarmer: focusFarmer,
+        playback: playbackActions,
+        onShare,
+        swapSlots: (from, to) => {
+          if (client.owner) client.swapSlots(from, to);
+        },
+        isOwner: () => client.owner,
       },
-      isOwner: () => client.owner,
-    });
+      benchRequested(),
+    );
+
+    if (benchRequested()) startBench = () => runBench(runtime.profile, farmBenchScene());
 
     const ambient = new AmbientLayer();
     bakeStaticLayer(client, renderer, noiseGen, seed, ambient, () => {

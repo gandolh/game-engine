@@ -69,9 +69,20 @@ function warningPage(game: Game): Node[] {
   ];
 }
 
+/**
+ * The game's frame address. The play page's own `bench` and `profile` go on to the game (corpus brief 06),
+ * so a scene can be read framed; nothing else in its query string does.
+ */
+function frameSrc(path: string, search: string): string {
+  const page = new URLSearchParams(search);
+  const passed = ["bench", "profile"].filter((key) => page.has(key));
+  if (passed.length === 0) return path;
+  return `${path}${path.includes("?") ? "&" : "?"}${passed.join("&")}`;
+}
+
 function playPage(game: Game): Node[] {
   document.title = `${game.title} — Games`;
-  const frame = el("iframe", { src: game.path, title: game.title });
+  const frame = el("iframe", { src: frameSrc(game.path, location.search), title: game.title });
   frame.allow = "fullscreen; autoplay; gamepad";
   frame.allowFullscreen = true;
   // Keys go to the game from the start, as when it is opened on its own.

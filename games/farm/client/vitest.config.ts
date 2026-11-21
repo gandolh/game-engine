@@ -11,6 +11,7 @@ const DOM_FILES = [
   "src/net/sim-client/client.fault.test.ts",
   "src/main/juice.test.ts",
   "src/main/audio.test.ts",
+  "src/main/bench.test.ts",
 ];
 
 export default defineConfig({

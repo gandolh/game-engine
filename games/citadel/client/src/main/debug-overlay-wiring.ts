@@ -22,6 +22,7 @@
  * exact pixel position is unchanged.
  */
 import { DebugOverlay, profileRequested } from "@engine/core";
+import { benchRequested } from "./bench";
 
 /**
  * The live overlay instance, or `undefined` outside dev builds (or before `initDebugOverlay`
@@ -38,7 +39,7 @@ export let debugOverlay: DebugOverlay | undefined;
  */
 export function initDebugOverlay(parent: HTMLElement): void {
   // `?profile` mounts it in a production build too: the shared profile (corpus brief 05) shows its frame
-  // stats and export button here, and brief 07 reads it on the deployed game.
-  if (!import.meta.env.DEV && !profileRequested()) return;
+  // stats and export button here, and brief 07 reads it on the deployed game. `?bench` implies `?profile`.
+  if (!import.meta.env.DEV && !profileRequested() && !benchRequested()) return;
   debugOverlay = new DebugOverlay(parent, { corner: "bottom-right" });
 }

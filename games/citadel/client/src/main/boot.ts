@@ -16,7 +16,16 @@ import { initSettingsDispatcher } from "./settings";
 import { initMinimap } from "./minimap-wiring";
 import { debugOverlay, initDebugOverlay } from "./debug-overlay-wiring";
 import { initNewGameModal, newGameMirror } from "./new-game";
-import { useServer, client, markOpeningFramed, currentBuildings, currentVillagers, latestSnapshot } from "./sim-client";
+import {
+  useServer,
+  client,
+  markOpeningFramed,
+  openingFramed,
+  currentBuildings,
+  currentVillagers,
+  latestSnapshot,
+} from "./sim-client";
+import { benchRequested, startCitadelBench } from "./bench";
 import { loop, setFrameProfile } from "./render-loop";
 import { tileToScreenCss } from "./screen-mapping";
 // Side-effect imports: these modules register DOM event listeners / construct singletons at
@@ -113,11 +122,12 @@ async function boot(): Promise<void> {
   }
   setRendererState(created);
 
-  // The shared frame profile (corpus brief 05), behind `?profile`. Made before the atlases upload so its
-  // texture counters include them.
+  // The shared frame profile (corpus brief 05), behind `?profile` (or `?bench`, which implies it). Made
+  // before the atlases upload so its texture counters include them.
+  const bench = benchRequested();
   const profile = new FrameProfile({
     game: "citadel",
-    enabled: profileRequested(),
+    enabled: profileRequested() || bench,
     canvas,
     build: import.meta.env.MODE,
     seed: SEED,
@@ -167,9 +177,10 @@ async function boot(): Promise<void> {
   // Two paths skip it and start immediately:
   //   - MP (`?mp`): the server owns the ruleset, so there is nothing for a solo picker to choose.
   //   - the URL fast-path (`?challenge` / `?cozy`): the dev/playtest shortcut, which is why it
-  //     stays — a scripted browser run must be able to enter a mode without a click.
+  //     stays — a scripted browser run must be able to enter a mode without a click. `?bench` (corpus
+  //     brief 06) is a cozy run.
   const params = typeof location !== "undefined" ? new URLSearchParams(location.search) : new URLSearchParams();
-  const urlMode: GameMode | null = params.has("challenge") ? "challenge" : params.has("cozy") ? "cozy" : null;
+  const urlMode: GameMode | null = params.has("challenge") ? "challenge" : params.has("cozy") || bench ? "cozy" : null;
   const preChosen: GameMode | null = useServer ? "cozy" : urlMode;
   initNewGameModal(preChosen, startGame);
 
@@ -178,6 +189,14 @@ async function boot(): Promise<void> {
   if (preChosen !== null) startGame(preChosen);
   requestAnimationFrame(loop);
   profile.start();
+  // `?bench`: the fixed scene flies around the town once the opening frame has centred it.
+  if (bench)
+    startCitadelBench(
+      profile,
+      () => camera,
+      iso.worldPxW,
+      () => openingFramed,
+    );
 }
 
 // art-06: DEV-only all-assets SHOWCASE mode. `?showcase` short-circuits the full

@@ -28,7 +28,10 @@ import { TILE } from "@engine/core/render";
 
 export const DEFAULT_ZOOM = 3;
 
-export const PROFILE_ENABLED = typeof location !== "undefined" && new URLSearchParams(location.search).has("profile");
+/** `?profile`, or `?bench`, which implies it (corpus brief 06). */
+export const PROFILE_ENABLED =
+  typeof location !== "undefined" &&
+  (new URLSearchParams(location.search).has("profile") || new URLSearchParams(location.search).has("bench"));
 
 export const CAMERA_CONFIG = {
   worldUnitsX: WORLD_WIDTH * TILE,

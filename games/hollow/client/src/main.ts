@@ -6,6 +6,7 @@
  */
 import "./page.css";
 import { mountHollow } from "./mount";
+import { benchRequested } from "./bench";
 
 const app = document.getElementById("app");
 if (!(app instanceof HTMLElement)) {
@@ -13,4 +14,6 @@ if (!(app instanceof HTMLElement)) {
 }
 // DEV only: `?card` draws the games portal's card art (see MountOptions.card).
 const card = import.meta.env.DEV && new URLSearchParams(location.search).has("card");
-mountHollow(app, { pageHash: true, ...(card ? { card: true } : {}) });
+// `?bench`, production builds included: the fixed benchmark scene (corpus brief 06).
+const bench = benchRequested();
+mountHollow(app, { pageHash: true, ...(card ? { card: true } : {}), ...(bench ? { bench: true } : {}) });

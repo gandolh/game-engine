@@ -37,6 +37,7 @@ import {
   type DrawCall3d,
 } from "@engine/core/render3d";
 import { FrameProfile, Profiler, profileRequested, type ProfileReport } from "@engine/core";
+import { benchRequested } from "../bench";
 import { effectiveDpr } from "@engine/core/render";
 import type { WorkerOutbound } from "../worker/sim-worker";
 import { HOLLOW_PAL } from "../render/hollow-palette";
@@ -96,6 +97,9 @@ export interface HollowAppOptions {
    *  an UNHANDLED promise rejection with a blank canvas and no on-screen
    *  explanation. */
   onRendererUnavailable?(message: string): void;
+  /** Fired once the scene draws: its camera and the shared frame profile, for the `?bench` scene
+   *  (corpus brief 06). */
+  onSceneReady?(camera: OrbitCamera, profile: FrameProfile): void;
 }
 
 /** Per-agent render outputs, recomputed every frame — the SEAM chunk
@@ -259,7 +263,8 @@ export function startHollowApp(canvas: HTMLCanvasElement, worker: Worker, opts: 
     });
     frameProfile = new FrameProfile({
       game: "hollow",
-      enabled: profileRequested(),
+      // `?bench` implies `?profile` (corpus brief 06).
+      enabled: profileRequested() || benchRequested(),
       canvas,
       build: import.meta.env.MODE,
       seed: opts.seed ?? null,
@@ -698,6 +703,7 @@ export function startHollowApp(canvas: HTMLCanvasElement, worker: Worker, opts: 
     }
     rafHandle = requestAnimationFrame(frame);
     frameProfile.start();
+    opts.onSceneReady?.(camera, frameProfile);
   }
 
   return {
