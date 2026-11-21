@@ -1,4 +1,4 @@
-import { type Keyboard, type ParticleSystem, Profiler, type RainField, expSmooth } from "@engine/core";
+import { type FrameProfile, type Keyboard, type ParticleSystem, type RainField, expSmooth } from "@engine/core";
 import { EDG } from "@engine/core";
 import type { RendererLike } from "@engine/core";
 import type { UIHost } from "../ui/canvas/ui-host";
@@ -46,7 +46,7 @@ import type { Panels } from "./panels";
 import type { ParticleDirector } from "./particles";
 import type { SimClient } from "../net/sim-client";
 import type { AmbientLayer } from "./ambient";
-import { setupProfileExport } from "./profile-export";
+import { farmProfileExtra } from "./profile-export";
 import { renderWeather } from "./render-weather";
 
 const HELD_TOOL_ANCHOR: Record<"down" | "up" | "side", { dx: number; dy: number; behind: boolean }> = {
@@ -62,6 +62,8 @@ const HELD_TOOL_FRAME: Record<string, string> = { "tool/can": "tool/can-held" };
 export interface RenderLoopDeps {
   client: SimClient;
   renderer: RendererLike;
+  /** The shared frame profile (corpus brief 05); its timers are this loop's sub-timers. */
+  profile: FrameProfile;
   keyboard: Keyboard;
   particles: ParticleSystem;
   particleDirector: ParticleDirector;
@@ -84,6 +86,7 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
   const {
     client,
     renderer,
+    profile,
     keyboard,
     particles,
     particleDirector,
@@ -231,7 +234,8 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
     }
   };
 
-  const frameProfiler = new Profiler({ enabled: PROFILE_ENABLED });
+  // The shared profile's named timers (brief 05); a disabled profile records nothing.
+  const frameProfiler = profile.timers;
   if (PROFILE_ENABLED) {
     // Ask the renderer to time its screen-space UI flush (brief 118: the glyph-tint
     // cost hides under render.endFrame, invisible to the panels sub-timer).
@@ -241,17 +245,15 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
 
     (window as unknown as { __frameProfile?: () => unknown }).__frameProfile = () => frameProfiler.report();
 
-    setupProfileExport({
-      parent: document.body,
-      overlay,
-      camera: renderer.camera,
-      canvas,
-      frameReport: () => frameProfiler.report(),
-      context: { seed, maxDays, ticksPerDay },
-    });
+    // Farm's export fields before the shared schema (run, display, camera, worker profile) ride along
+    // under `extra.farm`; the overlay shows the shared frame stats and carries the export button.
+    profile.setSeed(seed);
+    profile.setExtra(() => ({
+      farm: farmProfileExtra({ overlay, camera: renderer.camera, context: { seed, maxDays, ticksPerDay } }),
+    }));
+    profile.attachOverlay(overlay);
+    profile.start();
   }
-
-  let frameReportCounter = 0;
 
   let clickStartX = 0;
   let clickStartY = 0;
@@ -302,6 +304,7 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
       staleInputDrained = true;
       keyboard.endFrame();
     }
+    profile.beginFrame();
     const frameStart = performance.now();
     const nowMs = frameStart;
     const dt = Math.min((nowMs - lastFrameMs) / 1000, 0.1);
@@ -628,13 +631,11 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
     frameProfiler.time("render.endFrame", () => renderer.endFrame(wash, particles, rain, lightOverlay));
     if (PROFILE_ENABLED && renderer.lastUiFlush !== undefined) {
       frameProfiler.add("ui.flush", renderer.lastUiFlush.ms);
-      frameProfiler.add("ui.quads", renderer.lastUiFlush.quads);
     }
     // sweep-05: draw-group coalescing counters. `draw.groups` is the MAIN sprite
     // pass only; `draw.ghostGroups` is the separate occluder-redraw pass, kept
     // apart so it can't inflate the groups/sprites ratio this exists to measure.
     if (PROFILE_ENABLED && renderer.lastDrawStats !== undefined) {
-      frameProfiler.add("draw.groups", renderer.lastDrawStats.groups);
       frameProfiler.add("draw.ghostGroups", renderer.lastDrawStats.ghostGroups);
       frameProfiler.add("draw.sprites", renderer.lastDrawStats.sprites);
       frameProfiler.add("draw.atlases", renderer.lastDrawStats.atlases);
@@ -642,14 +643,9 @@ export function createRenderLoop(deps: RenderLoopDeps): () => void {
 
     overlay.update({ tick: client.tick, alpha: 0, entityCount: client.entityCount });
 
-    if (PROFILE_ENABLED) {
-      frameProfiler.add("frame", performance.now() - frameStart);
-      frameReportCounter += 1;
-      if (frameReportCounter >= 60) {
-        frameReportCounter = 0;
-        overlay.setFrameReport(frameProfiler.report());
-      }
-    }
+    // The `frame` timer, the draw-group and UI-quad counters, the GL counters and the overlay's report
+    // all come from the shared profile (brief 05).
+    profile.endFrame({ drawGroups: renderer.lastDrawStats?.groups, uiQuads: renderer.lastUiFlush?.quads });
 
     setTimeout(renderFrame, 0);
   }

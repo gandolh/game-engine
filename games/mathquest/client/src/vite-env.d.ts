@@ -3,6 +3,8 @@ interface ImportMetaEnv {
   readonly BASE_URL: string;
   /** Vite dev-mode flag — true under `vite dev`, false in a production build. */
   readonly DEV: boolean;
+  /** Vite's mode, `development` or `production`: the build the shared profile reports (corpus brief 05). */
+  readonly MODE: string;
 }
 
 interface ImportMeta {

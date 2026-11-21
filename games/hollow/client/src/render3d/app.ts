@@ -36,7 +36,7 @@ import {
   type MeshHandle,
   type DrawCall3d,
 } from "@engine/core/render3d";
-import { Profiler, type ProfileReport } from "@engine/core";
+import { FrameProfile, Profiler, profileRequested, type ProfileReport } from "@engine/core";
 import { effectiveDpr } from "@engine/core/render";
 import type { WorkerOutbound } from "../worker/sim-worker";
 import { HOLLOW_PAL } from "../render/hollow-palette";
@@ -74,6 +74,8 @@ export interface HollowAppOptions {
   /** Must match the seed the worker was `init`ed with (only used here to
    *  derive the day/night phase — see day-night.ts). */
   readonly ticksPerDay: number;
+  /** The run's seed, reported by the shared profile's export (corpus brief 05). */
+  readonly seed?: number;
   /** Chunk hollow-09c: fired after a canvas click resolves a ray-pick over
    *  the current frame's agent AABBs (`getAgentRenderState()`'s `bounds`) —
    *  `agentId` is the picked agent, or `null` if the click hit nothing. The
@@ -179,6 +181,9 @@ export function startHollowApp(canvas: HTMLCanvasElement, worker: Worker, opts: 
   // WebGL contexts (Chrome at 16), so an app that only stops drawing leaks one
   // per reopen until the oldest is force-lost.
   let device: Awaited<ReturnType<typeof createDevice3d>> | null = null;
+  // The shared frame profile (corpus brief 05), behind `?profile`. Replaced once the device exists; this
+  // disabled one records nothing. The HUD's own `profiler` below stays as it is.
+  let frameProfile = new FrameProfile({ game: "hollow", enabled: false });
   let lastAgentRenderState: Map<number, AgentRenderState> | null = null;
   let lastViewProj: Mat4 | null = null;
   // Computed once per `resize()` call and read by `getDpr()` (sweep-06) so
@@ -196,7 +201,9 @@ export function startHollowApp(canvas: HTMLCanvasElement, worker: Worker, opts: 
   // "interp". `renderReport` is refreshed every `REPORT_EVERY_FRAMES` (the
   // stats scan walks 240-sample rings, so recomputing it every frame would
   // itself show up in the numbers) and read by `getRenderReport()`.
-  const profiler = new Profiler({ enabled: true });
+  // Under `?profile` this becomes the shared profile's timers once the device exists (below), so the
+  // export carries the same `interp`, `collision` and `frame` the HUD reads.
+  let profiler = new Profiler({ enabled: true });
   let renderReport: ProfileReport | null = null;
   let frameCounter = 0;
   const REPORT_EVERY_FRAMES = 30;
@@ -250,6 +257,18 @@ export function startHollowApp(canvas: HTMLCanvasElement, worker: Worker, opts: 
     const renderer = new SceneRenderer3D(device3d, {
       clearColor: [...toFloatRgb(HOLLOW_PAL.navy), 1] as [number, number, number, number],
     });
+    frameProfile = new FrameProfile({
+      game: "hollow",
+      enabled: profileRequested(),
+      canvas,
+      build: import.meta.env.MODE,
+      seed: opts.seed ?? null,
+      overlayParent: document.body,
+      overlayCorner: "bottom-left",
+      // The HUD's timer below already records `frame` into these same timers.
+      recordFrameTimer: false,
+    });
+    if (frameProfile.enabled) profiler = frameProfile.timers;
 
     // --- combined material table (hollow-09b): world keys + agent (skin/
     // hair/cloth) keys in ONE ordered list, ONE setMaterials call — see
@@ -408,6 +427,7 @@ export function startHollowApp(canvas: HTMLCanvasElement, worker: Worker, opts: 
     // --- render loop --------------------------------------------------------
     function frame(nowMs: number): void {
       if (disposed) return;
+      frameProfile.beginFrame();
       const frameStart = performance.now();
       resize();
 
@@ -672,10 +692,12 @@ export function startHollowApp(canvas: HTMLCanvasElement, worker: Worker, opts: 
       profiler.add("frame", performance.now() - frameStart);
       frameCounter += 1;
       if (frameCounter % REPORT_EVERY_FRAMES === 0) renderReport = profiler.report();
+      frameProfile.endFrame();
 
       rafHandle = requestAnimationFrame(frame);
     }
     rafHandle = requestAnimationFrame(frame);
+    frameProfile.start();
   }
 
   return {
@@ -685,6 +707,7 @@ export function startHollowApp(canvas: HTMLCanvasElement, worker: Worker, opts: 
       worker.removeEventListener("message", onMessage);
       cameraInput?.dispose();
       if (rafHandle !== null) cancelAnimationFrame(rafHandle);
+      frameProfile.dispose();
       resizeObserver?.disconnect();
       if (resizeListener) window.removeEventListener("resize", resizeListener);
       device?.glContext.dispose();

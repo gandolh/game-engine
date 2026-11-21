@@ -304,6 +304,7 @@ export function mountHollow(container: HTMLElement, options: MountOptions): () =
     // Disposed by this run's teardown (`stopRun`), which releases the GL context.
     const app = startHollowApp(canvas, worker, {
       ticksPerDay: TICKS_PER_DAY,
+      seed: currentSeed,
       onAgentClicked: handleAgentClicked,
       onFollowCancelled: () => {
         followingAgentId = null;

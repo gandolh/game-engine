@@ -8,6 +8,7 @@ import {
   RainField,
   createNoiseGeneratorFromUrl,
   showUnsupportedNotice,
+  FrameProfile,
 } from "@engine/core";
 import type { NoiseGenerator, RendererLike } from "@engine/core";
 import { loadFontAtlas, computeLayout, renderTree } from "@engine/ui";
@@ -18,7 +19,7 @@ import { createLoadingScreen } from "./ui/canvas/loading-screen";
 import { SimClient } from "./net/sim-client";
 import { parseRun, serializeRun } from "@farm/sim-core/run-descriptor";
 
-import { CONFIG, CAMERA_CONFIG } from "./main/config";
+import { CONFIG, CAMERA_CONFIG, PROFILE_ENABLED } from "./main/config";
 import {
   setupCameraListeners,
   setSimClient,
@@ -41,6 +42,8 @@ import { hostClientId } from "./main/host-client-id";
 
 interface Runtime {
   renderer: RendererLike;
+  /** The shared frame profile (corpus brief 05); does nothing without `?profile`. */
+  profile: FrameProfile;
   noiseGen: NoiseGenerator | null;
   keyboard: Keyboard;
   uiHost: UIHost;
@@ -88,6 +91,13 @@ async function setupRuntime(canvas: HTMLCanvasElement): Promise<Runtime> {
     });
     throw err;
   }
+  // Made before the atlases upload, so the profile's texture counters include the boot uploads.
+  const profile = new FrameProfile({
+    game: "farm",
+    enabled: PROFILE_ENABLED,
+    canvas,
+    build: import.meta.env.MODE,
+  });
   for (const atlas of atlasMap.values()) {
     renderer.addAtlas(atlas);
   }
@@ -126,7 +136,7 @@ async function setupRuntime(canvas: HTMLCanvasElement): Promise<Runtime> {
   window.addEventListener("pointerdown", unlockAudio, { once: true });
   window.addEventListener("keydown", unlockAudio, { once: true });
 
-  return { renderer, noiseGen, keyboard, uiHost, camera, audio };
+  return { renderer, profile, noiseGen, keyboard, uiHost, camera, audio };
 }
 
 /**
@@ -362,6 +372,7 @@ async function startGame(
     const renderFrame = createRenderLoop({
       client,
       renderer,
+      profile: runtime.profile,
       keyboard,
       particles,
       particleDirector,
