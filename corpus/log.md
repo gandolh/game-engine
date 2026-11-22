@@ -4272,3 +4272,12 @@ borrowed from sprite-gen: no lone opaque pixel, clear corners (tiles exempt for 
 height per set of frames of one size. Farm's 263 findings are all on its allowlist under 38 entries with
 reasons, two marked "to review"; a stale entry fails the test. The rules and how to allow a frame are on
 [asset-pipeline.md](wiki/asset-pipeline.md); every finding is in `verify/2026-11-21-recipe-checks/`.
+
+## [2026-11-22] done | Brief 12: MateQuest draws its combat sprites from an atlas
+
+Făt-Frumos and the six enemies are pixel recipes now, in a new `@mathquest/atlas-recipes` package, ported
+from their shape drawings at one pixel per unit and cooked by the shared cook into a `combat` sheet. The
+combat screen draws each as one quad at a whole-number scale, so the creatures look the same but crisper,
+and its UI quads fell by 30 to 127 a frame per enemy. The layering test lets the cook alone import every
+game's recipe package. Before and after screenshots of all six enemies are in
+`verify/2026-11-22-mathquest-combat-atlas/`; the record is on [mathquest-ui.md](wiki/mathquest-ui.md).

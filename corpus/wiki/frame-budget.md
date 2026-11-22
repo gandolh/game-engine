@@ -85,7 +85,7 @@ sitting comes right after 06.
 | [09](../briefs/done/09-the-atlas-cook-serves-every-game.md) | The atlas cook takes any game's recipe set, with Farm's output unchanged | none |
 | [10](../briefs/done/10-one-runtime-atlas-page-per-game.md) | One runtime page per game, so Farm's world sprites draw as one group, not 49 | 09 |
 | [11](../briefs/done/11-recipe-checks-as-tests.md) | Stray-pixel, floor-row and corner checks on every recipe | 09 |
-| [12](../briefs/todo/12-mathquest-draws-combat-sprites-from-an-atlas.md) | MateQuest's seven combat sprites become recipes on an atlas | 10 |
+| [12](../briefs/done/12-mathquest-draws-combat-sprites-from-an-atlas.md) | MateQuest's seven combat sprites become recipes on an atlas | 10 |
 | [13](../briefs/todo/13-the-sprite-gen-pixel-draw-trial.md) | A blind trial of `pixel-draw` against an agent writing recipes | 11, 12 and the owner |
 | [14](../briefs/todo/14-mathquest-combat-sprites-as-pixel-art.md) | MateQuest's combat sprites redrawn as real pixel art | 13 |
 
