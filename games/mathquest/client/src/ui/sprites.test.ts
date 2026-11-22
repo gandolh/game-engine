@@ -1,44 +1,64 @@
 /**
- * M5 slice 3 — sprite registry + palette-purity guard. The `draw*` fns are visual, so rather than
- * assert exact pixels we assert the two things that would actually break at runtime: every enemy
- * sprite id has a draw fn, and every colour a sprite paints is a real `MATE_PAL` role (no raw hex
- * slipping through — the project's palette rule, root CLAUDE.md). A fake surface records each
- * `rect(...)` colour; the real `UISurface.rect` signature is `(x,y,w,h,color,alpha?)`.
+ * The combat sprites (corpus brief 12): every enemy id draws its own atlas frame at a whole-number scale with
+ * its feet on the ground line, and the recipe package's colours are `MATE_PAL`'s, role for role.
  */
 import { describe, expect, it } from "vitest";
 import type { EnemySprite } from "@mathquest/sim-core";
+import { COMBAT_ATLAS_ID, COMBAT_SPRITES, MATE_ROLES } from "@mathquest/atlas-recipes";
 import { MATE_PAL } from "../render/mate-palette";
-import { ENEMY_SPRITE_DRAW, drawHero } from "./sprites";
+import { ENEMY_SPRITE_DRAW, drawHero, spriteScale } from "./sprites";
 
-const PALETTE = new Set<string>(Object.values(MATE_PAL));
+interface Quad {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  atlasId?: string;
+  frame?: string;
+  color?: string;
+}
 
-/** Minimal `UISurface` stand-in — the `draw*` fns only ever call `.rect`. */
-function recordingSurface(): {
-  rect: (x: number, y: number, w: number, h: number, color: string) => void;
-  colors: string[];
-} {
-  const colors: string[] = [];
-  return { rect: (_x, _y, _w, _h, color) => colors.push(color), colors };
+/** Minimal `UISurface` stand-in: records `rect` (the shadow) and `sprite` (the creature). */
+function recordingSurface(): { rect: (...a: unknown[]) => void; sprite: (...a: unknown[]) => void; quads: Quad[] } {
+  const quads: Quad[] = [];
+  return {
+    quads,
+    rect: (x, y, w, h, color) => quads.push({ x, y, w, h, color } as Quad),
+    sprite: (x, y, w, h, atlasId, frame) => quads.push({ x, y, w, h, atlasId, frame } as Quad),
+  };
 }
 
 const ALL_ENEMY_SPRITES: readonly EnemySprite[] = ["dragon", "balaur", "strigoi", "varcolac", "capcaun", "muma"];
 
 describe("combat sprites", () => {
-  it("has a draw fn for every enemy sprite id", () => {
-    for (const id of ALL_ENEMY_SPRITES) {
-      expect(typeof ENEMY_SPRITE_DRAW[id]).toBe("function");
-    }
-    expect(Object.keys(ENEMY_SPRITE_DRAW).sort()).toEqual([...ALL_ENEMY_SPRITES].sort());
+  it("scales by whole numbers: the unit rounded down, at least 2", () => {
+    expect([spriteScale(1.3), spriteScale(2.4), spriteScale(3.99), spriteScale(5.6)]).toEqual([2, 2, 3, 5]);
   });
 
-  it("every sprite paints only MATE_PAL colours (no raw hex), and paints something", () => {
-    const draws = [drawHero, ...ALL_ENEMY_SPRITES.map((id) => ENEMY_SPRITE_DRAW[id])];
-    for (const draw of draws) {
+  it("draws every enemy and the hero as one atlas frame on its ground line, plus a palette shadow", () => {
+    const draws: [string, (s: never, cx: number, baseY: number, u: number) => void][] = [
+      ["hero", drawHero],
+      ...ALL_ENEMY_SPRITES.map((id) => [`enemy/${id}`, ENEMY_SPRITE_DRAW[id]] as [string, typeof drawHero]),
+    ];
+    expect(Object.keys(ENEMY_SPRITE_DRAW).sort()).toEqual([...ALL_ENEMY_SPRITES].sort());
+    for (const [frame, draw] of draws) {
       const surf = recordingSurface();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- fake surface, only .rect is used
-      draw(surf as any, 200, 200, 3);
-      expect(surf.colors.length).toBeGreaterThan(5); // a recognisable creature is many rects
-      for (const c of surf.colors) expect(PALETTE.has(c)).toBe(true);
+      draw(surf as never, 300.4, 200.6, 3.7);
+      const sprites = surf.quads.filter((q) => q.frame !== undefined);
+      expect(sprites).toHaveLength(1);
+      const sprite = sprites[0];
+      const meta = COMBAT_SPRITES[frame];
+      expect(meta, frame).toBeDefined();
+      if (sprite === undefined || meta === undefined) continue;
+      expect(sprite).toMatchObject({ atlasId: COMBAT_ATLAS_ID, frame, w: meta.width * 3, h: meta.height * 3 });
+      expect(sprite.y + sprite.h).toBe(201); // feet on the rounded ground line
+      expect(sprite.x + meta.anchorX * 3).toBe(300); // the centre line on the rounded cx
+      for (const q of surf.quads.filter((r) => r.color !== undefined)) expect(q.color).toBe(MATE_PAL.ink);
     }
+  });
+
+  it("paints only MATE_PAL colours: the recipe package's roles are MATE_PAL's, value for value", () => {
+    const pal = MATE_PAL as Readonly<Record<string, string>>;
+    for (const [role, hex] of Object.entries(MATE_ROLES)) expect(pal[role], role).toBe(hex);
   });
 });

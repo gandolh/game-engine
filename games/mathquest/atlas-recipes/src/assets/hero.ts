@@ -1,0 +1,41 @@
+import type { PixelRecipe } from "../types";
+
+const recipe: PixelRecipe = {
+  name: "hero",
+  size: 29,
+  width: 18,
+  height: 29,
+  pixels: [
+    "..................",
+    "..............##..",
+    "..............##..",
+    "..............##..",
+    "..............vv..",
+    "..............vv..",
+    "..............vv..",
+    ".....wwwwwww..vv..",
+    ".....wwwwwww..vv..",
+    ".....wwsssss..vv..",
+    ".....wwsssks..vv..",
+    ".....wwsssss..vv..",
+    "......ssssssyyyyy.",
+    "......ssssss......",
+    "....bbbbbbbbss....",
+    ".rrrrbbbbbbbss....",
+    ".cccrbbbbbbbss....",
+    ".cyyrbbbbbbbss....",
+    ".cyyryyyyyyyss....",
+    ".cccrbbbbbbbss....",
+    ".cccrnnnnnnnn.....",
+    ".rrrrnnnnnnnn.....",
+    "..rrrnnnnnnnn.....",
+    "..rrrnnn..nnn.....",
+    ".....nnn..nnn.....",
+    ".....nnn..nnn.....",
+    ".....nnn..nnn.....",
+    "....kkkk..kkk.....",
+    "....kkkk..kkk.....",
+  ],
+};
+
+export default recipe;

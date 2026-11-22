@@ -1,0 +1,25 @@
+{
+  "sheets": [
+    {
+      "id": "combat",
+      "imageUrl": "/atlas/combat.png",
+      "manifestUrl": "/atlas/combat.json"
+    }
+  ],
+  "pages": [
+    {
+      "id": "page-0",
+      "imageUrl": "/atlas/page-0.png",
+      "width": 128,
+      "height": 64
+    }
+  ],
+  "placements": {
+    "combat": {
+      "page": "page-0",
+      "x": 0,
+      "y": 0
+    }
+  },
+  "pagesHash": "0338a5b8afc1eb9add688aed6abf748dc49a7bed833d852fcb2b18dfc70eeb7f"
+}

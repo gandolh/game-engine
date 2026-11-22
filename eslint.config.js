@@ -36,7 +36,7 @@ export default [
       "verifyProblem",
     ],
     // One recipe per file, each a default export read through the recipe index.
-    defaultExports: ["games/farm/atlas-recipes/src/**"],
+    defaultExports: ["games/farm/atlas-recipes/src/**", "games/mathquest/atlas-recipes/src/assets/**"],
     // TypeScript that no tsconfig covers (hand-run generators, the portal's card list and the bench runner).
     untyped: ["engine/ui/tools/**", "portal/scripts/**", "scripts/*.ts"],
     ignores: [

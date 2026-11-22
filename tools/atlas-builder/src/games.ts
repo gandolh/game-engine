@@ -4,6 +4,7 @@
  * `@farm/atlas-recipes/atlas`) and adding it here.
  */
 import { ATLAS_CONFIG as FARM } from "@farm/atlas-recipes/atlas";
+import { ATLAS_CONFIG as MATHQUEST } from "@mathquest/atlas-recipes/atlas";
 import type { AtlasConfig } from "./config";
 
-export const ATLAS_GAMES: readonly AtlasConfig[] = [FARM];
+export const ATLAS_GAMES: readonly AtlasConfig[] = [FARM, MATHQUEST];

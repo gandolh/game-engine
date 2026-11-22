@@ -1,9 +1,9 @@
 /**
  * DEV only (`?card`): the games portal's card art for MateQuest. Făt-Frumos facing a zmeu on the
- * battle backdrop, drawn by the combat screen's own `drawBattle` and sprites, with no HUD and no
+ * battle backdrop, drawn by the combat screen's own `drawBattle` and atlas sprites, with no HUD and no
  * sim. The portal's `scripts/cards.ts` captures it once `window.__cardReady` is true.
  */
-import { Camera2D, createRenderer } from "@engine/core";
+import { Camera2D, createRenderer, loadAllAtlasSheets } from "@engine/core";
 import { UISurface, loadFontAtlas } from "@engine/ui";
 import { MATE_PAL } from "./render/mate-palette";
 import { drawBattle } from "./ui/combat-screen";
@@ -14,6 +14,9 @@ export async function runCard(canvas: HTMLCanvasElement): Promise<void> {
   renderer.clearColor = MATE_PAL.black;
   // The renderer draws nothing until an atlas is registered; the game registers this one too.
   renderer.addAtlas(await loadFontAtlas());
+  for (const atlas of (await loadAllAtlasSheets("/atlas/index.json", import.meta.env.BASE_URL)).values()) {
+    renderer.addAtlas(atlas);
+  }
   const surface = new UISurface(renderer);
   let frames = 0;
   const frame = (): void => {

@@ -47,7 +47,14 @@
  * fresh every frame via `render(...)`'s own arguments.
  */
 import "./style.css";
-import { Camera2D, FrameProfile, createRenderer, showUnsupportedNotice, type RendererLike } from "@engine/core";
+import {
+  Camera2D,
+  FrameProfile,
+  createRenderer,
+  loadAllAtlasSheets,
+  showUnsupportedNotice,
+  type RendererLike,
+} from "@engine/core";
 import {
   UISurface,
   loadFontAtlas,
@@ -182,6 +189,10 @@ async function main(): Promise<void> {
   });
   if (profile.enabled) renderer.profileUi = true;
   renderer.addAtlas(await loadFontAtlas());
+  // The combat creatures' atlas (corpus brief 12), cooked by `npm run atlas` into `public/atlas/`.
+  for (const atlas of (await loadAllAtlasSheets("/atlas/index.json", import.meta.env.BASE_URL)).values()) {
+    renderer.addAtlas(atlas);
+  }
   const surface = new UISurface(renderer);
 
   // --- Locale (M5 slice 2) ----------------------------------------------------------------------

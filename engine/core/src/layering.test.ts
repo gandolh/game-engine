@@ -22,7 +22,7 @@ type Game = (typeof GAMES)[number];
 // Every source root and the game scope it belongs to (`null` = the engine, which may
 // import no game at all). Tools inherit the scope of the game they drive — see each
 // tool's package.json dependencies.
-const SCOPES: ReadonlyArray<{ root: string; game: Game | null }> = [
+const SCOPES: ReadonlyArray<{ root: string; game: Game | null; allow?: RegExp }> = [
   { root: "engine", game: null },
   // Drives no game: it cuts painted images into patches with the engine's own slicing.
   { root: "tools/image-patches", game: null },
@@ -31,7 +31,13 @@ const SCOPES: ReadonlyArray<{ root: string; game: Game | null }> = [
   { root: "games/farm", game: "farm" },
   { root: "tools/run-sim", game: "farm" },
   { root: "tools/world-preview", game: "farm" },
-  { root: "tools/atlas-builder", game: "farm" },
+  // The atlas cook (corpus briefs 09 and 12) is the one tool that reads every game's recipe package, and
+  // only that: its config list imports each `@<game>/atlas-recipes`. Any other import of another game fails.
+  {
+    root: "tools/atlas-builder",
+    game: "farm",
+    allow: /(?:from\s+|import\(\s*)["']@(?:farm|citadel|hollow|mathquest)\/atlas-recipes(?:\/[^"']*)?["']/,
+  },
   { root: "games/citadel", game: "citadel" },
   { root: "tools/citadel-sim", game: "citadel" },
   { root: "games/hollow", game: "hollow" },
@@ -86,7 +92,7 @@ describe("layering — the engine imports no game, and no game imports another g
   const scanned: string[] = [];
   const violations: string[] = [];
 
-  for (const { root, game } of SCOPES) {
+  for (const { root, game, allow } of SCOPES) {
     const abs = join(REPO_ROOT, root);
     if (statSync(abs, { throwIfNoEntry: false })?.isDirectory() !== true) continue;
 
@@ -103,7 +109,7 @@ describe("layering — the engine imports no game, and no game imports another g
         .split("\n")
         .forEach((line, i) => {
           const owner = game ?? "the engine";
-          if (pattern.test(line)) {
+          if (pattern.test(line) && !(allow?.test(line) ?? false)) {
             violations.push(`${rel}:${i + 1} (${owner} may not import @${forbidden.join("/@")}) ${line.trim()}`);
           }
           // RELATIVE specifiers: resolve them on disk and see which scope they land in, rather

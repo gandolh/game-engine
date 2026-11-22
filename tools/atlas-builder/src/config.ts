@@ -2,7 +2,7 @@
  * A game's atlas config: everything the cook needs to know about one game's recipes (corpus brief 09).
  * The cook itself knows no game. Each recipe package exports one of these, and `games.ts` lists them.
  */
-import { EDG32 } from "@engine/core/render";
+import { EDG32, RESURRECT64 } from "@engine/core/render";
 
 /** One sprite as a grid of characters, each a key of the config's swatch table. */
 export interface AtlasRecipe {
@@ -53,7 +53,7 @@ export interface AtlasConfig {
 }
 
 /** The palettes the engine exports, which a config can name instead of listing. */
-const ENGINE_PALETTES = { EDG32 } as const;
+const ENGINE_PALETTES = { EDG32, RESURRECT64 } as const;
 type EnginePaletteName = keyof typeof ENGINE_PALETTES;
 
 /** The config's palette as a name and a list of colours. */
