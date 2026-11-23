@@ -108,12 +108,13 @@ Done on the laptop alone, by the owner's call above.
 - **Triggers.** The sprite sort fired: `compareSprite` alone costs Farm 1.07 ms a frame. It is
   [brief 15](../todo/15-the-sprite-sort-under-1-ms.md). Every other row has the laptop's value and stays
   open. The worker snapshot row is measured as far as a CPU profile reaches: storing a snapshot costs about
-  0 ms, and Hollow's handler time is its chronicle's DOM append. The structured-clone copy itself still
-  needs a named timer.
+  0 ms in all three worker games, and Hollow's handler time is its chronicle's DOM append. The
+  structured-clone copy itself still needs a named timer.
 - **Hollow framed.** No gap on a real GPU, so the 2026-11-03 check is closed and Hollow keeps its frame.
-- **The phone.** An estimate replaces the reading: each game's headroom over the laptop against an assumed
-  4×. Farm misses on any phone more than about 1.5× slower than the laptop. Citadel's and Hollow's GPU
-  straddle 4×. MateQuest fits.
-- **Not done.** Citadel has no CPU-profiled run, because the laptop stopped drawing frames from about 10:55
-  (a locked screen or a sleeping display). The owner's own Hollow export was a partial profiler export,
-  not a bench result, and is not used.
+- **The phone.** An estimate replaces the reading, at an assumed 4× (the session's choice): the CPU side
+  from the emulated pass at a phone viewport, the GPU side from the laptop's GPU headroom. Farm misses by
+  far on the CPU. Citadel's and Hollow's GPU straddle 4×, and Hollow's main thread is busy 15 ms a frame
+  with DOM work. MateQuest fits.
+- **Runs that drew nothing.** Some Windows Chrome runs between about 10:45 and 11:10 drew no frames. A rerun
+  that failed the same way reported the page as hidden, and every game ran normally when it was visible.
+  The owner's own Hollow export was a partial profiler export, not a bench result, and is not used.

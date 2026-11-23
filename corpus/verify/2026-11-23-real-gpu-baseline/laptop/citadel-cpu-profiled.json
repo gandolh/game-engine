@@ -1,0 +1,221 @@
+{
+  "schema": "game-engine-profile/1",
+  "game": "citadel",
+  "build": "production",
+  "url": "/citadel/?bench&profile",
+  "seed": 439041101,
+  "collectedAt": "2026-11-23T09:12:25.716Z",
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/158.0.0.0 Safari/537.36",
+  "device": {
+    "renderer": "ANGLE (AMD, AMD Radeon (TM) Graphics (0x00001681) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "vendor": "Google Inc. (AMD)",
+    "dpr": 1,
+    "devicePixelRatio": 1,
+    "canvas": {
+      "width": 1920,
+      "height": 920,
+      "clientWidth": 1920,
+      "clientHeight": 920
+    }
+  },
+  "frames": {
+    "durationMs": 29996.6,
+    "displayTicks": 3591,
+    "interval": {
+      "samples": 3590,
+      "mean": 8.35559888579387,
+      "p50": 8.30000000000291,
+      "p95": 8.5,
+      "p99": 8.5,
+      "over16_7": 0.0005571030640668524,
+      "over33_3": 0.0002785515320334262,
+      "fps": 119.68023042611496
+    },
+    "drawn": {
+      "frames": 3591,
+      "meanMs": 0.8809802295005743,
+      "p95Ms": 1.199999988079071,
+      "fps": 119.71436572374414
+    }
+  },
+  "gpu": {
+    "frames": 3591,
+    "mean": 2.670952436647168,
+    "p50": 2.52197,
+    "p95": 4.8709,
+    "p99": 6.38659,
+    "dropped": 0,
+    "skipped": 0
+  },
+  "heap": {
+    "samples": [
+      {
+        "tMs": 8.5,
+        "usedBytes": 12729244
+      },
+      {
+        "tMs": 1009.1000000238419,
+        "usedBytes": 11277468
+      },
+      {
+        "tMs": 2009.9000000357628,
+        "usedBytes": 11311801
+      },
+      {
+        "tMs": 3010.800000011921,
+        "usedBytes": 10836381
+      },
+      {
+        "tMs": 4011.800000011921,
+        "usedBytes": 9954097
+      },
+      {
+        "tMs": 5012.900000035763,
+        "usedBytes": 12328573
+      },
+      {
+        "tMs": 6014.200000047684,
+        "usedBytes": 14483837
+      },
+      {
+        "tMs": 7014.900000035763,
+        "usedBytes": 9979326
+      },
+      {
+        "tMs": 8016.300000011921,
+        "usedBytes": 12438994
+      },
+      {
+        "tMs": 9017,
+        "usedBytes": 14770458
+      },
+      {
+        "tMs": 10018.200000047684,
+        "usedBytes": 9900358
+      },
+      {
+        "tMs": 11019.5,
+        "usedBytes": 11736714
+      },
+      {
+        "tMs": 12019.800000011921,
+        "usedBytes": 11295922
+      },
+      {
+        "tMs": 13020.900000035763,
+        "usedBytes": 13015726
+      },
+      {
+        "tMs": 14022,
+        "usedBytes": 14698874
+      },
+      {
+        "tMs": 15022.900000035763,
+        "usedBytes": 9914442
+      },
+      {
+        "tMs": 16023.800000011921,
+        "usedBytes": 10332050
+      },
+      {
+        "tMs": 17025,
+        "usedBytes": 12154806
+      },
+      {
+        "tMs": 18025.80000001192,
+        "usedBytes": 13813886
+      },
+      {
+        "tMs": 19026.900000035763,
+        "usedBytes": 15330478
+      },
+      {
+        "tMs": 20028,
+        "usedBytes": 9911346
+      },
+      {
+        "tMs": 21028.80000001192,
+        "usedBytes": 12026922
+      },
+      {
+        "tMs": 22030.100000023842,
+        "usedBytes": 14094118
+      },
+      {
+        "tMs": 23031,
+        "usedBytes": 9532234
+      },
+      {
+        "tMs": 24031.900000035763,
+        "usedBytes": 8814862
+      },
+      {
+        "tMs": 25033.5,
+        "usedBytes": 10173886
+      },
+      {
+        "tMs": 26034.100000023842,
+        "usedBytes": 11305666
+      },
+      {
+        "tMs": 27035.100000023842,
+        "usedBytes": 12549598
+      },
+      {
+        "tMs": 28036.5,
+        "usedBytes": 14661034
+      },
+      {
+        "tMs": 29037.200000047684,
+        "usedBytes": 22109958
+      }
+    ],
+    "drops": 10
+  },
+  "timers": {
+    "render.endFrame": {
+      "count": 3591,
+      "mean": 0.48384850993192285,
+      "p95": 0.699999988079071
+    },
+    "frame": {
+      "count": 3591,
+      "mean": 0.8809802295005743,
+      "p95": 1.199999988079071
+    }
+  },
+  "counters": {
+    "drawGroups": {
+      "mean": 1,
+      "p95": 1
+    },
+    "glDrawCalls": {
+      "mean": 97.60289612921191,
+      "p95": 100
+    },
+    "drawInstances": {
+      "mean": 804.2408799777221,
+      "p95": 810
+    },
+    "uiQuads": {
+      "mean": 760,
+      "p95": 760
+    },
+    "textureBytesPerFrame": {
+      "mean": 0,
+      "p95": 0
+    },
+    "textureBytesTotal": 76025092,
+    "textureUploads": 9,
+    "texturesCreated": 9
+  },
+  "scene": "citadel-cozy-town-close-wide",
+  "topWindow": {
+    "innerWidth": 1920,
+    "innerHeight": 945,
+    "dpr": 1,
+    "visibility": "visible"
+  },
+  "benchSource": "production build, identical to main (same asset hashes)",
+  "cpuProfiled": "Chrome CPU profiler on (200 µs sampling) from 8 s after navigation to the end; kept out of the readings tables"
+}

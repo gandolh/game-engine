@@ -7,3 +7,6 @@ profiled-mathquest.json: 26.3 s at 119 fps; main thread busy 2.02 ms per frame
 profiled-hollow-phone-emulated.json: 26.5 s at 64 fps; main thread busy 15.23 ms per frame
   top-level tasks (ms per frame): frame render3d/app.ts:433 5.66 | (program) 5.10 | overlayFrame src/mount.ts:511 2.57 |  src/mount.ts:362 1.25 | w render3d/app.ts:222 0.43 | (garbage collector) 0.12 | e debug/frame-profile.ts:323 0.04 | s src/bench.ts:67 0.03
   message-related (inclusive ms per frame): ingestEvents src/research-store.ts:91 1.240 |  src/chronicle-panel.ts:183 1.218 | appendBatch src/chronicle-panel.ts:175 1.218 | bufferSubData 0.256 | appendEvent src/chronicle-panel.ts:156 0.090 | interpolatedPositions render/snapshot-interp.ts:156 0.032 | lerpEntityPositions render/snapshot-interp.ts:73 0.029 | trimToCap src/chronicle-panel.ts:142 0.027
+profiled-citadel.json: 26.2 s at 120 fps; main thread busy 1.77 ms per frame
+  top-level tasks (ms per frame): loop main/render-loop.ts:149 1.01 | (program) 0.72 | (garbage collector) 0.02 | s main/bench.ts:76 0.01 | Kc.worker.onmessage worker/sim-client.ts:27 0.01 | e debug/frame-profile.ts:323 0.00 | update render/citadel-fx.ts:646 0.00 | seasonToWeather render/weather.ts:53 0.00
+  message-related (inclusive ms per frame): bufferSubData 0.009 | Kc.worker.onmessage worker/sim-client.ts:27 0.005 | ingest render/entity-interp.ts:181 0.000

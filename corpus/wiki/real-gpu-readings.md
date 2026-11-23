@@ -104,11 +104,12 @@ so these numbers settle no trigger and no phone row. They only show where to loo
 
 ## Main-thread time outside the frame
 
-CPU-profiled laptop runs of the two worker games that would profile (`laptop/*-cpu-profiled.json`,
+CPU-profiled laptop runs of the three worker games (`laptop/*-cpu-profiled.json`,
 `laptop/main-thread.txt`), means per frame in ms:
 
 | Game | Main thread busy | The game's frame | Worker message handler | Native, unattributed |
 |---|---:|---:|---:|---:|
+| Citadel | 1.77 | 1.01 | 0.005 | 0.72 |
 | Hollow | 3.56 | 1.30 | 0.60 | 1.01 |
 | MateQuest | 2.02 | 1.22 | about 0 | 0.71 |
 
@@ -118,25 +119,30 @@ HTML overlay. The structured-clone copy of each snapshot runs in native code, in
 profile can't attribute along with style and layout. So the snapshot's own cost has an upper bound but no
 measurement, and a p95 needs a named timer around it.
 
-Citadel was not profiled. From about 10:55 every Windows Chrome run drew no frames at all, in every game
-tried, Farm included, which is what a locked screen or a sleeping display does. Citadel's headless bench
-still finished on main.
+Citadel's handler receives the snapshot and feeds its interpolation in 0.005 ms a frame. Some Windows runs
+between about 10:45 and 11:10 drew no frames at all; a rerun that failed the same way reported the page as
+hidden, and every game ran normally when it was visible.
 
 ## The phone, estimated
 
 The phone is not measured: the owner's call of 2026-11-23 ([decisions.md](decisions.md) → Frame budget)
 is to assume its performance as a proportion of the laptop's. The estimate works from the work per frame,
-not from intervals, which the 120 Hz display rounds to whole refreshes. A game's **headroom** is 16.7 ms
-divided by its laptop p95, for the CPU (the game's frame) and the GPU apart. The **assumed factor** is 4×
-for both: 4× is the CPU slowdown Chrome and Lighthouse use to stand in for a mid-tier phone, and the GPU is
-taken to be the same. A game fits that phone when both headrooms are above 4×.
+not from intervals, which the 120 Hz display rounds to whole refreshes. The **assumed factor** is 4× for
+both the CPU and the GPU: 4× is the CPU slowdown Chrome and Lighthouse use to stand in for a mid-tier
+phone, and the GPU is taken to be the same. The factor and this method are the session's choices, not the
+owner's. The CPU side comes from the emulated pass, which ran each game at a phone viewport with the CPU
+slowed 4×; the viewport matters, because MateQuest's map screen draws 31,377 UI quads at p95 at 1920×945
+and 8,479 at the phone's size. The GPU side is the laptop's **GPU headroom**, 16.7 ms divided by its GPU
+p95. A game fits that phone when its emulated frame CPU p95 is under 16.7 ms and its GPU headroom is above 4×.
 
-| Game | CPU headroom | GPU headroom | Frame CPU p95 at 4× CPU (emulated pass) | At an assumed 4× |
+| Game | Frame CPU p95, emulated (4× CPU, phone viewport) | Laptop CPU headroom | GPU headroom | At an assumed 4× |
 |---|---:|---:|---:|---|
-| Farm | 1.4–1.6× | 4.0–4.5× | 65.7 ms | Misses on any phone more than about 1.5× slower than the laptop |
-| Citadel | 13–17× | 3.6–5.5× | 6.4 ms | The CPU fits; the GPU straddles 4×, and its laptop GPU p95 moved from 3.0 to 4.7 ms between passes |
-| Hollow | 9–11× | 3.5–3.8× | 6.8 ms | The GPU sits just under 4×; the DOM work outside the frame takes 15 ms a frame at 4× CPU |
-| MateQuest | 3.2× | 5.6–12× | 9.0 ms | Fits: its laptop p95 holds waits that don't scale with the CPU, as the emulated 9.0 ms shows |
+| Farm | 65.7 ms | 1.4–1.6× | 4.0–4.5× | Misses by far on the CPU |
+| Citadel | 6.4 ms | 13–17× | 3.6–5.5× | The CPU fits; the GPU straddles 4×, and its laptop GPU p95 moved from 3.0 to 4.7 ms between passes |
+| Hollow | 6.8 ms | 9–11× | 3.5–3.8× | Its frame fits, but the main thread is busy 15 ms a frame with the DOM work outside it; the GPU sits just under 4× |
+| MateQuest | 9.0 ms | 3.2× | 5.6–12× | Fits on both |
+
+If the estimate were a gate, Farm would fail the phone bar.
 
 What the estimate can't see: the phone's memory and GPU memory budget (the static-layer todo's concern), its
 heat throttling, and the real factor of the owner's phone. That is why it never fires or closes a todo.

@@ -98,14 +98,16 @@ Tech choices that are settled. Listed here so future briefs and reviews don't re
     named steps), and the real-GPU reading is an owner step. The shared `?profile` export
     (`game-engine-profile/1`, [performance-measurements.md](performance-measurements.md) → Measuring)
     carries both.
-  - **Revisited 2026-11-23: the phone is estimated, not measured.** *(The owner, 2026-11-23.)* Rather
-    than read the Android phone, its performance is assumed as a proportion of the laptop's. The laptop
-    is the one measured reference device. A phone estimate informs a decision, but it never fires or closes
-    a measure-first todo, because it rests on an assumed factor. The method and the first estimate are on
-    [real-gpu-readings.md](real-gpu-readings.md). Alternatives the owner passed over: driving the phone's
-    Chrome over USB debugging, which would measure it, and an Android emulator, which would only measure
-    the laptop again. For context: the portal marks all four games as not playable on phones
-    (`playsOnPhones: false` in `portal/src/games.ts`).
+  - **Revisited 2026-11-23: the phone is estimated, not measured.** *(The owner, 2026-11-23: "skip
+    mobile performance and assume some proportion on the laptop capability".)* The laptop is the one
+    measured reference device. The rest is the session's reading, for the owner to overrule: the factor
+    is 4× (Chrome's and Lighthouse's stand-in for a mid-tier phone CPU, assumed for the GPU too), and an
+    estimate informs a decision but never fires or closes a measure-first todo, because it rests on an
+    assumed factor. Read as a gate, it would fail Farm. The method and the first estimate are on
+    [real-gpu-readings.md](real-gpu-readings.md). The session had offered driving the phone's Chrome over
+    USB debugging, which would measure it; an Android emulator would only measure the laptop again. For
+    context: the portal marks all four games as not playable on phones (`playsOnPhones: false` in
+    `portal/src/games.ts`).
   - **Rejected: frame times read in the sandbox as the gate.** They measure the rasteriser, not the game.
 
 ## Assets

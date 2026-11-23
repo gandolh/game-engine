@@ -32,9 +32,9 @@ The same day the owner decided the phone is estimated from the laptop, not measu
   - The Windows 11 laptop with the AMD Radeon integrated GPU (Chrome, ANGLE on Direct3D 11), the
     machine behind the 2026-06-12 and 2026-07-15 readings. It is the one measured device.
   - The owner's Android phone, in Chrome, **estimated from the laptop since 2026-11-23** (the owner's
-    call, [decisions.md](decisions.md) → Frame budget). The estimate divides 16.7 ms by the laptop's p95
-    work per frame, CPU and GPU apart, which gives each game's headroom, and compares it with an assumed
-    phone factor of 4×. It informs; it never fires or closes a todo.
+    call, [decisions.md](decisions.md) → Frame budget). The estimate assumes a phone 4× slower than the
+    laptop: the CPU side is the frame's CPU p95 with the CPU slowed 4× at a phone viewport, the GPU side the
+    laptop's GPU headroom (16.7 ms over its GPU p95) against 4×. It informs; it never fires or closes a todo.
 - **What a builder can check.** Builders run in a sandbox where WebGL is SwiftShader, so their
   frame times mean nothing. A brief's Acceptance uses counters that don't depend on the GPU: draw
   groups, GL calls, texture bytes uploaded, UI quads and the CPU milliseconds of named steps. The
@@ -129,7 +129,7 @@ real-GPU readings, and so does any later bench reading. The third column is the 
 | [Static layer as tile chunks](../todos/2026-11-20-static-layer-as-tile-chunks.md) | The static layer's GPU time or memory breaks the bar on a reference device | Not fired. GPU 2.6–2.7 ms a frame in Farm and 1.6–2.7 ms in Citadel on average; both frames are CPU-bound. Phone not measured |
 | [Sprite sort only on change](../todos/2026-11-20-sprite-sort-only-on-change.md) | The per-frame sort takes more than 1 ms at p95 in a bench scene | **Fired: [brief 15](../briefs/todo/15-the-sprite-sort-under-1-ms.md).** `compareSprite` alone 1.07 ms a frame on average in Farm (CPU profile) |
 | [Ghost pass scan](../todos/2026-11-20-ghost-pass-scan.md) | The occluder ghost check takes more than 1 ms at p95 | Not fired. `_ghostCovered` about 0 ms in Farm's profile; Citadel's whole `render.endFrame` is 0.6–0.8 ms at p95 |
-| [Worker snapshot transfer](../todos/2026-11-20-worker-snapshot-transfer.md) | Receiving and applying a snapshot takes more than 2 ms at p95 on the main thread | Not fired on what a CPU profile can see. Storing a snapshot costs about 0 ms in Hollow and MateQuest; Hollow's message handler costs 0.60 ms a frame on average, nearly all of it the chronicle's DOM append, not the snapshot. The structured-clone copy runs in native code the profile can't separate (Hollow's whole unattributed native time is 1.0 ms a frame). A p95 needs a sub-timer. Citadel not profiled |
+| [Worker snapshot transfer](../todos/2026-11-20-worker-snapshot-transfer.md) | Receiving and applying a snapshot takes more than 2 ms at p95 on the main thread | Not fired on what a CPU profile can see. Receiving and storing a snapshot costs about 0 ms in all three worker games (Citadel 0.005 ms a frame); Hollow's message handler costs 0.60 ms a frame on average, nearly all of it the chronicle's DOM append. The structured-clone copy runs in native code the profile can't separate (at most 0.7–1.0 ms a frame of unattributed native time). A p95 needs a sub-timer |
 | [Hollow 3D culling](../todos/2026-11-20-hollow-3d-culling.md) | Hollow breaks the bar on the iGPU, or runs slower framed in the portal than direct | Not fired. p95 8.5 ms, GPU 2.6–2.8 ms, framed and direct the same |
 | [Allocation-free frames](../todos/2026-11-20-allocation-free-frames.md) | Long frames line up with garbage-collection drops in the heap reading | Not fired. At most 2 frames a run over 33.3 ms in any game; collection costs Farm 0.10 ms a frame. Phone not measured |
 | [Animation tags in the manifest](../todos/2026-11-20-animation-tags-in-the-manifest.md) | The first animated MateQuest sprite, or the next new Farm animation | Not a measurement |

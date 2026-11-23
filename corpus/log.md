@@ -4302,12 +4302,13 @@ was a partial profiler export, not a bench result, and is not used. The phone ha
 
 The owner decided the Android phone is estimated from the laptop, not measured ([decisions.md](wiki/decisions.md)
 → Frame budget, revisited), so the brief closed on the laptop. The estimate on
-[real-gpu-readings.md](wiki/real-gpu-readings.md) divides 16.7 ms by each game's laptop p95 work per
-frame, CPU and GPU apart, against an assumed 4×. Farm misses on any phone more than about 1.5× slower than
-the laptop, Citadel's and Hollow's GPU straddle 4×, and MateQuest fits. It informs but never fires a todo.
+[real-gpu-readings.md](wiki/real-gpu-readings.md) assumes a phone 4× slower: the CPU side from the emulated
+pass at a phone viewport, the GPU side from the laptop's GPU headroom. Farm misses by far on the CPU,
+Citadel's and Hollow's GPU straddle 4×, and MateQuest fits. It informs but never fires a todo.
 CPU-profiled runs of Hollow and MateQuest measured the worker snapshot row as far as a profile reaches:
 storing a snapshot costs about 0 ms, Hollow's handler time is its chronicle's DOM append (0.60 ms a frame),
 and the structured-clone copy needs a named timer. Under a 4× CPU slowdown Hollow's main thread is busy
-15 ms a frame, mostly DOM and native work outside its 3D frame. Citadel has no profiled run: from about
-10:55 the laptop drew no frames in any game (a locked screen or a sleeping display), while Citadel's
-headless bench still finished.
+15 ms a frame, mostly DOM and native work outside its 3D frame. Some Windows runs between about 10:45 and
+11:10 drew no frames; a rerun that failed the same way reported the page as hidden, and Citadel's profiled
+run then went through normally (its snapshot handling: 0.005 ms a frame). The 4× factor and the rule that an
+estimate never fires a todo are the session's choices, recorded for the owner to overrule.

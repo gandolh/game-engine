@@ -105,7 +105,7 @@ for (const run of runs) {
     }
     const expr = run.frame
       ? "(() => { const f = document.querySelector('iframe'); const r = f && f.contentWindow && f.contentWindow.__benchResult; return r ? JSON.stringify({ ...r, frameRect: { width: f.clientWidth, height: f.clientHeight }, topWindow: { innerWidth, innerHeight, dpr: devicePixelRatio } }) : null; })()"
-      : "(() => { const r = window.__benchResult; return r ? JSON.stringify({ ...r, topWindow: { innerWidth, innerHeight, dpr: devicePixelRatio } }) : null; })()";
+      : "(() => { const r = window.__benchResult; return r ? JSON.stringify({ ...r, topWindow: { innerWidth, innerHeight, dpr: devicePixelRatio, visibility: document.visibilityState } }) : null; })()";
     const start = Date.now();
     let out = null;
     while (Date.now() - start < RESULT_TIMEOUT_MS) {
@@ -121,7 +121,16 @@ for (const run of runs) {
       console.log(`PROFILE ${run.name} ${JSON.stringify(profile)}`);
     }
     if (out) console.log(`RESULT ${run.name} ${out}`);
-    else console.log(`FAIL ${run.name} no __benchResult after ${RESULT_TIMEOUT_MS} ms`);
+    else {
+      const st = await s("Runtime.evaluate", {
+        expression:
+          "JSON.stringify({ visibility: document.visibilityState, focus: document.hasFocus(), canvases: document.querySelectorAll('canvas').length })",
+        returnByValue: true,
+      });
+      console.log(
+        `FAIL ${run.name} no __benchResult after ${RESULT_TIMEOUT_MS} ms; page ${st.result && st.result.value}`,
+      );
+    }
   } catch (e) {
     console.log(`FAIL ${run.name} ${e.message}`);
   }
