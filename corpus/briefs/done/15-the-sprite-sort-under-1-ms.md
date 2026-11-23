@@ -78,3 +78,35 @@ draws a sprite over the wrong neighbour.
 - On the laptop, rerun Farm's bench (`?bench&profile`) and say whether `render.sort` is under 1 ms at p95.
 - Deploy the three games that draw through this renderer, from the vps-deploy checkout:
   `node cli.ts farm-valley deploy`, `node cli.ts citadel deploy` and `node cli.ts mathquest deploy`.
+
+## Outcome (2026-11-23)
+
+Built in commit 38928f7a. The renderer's `endFrame` now orders the queue with `SpriteSorter`
+(`engine/core/src/render/sprite-sort.ts`) and no comparator runs over the queue. The order is exactly
+`queue.slice().sort(compareSprite)`, ties included.
+
+- **How.** `push` records each sprite's layer and `sortY ?? y` in reused `Float64Array`s while the sprite
+  is still hot in the cache. `endFrame` rounds both keys to float32, maps them to unsigned integers and
+  runs a stable byte radix sort (passes whose digit is the same for every sprite are skipped). Float32
+  rounding never reverses two values, so an exact insertion pass (layer, sort y, push index) then only
+  moves sprites inside groups with equal coarse keys. No array is allocated per frame.
+- **What failed first.** Keeping last frame's order did nothing: the queue length changes every frame
+  with culling and no insertion attempt on push order finished inside its budget in the bench (the
+  shortcut stays in the code for nearly sorted frames and is tested). A radix sort that read the sprites
+  at the end of the frame was no faster than the native sort: reading thousands of cold, differently
+  shaped sprite objects was the cost (0.59 ms of 0.77 ms). Reading the keys in `push` fixed it.
+- **Numbers.** Farm, headless, 1280x800, `render.sort` (SwiftShader, so CPU timers only; two after runs):
+
+  | Run | Frames | Mean | p95 |
+  |---|---:|---:|---:|
+  | Before | 266 | 0.67 ms | 1.9 ms |
+  | After | 152 | 0.17 ms | 0.6 ms |
+  | After, second run | 149 | 0.21 ms | 0.6 ms |
+
+  The p95 is a third of the before's. The timer reads at 0.1 ms steps. `render.sort` now times the sort in
+  `endFrame` only; the key capture runs inside `push`, a few reads on a sprite `push` already reads.
+- **Counters.** Draw groups 1, UI quads 1,775 mean, texture 4,096,000 bytes a frame: all inside the
+  budgets on [frame-budget.md](../../wiki/frame-budget.md).
+- **Tests.** `sprite-sort.test.ts` (five seeds of 3,000 sprites with many exact ties, again after a moved
+  frame, a new length, a reshuffle, a nearly sorted queue, negatives, -0, fractions) and one test through
+  `WebGl2Renderer` over two frames. `npm run check` exits 0.

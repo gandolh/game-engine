@@ -147,3 +147,9 @@ If the estimate were a gate, Farm would fail the phone bar.
 What the estimate can't see: the phone's memory and GPU memory budget (the static-layer todo's concern), its
 heat throttling, and the real factor of the owner's phone. That is why it never fires or closes a todo.
 Driving the phone's Chrome over USB debugging would replace it with a reading.
+
+## After brief 15 (2026-11-23, headless only)
+
+The sprite sort no longer runs a comparator. On SwiftShader at 1280x800, Farm's `render.sort` went from a mean
+of 0.67 ms and a p95 of 1.9 ms to 0.17 ms and 0.6 ms ([brief 15](../briefs/done/15-the-sprite-sort-under-1-ms.md)).
+The laptop's reading of the same step is still to be taken.

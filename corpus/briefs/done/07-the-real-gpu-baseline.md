@@ -86,7 +86,7 @@ Done from "What to do":
 2. The budgets per scene, on [frame-budget.md](../../wiki/frame-budget.md), from a headless run of main
    at 1280×800.
 3. Every todo row has the laptop's value. The sprite sort fired and is
-   [brief 15](../todo/15-the-sprite-sort-under-1-ms.md); the others stay open.
+   [brief 15](../done/15-the-sprite-sort-under-1-ms.md); the others stay open.
 4. The Hollow framed check is closed in [portal.md](../../wiki/portal.md) and
    [status.md](../../wiki/status.md): no gap.
 
@@ -106,7 +106,7 @@ Done on the laptop alone, by the owner's call above.
   headless run of main at 1280×800. MateQuest's UI quad ceiling is soft, because its mean follows the
   headless tick count.
 - **Triggers.** The sprite sort fired: `compareSprite` alone costs Farm 1.07 ms a frame. It is
-  [brief 15](../todo/15-the-sprite-sort-under-1-ms.md). Every other row has the laptop's value and stays
+  [brief 15](../done/15-the-sprite-sort-under-1-ms.md). Every other row has the laptop's value and stays
   open. The worker snapshot row is measured as far as a CPU profile reaches: storing a snapshot costs about
   0 ms in all three worker games, and Hollow's handler time is its chronicle's DOM append. The
   structured-clone copy itself still needs a named timer.

@@ -156,7 +156,7 @@ Newest first, one line each. Detail is in the [log.md](../log.md) entry for the 
 
 - **2026-11-23**: the laptop half of brief 07's real-GPU reading ([real-gpu-readings.md](real-gpu-readings.md)).
   Citadel, Hollow and MateQuest meet the 60 fps bar; Farm meets it at its edge and is CPU-bound. The sprite sort
-  todo became [brief 15](../briefs/todo/15-the-sprite-sort-under-1-ms.md), and the counter budgets are on
+  todo became [brief 15](../briefs/done/15-the-sprite-sort-under-1-ms.md), and the counter budgets are on
   [frame-budget.md](frame-budget.md). The owner decided the phone is estimated from the laptop, not
   measured, so brief 07 is done. Later that day the owner promoted the other eight measure-first todos to
   briefs 16–23, each kept light, so `corpus/todos/` holds no open todo.

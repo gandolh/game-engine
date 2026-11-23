@@ -4325,3 +4325,11 @@ Hollow (merging static geometry is left for later), 20 the top allocation sites 
 animations declared with the recipes with one Farm clip moved, and 23 recipe export to PNG and import back.
 Every todo's status line names its brief, and [frame-budget.md](wiki/frame-budget.md) lists the briefs in
 order.
+
+## [2026-11-23] done | Brief 15: the sprite sort under 1 ms
+
+`WebGl2Renderer` sorts its queue with `SpriteSorter` (`engine/core/src/render/sprite-sort.ts`): keys captured
+in `push`, a stable float32 byte radix sort, an exact insertion fixup. The order equals the stable
+`compareSprite` sort, ties included, pinned by tests. Farm's headless `render.sort` p95 went from 1.9 ms to
+0.6 ms (mean 0.67 to 0.17). Draw groups, UI quads and texture bytes are unchanged. The laptop reading is an
+owner step.
