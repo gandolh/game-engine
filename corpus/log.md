@@ -4349,3 +4349,7 @@ in the cells its rectangle touches when the plain scan would take 20,000 tests o
 later sprite; the answers equal the old scan's on random scenes. Worst case (300 occluders, 4,000 sprites) 100.9 ms
 to 2.4 ms. Farm's ghost pass: old scan 0.003 ms, grid only 0.78 ms, hybrid 0.007 ms. `lastDrawStats.ghostMs` and Farm's `render.ghost` time the ghost pass. Updated
 [frame-budget.md](wiki/frame-budget.md) and the [todo](todos/2026-11-20-ghost-pass-scan.md)'s status line.
+
+## [2026-11-23] done | Brief 20: fewer allocations per frame
+
+[Brief](briefs/done/20-fewer-allocations-per-frame.md). Farm 2.75 to 1.54 MB a frame (heap drops 15 to 8): static and pooled bridge sprites, a text layout cache, pooled UI quads, no tuples in the pack loops. MateQuest's map screen uses one keyline painter and cached sorted props (about -80% per map frame). Counters unchanged. Farm's JSON decode left as the wire format. Profiler and numbers in `verify/2026-11-23-allocations/`. Updated [frame-budget.md](wiki/frame-budget.md), [real-gpu-readings.md](wiki/real-gpu-readings.md) and the [todo](todos/2026-11-20-allocation-free-frames.md).

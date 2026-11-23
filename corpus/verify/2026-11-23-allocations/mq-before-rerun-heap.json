@@ -1,0 +1,241 @@
+{
+  "url": "http://localhost:5176/?bench&profile",
+  "frames": 180,
+  "totalBytes": 226380732,
+  "bytesPerFrame": 1257671,
+  "heapDrops": 0,
+  "counters": {
+    "drawGroups": {
+      "mean": 0,
+      "p95": 0
+    },
+    "glDrawCalls": {
+      "mean": 27.13888888888889,
+      "p95": 47
+    },
+    "drawInstances": {
+      "mean": 3824.1944444444443,
+      "p95": 20583
+    },
+    "uiQuads": {
+      "mean": 3824.1944444444443,
+      "p95": 20583
+    },
+    "textureBytesPerFrame": {
+      "mean": 0,
+      "p95": 0
+    },
+    "textureBytesTotal": 62724,
+    "textureUploads": 3,
+    "texturesCreated": 3
+  },
+  "sceneReport": {
+    "screens": {
+      "map": 30,
+      "combat": 150
+    },
+    "moves": 6
+  },
+  "ranked": [
+    {
+      "site": "pack engine/core/src/render/webgl2/ui-quad-pass.ts:135",
+      "bytes": 46083580,
+      "bytesPerFrame": 256020
+    },
+    {
+      "site": "rect engine/ui/src/render/ui-surface.ts:34",
+      "bytes": 40678900,
+      "bytesPerFrame": 225994
+    },
+    {
+      "site": "rect /src/ui/map-screen.ts:473",
+      "bytes": 39338844,
+      "bytesPerFrame": 218549
+    },
+    {
+      "site": "drawTriangle /src/ui/map-screen.ts:284",
+      "bytes": 15964980,
+      "bytesPerFrame": 88694
+    },
+    {
+      "site": "drawRoad /src/ui/map-screen.ts:542",
+      "bytes": 13351116,
+      "bytesPerFrame": 74173
+    },
+    {
+      "site": "rect /src/ui/map-screen.ts:664",
+      "bytes": 9432552,
+      "bytesPerFrame": 52403
+    },
+    {
+      "site": "next :0 <- pack engine/core/src/render/webgl2/ui-quad-pass.ts:135 < endFrame engine/core/src/render/webgl2/renderer.ts:552 < frame /src/main.ts:594",
+      "bytes": 7418296,
+      "bytesPerFrame": 41213
+    },
+    {
+      "site": "outlineDraw /src/ui/map-screen.ts:471",
+      "bytes": 5809988,
+      "bytesPerFrame": 32278
+    },
+    {
+      "site": "render /src/ui/map-screen.ts:646",
+      "bytes": 4648716,
+      "bytesPerFrame": 25826
+    },
+    {
+      "site": "ellipse /src/ui/combat-screen.ts:700",
+      "bytes": 4516212,
+      "bytesPerFrame": 25090
+    },
+    {
+      "site": "stampPlank /src/ui/map-screen.ts:531",
+      "bytes": 3801948,
+      "bytesPerFrame": 21122
+    },
+    {
+      "site": "layoutTextQuads engine/ui/src/text/draw.ts:9",
+      "bytes": 3170880,
+      "bytesPerFrame": 17616
+    },
+    {
+      "site": "stampCobble /src/ui/map-screen.ts:526",
+      "bytes": 3049776,
+      "bytesPerFrame": 16943
+    },
+    {
+      "site": "heightAt /src/ui/map-screen.ts:193",
+      "bytes": 2494020,
+      "bytesPerFrame": 13856
+    },
+    {
+      "site": "_setupInstanceAttribs engine/core/src/render/webgl2/sprite-batch.ts:225",
+      "bytes": 1822720,
+      "bytesPerFrame": 10126
+    },
+    {
+      "site": "drawProp /src/ui/map-screen.ts:491",
+      "bytes": 1632600,
+      "bytesPerFrame": 9070
+    },
+    {
+      "site": "layoutText engine/ui/src/text/layout.ts:20",
+      "bytes": 1598224,
+      "bytesPerFrame": 8879
+    },
+    {
+      "site": "valueNoise /src/ui/map-screen.ts:164",
+      "bytes": 1480824,
+      "bytesPerFrame": 8227
+    },
+    {
+      "site": "drawPine /src/ui/map-screen.ts:298",
+      "bytes": 1324944,
+      "bytesPerFrame": 7361
+    },
+    {
+      "site": "drawGroundShadow /src/ui/map-screen.ts:293",
+      "bytes": 1140348,
+      "bytesPerFrame": 6335
+    },
+    {
+      "site": "zoneAtX /src/ui/map-screen.ts:374",
+      "bytes": 919920,
+      "bytesPerFrame": 5111
+    },
+    {
+      "site": "drawText engine/ui/src/text/draw.ts:51",
+      "bytes": 710444,
+      "bytesPerFrame": 3947
+    },
+    {
+      "site": "arrange engine/ui/src/layout/layout.ts:145",
+      "bytes": 702936,
+      "bytesPerFrame": 3905
+    },
+    {
+      "site": "wrapParagraph engine/ui/src/text/layout.ts:48",
+      "bytes": 691880,
+      "bytesPerFrame": 3844
+    },
+    {
+      "site": "next :0 <- render /src/ui/map-screen.ts:646 < frame /src/main.ts:594",
+      "bytes": 677484,
+      "bytesPerFrame": 3764
+    },
+    {
+      "site": "buildGroundQuads /src/ui/map-screen.ts:389",
+      "bytes": 673024,
+      "bytesPerFrame": 3739
+    },
+    {
+      "site": "drawCottage /src/ui/map-screen.ts:316",
+      "bytes": 639912,
+      "bytesPerFrame": 3555
+    },
+    {
+      "site": "drawPeak /src/ui/map-screen.ts:339",
+      "bytes": 557868,
+      "bytesPerFrame": 3099
+    },
+    {
+      "site": "rand01 /src/ui/map-screen.ts:151",
+      "bytes": 537372,
+      "bytesPerFrame": 2985
+    },
+    {
+      "site": "drawWell /src/ui/map-screen.ts:326",
+      "bytes": 529164,
+      "bytesPerFrame": 2940
+    },
+    {
+      "site": "fbm /src/ui/map-screen.ts:178",
+      "bytes": 479940,
+      "bytesPerFrame": 2666
+    },
+    {
+      "site": "next :0 <- layoutTextQuads engine/ui/src/text/draw.ts:9 < drawText engine/ui/src/text/draw.ts:51 < drawLabel engine/ui/src/widget/render.ts:73",
+      "bytes": 447580,
+      "bytesPerFrame": 2487
+    },
+    {
+      "site": "stampDirt /src/ui/map-screen.ts:522",
+      "bytes": 447120,
+      "bytesPerFrame": 2484
+    },
+    {
+      "site": "measureNode engine/ui/src/layout/layout.ts:62",
+      "bytes": 414856,
+      "bytesPerFrame": 2305
+    },
+    {
+      "site": "collectProps /src/ui/map-screen.ts:446",
+      "bytes": 346384,
+      "bytesPerFrame": 1924
+    },
+    {
+      "site": "set :0 <- measureNode engine/ui/src/layout/layout.ts:62 < measureNode engine/ui/src/layout/layout.ts:62 < measureNode engine/ui/src/layout/layout.ts:62",
+      "bytes": 344692,
+      "bytesPerFrame": 1915
+    },
+    {
+      "site": "toString :0 <- layoutTextQuads engine/ui/src/text/draw.ts:9 < drawText engine/ui/src/text/draw.ts:51 < drawLabel engine/ui/src/widget/render.ts:73",
+      "bytes": 328352,
+      "bytesPerFrame": 1824
+    },
+    {
+      "site": "drawFlower /src/ui/map-screen.ts:366",
+      "bytes": 303732,
+      "bytesPerFrame": 1687
+    },
+    {
+      "site": "add engine/core/src/render/webgl2/sprite-batch.ts:104",
+      "bytes": 303564,
+      "bytesPerFrame": 1686
+    },
+    {
+      "site": "values :0 <- pack engine/core/src/render/webgl2/ui-quad-pass.ts:135 < endFrame engine/core/src/render/webgl2/renderer.ts:552 < frame /src/main.ts:594",
+      "bytes": 254688,
+      "bytesPerFrame": 1415
+    }
+  ]
+}

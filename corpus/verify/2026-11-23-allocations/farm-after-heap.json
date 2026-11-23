@@ -1,0 +1,234 @@
+{
+  "url": "http://localhost:5173/?bench&profile",
+  "frames": 103,
+  "totalBytes": 306518340,
+  "bytesPerFrame": 2975906,
+  "heapDrops": 0,
+  "counters": {
+    "drawGroups": {
+      "mean": 1,
+      "p95": 1
+    },
+    "glDrawCalls": {
+      "mean": 92.7378640776699,
+      "p95": 94
+    },
+    "drawInstances": {
+      "mean": 4121.252427184466,
+      "p95": 6894
+    },
+    "uiQuads": {
+      "mean": 1790.2233009708739,
+      "p95": 1827
+    },
+    "textureBytesPerFrame": {
+      "mean": 0,
+      "p95": 0
+    },
+    "textureBytesTotal": 61176324,
+    "textureUploads": 6,
+    "texturesCreated": 6
+  },
+  "ranked": [
+    {
+      "site": "SimClient.ws.onmessage /src/net/sim-client/client.ts:44",
+      "bytes": 132742276,
+      "bytesPerFrame": 1288760
+    },
+    {
+      "site": "pushSnapshotSprites games/farm/sim-core/src/render-systems/snapshot-sprites.ts:22",
+      "bytes": 16048384,
+      "bytesPerFrame": 155810
+    },
+    {
+      "site": "pushBridgeSprites games/farm/sim-core/src/render-systems/occluders.ts:68",
+      "bytes": 14688820,
+      "bytesPerFrame": 142610
+    },
+    {
+      "site": "_packSprite engine/core/src/render/webgl2/renderer.ts:499",
+      "bytes": 12466064,
+      "bytesPerFrame": 121030
+    },
+    {
+      "site": "arrange engine/ui/src/layout/layout.ts:145",
+      "bytes": 10299388,
+      "bytesPerFrame": 99994
+    },
+    {
+      "site": "drawNode engine/ui/src/widget/render.ts:30",
+      "bytes": 9545816,
+      "bytesPerFrame": 92678
+    },
+    {
+      "site": "push engine/core/src/render/webgl2/renderer.ts:416",
+      "bytes": 7608712,
+      "bytesPerFrame": 73871
+    },
+    {
+      "site": "(anon) /src/render/ground-noise.ts:32",
+      "bytes": 5371216,
+      "bytesPerFrame": 52148
+    },
+    {
+      "site": "emitGlyphs engine/ui/src/text/draw.ts:27",
+      "bytes": 4477876,
+      "bytesPerFrame": 43475
+    },
+    {
+      "site": "set :0 <- measureNode engine/ui/src/layout/layout.ts:62 < measureNode engine/ui/src/layout/layout.ts:62 < measureNode engine/ui/src/layout/layout.ts:62",
+      "bytes": 4474432,
+      "bytesPerFrame": 43441
+    },
+    {
+      "site": "_setupInstanceAttribs engine/core/src/render/webgl2/sprite-batch.ts:225",
+      "bytes": 4184148,
+      "bytesPerFrame": 40623
+    },
+    {
+      "site": "sort engine/core/src/render/sprite-sort.ts:55",
+      "bytes": 4033836,
+      "bytesPerFrame": 39163
+    },
+    {
+      "site": "pushOccluderSprites games/farm/sim-core/src/render-systems/occluders.ts:50",
+      "bytes": 3952972,
+      "bytesPerFrame": 38378
+    },
+    {
+      "site": "measureNode engine/ui/src/layout/layout.ts:62",
+      "bytes": 3931084,
+      "bytesPerFrame": 38166
+    },
+    {
+      "site": "computeSignature /src/ui/canvas/relationship-matrix.ts:44",
+      "bytes": 3596336,
+      "bytesPerFrame": 34916
+    },
+    {
+      "site": "split :0 <- pushSnapshotSprites games/farm/sim-core/src/render-systems/snapshot-sprites.ts:22 < (anon) /src/main/render-loop.ts:318 < time engine/core/src/debug/profiler.ts:31",
+      "bytes": 3481764,
+      "bytesPerFrame": 33804
+    },
+    {
+      "site": "endFrame engine/core/src/render/webgl2/renderer.ts:540",
+      "bytes": 3430696,
+      "bytesPerFrame": 33308
+    },
+    {
+      "site": "compareSprite engine/core/src/render/raster2d.ts:1",
+      "bytes": 3267400,
+      "bytesPerFrame": 31722
+    },
+    {
+      "site": "fbm engine/core/src/render/noise.ts:120",
+      "bytes": 2841944,
+      "bytesPerFrame": 27592
+    },
+    {
+      "site": "update engine/ui/src/a11y/mirror.ts:260",
+      "bytes": 2386576,
+      "bytesPerFrame": 23171
+    },
+    {
+      "site": "hash2 engine/core/src/render/noise.ts:93",
+      "bytes": 2385768,
+      "bytesPerFrame": 23163
+    },
+    {
+      "site": "toString :0 <- emitGlyphs engine/ui/src/text/draw.ts:27 < drawNode engine/ui/src/widget/render.ts:30 < drawNode engine/ui/src/widget/render.ts:30",
+      "bytes": 2302416,
+      "bytesPerFrame": 22354
+    },
+    {
+      "site": "resolveFrameAndBob games/farm/sim-core/src/render-systems/frames.ts:146",
+      "bytes": 2042864,
+      "bytesPerFrame": 19834
+    },
+    {
+      "site": "drawLabel engine/ui/src/widget/render.ts:73",
+      "bytes": 1661004,
+      "bytesPerFrame": 16126
+    },
+    {
+      "site": "add :0 <- reconcile engine/ui/src/a11y/mirror.ts:278 < reconcile engine/ui/src/a11y/mirror.ts:278 < reconcile engine/ui/src/a11y/mirror.ts:278",
+      "bytes": 1491220,
+      "bytesPerFrame": 14478
+    },
+    {
+      "site": "(anon) /src/ui/canvas/observer-panel.ts:71",
+      "bytes": 1429104,
+      "bytesPerFrame": 13875
+    },
+    {
+      "site": "next :0 <- update engine/ui/src/a11y/mirror.ts:260 < renderRightColumnPanel /src/main/render-ui-panels.ts:30 < renderUiPanels /src/main/render-ui-panels.ts:180",
+      "bytes": 1269452,
+      "bytesPerFrame": 12325
+    },
+    {
+      "site": "farmerRowText /src/ui/canvas/observer-panel.ts:80",
+      "bytes": 1256968,
+      "bytesPerFrame": 12204
+    },
+    {
+      "site": "pushBuildingSprites games/farm/sim-core/src/render-systems/occluders.ts:95",
+      "bytes": 1203652,
+      "bytesPerFrame": 11686
+    },
+    {
+      "site": "getOpenWater /src/render/water-decor.ts:200",
+      "bytes": 1144008,
+      "bytesPerFrame": 11107
+    },
+    {
+      "site": "tileBrightness /src/render/ground-noise.ts:25",
+      "bytes": 1001444,
+      "bytesPerFrame": 9723
+    },
+    {
+      "site": "next :0 <- renderFrame /src/main/render-loop.ts:237 < tick /src/main/render-loop.ts:48",
+      "bytes": 952600,
+      "bytesPerFrame": 9249
+    },
+    {
+      "site": "foliageSway games/farm/sim-core/src/render-systems/snapshot-sprites.ts:3",
+      "bytes": 930344,
+      "bytesPerFrame": 9032
+    },
+    {
+      "site": "valueNoise2d engine/core/src/render/noise.ts:100",
+      "bytes": 922956,
+      "bytesPerFrame": 8961
+    },
+    {
+      "site": "uvInto engine/core/src/render/webgl2/gl-atlas-store.ts:91",
+      "bytes": 902448,
+      "bytesPerFrame": 8762
+    },
+    {
+      "site": "(anon) /src/main/render-loop.ts:318",
+      "bytes": 896556,
+      "bytesPerFrame": 8704
+    },
+    {
+      "site": "set :0 <- SimClient.ws.onmessage /src/net/sim-client/client.ts:44",
+      "bytes": 888656,
+      "bytesPerFrame": 8628
+    },
+    {
+      "site": "pushKelp /src/render/water-decor.ts:252",
+      "bytes": 886048,
+      "bytesPerFrame": 8602
+    },
+    {
+      "site": "domainWarp /src/render/ground-noise.ts:19",
+      "bytes": 879152,
+      "bytesPerFrame": 8535
+    },
+    {
+      "site": "(anon) /src/render/water-decor.ts:68",
+      "bytes": 836808,
+      "bytesPerFrame": 8124
+    }
+  ]
+}

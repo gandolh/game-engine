@@ -73,7 +73,9 @@ Hollow keeps its frame.
 ### The heap, and a hitch early in Farm's sweep
 
 Every game collects about every 2 s (9–16 drops in 30 s). Farm swings between 16 and 55 MB and MateQuest
-between 13 and 69 MB, so both allocate fast, but a collection costs Farm 0.10 ms a frame on average.
+between 13 and 69 MB, so both allocate fast, but a collection costs Farm 0.10 ms a frame on average. After
+[brief 20](../briefs/done/20-fewer-allocations-per-frame.md) Farm allocates 1.54 MB a frame instead of 2.75 MB (heap drops 15 to 8 in the
+headless bench) and MateQuest's map screen about a fifth of what it did; a real-GPU reading has not been retaken.
 
 The heap is read inside the profiler's own `requestAnimationFrame` loop, once a second, so a gap between
 heap samples is a long frame interval. All three Farm runs, the profiled one included, have one at the
