@@ -62,3 +62,13 @@ recipes, and moves **one** clip to prove it. Moving the other eight is a follow-
 ## Owner steps
 
 - Deploy Farm from the vps-deploy checkout: `node cli.ts farm-valley deploy`.
+
+## Outcome (2026-11-23)
+
+Built in dfeeeb4d. A recipe set's config takes `animations` (`AnimationDeclaration`, defined in `@engine/core/animation`); the cook's `checkAnimations` refuses an unknown frame, a duplicate name, an empty list, a bad duration, and frames on more than one sheet; the animations are written into the manifest of their sheet beside `frames`. `clipFromDeclaration` builds the clip. `FORGE_FIRE_CLIP` is built from `FORGE_FIRE_ANIMATION` (3 frames, 140 ms each, loop).
+
+- **Where the declaration lives.** `games/farm/atlas-recipes/src/animations.ts`, a file of plain data with no imports, exported as `@farm/atlas-recipes/animations`. The layering test allows it (a Farm package importing a Farm package), but importing the package root would pull every pixel recipe, and the atlas config's file reads, into the sim bundle, so `@farm/sim-core` takes the subpath only (new dependency in its package.json and the lock). The layering test is unchanged.
+- **Timing.** `loopClip`'s `periodMs` is the whole loop, so 420 ms over three frames is 140 ms a frame; a test samples old and new every 10 ms over two loops and they agree.
+- **Manifests.** A sheet with no animations gets no `animations` field. Only `buildings.json` changed, by that field. Because the animations are not part of the input hash, the cook compares the manifest's `animations` with the declared ones and writes the sheet again when they differ.
+- **Checks.** Every cooked PNG has the same sha256 as before. `npm run sim` output is identical before and after. `npm run check` exits 0.
+- **Left over.** `FORGE_FIRE_FRAMES` stays exported from `frames.ts` (the test uses it as the old reference). The other eight clips are a follow-up. The committed MateQuest manifests were already stale (`npm run atlas` rewrites `combat.json` and `index.json` hashes with identical PNGs); I did not commit that.

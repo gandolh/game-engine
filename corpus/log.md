@@ -4372,3 +4372,8 @@ briefed (camera world-edge clamp, explicit spawn ids and an id lookup) are on th
 ## [2026-11-23] done | Brief 19: Hollow culls what the camera cannot see
 
 [Brief](briefs/done/19-hollow-culls-what-the-camera-cannot-see.md). `SceneRenderer3D.render` extracts six frustum planes per frame and uploads and draws only the instances whose transformed bounding sphere (one per mesh, computed at `uploadMesh`; radius times the instance's largest axis scale) is inside or crossing them. Bench `drawInstances` mean 98.46 to 95.63, GL calls 35.40 to 35.57: the default camera frames almost the whole town. Screenshots in `verify/2026-11-23-hollow-culling/`. Updated [frame-budget.md](wiki/frame-budget.md) and the [todo](todos/2026-11-20-hollow-3d-culling.md).
+
+## [2026-11-23] done | Brief 22: animations declared with the recipes
+
+[Brief](briefs/done/22-animations-declared-with-the-recipes.md). A recipe set can declare animations; the cook checks them and writes them into the sheet's manifest; `clipFromDeclaration` builds a clip. Farm's forge fire clip is built from its declaration (`@farm/atlas-recipes/animations`), same frames and timing, PNGs and `npm run sim` unchanged. The other eight clips are left for a follow-up. Pages: [atlas-cook.md](wiki/atlas-cook.md), [animation.md](wiki/animation.md).
+

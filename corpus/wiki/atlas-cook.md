@@ -54,3 +54,8 @@ were for authoring and the per-sheet cache:
 Measured: the draw-group probe went from 49 groups to 1 (seed `0xc0ffee`); Farm creates 6 textures at
 boot instead of 11; the bench scene's main pass draws 1 group a frame instead of 47.8. The `?card` scene
 renders byte for byte the same, and `npm run preview` writes the same PNG.
+
+## Declared animations (brief 22)
+
+A recipe set may declare `animations` in its config: a name, frame names in order, `frameDurationMs` (one number or one per frame) and `mode` (`loop` or `once`). The type is `AnimationDeclaration` in `@engine/core/animation`; a recipe package writes plain data of the same shape and imports nothing. The cook (`checkAnimations`, `tools/atlas-builder/src/config.ts`) refuses a duplicate name, an empty list, a bad duration and a frame the set lacks, and refuses frames on more than one sheet because the animation goes into the manifest of its sheet, beside `frames`. A sheet with no animations gets no `animations` field at all, so its manifest is unchanged. The animations are not in the sheet's input hash, so the cook compares the manifest's `animations` with the declared ones and writes the sheet again when they differ (the PNG is deterministic, so its bytes stay). Farm declares one so far: `forge-fire`, in `games/farm/atlas-recipes/src/animations.ts`, in `buildings.json`.
+
