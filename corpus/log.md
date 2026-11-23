@@ -4365,7 +4365,7 @@ Nintendo code, so nothing copied). Most of what it does well the engine already 
 despawn-safe iteration, frame-rate-independent camera smoothing, named random forks). Four small gaps became
 briefs: [24](briefs/done/24-hollow-builds-its-static-draws-once.md) Hollow builds its static draws once,
 [25](briefs/done/25-farm-finds-tile-features-by-cell.md) Farm finds tile features by cell,
-[26](briefs/todo/26-the-state-machine-keeps-its-entry-tick.md) the state machine keeps its entry tick,
+[26](briefs/done/26-the-state-machine-keeps-its-entry-tick.md) the state machine keeps its entry tick,
 [27](briefs/todo/27-hollow-walks-by-the-ground-covered.md) Hollow walks by the ground covered. Side findings not
 briefed (camera world-edge clamp, explicit spawn ids and an id lookup) are on the page.
 
@@ -4406,3 +4406,10 @@ only when a feature or solid joins or leaves. `FeatureCollisionSystem` restamps 
 Pip's `featureAt`, `bushAt` and axe/pickaxe intents read one cell. Per tick: the stamp 0.023 to 0.001 ms, Pip's
 system 0.044 to 0.021 ms; the index rebuilt on 22 of 3600 ticks. Three-seed export diff is byte-identical.
 Outcome in [the brief](briefs/done/25-farm-finds-tile-features-by-cell.md).
+
+## [2026-11-24] done | Brief 26: The state machine keeps its entry tick
+
+`enterState(fsm, next, tick)` is the one writer of `FsmState`; `enteredTick` moves only on a real change and the
+fields are readonly. The 15 direct writes in the engine, Farm and Hollow go through it, with the same states at
+the same ticks. Three-seed exports for Farm and Hollow are byte-identical before and after, and both determinism
+checks pass. Outcome in [the brief](briefs/done/26-the-state-machine-keeps-its-entry-tick.md).

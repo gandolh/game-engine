@@ -79,3 +79,28 @@ their own string state (`v.fsm`) and are out of scope.
 
 - None. Keeping the field and making it true was picked over deleting it, because `FsmState` is public API
   of the packaged engine, and a time-in-state reading is what the decompilation's behaviours lean on most.
+
+## Outcome (2026-11-23)
+
+`enterState(fsm, next, tick)` now sits beside `FsmState` in `engine/core/src/ecs/components.ts` and is exported
+from the ECS barrel. It sets `current` and moves `enteredTick` to `tick` only when `next` differs from `current`.
+`FsmState`'s two fields are `readonly`, and the helper is the one writer, through a narrow cast with a comment.
+`FsmState` has a doc comment saying `enteredTick` is the tick the agent entered `current`.
+
+- **Sites.** All fifteen go through the helper, each with the same state at the same moment as before:
+  `deliberate-system.ts` (1), Farm `perceive.ts` (6), `combat/system.ts` (4), `act/system.ts` (1),
+  `finish-day.ts` (1), `player-control/system.ts` (1) and Hollow `perceive.ts` (1). Farm's `perceive.ts`
+  `handlePhaseStart` and the combat `endBout`, `resolveKo` and `resolveExhaustion` had no tick, so each takes
+  one as a parameter from the caller's `SimContext` (`stepBout` already had it). `finish-day.ts` and
+  `player-control/system.ts` now name their `ctx`. The six tests that assigned `fsm.current` use
+  `enterState(..., 0)`.
+- **Grep.** `fsm!?\.current\s*=` found the 15 sites and the 6 tests before and none after: the helper writes through a local alias, and spawns use object literals.
+- **Unit test.** `engine/core/src/ecs/fsm.test.ts`: the same state keeps `enteredTick`, a change sets it.
+- **Typecheck refusal.** A scratch `f.fsm.current = "B"` added to `finish-day.ts` failed with
+  `src/systems/world-time/finish-day.ts(20,93): error TS2540: Cannot assign to 'current' because it is a read-only property.`
+  It was removed before the commit.
+- **Baseline.** Farm `npm run sim` with `EXPORT=json MAX_DAYS=10` for seeds 1, 2, 3, and Hollow `npm run sim:hollow`
+  with `EXPORT=json MAX_YEARS=2` and an `EXPORT_DIR` per seed (Hollow has no `DAYS` knob; its length is
+  `MAX_YEARS`): `cmp` on the Farm files and `diff -r` on the Hollow directories were identical before and after.
+  No export file carried a wall-clock field. `CHECK_DETERMINISM=1` passed on `npm run sim` and `npm run sim:hollow`.
+- **Shipped** with Farm and Hollow in the owner's rollout of 2026-11-23 (stamped `acd92ea`). No owner step.
