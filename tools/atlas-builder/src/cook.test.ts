@@ -86,4 +86,35 @@ describe("buildAtlas with a game's config", () => {
     const broken: AtlasConfig = { ...config, recipes: [{ name: "gem/odd", size: 1, pixels: ["z"] }] };
     expect(() => buildAtlas(broken)).toThrow(/recipe "gem\/odd": character "z" has no swatch/);
   });
+
+  it("refuses an animation that names a frame the set lacks", () => {
+    const config: AtlasConfig = {
+      ...fixtureGame(),
+      animations: [{ name: "blink", frames: ["gem/red", "gem/green"], frameDurationMs: 100, mode: "loop" }],
+    };
+    expect(() => buildAtlas(config)).toThrow(/animation "blink": frame "gem\/green" is not in the set/);
+  });
+
+  it("writes declared animations into the manifest, and cooks again when they change", () => {
+    vi.spyOn(console, "log").mockImplementation(() => {});
+    const blink = {
+      name: "blink",
+      frames: ["gem/red", "gem/blue"],
+      frameDurationMs: [100, 200],
+      mode: "loop",
+    } as const;
+    const config: AtlasConfig = { ...fixtureGame(), animations: [blink] };
+    expect(buildAtlas(config).built).toEqual(["gem"]);
+    const read = () => JSON.parse(readFileSync(join(config.outDir, "gem.json"), "utf8")) as { animations?: unknown };
+    expect(read().animations).toEqual([blink]);
+    expect(buildAtlas(config).cached).toEqual(["gem"]);
+    expect(buildAtlas({ ...config, animations: [{ ...blink, mode: "once" }] }).built).toEqual(["gem"]);
+  });
+
+  it("leaves the manifest without an animations field when the set declares none", () => {
+    vi.spyOn(console, "log").mockImplementation(() => {});
+    const config = fixtureGame();
+    buildAtlas(config);
+    expect(JSON.parse(readFileSync(join(config.outDir, "gem.json"), "utf8"))).not.toHaveProperty("animations");
+  });
 });

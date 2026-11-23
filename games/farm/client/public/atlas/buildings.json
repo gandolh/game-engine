@@ -521,5 +521,17 @@
       "h": 16
     }
   },
+  "animations": [
+    {
+      "name": "forge-fire",
+      "frames": [
+        "structure/forge-fire-a",
+        "structure/forge-fire-b",
+        "structure/forge-fire-c"
+      ],
+      "frameDurationMs": 140,
+      "mode": "loop"
+    }
+  ],
   "inputsHash": "ce1d29933d3c33e31a86fd83119bfd85a7384f11426c194e5aa09e74a843ace5"
 }

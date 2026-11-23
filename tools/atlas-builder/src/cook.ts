@@ -7,7 +7,14 @@ import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { PNG } from "pngjs";
-import { checkSwatches, recipeHeight, recipeWidth, type AtlasConfig, type AtlasRecipe } from "./config";
+import {
+  checkAnimations,
+  checkSwatches,
+  recipeHeight,
+  recipeWidth,
+  type AtlasConfig,
+  type AtlasRecipe,
+} from "./config";
 import { BUILDER_VERSION, computeSheetHash, PACK_CONSTANTS, PNG_OPTIONS } from "./fingerprint";
 import { MAX_PAGE_SIDE, packPages } from "./pages";
 
@@ -172,6 +179,7 @@ export function buildAtlas(config: AtlasConfig, opts: { force?: boolean } = {}):
   const force = opts.force ?? false;
   const tag = `atlas-builder [${config.id}]`;
   checkSwatches(config);
+  checkAnimations(config);
   mkdirSync(config.outDir, { recursive: true });
 
   const sheetRecipes = new Map<string, AtlasRecipe[]>();
@@ -213,14 +221,27 @@ export function buildAtlas(config: AtlasConfig, opts: { force?: boolean } = {}):
     }
 
     const inputsHash = computeSheetHash(sheetId, config.hashInputs(sheetId, recipes));
+    // The declarations are not a hashed file, so a manifest whose animations differ is written again.
+    const animations = (config.animations ?? []).filter(
+      (a) => a.frames[0] !== undefined && config.sheetOf(a.frames[0]) === sheetId,
+    );
+    const animationsJson = JSON.stringify(animations);
     sheetHashes.push([sheetId, inputsHash]);
     const manifestPath = resolve(config.outDir, `${sheetId}.json`);
 
     if (!force && existsSync(manifestPath)) {
       try {
-        const existing = JSON.parse(readFileSync(manifestPath, "utf8")) as { inputsHash?: string; imageUrl?: string };
+        const existing = JSON.parse(readFileSync(manifestPath, "utf8")) as {
+          inputsHash?: string;
+          imageUrl?: string;
+          animations?: unknown;
+        };
         // The URL base is config, not a hashed file, so a manifest that points elsewhere is cooked again.
-        if (existing.inputsHash === inputsHash && existing.imageUrl === `${config.urlBase}${sheetId}.png`) {
+        if (
+          existing.inputsHash === inputsHash &&
+          existing.imageUrl === `${config.urlBase}${sheetId}.png` &&
+          JSON.stringify(existing.animations ?? []) === animationsJson
+        ) {
           console.log(`${tag}: [${sheetId}] cached (${recipes.length} frames)`);
           cached.push(sheetId);
           indexEntries.push(entry(sheetId));
@@ -240,6 +261,8 @@ export function buildAtlas(config: AtlasConfig, opts: { force?: boolean } = {}):
       width: packed.width,
       height: packed.height,
       frames: packed.frames,
+      // Only a sheet with declared animations carries the field; the others stay as they were.
+      ...(animations.length > 0 ? { animations } : {}),
       inputsHash,
     };
     writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));

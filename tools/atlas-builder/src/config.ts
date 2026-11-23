@@ -2,6 +2,7 @@
  * A game's atlas config: everything the cook needs to know about one game's recipes (corpus brief 09).
  * The cook itself knows no game. Each recipe package exports one of these, and `games.ts` lists them.
  */
+import type { AnimationDeclaration } from "@engine/core/animation";
 import { EDG32, RESURRECT64 } from "@engine/core/render";
 
 /** One sprite as a grid of characters, each a key of the config's swatch table. */
@@ -50,6 +51,11 @@ export interface AtlasConfig {
   urlBase: string;
   /** Frames that break a recipe check on purpose, each with a reason (`recipe-checks.ts`, corpus brief 11). */
   recipeCheckAllowlist?: readonly RecipeAllowance[];
+  /**
+   * Animations the set declares: frame names, a duration and loop or once. The cook refuses one that names a
+   * frame the set lacks, and writes each into the manifest of the sheet its frames are on.
+   */
+  animations?: readonly AnimationDeclaration[];
 }
 
 /** The palettes the engine exports, which a config can name instead of listing. */
@@ -99,5 +105,36 @@ export function checkSwatches(config: AtlasConfig): void {
   }
   if (problems.length > 0) {
     throw new Error(`atlas-builder [${config.id}]: off-palette recipes\n  ${problems.join("\n  ")}`);
+  }
+}
+
+/**
+ * Every declared animation must be named once, list at least one frame, give a positive duration per frame, and
+ * name only frames the set has, all on one sheet (its manifest carries it). Throws naming each problem.
+ */
+export function checkAnimations(config: AtlasConfig): void {
+  const frames = new Set(config.recipes.map((r) => r.name));
+  const names = new Set<string>();
+  const problems: string[] = [];
+  for (const a of config.animations ?? []) {
+    if (names.has(a.name)) problems.push(`animation "${a.name}": declared twice`);
+    names.add(a.name);
+    if (a.frames.length === 0) problems.push(`animation "${a.name}": no frames`);
+    for (const f of a.frames) {
+      if (!frames.has(f)) problems.push(`animation "${a.name}": frame "${f}" is not in the set`);
+    }
+    const durations = typeof a.frameDurationMs === "number" ? [a.frameDurationMs] : a.frameDurationMs;
+    if (typeof a.frameDurationMs !== "number" && durations.length !== a.frames.length) {
+      problems.push(`animation "${a.name}": ${durations.length} durations for ${a.frames.length} frames`);
+    }
+    if (durations.some((d) => !(d > 0) || !Number.isFinite(d))) {
+      problems.push(`animation "${a.name}": a duration is not a positive number`);
+    }
+    if (a.frames.every((f) => frames.has(f)) && new Set(a.frames.map((f) => config.sheetOf(f))).size > 1) {
+      problems.push(`animation "${a.name}": frames are on more than one sheet`);
+    }
+  }
+  if (problems.length > 0) {
+    throw new Error(`atlas-builder [${config.id}]: bad animations\n  ${problems.join("\n  ")}`);
   }
 }

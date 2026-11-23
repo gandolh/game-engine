@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { loopClip, sampleCycle, cycleIndex } from "./cycle";
-import { FOAM_CLIP, WEATHER_BEACON_CLIP } from "./clips";
-import { resolveFrameAndBob, walkStepsBetween } from "./frames";
+import { FOAM_CLIP, FORGE_FIRE_CLIP, WEATHER_BEACON_CLIP } from "./clips";
+import { FORGE_FIRE_FRAMES, resolveFrameAndBob, walkStepsBetween } from "./frames";
 import type { SnapshotSprite } from "../snapshot";
 
 const FRAMES = ["a", "b", "c"] as const;
@@ -174,5 +174,16 @@ describe("walkStepsBetween", () => {
     expect(spots).toContain(base.frame);
     expect(spots).toContain(later.frame);
     expect(later.frame).not.toBe(base.frame);
+  });
+});
+
+describe("forge fire clip from its declaration", () => {
+  it("samples the same frame as the old loopClip every 10 ms over two loops", () => {
+    const old = loopClip("forge-fire", FORGE_FIRE_FRAMES, 420);
+    expect(FORGE_FIRE_CLIP.totalDurationMs).toBe(old.totalDurationMs);
+    for (let t = 0; t <= 840; t += 10) {
+      expect(FORGE_FIRE_CLIP.sampleAt(t).frameName).toBe(old.sampleAt(t).frameName);
+      expect(sampleCycle(FORGE_FIRE_CLIP, t)).toBe(sampleCycle(old, t));
+    }
   });
 });

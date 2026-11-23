@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { AnimationClip } from "./clip";
+import { clipFromDeclaration } from "./declared";
 
 const walk = () =>
   new AnimationClip({
@@ -126,5 +127,25 @@ describe("AnimationClip frame events", () => {
   it("returns nothing when the clip has no events", () => {
     const c = new AnimationClip({ name: "n", loop: true, frames: [{ frame: "a", durationMs: 50 }] });
     expect(c.eventsBetween(0, 1000)).toEqual([]);
+  });
+});
+
+describe("clipFromDeclaration", () => {
+  it("builds a clip from one duration for every frame", () => {
+    const clip = clipFromDeclaration({ name: "w", frames: ["a", "b"], frameDurationMs: 50, mode: "loop" });
+    expect(clip.loop).toBe(true);
+    expect(clip.totalDurationMs).toBe(100);
+    expect(clip.sampleAt(60).frameName).toBe("b");
+  });
+
+  it("takes a duration per frame and plays once", () => {
+    const clip = clipFromDeclaration({ name: "w", frames: ["a", "b"], frameDurationMs: [10, 90], mode: "once" });
+    expect(clip.loop).toBe(false);
+    expect(clip.sampleAt(20).frameName).toBe("b");
+    expect(clip.sampleAt(500).finished).toBe(true);
+  });
+
+  it("refuses a duration list of the wrong length", () => {
+    expect(() => clipFromDeclaration({ name: "w", frames: ["a", "b"], frameDurationMs: [10], mode: "loop" })).toThrow();
   });
 });
