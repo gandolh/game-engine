@@ -4357,3 +4357,14 @@ to 2.4 ms. Farm's ghost pass: old scan 0.003 ms, grid only 0.78 ms, hybrid 0.007
 ## [2026-11-23] done | Brief 18: worker snapshots timed, and transferred in one game
 
 [Brief](briefs/done/18-worker-snapshots-timed-and-transferred.md). `snapshot.post`, `snapshot.read` and `snapshot.apply` are in the frame profile of Citadel, Hollow and MateQuest. Hollow costs most (read mean 0.30 ms, p95 0.6; Citadel 0.09 and 0.2), so its agent positions were moved into a transferred `Float32Array` (`ee7c3502`). `snapshot.read` did not fall, because the cost is the per-agent objects, not the numbers, so the closeout dropped the conversion and only the timers ship. Sims untouched, `sim:citadel` and `sim:hollow` unchanged. Updated [frame-budget.md](wiki/frame-budget.md), [real-gpu-readings.md](wiki/real-gpu-readings.md) and the [todo](todos/2026-11-20-worker-snapshot-transfer.md).
+
+## [2026-11-23] research | The Super Mario 64 decompilation: briefs 24-27
+
+[Research page](wiki/research-sm64-decomp.md): n64decomp/sm64 read at `9921382` for techniques only (decompiled
+Nintendo code, so nothing copied). Most of what it does well the engine already does (ids that never repeat,
+despawn-safe iteration, frame-rate-independent camera smoothing, named random forks). Four small gaps became
+briefs: [24](briefs/todo/24-hollow-builds-its-static-draws-once.md) Hollow builds its static draws once,
+[25](briefs/todo/25-farm-finds-tile-features-by-cell.md) Farm finds tile features by cell,
+[26](briefs/todo/26-the-state-machine-keeps-its-entry-tick.md) the state machine keeps its entry tick,
+[27](briefs/todo/27-hollow-walks-by-the-ground-covered.md) Hollow walks by the ground covered. Side findings not
+briefed (camera world-edge clamp, explicit spawn ids and an id lookup) are on the page.
