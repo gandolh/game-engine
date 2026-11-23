@@ -218,7 +218,7 @@ vi.mock("./cloud-shadow-pass", () => ({
 vi.mock("./overlay-light-pass", () => ({
   OverlayLightPass: class {
     draw(overlay: unknown): void {
-      // Mirrors the real pass: a no-op when no OverlayFn was supplied.
+      // Mirrors the real pass: a no-op when no LightOverlay was supplied.
       if (overlay === undefined) return;
       rec.order.push("overlayLight");
     }
@@ -380,7 +380,7 @@ describe("WebGl2Renderer draw order", () => {
     r.push(makeSprite());
     r.pushShadow(0, 0, 4, 2, 0.5);
     r.setCloudOptions({ color: "#000000", coverage: 0.5, driftSpeed: 1, timeSec: 0 });
-    r.endFrame({ color: "#000000", alpha: 0.5 }, particles, makeRain(5), () => {});
+    r.endFrame({ color: "#000000", alpha: 0.5 }, particles, makeRain(5), { pools: [], count: 0 });
 
     const drawOnly = rec.order.filter((s) => !s.includes("setView") && s !== "resize");
     expect(drawOnly).toEqual([
@@ -419,13 +419,13 @@ describe("WebGl2Renderer draw order", () => {
     const r = makeRenderer();
     r.beginFrame();
     r.push(makeSprite());
-    r.endFrame({ color: "#000000", alpha: 0.5 }, undefined, undefined, () => {});
+    r.endFrame({ color: "#000000", alpha: 0.5 }, undefined, undefined, { pools: [], count: 0 });
 
     expect(rec.order.indexOf("sprites")).toBeLessThan(rec.order.indexOf("overlayLight"));
     expect(rec.order.indexOf("overlayLight")).toBeLessThan(rec.order.indexOf("tint"));
   });
 
-  it("skips the overlay-light pass entirely when no OverlayFn is supplied", () => {
+  it("skips the overlay-light pass entirely when no LightOverlay is supplied", () => {
     const r = makeRenderer();
     r.beginFrame();
     r.push(makeSprite());

@@ -1,20 +1,36 @@
 #version 300 es
-// overlay-light.vert.glsl — full-screen triangle, no vertex buffer (same trick as
-// ./tint.vert.glsl). Emits both the clip position AND a matching UV so the fragment
-// shader can sample the CPU-baked overlay-light texture 1:1 with the drawing buffer.
+// overlay-light.vert.glsl — one instanced quad per light pool (overlay-light-pass.ts).
+// No vertex buffer: the 6 corners come from gl_VertexID, same scheme as shadow.vert.glsl.
+//
+// Per-instance attributes (vertexAttribDivisor 1), stride 32 bytes:
+//   loc0 a_pool   vec4  (cx, cy, radius, peak alpha) world px
+//   loc1 a_color  vec4  (r, g, b, unused) straight, 0..1, from a palette role on the CPU
+//
+// u_scale / u_offset map world px to clip space (scale.y already negative), the same
+// convention as shadow.vert.glsl.
 
-out vec2 v_uv;
+layout(location = 0) in vec4 a_pool;
+layout(location = 1) in vec4 a_color;
+
+uniform vec2 u_scale;
+uniform vec2 u_offset;
+
+out vec2 v_local;
+out float v_peak;
+out vec3 v_color;
 
 void main() {
-  float x = (gl_VertexID == 1) ? 3.0 : -1.0;
-  float y = (gl_VertexID == 2) ? 3.0 : -1.0;
-  gl_Position = vec4(x, y, 0.0, 1.0);
+  int corner_ids[6] = int[6](0, 1, 2, 1, 3, 2);
+  int corner_idx = corner_ids[gl_VertexID];
 
-  // Map clip-space [-1,1] to UV [0,1]. The Y axis is flipped deliberately: this
-  // engine's clip-space convention has clip Y=+1 at the WINDOW TOP (see
-  // ../../view-uniform.ts's header comment on the baked-in Y-flip), while the baked
-  // overlay canvas has row 0 (v=0 in the sense texImage2D uploads it) at ITS OWN
-  // top too. So v must DECREASE as clip Y increases to keep the two aligned —
-  // without this flip the glows would render upside down relative to the world.
-  v_uv = vec2((x + 1.0) * 0.5, 1.0 - (y + 1.0) * 0.5);
+  float lx = ((corner_idx & 1) != 0) ? 1.0 : -1.0;
+  float ly = ((corner_idx & 2) != 0) ? 1.0 : -1.0;
+
+  float world_x = a_pool.x + lx * a_pool.z;
+  float world_y = a_pool.y + ly * a_pool.z;
+
+  gl_Position = vec4(world_x * u_scale.x + u_offset.x, world_y * u_scale.y + u_offset.y, 0.0, 1.0);
+  v_local = vec2(lx, ly);
+  v_peak = a_pool.w;
+  v_color = a_color.rgb;
 }

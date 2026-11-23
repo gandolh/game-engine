@@ -3,43 +3,6 @@ import { LIGHT_EMITTERS } from "@farm/sim-core/render-systems";
 import { makeLightOverlay, _LIGHT_COUNT, _NIGHT_GATE } from "./lights";
 import { rgbOf } from "@engine/core/render";
 
-function spyCtx() {
-  const ops: string[] = [];
-  const stops: Array<[number, string]> = [];
-  let fills = 0;
-  let _op = "source-over";
-  const grad = {
-    addColorStop(o: number, c: string) {
-      stops.push([o, c]);
-    },
-  };
-  const ctx = {
-    get globalCompositeOperation() {
-      return _op;
-    },
-    set globalCompositeOperation(v: string) {
-      _op = v;
-      ops.push(v);
-    },
-    globalAlpha: 1,
-    fillStyle: null as unknown,
-    createRadialGradient: () => grad,
-    beginPath() {},
-    arc() {},
-    fill() {
-      fills += 1;
-    },
-  };
-  return {
-    ctx,
-    ops,
-    stops,
-    get fills() {
-      return fills;
-    },
-  };
-}
-
 describe("local light overlay", () => {
   it("emitter table is non-empty and on the EDG palette", () => {
     expect(LIGHT_EMITTERS.length).toBeGreaterThan(0);
@@ -52,28 +15,37 @@ describe("local light overlay", () => {
     }
   });
 
-  it("draws nothing during the day (nightness at/below the gate)", () => {
-    const s = spyCtx();
-    makeLightOverlay(_NIGHT_GATE)(s.ctx as never);
-    expect(s.fills).toBe(0);
-    expect(s.ops).toEqual([]);
+  it("returns no overlay during the day (nightness at/below the gate)", () => {
+    expect(makeLightOverlay(_NIGHT_GATE)).toBeUndefined();
+    expect(makeLightOverlay(0)).toBeUndefined();
   });
 
-  it("draws additive warm glows at night and restores composite", () => {
-    const s = spyCtx();
-    makeLightOverlay(1)(s.ctx as never);
-    expect(s.fills).toBe(LIGHT_EMITTERS.length);
-    expect(s.ops).toContain("lighter");
-    expect(s.ops[s.ops.length - 1]).toBe("source-over");
-
-    expect(s.stops.some(([o]) => o === 0)).toBe(true);
-    expect(s.stops.some(([, c]) => c.endsWith(",0)"))).toBe(true);
+  it("lists one pool per emitter at night, with palette colours and the intensity-scaled peak", () => {
+    const o = makeLightOverlay(1);
+    expect(o?.count).toBe(LIGHT_EMITTERS.length);
+    const first = LIGHT_EMITTERS[0];
+    const p = o?.pools[0];
+    expect(first).toBeDefined();
+    expect(p).toBeDefined();
+    const [r, g, b] = rgbOf(first?.color ?? "");
+    expect([p?.r, p?.g, p?.b]).toEqual([r / 255, g / 255, b / 255]);
+    expect(p?.peak).toBeCloseTo(first?.intensity ?? -1, 12);
+    for (const pool of o?.pools.slice(0, o.count) ?? []) {
+      expect(pool.radius).toBeGreaterThan(0);
+      expect(pool.peak).toBeGreaterThan(0);
+      expect(pool.peak).toBeLessThanOrEqual(1);
+    }
   });
 
-  it("culls glows outside the view rect", () => {
-    const s = spyCtx();
+  it("scales the peak by how deep the night is", () => {
+    const deep = makeLightOverlay(1)?.pools[0]?.peak ?? 0;
+    const dusk = makeLightOverlay(0.56)?.pools[0]?.peak ?? -1;
+    expect(deep).toBeGreaterThan(0);
+    expect(dusk).toBeCloseTo(deep * 0.5, 12);
+  });
 
-    makeLightOverlay(1, { left: -10000, right: -9000, top: -10000, bottom: -9000 })(s.ctx as never);
-    expect(s.fills).toBe(0);
+  it("culls pools outside the view rect", () => {
+    const o = makeLightOverlay(1, { left: -10000, right: -9000, top: -10000, bottom: -9000 });
+    expect(o?.count).toBe(0);
   });
 });

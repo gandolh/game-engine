@@ -24,20 +24,32 @@ export interface WeatherLike {
 export type DecorateFn = (ctx: Ctx2D, widthPx: number, heightPx: number, region: StaticRegion) => void;
 
 /**
- * A world-space 2D draw callback, invoked once per `endFrame` between the sprites and
- * the day/night wash, composited **additively** onto the scene.
- *
- * `transform` is the world→screen mapping in **pixels** (`sx`/`sy` scale, `ox`/`oy`
- * offset) — already applied to the context, so the callback authors in world
- * coordinates. Farm's night lighting (`makeLightOverlay`) is the live consumer:
- * warm radial glows drawn with `globalCompositeOperation = "lighter"`.
- *
- * **This is honoured.** It previously was not: the WebGPU backend accepted the
- * parameter as `_overlay` and never invoked it, so Farm's night glows silently did
- * not render for the entire time Farm was WebGPU-only. Any future backend that takes
- * this and drops it is re-introducing that bug, not making an optimisation.
+ * One additive light pool in world pixels: a radial glow with its centre, radius, colour and peak
+ * alpha. `r`, `g`, `b` are 0..1 and come from a palette role (`rgbOf` of a palette constant, divided
+ * by 255). The falloff is fixed by the renderer (see `lightFalloff` in `webgl2/overlay-light-pass.ts`).
  */
-export type OverlayFn = (ctx: Ctx2D, transform: { sx: number; sy: number; ox: number; oy: number }) => void;
+export interface LightPool {
+  cx: number;
+  cy: number;
+  radius: number;
+  r: number;
+  g: number;
+  b: number;
+  /** Alpha at the centre, 0..1. */
+  peak: number;
+}
+
+/**
+ * The light pools for one `endFrame`, drawn as instanced quads between the sprites and the day/night
+ * wash, composited **additively** onto the scene. Farm's night lighting (`makeLightOverlay`) is the
+ * live consumer. Only the first `count` entries are drawn, so a caller can reuse one array across
+ * frames. The WebGPU backend once accepted this parameter and never drew it, so Farm's night glows
+ * silently did not render; any backend that takes it and drops it is re-introducing that bug.
+ */
+export interface LightOverlay {
+  readonly pools: readonly LightPool[];
+  readonly count: number;
+}
 
 export interface CloudOptions {
   /** EDG hex color of the overlay (parsed to RGB floats on the CPU). */
@@ -194,5 +206,5 @@ export interface RendererLike {
    */
   lastDrawStats?: { groups: number; ghostGroups: number; sprites: number; atlases: number; sortMs: number };
 
-  endFrame(wash?: WashOptions, particles?: ParticleSystem, weather?: WeatherLike, overlay?: OverlayFn): void;
+  endFrame(wash?: WashOptions, particles?: ParticleSystem, weather?: WeatherLike, overlay?: LightOverlay): void;
 }

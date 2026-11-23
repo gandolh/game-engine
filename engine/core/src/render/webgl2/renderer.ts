@@ -7,7 +7,7 @@ import type {
   WeatherLike,
   DecorateFn,
   Sprite,
-  OverlayFn,
+  LightOverlay,
   UIQuad,
   CloudOptions,
 } from "../renderer";
@@ -675,7 +675,7 @@ export class WebGl2Renderer implements RendererLike {
     return weather !== undefined && !(weather instanceof RainField) && weather.count > 0;
   }
 
-  endFrame(wash?: WashOptions, particles?: ParticleSystem, weather?: WeatherLike, overlay?: OverlayFn): void {
+  endFrame(wash?: WashOptions, particles?: ParticleSystem, weather?: WeatherLike, overlay?: LightOverlay): void {
     if (this._glCtx.isLost() || this._restoring) return;
     // Nothing to draw yet. A painted static image needs no atlas, so it counts.
     if (this._atlases.size === 0 && this._bakeArgs === undefined) return;

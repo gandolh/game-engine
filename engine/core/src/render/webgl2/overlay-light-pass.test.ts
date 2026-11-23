@@ -1,19 +1,6 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Ctx2D } from "../sprite-types";
-import type { OverlayFn } from "../renderer";
-
-// node's vitest env has no real WebGL2 or OffscreenCanvas. Following the project
-// convention (../webgl2/program.test.ts's fake GL, ../ui-draw.test.ts's fake
-// OffscreenCanvas), both are stubbed here.
-
-interface FakeShader {
-  __kind: "shader";
-  compiled: boolean;
-}
-interface FakeProgram {
-  __kind: "program";
-  linked: boolean;
-}
+import { describe, expect, it, vi } from "vitest";
+import type { LightOverlay, LightPool } from "../renderer";
+import { LIGHT_FALLOFF_MID_AT, LIGHT_FALLOFF_MID_SHARE, OverlayLightPass, lightFalloff } from "./overlay-light-pass";
 
 interface Call {
   op: string;
@@ -26,227 +13,126 @@ function makeFakeGl(calls: Call[]): WebGL2RenderingContext {
     (...args: unknown[]) => {
       calls.push({ op, args });
     };
-
   const gl = {
     VERTEX_SHADER: 1,
     FRAGMENT_SHADER: 2,
     COMPILE_STATUS: 3,
     LINK_STATUS: 4,
-    TEXTURE_2D: 5,
-    TEXTURE_MIN_FILTER: 6,
-    TEXTURE_MAG_FILTER: 7,
-    NEAREST: 8,
-    TEXTURE_WRAP_S: 9,
-    TEXTURE_WRAP_T: 10,
-    CLAMP_TO_EDGE: 11,
-    UNPACK_PREMULTIPLY_ALPHA_WEBGL: 12,
-    RGBA: 13,
-    UNSIGNED_BYTE: 14,
-    TEXTURE0: 15,
+    ARRAY_BUFFER: 5,
+    DYNAMIC_DRAW: 6,
+    FLOAT: 7,
     BLEND: 16,
     ONE: 17,
     TRIANGLES: 18,
 
-    createShader: vi.fn((): FakeShader => ({ __kind: "shader", compiled: true })),
+    createShader: vi.fn(() => ({ __kind: "shader" })),
     shaderSource: vi.fn(),
     compileShader: vi.fn(),
     getShaderParameter: vi.fn(() => true),
     getShaderInfoLog: vi.fn(() => ""),
     deleteShader: vi.fn(),
-
-    createProgram: vi.fn((): FakeProgram => ({ __kind: "program", linked: true })),
+    createProgram: vi.fn(() => ({ __kind: "program" })),
     attachShader: vi.fn(),
     linkProgram: vi.fn(),
     getProgramParameter: vi.fn(() => true),
     getProgramInfoLog: vi.fn(() => ""),
     deleteProgram: vi.fn(),
-
-    getUniformLocation: vi.fn((_p: FakeProgram, name: string) => ({ __uniform: name })),
-
+    getUniformLocation: vi.fn((_p: unknown, name: string) => ({ __uniform: name })),
     createVertexArray: vi.fn(() => ({ __kind: "vao" })),
     bindVertexArray: vi.fn(record("bindVertexArray")),
-
-    createTexture: vi.fn(() => ({ __kind: "texture" })),
-    bindTexture: vi.fn(record("bindTexture")),
-    texParameteri: vi.fn(),
-    texImage2D: vi.fn(record("texImage2D")),
-    pixelStorei: vi.fn(record("pixelStorei")),
-    activeTexture: vi.fn(record("activeTexture")),
-    uniform1i: vi.fn(record("uniform1i")),
-
+    createBuffer: vi.fn(() => ({ __kind: "buffer" })),
+    deleteBuffer: vi.fn(record("deleteBuffer")),
+    bindBuffer: vi.fn(record("bindBuffer")),
+    bufferData: vi.fn(record("bufferData")),
+    bufferSubData: vi.fn(record("bufferSubData")),
+    enableVertexAttribArray: vi.fn(),
+    vertexAttribPointer: vi.fn(),
+    vertexAttribDivisor: vi.fn(),
     useProgram: vi.fn(record("useProgram")),
+    uniform2f: vi.fn(record("uniform2f")),
     enable: vi.fn(record("enable")),
     blendFunc: vi.fn(record("blendFunc")),
-    drawArrays: vi.fn(record("drawArrays")),
+    drawArraysInstanced: vi.fn(record("drawArraysInstanced")),
+    // A texture call here would be the bug this brief removed.
+    texImage2D: vi.fn(record("texImage2D")),
+    createTexture: vi.fn(record("createTexture")),
   };
-
   return gl as unknown as WebGL2RenderingContext;
 }
 
-class FakeOffscreenCtx {
-  ops: string[] = [];
-  imageSmoothingEnabled = false;
-  globalCompositeOperation = "source-over";
-  globalAlpha = 1;
-  setTransform(...a: number[]): void {
-    this.ops.push(`setTransform(${a.join(",")})`);
-  }
-  clearRect(...a: number[]): void {
-    this.ops.push(`clearRect(${a.join(",")})`);
-  }
-}
+const pool = (cx: number, peak: number): LightPool => ({ cx, cy: 5, radius: 40, r: 1, g: 0.5, b: 0.25, peak });
+const VIEW = { sx: 2, sy: 2, ox: 10, oy: 20 };
 
-class FakeOffscreen {
-  width: number;
-  height: number;
-  ctx = new FakeOffscreenCtx();
-  constructor(w: number, h: number) {
-    this.width = w;
-    this.height = h;
-  }
-  getContext(): Ctx2D {
-    return this.ctx as unknown as Ctx2D;
-  }
-}
+describe("lightFalloff", () => {
+  it("matches the three stops at 0, 0.45 and 1 of the radius", () => {
+    expect(lightFalloff(0)).toBe(1);
+    expect(lightFalloff(0.45)).toBeCloseTo(0.4, 12);
+    expect(lightFalloff(1)).toBe(0);
+    expect(LIGHT_FALLOFF_MID_AT).toBe(0.45);
+    expect(LIGHT_FALLOFF_MID_SHARE).toBe(0.4);
+  });
 
-let offscreenCtorCalls = 0;
-const realOffscreen = (globalThis as { OffscreenCanvas?: unknown }).OffscreenCanvas;
-
-beforeEach(() => {
-  offscreenCtorCalls = 0;
-  (globalThis as { OffscreenCanvas?: unknown }).OffscreenCanvas = class {
-    constructor(w: number, h: number) {
-      offscreenCtorCalls += 1;
-      return new FakeOffscreen(w, h);
+  it("is linear between the stops and never rises", () => {
+    expect(lightFalloff(0.225)).toBeCloseTo(0.7, 12);
+    expect(lightFalloff(0.725)).toBeCloseTo(0.2, 12);
+    let prev = lightFalloff(0);
+    for (let t = 0.01; t <= 1.2; t += 0.01) {
+      const v = lightFalloff(t);
+      expect(v).toBeLessThanOrEqual(prev + 1e-12);
+      prev = v;
     }
-  };
-});
-
-afterEach(() => {
-  (globalThis as { OffscreenCanvas?: unknown }).OffscreenCanvas = realOffscreen;
+  });
 });
 
 describe("OverlayLightPass", () => {
-  it("is a fully-skipped no-op when overlay is undefined: no bake canvas, no GL draw work", async () => {
+  it("is a no-op with no overlay or no pools", () => {
     const calls: Call[] = [];
-    const gl = makeFakeGl(calls);
-    const { OverlayLightPass } = await import("./overlay-light-pass");
-    const pass = new OverlayLightPass(gl);
-
-    pass.draw(undefined, { sx: 1, sy: 1, ox: 0, oy: 0 }, 800, 600);
-
-    expect(offscreenCtorCalls).toBe(0);
-    expect(calls.some((c) => c.op === "texImage2D")).toBe(false);
-    expect(calls.some((c) => c.op === "drawArrays")).toBe(false);
-    expect(calls.some((c) => c.op === "useProgram")).toBe(false);
+    const pass = new OverlayLightPass(makeFakeGl(calls));
+    pass.draw(undefined, VIEW, 800, 600);
+    pass.draw({ pools: [pool(1, 1)], count: 0 }, VIEW, 800, 600);
+    expect(calls.some((c) => c.op === "drawArraysInstanced" || c.op === "useProgram")).toBe(false);
   });
 
-  it("invokes the overlay with the world transform applied, then bakes+draws additively", async () => {
+  it("draws all pools in one additive instanced call and uploads no texture", () => {
     const calls: Call[] = [];
     const gl = makeFakeGl(calls);
-    const { OverlayLightPass } = await import("./overlay-light-pass");
     const pass = new OverlayLightPass(gl);
+    const overlay: LightOverlay = { pools: [pool(1, 0.5), pool(2, 0.25), pool(3, 0.1)], count: 3 };
+    pass.draw(overlay, VIEW, 800, 600);
 
-    let sawCtx: Ctx2D | undefined;
-    let sawTransform: unknown;
-    const overlay: OverlayFn = (ctx, transform) => {
-      sawCtx = ctx;
-      sawTransform = transform;
-      (ctx as unknown as { globalCompositeOperation: string }).globalCompositeOperation = "lighter";
-    };
-
-    const view = { sx: 2, sy: 3, ox: 10, oy: 20 };
-    pass.draw(overlay, view, 800, 600);
-
-    expect(sawTransform).toEqual(view);
-    const fakeCtx = sawCtx as unknown as FakeOffscreenCtx;
-    // Cleared identity, then the world transform was applied BEFORE the callback ran.
-    expect(fakeCtx.ops).toEqual([
-      "setTransform(1,0,0,1,0,0)",
-      "clearRect(0,0,800,600)",
-      "setTransform(2,0,0,3,10,20)",
-      "setTransform(1,0,0,1,0,0)",
-    ]);
-    // Reset back to source-over/full-alpha after the callback, even though the
-    // callback itself left "lighter" set.
-    expect(fakeCtx.globalCompositeOperation).toBe("source-over");
-    expect(fakeCtx.globalAlpha).toBe(1);
-
-    // Uploaded premultiplied, additive blend, one full-screen triangle.
-    expect(calls.some((c) => c.op === "pixelStorei" && c.args[1] === true)).toBe(true);
-    expect(calls.some((c) => c.op === "texImage2D")).toBe(true);
-    // ...and the context-global flag was RESTORED (audit-39). Asserting only the
-    // `true` above is what pinned the bug: the upload is correct, the leak is not.
-    expect(calls.some((c) => c.op === "pixelStorei" && c.args[1] === false)).toBe(true);
     expect(calls.some((c) => c.op === "blendFunc" && c.args[0] === gl.ONE && c.args[1] === gl.ONE)).toBe(true);
-    expect(
-      calls.some((c) => c.op === "drawArrays" && c.args[0] === gl.TRIANGLES && c.args[1] === 0 && c.args[2] === 3),
-    ).toBe(true);
+    const draws = calls.filter((c) => c.op === "drawArraysInstanced");
+    expect(draws).toHaveLength(1);
+    expect(draws[0]?.args).toEqual([gl.TRIANGLES, 0, 6, 3]);
+    expect(calls.some((c) => c.op === "texImage2D" || c.op === "createTexture")).toBe(false);
+
+    const data = calls.find((c) => c.op === "bufferSubData")?.args[2] as Float32Array;
+    expect(Array.from(data.subarray(0, 8))).toEqual([1, 5, 40, 0.5, 1, 0.5, 0.25, 0]);
+    expect(Array.from(data.subarray(8, 12))).toEqual([2, 5, 40, 0.25]);
   });
 
-  it("restores UNPACK_PREMULTIPLY_ALPHA_WEBGL to false, in order, after every draw", async () => {
+  it("maps the screen-pixel view to clip space", () => {
     const calls: Call[] = [];
-    const gl = makeFakeGl(calls);
-    const { OverlayLightPass } = await import("./overlay-light-pass");
-    const pass = new OverlayLightPass(gl);
-
-    pass.draw(() => {}, { sx: 1, sy: 1, ox: 0, oy: 0 }, 800, 600);
-    pass.draw(() => {}, { sx: 1, sy: 1, ox: 0, oy: 0 }, 800, 600);
-
-    const flag = calls
-      .filter((c) => c.op === "pixelStorei" && c.args[0] === gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL)
-      .map((c) => c.args[1]);
-    // Matched pairs, never left dangling: a set is always followed by a restore.
-    expect(flag).toEqual([true, false, true, false]);
-
-    // The set/restore straddle the upload, and nothing else uploads in between.
-    const seq = calls
-      .filter((c) => c.op === "pixelStorei" || c.op === "texImage2D")
-      .map((c) => (c.op === "texImage2D" ? "upload" : `flag=${String(c.args[1])}`));
-    expect(seq.slice(0, 3)).toEqual(["flag=true", "upload", "flag=false"]);
-
-    // The state a LATER pass would observe: straight-alpha uploads are safe again.
-    expect(flag.at(-1)).toBe(false);
+    const pass = new OverlayLightPass(makeFakeGl(calls));
+    pass.draw({ pools: [pool(1, 1)], count: 1 }, VIEW, 800, 600);
+    const u = calls.filter((c) => c.op === "uniform2f").map((c) => c.args.slice(1));
+    expect(u[0]).toEqual([(2 * 2) / 800, (-2 * 2) / 600]);
+    expect(u[1]?.[0]).toBeCloseTo((10 * 2) / 800 - 1, 12);
+    expect(u[1]?.[1]).toBeCloseTo(1 - (20 * 2) / 600, 12);
+    expect(u[2]).toEqual([0.45, 0.4]);
   });
 
-  it("leaves a LATER straight-alpha upload unaffected — the season-change re-bake case", async () => {
-    // The real failure: SimHost re-bakes and re-posts the static layer on every
-    // season change, thousands of overlay frames in. `pixelStorei` is context state,
-    // so the victim is whatever uploads NEXT. Model that state explicitly rather than
-    // only inspecting the call log.
+  it("reuses its staging array across frames and grows the buffer only when needed", () => {
     const calls: Call[] = [];
-    const gl = makeFakeGl(calls);
-    const pixelStore = new Map<number, unknown>();
-    const realPixelStorei = gl.pixelStorei.bind(gl);
-    (gl as { pixelStorei: (p: number, v: unknown) => void }).pixelStorei = (p, v) => {
-      pixelStore.set(p, v);
-      realPixelStorei(p, v as never);
-    };
-
-    const { OverlayLightPass } = await import("./overlay-light-pass");
-    const pass = new OverlayLightPass(gl);
-    for (let frame = 0; frame < 3; frame++) {
-      pass.draw(() => {}, { sx: 1, sy: 1, ox: 0, oy: 0 }, 800, 600);
-    }
-
-    // What static-layer-pass / water-pass / gl-atlas-store see when they upload next.
-    // They push STRAIGHT alpha and premultiply in their own shaders (`c.rgb * c.a`);
-    // a stuck `true` here renders them at rgb*a² — sub-opaque pixels darkened.
-    expect(pixelStore.get(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL)).toBe(false);
-  });
-
-  it("reuses the bake canvas across same-size draws, recreates it on a drawing-buffer resize", async () => {
-    const calls: Call[] = [];
-    const gl = makeFakeGl(calls);
-    const { OverlayLightPass } = await import("./overlay-light-pass");
-    const pass = new OverlayLightPass(gl);
-    const overlay: OverlayFn = () => {};
-
-    pass.draw(overlay, { sx: 1, sy: 1, ox: 0, oy: 0 }, 800, 600);
-    pass.draw(overlay, { sx: 1, sy: 1, ox: 0, oy: 0 }, 800, 600);
-    expect(offscreenCtorCalls).toBe(1);
-
-    pass.draw(overlay, { sx: 1, sy: 1, ox: 0, oy: 0 }, 1024, 768);
-    expect(offscreenCtorCalls).toBe(2);
+    const pass = new OverlayLightPass(makeFakeGl(calls));
+    const pools = Array.from({ length: 100 }, (_, i) => pool(i, 1));
+    pass.draw({ pools, count: 10 }, VIEW, 800, 600);
+    pass.draw({ pools, count: 10 }, VIEW, 800, 600);
+    expect(calls.filter((c) => c.op === "deleteBuffer")).toHaveLength(0);
+    const uploads = calls.filter((c) => c.op === "bufferSubData").map((c) => c.args[2]);
+    const [first, second] = uploads;
+    expect(second).toBe(first);
+    pass.draw({ pools, count: 100 }, VIEW, 800, 600);
+    expect(calls.filter((c) => c.op === "deleteBuffer")).toHaveLength(1);
   });
 });

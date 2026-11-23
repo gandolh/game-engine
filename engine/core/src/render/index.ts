@@ -25,7 +25,16 @@ export {
 export type { Edg32Color, ApolloColor, Resurrect64Color } from "./palette";
 export { MAX_DEVICE_PIXEL_RATIO, effectiveDpr } from "./dpr";
 
-export type { RendererLike, WashOptions, WeatherLike, DecorateFn, CloudOptions, OverlayFn, UIQuad } from "./renderer";
+export type {
+  RendererLike,
+  WashOptions,
+  WeatherLike,
+  DecorateFn,
+  CloudOptions,
+  LightOverlay,
+  LightPool,
+  UIQuad,
+} from "./renderer";
 export type { ViewUniform } from "./view-uniform";
 export { drawUIQuad } from "./ui-draw";
 export { showUnsupportedNotice, WEBGL2_UNAVAILABLE_MESSAGE } from "./unsupported-notice";

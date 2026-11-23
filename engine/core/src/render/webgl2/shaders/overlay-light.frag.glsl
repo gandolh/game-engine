@@ -1,26 +1,31 @@
 #version 300 es
-// overlay-light.frag.glsl — samples the CPU-baked additive light overlay (Farm's
-// night glows, see overlay-light-pass.ts) and writes it out unmodified.
+// overlay-light.frag.glsl — the light pool's falloff, the three stops the CPU gradient had.
 //
-// The colour math (radial gradients, intensity gating, palette colours) all happens
-// on the CPU inside the `OverlayFn` callback the game supplies — this shader is a
-// pure blit, so there is nothing to source from a palette-role uniform here (same
-// reasoning as blit.frag.glsl). The additive effect comes entirely from the CALLER's
-// blend state (`gl.blendFunc(gl.ONE, gl.ONE)`), not from anything in this shader.
+// t is the distance from the pool's centre over its radius. The falloff is piecewise
+// linear: the peak at t = 0, u_stops.y of the peak at t = u_stops.x, nothing at t = 1.
+// The two stop values come from overlay-light-pass.ts (LIGHT_FALLOFF_*), the same
+// constants its unit test checks, so there is one source for them.
 //
-// u_tex holds the baked canvas uploaded with UNPACK_PREMULTIPLY_ALPHA_WEBGL = true,
-// so its RGB already carries `color * alpha` — additive blending then sums that
-// premultiplied light directly onto the scene, matching the Canvas2D
-// `globalCompositeOperation = "lighter"` semantics the OverlayFn callback was
-// originally authored against.
-
+// The colour is a palette role passed in as instance data; there is no colour literal
+// here. Output is premultiplied (rgb * alpha) for the caller's additive blend
+// (gl.blendFunc(ONE, ONE)), matching the old "lighter" composite.
 precision mediump float;
 
-uniform sampler2D u_tex;
+uniform vec2 u_stops;
 
-in vec2 v_uv;
+in vec2 v_local;
+in float v_peak;
+in vec3 v_color;
+
 out vec4 o_color;
 
 void main() {
-  o_color = texture(u_tex, v_uv);
+  float t = length(v_local);
+  if (t >= 1.0) {
+    discard;
+  }
+  float inner = 1.0 - (1.0 - u_stops.y) * (t / u_stops.x);
+  float outer = u_stops.y * (1.0 - (t - u_stops.x) / (1.0 - u_stops.x));
+  float a = v_peak * ((t < u_stops.x) ? inner : outer);
+  o_color = vec4(v_color * a, a);
 }
