@@ -4382,3 +4382,11 @@ briefed (camera world-edge clamp, explicit spawn ids and an id lookup) are on th
 
 `tools/recipe-export` writes a recipe as an indexed PNG in the game's swatch table; `tools/recipe-import` maps an edited PNG back by exact colour, refuses off-palette pixels by position and colour, and rewrites only the pixel rows of the recipe file (the file is the template), so all 239 Farm and 7 MateQuest recipe files round-trip byte-identical. The 143 frames Farm generates in code have no file and cannot be imported. How to edit a sprite in a pixel editor is on [asset-pipeline.md](wiki/asset-pipeline.md); outcome in [the brief](briefs/done/23-recipes-to-png-and-back.md).
 
+
+## [2026-11-23] briefs | 28 and 29 from the sm64 side findings; 27 settled
+
+Grilled with the owner on the Super Mario 64 research. [Brief 28](briefs/todo/28-an-entity-found-by-its-id.md):
+`World` gets an id map and `get(id)`, an explicit id moves `nextId` past it, and Farm's `findById` reads the map.
+[Brief 29](briefs/todo/29-the-camera-centre-stays-on-the-map.md): the camera's centre stays on the map in Farm,
+Citadel and Hollow (the owner's pick: half a screen of off-map at most). Brief 27's two calls are settled: a 4 Hz
+gait cap at 8×, and a paused walker holds mid-stride.
