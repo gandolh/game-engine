@@ -38,6 +38,9 @@ const SCOPES: ReadonlyArray<{ root: string; game: Game | null; allow?: RegExp }>
     game: "farm",
     allow: /(?:from\s+|import\(\s*)["']@(?:farm|citadel|hollow|mathquest)\/atlas-recipes(?:\/[^"']*)?["']/,
   },
+  // Recipe export and import (corpus brief 23) reach every game through the cook's config list and import no game.
+  { root: "tools/recipe-export", game: null },
+  { root: "tools/recipe-import", game: null },
   { root: "games/citadel", game: "citadel" },
   { root: "tools/citadel-sim", game: "citadel" },
   { root: "games/hollow", game: "hollow" },

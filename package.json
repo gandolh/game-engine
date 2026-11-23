@@ -33,6 +33,8 @@
     "check:fast": "npm run typecheck && node scripts/check-fast.mjs",
     "check:conventions": "knip && depcruise \"engine/*/src\" \"games/*/*/src\" \"tools/*/src\" portal/src && node vendor/house-style/bin/check-base-ui.mjs && node vendor/house-style/bin/check-structure.mjs",
     "atlas": "npm run build -w @tool/atlas-builder --",
+    "recipe:export": "npm start -w @tool/recipe-export --",
+    "recipe:import": "npm start -w @tool/recipe-import --",
     "sim": "npm start -w @tool/run-sim",
     "sim:citadel": "npm start -w @tool/citadel-sim",
     "sim:hollow": "npm start -w @tool/hollow-sim",

@@ -193,3 +193,16 @@ The [engine spec](../todos/closed/2026-10-28-engine-patched-static-layer.md) bui
 - [WebGL Fundamentals — preventing texture bleeding](https://webglfundamentals.org/webgl/lessons/webgl-qna-how-to-prevent-texture-bleeding-with-a-texture-atlas.html) · [WebGL2 Fundamentals — cross-platform texture limits](https://webgl2fundamentals.org/webgl/lessons/webgl-cross-platform-issues.html) · [MDN — WebGL best practices](https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API/WebGL_best_practices) · [I Love Sprites — pixel-art padding](https://ilovesprites.com/blog/pixel-art-sprite-sheets-scale-padding)
 - [Chrome — GPU acceleration in 2D canvas](https://developer.chrome.com/blog/taking-advantage-of-gpu-acceleration-in-the-2d-canvas) · [Game Developer — HTML5 atlases](https://www.gamedeveloper.com/programming/building-an-html5-game-don-t-shrug-off-atlases) · [MDN — createImageBitmap](https://developer.mozilla.org/en-US/docs/Web/API/CreateImageBitmap) · [MDN — optimizing canvas](https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Optimizing_canvas)
 - [pngjs encoder options](https://github.com/pngjs/pngjs) · [PixiJS AssetPack](https://pixijs.com/blog/assetpack-1.0.0)
+
+## Editing a sprite in a pixel editor (brief 23, 2026-11-23)
+
+Recipes are text, but an artist can work in Aseprite or LibreSprite through two tools:
+
+1. **Export.** `npm run recipe:export -- <game> <frame> [--out <file or folder>]` (for example `farm tile/grass`, or `mathquest enemy/dragon`) writes an indexed PNG named `tile__grass.png` into the current folder, or where `--out` says. Its palette is the game's swatch table in order, with index 0 (`.`) transparent, so the editor offers only legal colours.
+2. **Edit** the PNG. Stay on those colours; an editor that converts it to RGBA is fine too.
+3. **Import.** `npm run recipe:import -- <game> <file.png> [--frame <name>] --out <recipe file>` maps each pixel to the game's palette by exact colour and writes the recipe file. A colour outside the palette (or a partly transparent pixel) is refused, naming the pixel and its colour. Without `--out` the new text goes to stdout; nothing is written unasked. The size must match the recipe.
+4. **Cook.** `npm run atlas`, as usual.
+
+How the import keeps the file as it was: the game's own recipe file is the template. Only the characters inside its `pixels: [ ... ]` rows change; comments, `size`, spacing and the trailing newline stay, so export then import gives the same bytes. A pixel that keeps its colour keeps its character (two swatches can share a colour, for example Farm's `g` and `L`); a pixel whose colour changed gets the first swatch with that colour. Frames Farm generates in code from `templates.ts` (the farmer poses, 143 of 382) have no recipe file: they export, but cannot be imported back. All 239 Farm and 7 MateQuest recipe files round-trip (`tools/recipe-import/src/import.test.ts`).
+
+Code: `tools/recipe-export` (the PNG writer and the game lookup) and `tools/recipe-import` (`png.ts` reads a PNG; each input format has its own reader, where brief 13 adds `grid.txt`). `npm run` from the repo root, because npm runs a workspace script from its own folder; the tools read `INIT_CWD` so relative paths mean the folder you typed the command in.

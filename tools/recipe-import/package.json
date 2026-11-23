@@ -1,0 +1,23 @@
+{
+  "name": "@tool/recipe-import",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "scripts": {
+    "start": "tsx src/cli.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@tool/atlas-builder": "0.0.0",
+    "@tool/recipe-export": "0.0.0",
+    "pngjs": "7.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "25.9.1",
+    "@types/pngjs": "6.0.5",
+    "tsx": "4.22.3",
+    "vitest": "4.1.12"
+  }
+}
