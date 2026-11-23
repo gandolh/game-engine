@@ -495,6 +495,29 @@ describe("WebGl2Renderer sprite order", () => {
   });
 });
 
+describe("WebGl2Renderer ghost check choice", () => {
+  const frame = (occluders: number, crowd: number): WebGl2Renderer => {
+    const r = makeRenderer();
+    r.beginFrame();
+    for (let i = 0; i < occluders; i += 1) {
+      r.push(makeSprite({ x: (i % 20) * 12 - 120, y: Math.floor(i / 20) * 12 - 100, occludable: true }));
+    }
+    for (let i = 0; i < crowd; i += 1) {
+      r.push(makeSprite({ x: (i % 30) * 9 - 130, y: Math.floor(i / 30) * 9 - 100, layer: 1 }));
+    }
+    r.endFrame();
+    return r;
+  };
+
+  it("scans plainly when the scan has little work, as in Farm's scene", () => {
+    expect(frame(6, 40).ghostUsesGrid).toBe(false);
+  });
+
+  it("uses the grid when hundreds of occluders sit ahead of a crowd", () => {
+    expect(frame(150, 450).ghostUsesGrid).toBe(true);
+  });
+});
+
 describe("WebGl2Renderer draw-group profiling seam (sweep-05)", () => {
   it("leaves lastDrawStats at its zeroed default when profileUi is off", () => {
     const r = makeRenderer();

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Sprite } from "../sprite-types";
-import { GhostGrid, ghostCoveredLinear } from "./ghost-grid";
+import { GHOST_GRID_MIN_WORK, GhostGrid, ghostCoveredLinear, ghostLinearWork } from "./ghost-grid";
 
 const UI_LAYER = 80;
 
@@ -129,6 +129,12 @@ describe("GhostGrid matches the plain ghost check", () => {
     }
   });
 
+  it("estimates the plain scan's work as the sum of the sprites after each candidate", () => {
+    expect(ghostLinearWork(10, [0, 4, 9], 3)).toBe(9 + 5 + 0);
+    expect(ghostLinearWork(10, [0, 4, 9], 2)).toBe(14);
+    expect(ghostLinearWork(0, [], 0)).toBe(0);
+  });
+
   it("is at least 5 times faster on a crowd behind walls (hundreds of occluders, thousands of sprites)", () => {
     const rnd = lcg(99);
     const queue: Sprite[] = [];
@@ -141,6 +147,7 @@ describe("GhostGrid matches the plain ghost check", () => {
     }
     const cand = candidatesOf(queue);
     const grid = new GhostGrid();
+    expect(ghostLinearWork(queue.length, cand, cand.length)).toBeGreaterThan(GHOST_GRID_MIN_WORK);
 
     const runLinear = (): number => {
       let n = 0;

@@ -4345,7 +4345,7 @@ and the [todo](todos/2026-11-21-light-overlay-full-canvas-upload.md)'s status li
 ## [2026-11-23] done | Brief 17: the ghost check on a grid
 
 [Brief](briefs/done/17-the-ghost-check-on-a-grid.md). `_ghostCovered` tests a ghost candidate against the sprites
-in the cells its rectangle touches (`GhostGrid`, `engine/core/src/render/webgl2/ghost-grid.ts`) instead of every
+in the cells its rectangle touches when the plain scan would take 20,000 tests or more (else it scans, as before) (`GhostGrid`, `engine/core/src/render/webgl2/ghost-grid.ts`) instead of every
 later sprite; the answers equal the old scan's on random scenes. Worst case (300 occluders, 4,000 sprites) 100.9 ms
-to 2.4 ms. `lastDrawStats.ghostMs` and Farm's `render.ghost` time the ghost pass. Updated
+to 2.4 ms. Farm's ghost pass: old scan 0.003 ms, grid only 0.78 ms, hybrid 0.007 ms. `lastDrawStats.ghostMs` and Farm's `render.ghost` time the ghost pass. Updated
 [frame-budget.md](wiki/frame-budget.md) and the [todo](todos/2026-11-20-ghost-pass-scan.md)'s status line.

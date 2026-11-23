@@ -23,6 +23,21 @@ export function ghostCoveredLinear(
   return false;
 }
 
+/**
+ * The plain scan's work, in sprite tests, below which the grid does not pay for its build. Picked from two
+ * measurements: Farm's bench scene (about 1,700 sprites, few after each occluder, scan about 0.003 ms against
+ * 0.78 ms to build the grid) and the 300 x 4,000 worst case (about 1.2 million tests, scan 101 ms, grid 2.4 ms).
+ * The build walks the whole queue about three times, so below a few thousand tests the scan is cheaper.
+ */
+export const GHOST_GRID_MIN_WORK = 20000;
+
+/** The plain scan's work for a frame: the sum over candidates of the sprites after each one. O(candidates). */
+export function ghostLinearWork(queueLen: number, candidates: readonly number[], candidateCount: number): number {
+  let work = 0;
+  for (let i = 0; i < candidateCount; i += 1) work += queueLen - 1 - (candidates[i] as number);
+  return work;
+}
+
 const MAX_CELLS_PER_AXIS = 128;
 const MIN_CELL = 4;
 

@@ -60,7 +60,7 @@ widest zoom.
 ## Outcome (2026-11-23)
 
 - **What.** `GhostGrid` (`engine/core/src/render/webgl2/ghost-grid.ts`) replaces the scan in `_ghostCovered`.
-  Once a frame, when the queue holds any occludable sprite, it buckets every sprite that can cover a ghost
+  Once a frame, when the plain scan's estimated work is at least `GHOST_GRID_MIN_WORK` (see the controller review below), it buckets every sprite that can cover a ghost
   (not occludable, below the UI layer) into a uniform grid over the view: one cell about the mean occluder's
   width, at most 128 cells along an axis, in compressed rows reused between frames. A candidate is tested only
   against the entries in the cells its rectangle touches. A binary search over each cell's ascending queue
@@ -80,3 +80,16 @@ widest zoom.
   grid build plus the checks with no ghost drawn. The before run had no timer to compare with, and the two
   runs differ in length (90 and 180 frames). Draw groups 1 in both.
 - **Checks.** `npm run check` exits 0; `bash corpus/lint.sh` passes.
+
+### Controller review
+
+The first version built the grid whenever the queue held an occludable sprite. Farm's occluders have few
+sprites after them, so the old scan was nearly free and the build was not. Ghost pass in Farm's headless
+bench (mean): old linear scan 0.003 ms (timed by the controller on 2b901117), grid only 0.78 ms (p95 3.5 ms),
+hybrid 0.007 ms (p95 0.1 ms, the timer's step; 227 frames, `draw.ghostGroups` 0). The fix: `endFrame` first
+estimates the scan's work, the sum over candidates of the sprites after each (`ghostLinearWork`, O(candidates)),
+and builds the grid only at 20,000 sprite tests or more (`GHOST_GRID_MIN_WORK`), else uses
+`ghostCoveredLinear`. The constant is a judgement from two points: Farm's scene is far below it, and the 300 x
+4,000 scene (about 1.2 million tests) is far above it, where the grid is 43 times faster. The renderer exposes
+`ghostUsesGrid` for tests, which pin the choice for a small scene and for a crowd behind 150 occluders. The
+equivalence suite compares the grid to the plain scan directly, so both paths give the same answers.

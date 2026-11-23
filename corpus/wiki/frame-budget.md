@@ -119,7 +119,7 @@ sitting comes right after 06.
 | [14](../briefs/todo/14-mathquest-combat-sprites-as-pixel-art.md) | MateQuest's combat sprites redrawn as real pixel art | 13 |
 | [15](../briefs/done/15-the-sprite-sort-under-1-ms.md) | The per-frame sprite sort under 1 ms, with today's order kept exactly. Done 2026-11-23: Farm's headless `render.sort` p95 1.9 ms to 0.6 ms. Promoted from a todo by 07's laptop reading | none |
 | [16](../briefs/done/16-the-light-overlay-drawn-on-the-gpu.md) | Farm's light pools as instanced quads, with no full-canvas upload. Done 2026-11-23: texture bytes a frame 4,096,000 to 0 | none |
-| [17](../briefs/done/17-the-ghost-check-on-a-grid.md) | The occluder ghost check on a uniform grid, same results. Done 2026-11-23: 101 ms to 2.4 ms on a worst-case scene (300 occluders, 4,000 sprites); `render.ghost` recorded in Farm | 15 |
+| [17](../briefs/done/17-the-ghost-check-on-a-grid.md) | The occluder ghost check on a uniform grid, same results. Done 2026-11-23: 101 ms to 2.4 ms on a worst-case scene (300 occluders, 4,000 sprites), grid only when the scan has 20,000 tests or more of work, so Farm keeps the scan (0.007 ms); `render.ghost` recorded in Farm | 15 |
 | [18](../briefs/todo/18-worker-snapshots-timed-and-transferred.md) | Snapshot timers in the three worker games, and typed-array transfer in the costliest | none |
 | [19](../briefs/todo/19-hollow-culls-what-the-camera-cannot-see.md) | Frustum culling of Hollow's instances | none |
 | [20](../briefs/todo/20-fewer-allocations-per-frame.md) | The top allocation sites per frame in Farm and MateQuest removed | 15, 16 |

@@ -34,7 +34,7 @@ import { OverlayLightPass } from "./overlay-light-pass";
 import type { OverlayLightView } from "./overlay-light-pass";
 import { UiQuadPass, screenSpaceView } from "./ui-quad-pass";
 import { RainField } from "../rain-field";
-import { GhostGrid } from "./ghost-grid";
+import { GhostGrid, ghostCoveredLinear, ghostLinearWork, GHOST_GRID_MIN_WORK } from "./ghost-grid";
 import { SpriteSorter } from "../sprite-sort";
 
 const CULL_MARGIN = 32;
@@ -179,6 +179,8 @@ export class WebGl2Renderer implements RendererLike {
 
   private _occludableIdx: number[] = [];
   private readonly _ghostGrid = new GhostGrid();
+  // Whether this frame's ghost checks use the grid (see `GHOST_GRID_MIN_WORK`); read by tests.
+  ghostUsesGrid = false;
 
   private _groups: DrawGroup[] = [];
   private _groupLen = 0;
@@ -577,6 +579,7 @@ export class WebGl2Renderer implements RendererLike {
   }
 
   private _ghostCovered(queueIdx: number, g: Sprite): boolean {
+    if (!this.ghostUsesGrid) return ghostCoveredLinear(this._queue, this._queueLen, queueIdx, g, GHOST_UI_LAYER);
     return this._ghostGrid.covered(queueIdx, g);
   }
 
@@ -778,7 +781,9 @@ export class WebGl2Renderer implements RendererLike {
     // below — see lastDrawStats.groups / lastDrawStats.ghostGroups.
     const mainGroupLen = this._groupLen;
     const ghostT0 = this.profileUi ? performance.now() : 0;
-    if (occludableCount > 0) {
+    // The grid pays a fixed cost to bucket the queue, so it only wins when the plain scan has a lot of work.
+    this.ghostUsesGrid = ghostLinearWork(this._queueLen, this._occludableIdx, occludableCount) >= GHOST_GRID_MIN_WORK;
+    if (this.ghostUsesGrid) {
       this._ghostGrid.build(this._queue, this._queueLen, this._occludableIdx, occludableCount, GHOST_UI_LAYER);
     }
 
