@@ -1,8 +1,20 @@
 import { describe, it, expect } from "vitest";
-import { instanceAABB, boundsOf, multiply, translation, rotationZ, scaling, box } from "@engine/core/render3d";
+import {
+  packInstances,
+  instanceAABB,
+  boundsOf,
+  multiply,
+  translation,
+  rotationZ,
+  scaling,
+  box,
+} from "@engine/core/render3d";
 import type { HollowCommunitySnapshot, HollowSnapshot } from "@hollow/sim-core/sim-bootstrap";
 import { TerritoryInstanceCache, packGroundInstance } from "./static-draws";
 import { cachedInstanceAABB } from "./agent-bounds";
+import { territoryTintColor } from "./materials";
+import { groundHeightAt } from "./terrain";
+import { TERRITORY_TINT_Z_OFFSET } from "./world-meshes";
 
 function community(id: number, territory: { gx: number; gy: number }[]): HollowCommunitySnapshot {
   return { id, members: [], territory, stockpile: {}, norms: { shareRate: 0, cooperationExpectation: 0 } };
@@ -34,6 +46,20 @@ describe("TerritoryInstanceCache", () => {
     expect(cache.builds).toBe(1);
     expect(a?.count).toBe(2);
     expect(b?.instances).toBe(a?.instances);
+  });
+
+  it("packs the same rows the per-frame code did", () => {
+    const cache = new TerritoryInstanceCache();
+    const communities = [community(3, tiles), community(1, [{ gx: 9, gy: 9 }])];
+    const expected = packInstances(
+      communities.flatMap((c) =>
+        c.territory.map((t) => ({
+          model: translation([t.gx, t.gy, groundHeightAt(t.gx, t.gy) + TERRITORY_TINT_Z_OFFSET]),
+          tint: territoryTintColor(c.id),
+        })),
+      ),
+    );
+    expect(cache.get(snapshot(communities))?.instances).toEqual(expected);
   });
 
   it("builds once across new snapshot objects with the same territory", () => {
