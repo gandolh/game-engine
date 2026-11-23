@@ -227,7 +227,7 @@ export function startHollowApp(canvas: HTMLCanvasElement, worker: Worker, opts: 
     const msg = event.data;
     const readEnd = performance.now();
     if (msg.type === "snapshot") {
-      snapshotBuffer.ingest(msg.snapshot, msg.agentPositions, readEnd);
+      snapshotBuffer.ingest(msg.snapshot, readEnd);
       const timers = frameProfile.timers;
       timers.add("snapshot.read", readEnd - readStart);
       timers.add("snapshot.apply", performance.now() - readEnd);

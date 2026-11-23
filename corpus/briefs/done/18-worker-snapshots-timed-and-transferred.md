@@ -69,7 +69,8 @@ most, and only its per-entity positions.
 
 ## Outcome (2026-11-23)
 
-Built. Acceptance is met except one bullet: the converted game's `snapshot.read` p95 did not fall.
+The timers shipped. The conversion was built, measured and dropped: it did not lower Hollow's `snapshot.read`, so
+that Acceptance bullet is **not met**, and the code that ships is the timers alone (`11026ae1`).
 
 **Timers.** `snapshot.post` (the worker's `postMessage`, sent back as `postMs` on the next snapshot message),
 `snapshot.read` (the first read of `event.data`, where Chrome deserialises) and `snapshot.apply` (the handler)
@@ -85,16 +86,15 @@ timers live there.
 | Hollow | 0.300 / 0.6 | 0.359 / 0.7 (rerun 0.344 / 0.7) | 0.022 / 0.1 | 0.032 / 0.1 (rerun 0.074 / 0.1) | 0.274 / 0.4 | 0.284 / 0.5 (rerun 0.305 / 0.5) |
 | MateQuest | 0.100 / 0.1 (1 sample) | 0.111 / 0.2 (9 samples) | 0.200 (1 sample) | 0.044 / 0.1 | 0 (1 sample) | 0.056 / 0.1 |
 
-Citadel and MateQuest were not converted, so their "after" is noise. Sizes, offline (seed 1, tick 3000, not the
+"After" is the tree with Hollow converted. Citadel and MateQuest were never converted, so their "after" columns
+are noise. The "before" columns are the numbers for the tree as shipped. Sizes, offline (seed 1, tick 3000, not the
 bench scene): Hollow 21,325 bytes of JSON and a 0.33 ms `structuredClone` (44 agents, 18,980 bytes of them the
 agents); Citadel 5,060 bytes, 0.07 ms; MateQuest 1,438 bytes, 0.04 ms.
 
-**Converted game: Hollow**, the costliest by a wide margin. Each agent's grid position (`gx`, `gy`) travels as one
-`Float32Array` in the transfer list (`worker/snapshot-wire.ts`, `packSnapshot`; a fresh array every post, so
-nothing reuses a detached buffer). The rest stays in the plain object. `SnapshotBuffer.ingest` reads the array.
-The sim's `getSnapshot()` and `HollowSnapshot` are untouched. Tests (`snapshot-wire.test.ts`) round-trip a snapshot
-through `structuredClone` with transfer, get the same positions, check the source buffer detaches and the
-interpolation gives the same result.
+**Converted, then dropped: Hollow**, the costliest by a wide margin. Commit `ee7c3502` sent each agent's grid
+position (`gx`, `gy`) as one `Float32Array` in the transfer list (`worker/snapshot-wire.ts`, a fresh array every
+post), with a round-trip test. The closeout restored Hollow's client to `11026ae1`: about 100 lines of wire code
+and widened types bought nothing measurable. `ee7c3502` stays in history if a later brief wants the seam.
 
 **Why read did not fall.** An offline clone of the stripped snapshot plus the transferred array took 0.366 ms
 against 0.355 ms for the full one. The 44 agents' 88 position numbers are a rounding error beside their
@@ -107,4 +107,5 @@ the copy ever matters; at 0.3 ms read and 0.3 ms post every 50 ms it does not to
 ## Owner steps (unchanged)
 
 Deploy `node cli.ts citadel deploy`, `node cli.ts hollow deploy` and `node cli.ts mathquest deploy` from the
-vps-deploy checkout.
+vps-deploy checkout. These deploys carry the timers only. Hollow's deploy has nothing else in it, so it can wait
+for the next Hollow change (brief 19).

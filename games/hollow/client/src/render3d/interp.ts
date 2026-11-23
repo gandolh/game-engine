@@ -13,7 +13,7 @@
  * smear" contracts, which this file inherits unchanged). What stays local:
  * Hollow's grid-space `{gx, gy}` naming (adapted to the engine's `{x, y}` at
  * the boundary below) and `SnapshotBuffer`'s bookkeeping of the full
- * `WireSnapshot` (tick, communities, resourceNodes, …) alongside the
+ * `HollowSnapshot` (tick, communities, resourceNodes, …) alongside the
  * agent-position buffer — only per-agent POSITION needs interpolating, the
  * rest reads straight off `getLatest()`. Citadel's fuller corner-smoothing/
  * jitter-buffer treatment (`entity-interp.ts`) remains a separate,
@@ -28,7 +28,7 @@
  * agent spawn/despawn and pre-first-snapshot states): zero mismatches.
  */
 import { lerpEntityPositions, SnapshotInterpBuffer, type InterpPosition } from "@engine/core/render";
-import { agentPosition, type WireSnapshot } from "../worker/snapshot-wire";
+import type { HollowSnapshot } from "@hollow/sim-core/sim-bootstrap";
 
 /** Minimal shape {@link lerpAgentPositions} needs from a snapshot agent —
  *  structural, not tied to the full `HollowAgentSnapshot` shape, so tests
@@ -64,15 +64,15 @@ export function lerpAgentPositions(
 }
 
 /**
- * Stateful (render-only) buffer that keeps the latest two `WireSnapshot`s
+ * Stateful (render-only) buffer that keeps the latest two `HollowSnapshot`s
  * the client has received from the Worker and produces a smoothly
  * interpolated agent-position map for any wall-clock render time. Call
  * `ingest` once per NEW snapshot (not per render frame); call
  * `interpolatedAgentPositions`/`alpha` once per rAF frame.
  */
 export class SnapshotBuffer {
-  private prev: WireSnapshot | null = null;
-  private latest: WireSnapshot | null = null;
+  private prev: HollowSnapshot | null = null;
+  private latest: HollowSnapshot | null = null;
 
   /**
    * audit-50: the alpha/interval bookkeeping and the per-id lerp are the engine's
@@ -81,7 +81,7 @@ export class SnapshotBuffer {
    * was meant to remove, since it ships in the published `@engine/core` tarball as maintained,
    * tested API that matches none of the shipped games.
    *
-   * What stays local is what is genuinely Hollow's: the FULL `WireSnapshot` (tick, communities,
+   * What stays local is what is genuinely Hollow's: the FULL `HollowSnapshot` (tick, communities,
    * resourceNodes, …) alongside the agent-position buffer, because only per-agent POSITION needs
    * interpolating — everything else reads straight off `getLatest()` — plus `interpolatedTick`,
    * which eases between two snapshots' TICK values and has no position analogue.
@@ -93,24 +93,17 @@ export class SnapshotBuffer {
 
   /** Feed a freshly-arrived snapshot. `nowMs` is the render clock
    *  (`performance.now()`), NEVER a sim tick. */
-  ingest(snapshot: WireSnapshot, agentPositions: Float32Array, nowMs: number): void {
+  ingest(snapshot: HollowSnapshot, nowMs: number): void {
     if (this.latest) this.prev = this.latest;
     this.latest = snapshot;
-    // Brief 18: positions come from the transferred array, in `snapshot.agents` order.
-    this.positions.ingest(
-      snapshot.agents.map((a, i) => {
-        const { gx, gy } = agentPosition(agentPositions, i);
-        return { id: a.id, x: gx, y: gy };
-      }),
-      nowMs,
-    );
+    this.positions.ingest(snapshot.agents.map(toXY), nowMs);
   }
 
   /** The most recently ingested snapshot, or `null` before the first one
    *  arrives. Non-interpolated fields (tick, communities, resourceNodes'
    *  stock, etc.) read straight from this — only per-agent POSITION needs
    *  smoothing (see `interpolatedAgentPositions`). */
-  getLatest(): WireSnapshot | null {
+  getLatest(): HollowSnapshot | null {
     return this.latest;
   }
 

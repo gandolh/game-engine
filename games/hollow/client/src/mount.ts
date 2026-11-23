@@ -62,7 +62,7 @@
  * `worker/sim-worker.ts`'s header).
  */
 import hollowCss from "./style.css?inline";
-import type { WireSnapshot } from "./worker/snapshot-wire";
+import type { HollowSnapshot } from "@hollow/sim-core/sim-bootstrap";
 import type { LineageEntry } from "@hollow/sim-core/lineage";
 import type { PersonaSeed } from "@hollow/sim-core/persona";
 import type { Intervention } from "@hollow/sim-core/protocols";
@@ -204,7 +204,7 @@ export function mountHollow(container: HTMLElement, options: MountOptions): () =
     // fed into the sim (see this file's header).
     // -------------------------------------------------------------------------
 
-    let latestSnapshot: WireSnapshot | null = null;
+    let latestSnapshot: HollowSnapshot | null = null;
     let selectedAgentId: number | null = null;
     let followingAgentId: number | null = null;
     let currentDetail: InspectDetail | null = null;

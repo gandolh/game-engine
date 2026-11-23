@@ -17,7 +17,7 @@
  *    second wing past 5) scale with household member count.
  */
 import { box, gable, quad, merge, translate, type Mesh } from "@engine/core/render3d";
-import type { WireSnapshot } from "../worker/snapshot-wire";
+import type { HollowSnapshot } from "@hollow/sim-core/sim-bootstrap";
 import { GRID_SIZE } from "@hollow/sim-core/world";
 
 /** A stable ground-plane position for one household. */
@@ -42,7 +42,7 @@ function hashId(id: number): number {
 /** Per-household member-count tally, derived by grouping `snapshot.agents`
  *  by `householdId` — exposed standalone since 09b (or a HUD) may also want
  *  household sizes without recomputing layout. */
-export function householdMemberCounts(snapshot: WireSnapshot): Map<number, number> {
+export function householdMemberCounts(snapshot: HollowSnapshot): Map<number, number> {
   const counts = new Map<number, number>();
   for (const agent of snapshot.agents) {
     if (agent.householdId == null) continue;
@@ -54,7 +54,7 @@ export function householdMemberCounts(snapshot: WireSnapshot): Map<number, numbe
 /** A stable ground position per household id present in `snapshot`. Pure —
  *  calling this twice on two snapshots with identical `agents`/`communities`
  *  content (even different object instances) yields identical positions. */
-export function householdLayout(snapshot: WireSnapshot): Map<number, HouseholdPosition> {
+export function householdLayout(snapshot: HollowSnapshot): Map<number, HouseholdPosition> {
   // Community territory centroids — a household's default "neighborhood".
   const centroids = new Map<number, HouseholdPosition>();
   for (const c of snapshot.communities) {
