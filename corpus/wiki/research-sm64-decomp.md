@@ -31,9 +31,8 @@ machinery that procedurally generated, deterministic sims don't need.
   comment in `update_objects` (`src/game/object_list_processor.c@9921382`) warns that platform
   displacement can hit a different object that took a freed slot. Our ids never repeat. The render-side
   pools that need a cap already have one (particles 512, rain 900).
-  One gap, not briefed: an explicit `id` passed to `spawn` doesn't advance `nextId`, so a later automatic id
-  could repeat it (no game spawns with an explicit id as of 2026-11-23). There is no id lookup either; Farm's
-  `findById` scans and copies a query on each call. A `world.get(id)` map would fix both.
+  The gap this left is fixed (brief 28, 2026-11-24): an explicit `id` now moves `nextId` past it, a second
+  object with a live entity's id throws, and `world.get(id)` is a map lookup that Farm's `findById` uses.
 - **Fixed processing order.** One table fixes the order of the object lists, and within a list objects run
   in insertion order (`sObjectListUpdateOrder`, `update_objects`). Our
   [scheduler](../../engine/core/src/sim/scheduler.ts) runs systems in registration order inside named

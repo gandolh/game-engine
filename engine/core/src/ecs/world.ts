@@ -100,6 +100,7 @@ export class Query<E extends object, K extends keyof E = keyof E> implements Ite
 
 export class World<E extends EngineEntity = EngineEntity> {
   private readonly all = new Set<E>();
+  private readonly byId = new Map<number, E>();
   private readonly queries = new Map<string, Query<E, keyof E>>();
   private nextId = 1;
 
@@ -107,14 +108,24 @@ export class World<E extends EngineEntity = EngineEntity> {
     const withId = entity as E & { id: number };
     if (withId.id === undefined) withId.id = this.nextId++;
     if (this.all.has(withId)) return withId;
+    const holder = this.byId.get(withId.id);
+    if (holder !== undefined) throw new Error(`World.spawn: id ${withId.id} is already held by a live entity`);
+    if (withId.id >= this.nextId) this.nextId = withId.id + 1;
     this.all.add(withId);
+    this.byId.set(withId.id, withId);
     for (const q of this.queries.values()) q.evaluate(withId);
     return withId;
   }
 
   despawn(entity: E): void {
     if (!this.all.delete(entity)) return;
+    if (entity.id !== undefined && this.byId.get(entity.id) === entity) this.byId.delete(entity.id);
     for (const q of this.queries.values()) q.drop(entity);
+  }
+
+  /** The live entity with this id, or undefined if none is spawned. */
+  get(id: number): E | undefined {
+    return this.byId.get(id);
   }
 
   query<K extends keyof E>(...components: K[]): Query<E, K> {

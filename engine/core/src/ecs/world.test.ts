@@ -19,12 +19,49 @@ describe("World", () => {
       expect(e.id).toBe(999);
     });
 
-    it("does not auto-increment nextId when explicit id is provided", () => {
+    it("moves nextId past an explicit id", () => {
       const world = new World();
-      world.spawn({ id: 100 });
-      const auto = world.spawn({});
+      world.spawn({ id: 999 });
+      expect(world.spawn({}).id).toBe(1000);
+    });
 
-      expect(auto.id).toBe(1);
+    it("keeps nextId when an explicit id is below it", () => {
+      const world = new World();
+      world.spawn({});
+      world.spawn({});
+      world.spawn({ id: 1 + 100 });
+      expect(world.spawn({}).id).toBe(102);
+    });
+
+    it("throws, naming the id, when another object takes a live entity's id", () => {
+      const world = new World();
+      world.spawn({ id: 7 });
+      expect(() => world.spawn({ id: 7 })).toThrow(/\b7\b/);
+    });
+
+    it("allows the id again after the holder despawns", () => {
+      const world = new World();
+      const a = world.spawn({ id: 7 });
+      world.despawn(a);
+      expect(world.spawn({ id: 7 }).id).toBe(7);
+    });
+
+    it("treats spawning the same object again as a no-op", () => {
+      const world = new World();
+      const a = world.spawn({ id: 7 });
+      expect(() => world.spawn(a)).not.toThrow();
+      expect(world.get(7)).toBe(a);
+    });
+  });
+
+  describe("get", () => {
+    it("finds a spawned entity and not a despawned one", () => {
+      const world = new World();
+      const a = world.spawn({});
+      expect(world.get(a.id as number)).toBe(a);
+      expect(world.get(12345)).toBeUndefined();
+      world.despawn(a);
+      expect(world.get(a.id as number)).toBeUndefined();
     });
   });
 

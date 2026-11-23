@@ -11,8 +11,8 @@ export function findById(
   id: number,
   ...components: (keyof GameEntity)[]
 ): GameEntity | undefined {
-  for (const e of world.query(...components)) {
-    if (e.id === id) return e;
-  }
-  return undefined;
+  const e = world.get(id);
+  if (e === undefined) return undefined;
+  for (const c of components) if (e[c] === undefined) return undefined;
+  return e;
 }
