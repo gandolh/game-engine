@@ -126,8 +126,11 @@ export function separateCircles(
   // count or world scale.
   const cellSize = Math.max(maxRadius * 2, 1e-6);
 
+  // One hash for every pass: reset keeps its bucket arrays, and one array takes each neighbour query.
+  const hash = new SpatialHash(cellSize);
+  const neighborIds: number[] = [];
   for (let iter = 0; iter < iterations; iter++) {
-    const hash = new SpatialHash(cellSize);
+    if (iter > 0) hash.reset();
     for (const b of sorted) {
       const p = pos.get(b.id);
       if (p) hash.insert(b.id, p.x, p.y);
@@ -137,7 +140,7 @@ export function separateCircles(
       const ap = pos.get(a.id);
       const ar = radiusById.get(a.id);
       if (!ap || ar === undefined) continue;
-      const neighborIds = hash.queryRadius(ap.x, ap.y, ar + maxRadius);
+      hash.queryRadiusInto(ap.x, ap.y, ar + maxRadius, neighborIds);
       for (const bId of neighborIds) {
         if (bId <= a.id) continue; // each unordered pair resolved once, lower id first
         const bp = pos.get(bId);

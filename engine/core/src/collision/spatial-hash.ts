@@ -28,10 +28,6 @@ function cellKey(cx: number, cy: number): number {
 export class SpatialHash {
   private readonly cellSize: number;
   private readonly buckets = new Map<number, number[]>();
-  /** id -> (x, y) at insertion time, kept so `clear()` can reset cheaply and
-   *  so future incremental-update APIs (not needed yet) have a source of
-   *  truth. */
-  private readonly positions = new Map<number, { x: number; y: number }>();
 
   constructor(cellSize: number) {
     if (!(cellSize > 0)) {
@@ -49,21 +45,24 @@ export class SpatialHash {
    *  and re-insert all bodies for a fresh query pass each tick/frame
    *  (the expected usage: rebuild from current positions, don't mutate). */
   insert(id: number, x: number, y: number): void {
-    const [cx, cy] = this.cellOf(x, y);
-    const key = cellKey(cx, cy);
+    const key = cellKey(Math.floor(x / this.cellSize), Math.floor(y / this.cellSize));
     let bucket = this.buckets.get(key);
     if (!bucket) {
       bucket = [];
       this.buckets.set(key, bucket);
     }
     bucket.push(id);
-    this.positions.set(id, { x, y });
   }
 
   /** Drop all inserted bodies. */
   clear(): void {
     this.buckets.clear();
-    this.positions.clear();
+  }
+
+  /** Drop all inserted bodies but keep the bucket arrays (emptied) for the next pass, so a hash rebuilt every
+   *  iteration or frame allocates no buckets once its cells have been seen. Queries behave as after `clear()`. */
+  reset(): void {
+    for (const bucket of this.buckets.values()) bucket.length = 0;
   }
 
   /**
@@ -89,4 +88,37 @@ export class SpatialHash {
     }
     return Array.from(found).sort((a, b) => a - b);
   }
+
+  /**
+   * `queryRadius` into a caller-owned array: `out` is emptied, filled with the same ids in the same ascending
+   * order, and returned. Allocates nothing once `out` has grown. An id inserted more than once appears once,
+   * as in `queryRadius`.
+   */
+  queryRadiusInto(x: number, y: number, r: number, out: number[]): number[] {
+    out.length = 0;
+    const size = this.cellSize;
+    const cxMin = Math.floor((x - r) / size);
+    const cyMin = Math.floor((y - r) / size);
+    const cxMax = Math.floor((x + r) / size);
+    const cyMax = Math.floor((y + r) / size);
+    for (let cx = cxMin; cx <= cxMax; cx++) {
+      for (let cy = cyMin; cy <= cyMax; cy++) {
+        const bucket = this.buckets.get(cellKey(cx, cy));
+        if (!bucket) continue;
+        for (let i = 0; i < bucket.length; i++) out.push(bucket[i] as number);
+      }
+    }
+    out.sort(ascending);
+    let w = 0;
+    for (let i = 0; i < out.length; i++) {
+      const id = out[i] as number;
+      if (i === 0 || id !== out[w - 1]) out[w++] = id;
+    }
+    out.length = w;
+    return out;
+  }
+}
+
+function ascending(a: number, b: number): number {
+  return a - b;
 }

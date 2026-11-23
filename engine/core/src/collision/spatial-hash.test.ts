@@ -43,4 +43,25 @@ describe("SpatialHash", () => {
     expect(() => new SpatialHash(0)).toThrow();
     expect(() => new SpatialHash(-1)).toThrow();
   });
+
+  it("reset() empties the hash and keeps it usable", () => {
+    const hash = new SpatialHash(1);
+    hash.insert(1, 0, 0);
+    hash.reset();
+    expect(hash.queryRadius(0, 0, 5)).toEqual([]);
+    hash.insert(2, 0.2, 0.2);
+    expect(hash.queryRadius(0, 0, 5)).toEqual([2]);
+  });
+
+  it("queryRadiusInto returns what queryRadius does and reuses the array", () => {
+    const hash = new SpatialHash(1);
+    hash.insert(5, 0, 0);
+    hash.insert(1, 0.1, 0.1);
+    hash.insert(3, -2.5, 0.1);
+    hash.insert(9, 40, 40);
+    const out: number[] = [99, 98];
+    expect(hash.queryRadiusInto(0, 0, 3, out)).toBe(out);
+    expect(out).toEqual(hash.queryRadius(0, 0, 3));
+    expect(out).toEqual([1, 3, 5]);
+  });
 });

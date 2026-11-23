@@ -21,13 +21,11 @@ import {
   SceneRenderer3D,
   OrbitCamera,
   packInstances,
-  instanceAABB,
   transformPoint,
   materialIndexMap,
   multiply,
   translation,
   scaling,
-  identity,
   rayFromScreen,
   pickNearest,
   type Mat4,
@@ -44,7 +42,7 @@ import { HOLLOW_PAL } from "../render/hollow-palette";
 import { GRID_SIZE } from "@hollow/sim-core/world";
 import { SnapshotBuffer } from "./interp";
 import { groundHeightAt } from "./terrain";
-import { buildGroundMesh, buildTerritoryTileMesh, TERRITORY_TINT_Z_OFFSET } from "./world-meshes";
+import { buildGroundMesh, buildTerritoryTileMesh } from "./world-meshes";
 import { householdLayout, householdMemberCounts, homeMeshFor, MAX_HOME_FOOTPRINT } from "./household-layout";
 import { HomeRegistry, HOME_MARGIN } from "./home-placement";
 import { baseNodeMeshFor, fullnessScale, resourceNodeFullness } from "./node-mesh";
@@ -54,7 +52,7 @@ import { buildCorpseMesh, corpseTint } from "./corpse-mesh";
 import { sicklyTint } from "./disease-tint";
 import { dayNightFromPhase, simDayPhaseWash } from "./day-night";
 import { wireOrbitCameraInput, type CameraInputHandle } from "./camera-input";
-import { WORLD_MATERIAL_KEYS, buildWorldMaterialList, territoryTintColor, toFloatRgb, WHITE_TINT } from "./materials";
+import { WORLD_MATERIAL_KEYS, buildWorldMaterialList, toFloatRgb, WHITE_TINT } from "./materials";
 import {
   buildHumanoid,
   buildAgentMaterialList,
@@ -70,6 +68,8 @@ import {
 import { AgentFacingTracker, poseForAgent, walkBob, agentModelMatrix } from "./agent-anim";
 import { selectedTint } from "./selection";
 import { separatedAgentPositions } from "./agent-collision";
+import { cachedInstanceAABB } from "./agent-bounds";
+import { TerritoryInstanceCache, packGroundInstance } from "./static-draws";
 
 export interface HollowAppOptions {
   /** Must match the seed the worker was `init`ed with (only used here to
@@ -441,6 +441,10 @@ export function startHollowApp(canvas: HTMLCanvasElement, worker: Worker, opts: 
     resize();
 
     // --- render loop --------------------------------------------------------
+    // Static draws (corpus brief 24): the ground never changes, the territory only when a snapshot's does.
+    const groundDraw: DrawCall3d = { mesh: groundMesh, instances: packGroundInstance(), instanceCount: 1 };
+    const territoryCache = new TerritoryInstanceCache();
+    let territoryDraw: DrawCall3d | null = null;
     function frame(nowMs: number): void {
       if (disposed) return;
       frameProfile.beginFrame();
@@ -451,30 +455,19 @@ export function startHollowApp(canvas: HTMLCanvasElement, worker: Worker, opts: 
       if (latest) {
         const draws: DrawCall3d[] = [];
 
-        // Ground (single instance — the heightfield mesh itself IS the terrain).
-        draws.push({
-          mesh: groundMesh,
-          instances: packInstances([{ model: identity(), tint: WHITE_TINT }]),
-          instanceCount: 1,
-        });
+        // Ground (single instance — the heightfield mesh itself IS the terrain). Packed once, above.
+        draws.push(groundDraw);
 
         // Soft per-community territory tint — one tile-mesh instance per
         // {gx, gy} in every community's territory, tinted toward that
-        // community's color role (materials.ts).
-        const territoryInstances: Instance[] = [];
-        for (const community of latest.communities) {
-          const tint = territoryTintColor(community.id);
-          for (const tile of community.territory) {
-            const z = groundHeightAt(tile.gx, tile.gy) + TERRITORY_TINT_Z_OFFSET;
-            territoryInstances.push({ model: translation([tile.gx, tile.gy, z]), tint });
+        // community's color role (materials.ts). Built when the territory
+        // changes (static-draws.ts), not every frame.
+        const territory = territoryCache.get(latest);
+        if (territory) {
+          if (territoryDraw?.instances !== territory.instances) {
+            territoryDraw = { mesh: territoryTileMesh, instances: territory.instances, instanceCount: territory.count };
           }
-        }
-        if (territoryInstances.length > 0) {
-          draws.push({
-            mesh: territoryTileMesh,
-            instances: packInstances(territoryInstances),
-            instanceCount: territoryInstances.length,
-          });
+          draws.push(territoryDraw);
         }
 
         // The hearth (chunk hollow-14d) — the town's one authored central
@@ -675,7 +668,7 @@ export function startHollowApp(canvas: HTMLCanvasElement, worker: Worker, opts: 
           agentRenderState.set(agent.id, {
             headWorld: transformPoint(model, HEAD_TOP_LOCAL),
             model,
-            bounds: instanceAABB(variant.mesh, model),
+            bounds: cachedInstanceAABB(variant.mesh, model),
           });
         }
         facingTracker.prune(aliveAgentIds);

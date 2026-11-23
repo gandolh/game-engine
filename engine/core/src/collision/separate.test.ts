@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { SpatialHash } from "./spatial-hash";
 import { circlesOverlap, aabbOverlap, separateCircles, type SeparateBody } from "./separate";
 
 describe("circlesOverlap", () => {
@@ -123,6 +124,81 @@ describe("separateCircles", () => {
         // the original heavily-overlapping configuration.
         expect(dist).toBeGreaterThan(1.0);
       }
+    }
+  });
+});
+
+/** The solver as it was before brief 24: a new hash on every pass and `queryRadius` for the neighbours. */
+function referenceSeparate(bodies: readonly SeparateBody[], iterations = 4): Map<number, { x: number; y: number }> {
+  const sorted = [...bodies].sort((a, b) => a.id - b.id);
+  const pos = new Map<number, { x: number; y: number }>();
+  const radiusById = new Map<number, number>();
+  let maxRadius = 0;
+  for (const b of sorted) {
+    pos.set(b.id, { x: b.x, y: b.y });
+    radiusById.set(b.id, b.radius);
+    if (b.radius > maxRadius) maxRadius = b.radius;
+  }
+  if (sorted.length < 2) return pos;
+  const cellSize = Math.max(maxRadius * 2, 1e-6);
+  for (let iter = 0; iter < iterations; iter++) {
+    const hash = new SpatialHash(cellSize);
+    for (const b of sorted) {
+      const p = pos.get(b.id) as { x: number; y: number };
+      hash.insert(b.id, p.x, p.y);
+    }
+    for (const a of sorted) {
+      const ap = pos.get(a.id) as { x: number; y: number };
+      const ar = radiusById.get(a.id) as number;
+      for (const bId of hash.queryRadius(ap.x, ap.y, ar + maxRadius)) {
+        if (bId <= a.id) continue;
+        const bp = pos.get(bId) as { x: number; y: number };
+        const br = radiusById.get(bId) as number;
+        const desired = ar + br;
+        const dx = bp.x - ap.x;
+        const dy = bp.y - ap.y;
+        const distSq = dx * dx + dy * dy;
+        if (distSq >= desired * desired) continue;
+        const dist = Math.sqrt(distSq);
+        let nx: number;
+        let ny: number;
+        if (dist < 1e-9) {
+          const angle = (a.id * (Math.PI * (3 - Math.sqrt(5)))) % (Math.PI * 2);
+          nx = Math.cos(angle);
+          ny = Math.sin(angle);
+        } else {
+          nx = dx / dist;
+          ny = dy / dist;
+        }
+        const push = (desired - dist) / 2;
+        ap.x -= nx * push;
+        ap.y -= ny * push;
+        bp.x += nx * push;
+        bp.y += ny * push;
+      }
+    }
+  }
+  return pos;
+}
+
+describe("separateCircles against the pre-brief-24 solver", () => {
+  it("gives identical positions on seeded crowds, including coincident bodies and negative coordinates", () => {
+    for (const seed of [1, 7, 42]) {
+      let state = seed;
+      const rnd = (): number => {
+        state = (state * 1664525 + 1013904223) >>> 0;
+        return state / 2 ** 32;
+      };
+      const bodies: SeparateBody[] = [];
+      for (let i = 0; i < 120; i++) {
+        // A tight 12x12 area with a few exact duplicates and some negative coordinates.
+        const x = i % 15 === 0 && i > 0 ? (bodies[i - 1] as SeparateBody).x : Math.floor(rnd() * 24) / 2 - 3;
+        const y = i % 15 === 0 && i > 0 ? (bodies[i - 1] as SeparateBody).y : Math.floor(rnd() * 24) / 2 - 3;
+        bodies.push({ id: 1000 - i * 3, x, y, radius: 0.5 });
+      }
+      const fresh = separateCircles(bodies);
+      const reference = referenceSeparate(bodies);
+      expect([...fresh.entries()]).toEqual([...reference.entries()]);
     }
   });
 });

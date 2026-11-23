@@ -27,15 +27,34 @@ export const AGENT_COLLISION_RADIUS = 0.5;
  * `radius`, and return the adjusted positions keyed by agent id. Agents not
  * overlapping anyone are left ~unchanged (see `separateCircles`'s doc).
  */
+interface ScratchBody {
+  id: number;
+  x: number;
+  y: number;
+  radius: number;
+}
+
+/** Body objects reused from frame to frame (`separateCircles` copies the list before sorting, never keeps it). */
+const bodyScratch: ScratchBody[] = [];
+
 export function separatedAgentPositions(
   agentPositions: ReadonlyMap<number, InterpPos>,
   radius: number = AGENT_COLLISION_RADIUS,
 ): Map<number, InterpPos> {
-  const bodies = Array.from(agentPositions, ([id, pos]) => ({
-    id,
-    x: pos.x,
-    y: pos.y,
-    radius,
-  }));
-  return separateCircles(bodies);
+  let n = 0;
+  for (const [id, pos] of agentPositions) {
+    let body = bodyScratch[n];
+    if (body) {
+      body.id = id;
+      body.x = pos.x;
+      body.y = pos.y;
+      body.radius = radius;
+    } else {
+      body = { id, x: pos.x, y: pos.y, radius };
+      bodyScratch.push(body);
+    }
+    n++;
+  }
+  bodyScratch.length = n;
+  return separateCircles(bodyScratch);
 }
