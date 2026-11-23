@@ -59,6 +59,9 @@ Farm sorts 2,089 sprites a frame on average and 4,638 at p95, at the widest zoom
 
 The light overlay uploads 7,257,600 bytes every frame, the whole 1920×945 canvas. On the main thread it
 costs 0.16 ms. The upload's cost on the GPU side was not measured: that needs a run with the overlay off.
+Brief 16 (2026-11-23) removed the upload: the pools are instanced quads now, and Farm's headless bench
+reads 0 texture bytes a frame, down from 4,096,000 at 1280×800. The laptop's GPU time before and after
+is still an owner step.
 
 ### Hollow in the portal
 

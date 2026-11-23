@@ -50,11 +50,11 @@ The headless gate a brief's Acceptance can check: `npm run bench` at 1280×800 o
 the mean per frame. Each ceiling is the value measured on main on 2026-11-23 plus 20%, rounded
 ([verify/2026-11-23-real-gpu-baseline/headless-1280x800/](../verify/2026-11-23-real-gpu-baseline/headless-1280x800/)).
 Texture bytes and UI quads change with the viewport, so the ceilings hold at 1280×800 only. Farm's
-light overlay, for one, uploads 4.10 MB a frame there and 7.26 MB at 1920×945.
+light overlay uploaded 4.10 MB a frame there and 7.26 MB at 1920×945 until brief 16 drew it on the GPU.
 
 | Scene | Draw groups | UI quads | Texture MB uploaded a frame | Measured |
 |---|---:|---:|---:|---|
-| Farm | 1 | 2,200 | 4.9 | 1 group, 1,819 quads, 4.10 MB |
+| Farm | 1 | 2,200 | 4.9 | 1 group, 1,819 quads, 4.10 MB (0 MB since brief 16; the ceiling keeps its slack) |
 | Citadel | 1 | 910 | 0 | 1 group, 760 quads, 0 MB |
 | Hollow | n/a (3D) | n/a | 0 | 0 MB; its 35.6 GL draw calls get a ceiling of 43 instead |
 | MateQuest | 0 | 5,900 (soft) | 0 | 0 groups, 4,890 quads, 0 MB |
@@ -118,7 +118,7 @@ sitting comes right after 06.
 | [13](../briefs/todo/13-the-sprite-gen-pixel-draw-trial.md) | A blind trial of `pixel-draw` against an agent writing recipes | 11, 12 and the owner |
 | [14](../briefs/todo/14-mathquest-combat-sprites-as-pixel-art.md) | MateQuest's combat sprites redrawn as real pixel art | 13 |
 | [15](../briefs/done/15-the-sprite-sort-under-1-ms.md) | The per-frame sprite sort under 1 ms, with today's order kept exactly. Done 2026-11-23: Farm's headless `render.sort` p95 1.9 ms to 0.6 ms. Promoted from a todo by 07's laptop reading | none |
-| [16](../briefs/todo/16-the-light-overlay-drawn-on-the-gpu.md) | Farm's light pools as instanced quads, with no full-canvas upload | none |
+| [16](../briefs/done/16-the-light-overlay-drawn-on-the-gpu.md) | Farm's light pools as instanced quads, with no full-canvas upload. Done 2026-11-23: texture bytes a frame 4,096,000 to 0 | none |
 | [17](../briefs/todo/17-the-ghost-check-on-a-grid.md) | The occluder ghost check on a uniform grid, same results | 15 |
 | [18](../briefs/todo/18-worker-snapshots-timed-and-transferred.md) | Snapshot timers in the three worker games, and typed-array transfer in the costliest | none |
 | [19](../briefs/todo/19-hollow-culls-what-the-camera-cannot-see.md) | Frustum culling of Hollow's instances | none |
@@ -145,7 +145,7 @@ real-GPU readings: the laptop's of 2026-11-23 is the third column
 | [Allocation-free frames](../todos/2026-11-20-allocation-free-frames.md) | Long frames line up with garbage-collection drops in the heap reading | Not fired. At most 2 frames a run over 33.3 ms in any game; collection costs Farm 0.10 ms a frame. Phone not measured | [20](../briefs/todo/20-fewer-allocations-per-frame.md) |
 | [Animation tags in the manifest](../todos/2026-11-20-animation-tags-in-the-manifest.md) | The first animated MateQuest sprite, or the next new Farm animation | Not a measurement | [22](../briefs/todo/22-animations-declared-with-the-recipes.md) |
 | [Recipe and PNG round trip](../todos/2026-11-20-recipe-and-png-round-trip.md) | Someone wants to edit art in a pixel editor such as Aseprite | Not a measurement | [23](../briefs/todo/23-recipes-to-png-and-back.md) |
-| [Light overlay as a full-canvas upload](../todos/2026-11-21-light-overlay-full-canvas-upload.md) | Farm's light overlay (its canvas paint plus the upload) takes more than 1 ms at p95, or the GPU time drops by more than 1 ms with it off. Measured on SwiftShader by brief 05: 4,096,000 bytes uploaded every frame at 1280×800 | Not fired on the CPU: 0.16 ms a frame on average, upload call included, for 7,257,600 bytes a frame at 1920×945. The GPU half needs a run with the overlay off. Phone not measured | [16](../briefs/todo/16-the-light-overlay-drawn-on-the-gpu.md) |
+| [Light overlay as a full-canvas upload](../todos/2026-11-21-light-overlay-full-canvas-upload.md) | Farm's light overlay (its canvas paint plus the upload) takes more than 1 ms at p95, or the GPU time drops by more than 1 ms with it off. Measured on SwiftShader by brief 05: 4,096,000 bytes uploaded every frame at 1280×800 | Not fired on the CPU: 0.16 ms a frame on average, upload call included, for 7,257,600 bytes a frame at 1920×945. The GPU half needs a run with the overlay off. Phone not measured | [16](../briefs/done/16-the-light-overlay-drawn-on-the-gpu.md) |
 
 ## Checked and dropped
 

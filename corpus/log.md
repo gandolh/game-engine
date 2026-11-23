@@ -4333,3 +4333,11 @@ in `push`, a stable float32 byte radix sort, an exact insertion fixup. The order
 `compareSprite` sort, ties included, pinned by tests. Farm's headless `render.sort` p95 went from 1.9 ms to
 0.6 ms (mean 0.67 to 0.17). Draw groups, UI quads and texture bytes are unchanged. The laptop reading is an
 owner step.
+
+## [2026-11-23] done | Brief 16: the light overlay drawn on the GPU
+
+[Brief](briefs/done/16-the-light-overlay-drawn-on-the-gpu.md), evidence in
+[verify/2026-11-23-light-overlay/](verify/2026-11-23-light-overlay/). Farm's night light pools are instanced
+quads with a shader falloff; `OverlayFn` became `LightOverlay`. Headless texture bytes a frame at 1280x800:
+4,096,000 to 0. Updated [frame-budget.md](wiki/frame-budget.md), [real-gpu-readings.md](wiki/real-gpu-readings.md)
+and the [todo](todos/2026-11-21-light-overlay-full-canvas-upload.md)'s status line.
