@@ -1,0 +1,9 @@
+profiled-hollow.json: 26.2 s at 116 fps; main thread busy 3.56 ms per frame
+  top-level tasks (ms per frame): frame render3d/app.ts:433 1.30 | (program) 1.01 |  src/mount.ts:362 0.60 | overlayFrame src/mount.ts:511 0.53 | (garbage collector) 0.06 | w render3d/app.ts:222 0.04 | e debug/frame-profile.ts:323 0.01 | s src/bench.ts:67 0.00
+  message-related (inclusive ms per frame): ingestEvents src/research-store.ts:91 0.598 | appendBatch src/chronicle-panel.ts:175 0.595 |  src/chronicle-panel.ts:183 0.595 | bufferSubData 0.065 | appendEvent src/chronicle-panel.ts:156 0.011 | interpolatedPositions render/snapshot-interp.ts:156 0.005 | trimToCap src/chronicle-panel.ts:142 0.004 | lerpEntityPositions render/snapshot-interp.ts:73 0.004
+profiled-mathquest.json: 26.3 s at 119 fps; main thread busy 2.02 ms per frame
+  top-level tasks (ms per frame): frame src/main.ts:618 1.22 | (program) 0.71 | (garbage collector) 0.07 | s src/bench.ts:74 0.01 |  src/main.ts:218 0.00 | e debug/frame-profile.ts:323 0.00 | (anon) 0.00 | clear ui/map-mirror.ts:169 0.00
+  message-related (inclusive ms per frame): bufferSubData 0.051 | postMessage 0.000
+profiled-hollow-phone-emulated.json: 26.5 s at 64 fps; main thread busy 15.23 ms per frame
+  top-level tasks (ms per frame): frame render3d/app.ts:433 5.66 | (program) 5.10 | overlayFrame src/mount.ts:511 2.57 |  src/mount.ts:362 1.25 | w render3d/app.ts:222 0.43 | (garbage collector) 0.12 | e debug/frame-profile.ts:323 0.04 | s src/bench.ts:67 0.03
+  message-related (inclusive ms per frame): ingestEvents src/research-store.ts:91 1.240 |  src/chronicle-panel.ts:183 1.218 | appendBatch src/chronicle-panel.ts:175 1.218 | bufferSubData 0.256 | appendEvent src/chronicle-panel.ts:156 0.090 | interpolatedPositions render/snapshot-interp.ts:156 0.032 | lerpEntityPositions render/snapshot-interp.ts:73 0.029 | trimToCap src/chronicle-panel.ts:142 0.027

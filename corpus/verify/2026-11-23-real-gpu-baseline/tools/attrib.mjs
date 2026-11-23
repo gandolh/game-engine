@@ -2,7 +2,8 @@ import { readFileSync, existsSync } from "node:fs";
 import { createRequire } from "node:module";
 const require = createRequire(process.cwd() + "/package.json");
 const { TraceMap, originalPositionFor } = require("@jridgewell/trace-mapping");
-const [profPath, fps] = [process.argv[2], Number(process.argv[3])];
+// argv: <file.cpuprofile> <fps> [<game client dist folder>, default Farm's]
+const [profPath, fps, dist] = [process.argv[2], Number(process.argv[3]), process.argv[4] ?? "games/farm/client/dist"];
 const prof = JSON.parse(readFileSync(profPath, "utf8"));
 const byId = new Map(prof.nodes.map((n) => [n.id, n]));
 const parent = new Map();
@@ -16,7 +17,7 @@ const maps = new Map();
 function nameOf(cf) {
   const m = cf.url.match(/\/assets\/([^/?]+\.js)$/);
   if (!m) return `${cf.functionName || "(anon)"} [${cf.url ? "ext" : "native"}]`;
-  const mp = `games/farm/client/dist/assets/${m[1]}.map`;
+  const mp = `${dist}/assets/${m[1]}.map`;
   if (!maps.has(mp)) maps.set(mp, existsSync(mp) ? new TraceMap(readFileSync(mp, "utf8")) : null);
   const tm = maps.get(mp);
   if (!tm) return `${cf.functionName} [${m[1]}]`;

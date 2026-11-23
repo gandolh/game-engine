@@ -86,15 +86,34 @@ Done from "What to do":
 2. The budgets per scene, on [frame-budget.md](../../wiki/frame-budget.md), from a headless run of main
    at 1280×800.
 3. Every todo row has the laptop's value. The sprite sort fired and is
-   [brief 15](15-the-sprite-sort-under-1-ms.md); the others stay open.
+   [brief 15](../todo/15-the-sprite-sort-under-1-ms.md); the others stay open.
 4. The Hollow framed check is closed in [portal.md](../../wiki/portal.md) and
    [status.md](../../wiki/status.md): no gap.
 
-Left for the phone half:
+The phone half was dropped. On 2026-11-23 the owner decided the phone is estimated from the laptop,
+not measured ([decisions.md](../../wiki/decisions.md) → Frame budget).
 
-- The owner deploys MateQuest (`node cli.ts mathquest deploy` from the vps-deploy checkout), the one
-  game production had behind main, then runs the four scenes in Chrome on the Android phone and saves
-  each result.
-- Their files go in the same verify folder under `phone/`. The phone rows go on
-  [real-gpu-readings.md](../../wiki/real-gpu-readings.md), and each still-open todo row gets its phone
-  value or a promotion. Then this brief is done.
+## Outcome (2026-11-23)
+
+Done on the laptop alone, by the owner's call above.
+
+- **Readings.** [real-gpu-readings.md](../../wiki/real-gpu-readings.md) records every file in
+  `corpus/verify/2026-11-23-real-gpu-baseline/`. Citadel, Hollow and MateQuest meet the bar with room to
+  spare. Farm meets it at its edge: about 13% of its frames take two 120 Hz refreshes, and it is CPU-bound
+  at 6.1–6.3 ms a frame. Every Farm run also has one 150–675 ms hitch early in the sweep, outside
+  JavaScript, not yet placed.
+- **Budgets.** Every scene has its ceilings on [frame-budget.md](../../wiki/frame-budget.md), from a
+  headless run of main at 1280×800. MateQuest's UI quad ceiling is soft, because its mean follows the
+  headless tick count.
+- **Triggers.** The sprite sort fired: `compareSprite` alone costs Farm 1.07 ms a frame. It is
+  [brief 15](../todo/15-the-sprite-sort-under-1-ms.md). Every other row has the laptop's value and stays
+  open. The worker snapshot row is measured as far as a CPU profile reaches: storing a snapshot costs about
+  0 ms, and Hollow's handler time is its chronicle's DOM append. The structured-clone copy itself still
+  needs a named timer.
+- **Hollow framed.** No gap on a real GPU, so the 2026-11-03 check is closed and Hollow keeps its frame.
+- **The phone.** An estimate replaces the reading: each game's headroom over the laptop against an assumed
+  4×. Farm misses on any phone more than about 1.5× slower than the laptop. Citadel's and Hollow's GPU
+  straddle 4×. MateQuest fits.
+- **Not done.** Citadel has no CPU-profiled run, because the laptop stopped drawing frames from about 10:55
+  (a locked screen or a sleeping display). The owner's own Hollow export was a partial profiler export,
+  not a bench result, and is not used.

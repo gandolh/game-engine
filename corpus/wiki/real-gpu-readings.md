@@ -1,5 +1,5 @@
 ---
-summary: The bench scenes read on real GPUs (brief 07): the Windows laptop's AMD iGPU on 2026-11-23, with each game's verdict against the 60 fps bar, where Farm's frame time goes, Hollow framed against direct, the heap pattern, an emulated-phone pass for leads, and what the Android phone half still needs.
+summary: The bench scenes read on real GPUs (brief 07): the Windows laptop's AMD iGPU on 2026-11-23, with each game's verdict against the 60 fps bar, where Farm's frame time goes, Hollow framed against direct, the heap, main-thread time outside the frame, an emulated-phone pass, and the phone estimate that replaces a phone reading.
 updated: 2026-11-23
 ---
 
@@ -97,12 +97,47 @@ so these numbers settle no trigger and no phone row. They only show where to loo
 
 - **Farm** drops to 20 fps on a 4× slower CPU: UI panels 12.6 ms (35.4 at p95), `render.endFrame` 16.9
   (33.9), `pushSprites` 6.6. If the phone's CPU is anything like that, Farm misses the bar on it by a wide margin.
-- **Hollow** spends 25 ms per interval at p95 while its own frame takes 4.5 ms. The rest of the main-thread
-  time is outside the frame: the worker's snapshot arriving and being applied, or the DOM chronicle. No timer
-  covers either yet.
+- **Hollow** spends 25 ms per interval at p95 while its own frame takes 4.5 ms. A CPU profile under the same
+  slowdown places the rest: of 15.2 ms of main-thread time a frame, the 3D frame takes 5.7, native work the
+  profile can't attribute 5.1, the HTML overlay 2.6 and the chronicle's DOM append 1.2. Handling the snapshot
+  itself costs next to nothing (next section).
 
-## The phone (still to do)
+## Main-thread time outside the frame
 
-The Android half of brief 07 is the owner's: run the four scenes in Chrome on the phone against
-production and save each result. Production matched main on 2026-11-23 except MateQuest, so
-`node cli.ts mathquest deploy` comes first.
+CPU-profiled laptop runs of the two worker games that would profile (`laptop/*-cpu-profiled.json`,
+`laptop/main-thread.txt`), means per frame in ms:
+
+| Game | Main thread busy | The game's frame | Worker message handler | Native, unattributed |
+|---|---:|---:|---:|---:|
+| Hollow | 3.56 | 1.30 | 0.60 | 1.01 |
+| MateQuest | 2.02 | 1.22 | about 0 | 0.71 |
+
+Hollow's handler stores the snapshot and passes the year's events to the chronicle. Storing costs about
+0 ms. The 0.60 ms is the chronicle appending rows to the DOM, plus 0.53 ms a frame in `overlayFrame`, the
+HTML overlay. The structured-clone copy of each snapshot runs in native code, inside the 1.01 ms the
+profile can't attribute along with style and layout. So the snapshot's own cost has an upper bound but no
+measurement, and a p95 needs a named timer around it.
+
+Citadel was not profiled. From about 10:55 every Windows Chrome run drew no frames at all, in every game
+tried, Farm included, which is what a locked screen or a sleeping display does. Citadel's headless bench
+still finished on main.
+
+## The phone, estimated
+
+The phone is not measured: the owner's call of 2026-11-23 ([decisions.md](decisions.md) → Frame budget)
+is to assume its performance as a proportion of the laptop's. The estimate works from the work per frame,
+not from intervals, which the 120 Hz display rounds to whole refreshes. A game's **headroom** is 16.7 ms
+divided by its laptop p95, for the CPU (the game's frame) and the GPU apart. The **assumed factor** is 4×
+for both: 4× is the CPU slowdown Chrome and Lighthouse use to stand in for a mid-tier phone, and the GPU is
+taken to be the same. A game fits that phone when both headrooms are above 4×.
+
+| Game | CPU headroom | GPU headroom | Frame CPU p95 at 4× CPU (emulated pass) | At an assumed 4× |
+|---|---:|---:|---:|---|
+| Farm | 1.4–1.6× | 4.0–4.5× | 65.7 ms | Misses on any phone more than about 1.5× slower than the laptop |
+| Citadel | 13–17× | 3.6–5.5× | 6.4 ms | The CPU fits; the GPU straddles 4×, and its laptop GPU p95 moved from 3.0 to 4.7 ms between passes |
+| Hollow | 9–11× | 3.5–3.8× | 6.8 ms | The GPU sits just under 4×; the DOM work outside the frame takes 15 ms a frame at 4× CPU |
+| MateQuest | 3.2× | 5.6–12× | 9.0 ms | Fits: its laptop p95 holds waits that don't scale with the CPU, as the emulated 9.0 ms shows |
+
+What the estimate can't see: the phone's memory and GPU memory budget (the static-layer todo's concern), its
+heat throttling, and the real factor of the owner's phone. That is why it never fires or closes a todo.
+Driving the phone's Chrome over USB debugging would replace it with a reading.

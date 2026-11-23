@@ -12,7 +12,7 @@ the light overlay with the CPU 2D canvas API onto an offscreen canvas the size o
 frame, near 500 MB a second at 60 fps, plus the CPU raster.
 
 SwiftShader can't say what it costs on a real GPU, so this waits for a number
-([brief 07](../briefs/todo/07-the-real-gpu-baseline.md)).
+([brief 07](../briefs/done/07-the-real-gpu-baseline.md)).
 
 If it is promoted, the usual answers are:
 

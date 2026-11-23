@@ -1,6 +1,6 @@
 ---
 summary: Locked tech choices that future briefs must not relitigate — stack, sim, ECS, renderer (WebGL2-only as of 2026-08-18; static-layer patches past 4096 px and the no-flip texture upload, 2026-11-03; every game on requestAnimationFrame, 2026-11-21), assets, palette, concurrency, tick-pump/speed semantics, build & verify gates (the turbo cache-key rule, the Node-importable barrel rule), WASM, and the gameplay source-of-truth.
-updated: 2026-11-21
+updated: 2026-11-23
 ---
 
 # Locked Decisions
@@ -98,6 +98,14 @@ Tech choices that are settled. Listed here so future briefs and reviews don't re
     named steps), and the real-GPU reading is an owner step. The shared `?profile` export
     (`game-engine-profile/1`, [performance-measurements.md](performance-measurements.md) → Measuring)
     carries both.
+  - **Revisited 2026-11-23: the phone is estimated, not measured.** *(The owner, 2026-11-23.)* Rather
+    than read the Android phone, its performance is assumed as a proportion of the laptop's. The laptop
+    is the one measured reference device. A phone estimate informs a decision, but it never fires or closes
+    a measure-first todo, because it rests on an assumed factor. The method and the first estimate are on
+    [real-gpu-readings.md](real-gpu-readings.md). Alternatives the owner passed over: driving the phone's
+    Chrome over USB debugging, which would measure it, and an Android emulator, which would only measure
+    the laptop again. For context: the portal marks all four games as not playable on phones
+    (`playsOnPhones: false` in `portal/src/games.ts`).
   - **Rejected: frame times read in the sandbox as the gate.** They measure the rasteriser, not the game.
 
 ## Assets

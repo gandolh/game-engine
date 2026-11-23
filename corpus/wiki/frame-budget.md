@@ -20,7 +20,7 @@ measurement, and nothing that only helps speed gets built before a number says i
 
 The laptop's reading came in on 2026-11-23 ([real-gpu-readings.md](real-gpu-readings.md)). Citadel,
 Hollow and MateQuest meet the bar with room to spare. Farm meets it at its edge, and its frame is CPU-bound.
-The phone's reading is still to come.
+The same day the owner decided the phone is estimated from the laptop, not measured (below).
 
 ## The bar
 
@@ -30,14 +30,17 @@ The phone's reading is still to come.
   1% of frames take longer than 33.3 ms. A 120 Hz display does not raise the bar. The rule stays 60 fps.
 - **The reference devices.**
   - The Windows 11 laptop with the AMD Radeon integrated GPU (Chrome, ANGLE on Direct3D 11), the
-    machine behind the 2026-06-12 and 2026-07-15 readings.
-  - The owner's Android phone, in Chrome. Android is the phone this estate tests on.
+    machine behind the 2026-06-12 and 2026-07-15 readings. It is the one measured device.
+  - The owner's Android phone, in Chrome, **estimated from the laptop since 2026-11-23** (the owner's
+    call, [decisions.md](decisions.md) → Frame budget). The estimate divides 16.7 ms by the laptop's p95
+    work per frame, CPU and GPU apart, which gives each game's headroom, and compares it with an assumed
+    phone factor of 4×. It informs; it never fires or closes a todo.
 - **What a builder can check.** Builders run in a sandbox where WebGL is SwiftShader, so their
   frame times mean nothing. A brief's Acceptance uses counters that don't depend on the GPU: draw
   groups, GL calls, texture bytes uploaded, UI quads and the CPU milliseconds of named steps. The
   real-GPU reading is an owner step.
 - **The budgets per scene** (draw groups, texture megabytes, UI quads) are below. They were set by
-  [brief 07](../briefs/todo/07-the-real-gpu-baseline.md).
+  [brief 07](../briefs/done/07-the-real-gpu-baseline.md).
 
 ## Budgets per scene
 
@@ -104,7 +107,7 @@ sitting comes right after 06.
 |---|---|---|
 | [05](../briefs/done/05-one-frame-profiler-in-every-game.md) | One frame profiler in all four games: percentiles, long frames, GPU time where the browser exposes it, one export format | none |
 | [06](../briefs/done/06-a-bench-scene-in-every-game.md) | A scripted, seeded bench scene per game and a headless runner for the counters | 05 |
-| [07](../briefs/todo/07-the-real-gpu-baseline.md) | The real-GPU readings recorded, with budgets set and todos promoted. Laptop half done 2026-11-23; the phone half waits for the owner | 06 and the owner |
+| [07](../briefs/done/07-the-real-gpu-baseline.md) | The real-GPU readings recorded, with budgets set and todos promoted. Done 2026-11-23 on the laptop; the phone is estimated, not measured | 06 and the owner |
 | [08](../briefs/done/08-farm-renders-on-request-animation-frame.md) | Farm renders on `requestAnimationFrame` | 05 |
 | [09](../briefs/done/09-the-atlas-cook-serves-every-game.md) | The atlas cook takes any game's recipe set, with Farm's output unchanged | none |
 | [10](../briefs/done/10-one-runtime-atlas-page-per-game.md) | One runtime page per game, so Farm's world sprites draw as one group, not 49 | 09 |
@@ -118,20 +121,20 @@ sitting comes right after 06.
 
 Each todo names the number that promotes it to a brief. Brief 07 checks every trigger against the
 real-GPU readings, and so does any later bench reading. The third column is the laptop's reading of
-2026-11-23 ([real-gpu-readings.md](real-gpu-readings.md)). A trigger that needs a reference device stays
-open until the phone has been read too.
+2026-11-23 ([real-gpu-readings.md](real-gpu-readings.md)). The phone is not measured (the owner's call,
+2026-11-23), so a trigger fires on the laptop or not at all. A todo whose trigger did not fire stays open.
 
 | Todo | Promote when | Laptop, 2026-11-23 |
 |---|---|---|
-| [Static layer as tile chunks](../todos/2026-11-20-static-layer-as-tile-chunks.md) | The static layer's GPU time or memory breaks the bar on a reference device | Not fired. GPU 2.6–2.7 ms a frame in Farm and 1.6–2.7 ms in Citadel on average; both frames are CPU-bound |
+| [Static layer as tile chunks](../todos/2026-11-20-static-layer-as-tile-chunks.md) | The static layer's GPU time or memory breaks the bar on a reference device | Not fired. GPU 2.6–2.7 ms a frame in Farm and 1.6–2.7 ms in Citadel on average; both frames are CPU-bound. Phone not measured |
 | [Sprite sort only on change](../todos/2026-11-20-sprite-sort-only-on-change.md) | The per-frame sort takes more than 1 ms at p95 in a bench scene | **Fired: [brief 15](../briefs/todo/15-the-sprite-sort-under-1-ms.md).** `compareSprite` alone 1.07 ms a frame on average in Farm (CPU profile) |
 | [Ghost pass scan](../todos/2026-11-20-ghost-pass-scan.md) | The occluder ghost check takes more than 1 ms at p95 | Not fired. `_ghostCovered` about 0 ms in Farm's profile; Citadel's whole `render.endFrame` is 0.6–0.8 ms at p95 |
-| [Worker snapshot transfer](../todos/2026-11-20-worker-snapshot-transfer.md) | Receiving and applying a snapshot takes more than 2 ms at p95 on the main thread | Not measured: no timer covers it. In the emulated phone pass Hollow's intervals (25 ms at p95) far exceed its frame (4.5 ms), which makes it worth timing |
+| [Worker snapshot transfer](../todos/2026-11-20-worker-snapshot-transfer.md) | Receiving and applying a snapshot takes more than 2 ms at p95 on the main thread | Not fired on what a CPU profile can see. Storing a snapshot costs about 0 ms in Hollow and MateQuest; Hollow's message handler costs 0.60 ms a frame on average, nearly all of it the chronicle's DOM append, not the snapshot. The structured-clone copy runs in native code the profile can't separate (Hollow's whole unattributed native time is 1.0 ms a frame). A p95 needs a sub-timer. Citadel not profiled |
 | [Hollow 3D culling](../todos/2026-11-20-hollow-3d-culling.md) | Hollow breaks the bar on the iGPU, or runs slower framed in the portal than direct | Not fired. p95 8.5 ms, GPU 2.6–2.8 ms, framed and direct the same |
-| [Allocation-free frames](../todos/2026-11-20-allocation-free-frames.md) | Long frames line up with garbage-collection drops in the heap reading | Not fired. At most 2 frames a run over 33.3 ms in any game; collection costs Farm 0.10 ms a frame |
+| [Allocation-free frames](../todos/2026-11-20-allocation-free-frames.md) | Long frames line up with garbage-collection drops in the heap reading | Not fired. At most 2 frames a run over 33.3 ms in any game; collection costs Farm 0.10 ms a frame. Phone not measured |
 | [Animation tags in the manifest](../todos/2026-11-20-animation-tags-in-the-manifest.md) | The first animated MateQuest sprite, or the next new Farm animation | Not a measurement |
 | [Recipe and PNG round trip](../todos/2026-11-20-recipe-and-png-round-trip.md) | Someone wants to edit art in a pixel editor such as Aseprite | Not a measurement |
-| [Light overlay as a full-canvas upload](../todos/2026-11-21-light-overlay-full-canvas-upload.md) | Farm's light overlay (its canvas paint plus the upload) takes more than 1 ms at p95, or the GPU time drops by more than 1 ms with it off. Measured on SwiftShader by brief 05: 4,096,000 bytes uploaded every frame at 1280×800 | Not fired on the CPU: 0.16 ms a frame on average, upload call included, for 7,257,600 bytes a frame at 1920×945. The GPU half needs a run with the overlay off |
+| [Light overlay as a full-canvas upload](../todos/2026-11-21-light-overlay-full-canvas-upload.md) | Farm's light overlay (its canvas paint plus the upload) takes more than 1 ms at p95, or the GPU time drops by more than 1 ms with it off. Measured on SwiftShader by brief 05: 4,096,000 bytes uploaded every frame at 1280×800 | Not fired on the CPU: 0.16 ms a frame on average, upload call included, for 7,257,600 bytes a frame at 1920×945. The GPU half needs a run with the overlay off. Phone not measured |
 
 ## Checked and dropped
 
