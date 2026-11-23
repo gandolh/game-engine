@@ -38,7 +38,7 @@ machinery that procedurally generated, deterministic sims don't need.
   in insertion order (`sObjectListUpdateOrder`, `update_objects`). Our
   [scheduler](../../engine/core/src/sim/scheduler.ts) runs systems in registration order inside named
   stages, and a query iterates its `entities` array in insertion order. **Already have.** But no test pins
-  query order, though every sim's determinism leans on it. Brief 25 adds those tests.
+  query order, though every sim's determinism leans on it. Brief 25 added those tests (2026-11-23).
 - **Deferred unload.** Deleting an object only clears its active flag. One sweep near the end of the frame
   unloads every flagged object (`unload_deactivated_objects`). Our `despawn` is immediate, and query
   iteration walks a pooled copy, so a despawn mid-loop is safe. **Already have the part that matters.**
@@ -73,7 +73,7 @@ machinery that procedurally generated, deterministic sims don't need.
   [FeatureCollisionSystem](../../games/farm/sim-core/src/systems/world-time/feature-collision.ts) reverts
   and re-stamps every tile feature and solid into the walkable grid on every tick.
   [PlayerControlSystem](../../games/farm/sim-core/src/systems/player-control/system.ts)'s `featureAt`
-  scans every tile feature and solid for each tile Pip's box touches. **Borrow: brief 25.**
+  scans every tile feature and solid for each tile Pip's box touches. **Borrow: brief 25, done 2026-11-23.**
 - **Quarter steps.** A ground or air step is split into four sub-steps, each with its own wall, floor and
   ceiling queries, so speed cannot carry the player through a wall (`src/game/mario_step.c@9921382`,
   `perform_ground_step`). Ours: Pip moves a third of a tile a tick (`PLAYER_SPEED`). `resolveAxis` checks
@@ -169,11 +169,10 @@ machinery that procedurally generated, deterministic sims don't need.
 | Brief | Idea | Proof that the baseline holds |
 |---|---|---|
 | [24](../briefs/done/24-hollow-builds-its-static-draws-once.md) | Hollow builds territory and ground draws per snapshot, and its frame allocates less. Done 2026-11-23: 451 K to 269 K bytes a frame (-40%) | Render only: the bench counters are unchanged within noise |
-| [25](../briefs/todo/25-farm-finds-tile-features-by-cell.md) | Farm keeps a tile-feature index rebuilt only when features change, and the ECS pins its query order | Multi-seed `EXPORT=json` diff, byte-identical |
+| [25](../briefs/done/25-farm-finds-tile-features-by-cell.md) | Farm keeps a tile-feature index rebuilt only when features change, and the ECS pins its query order. Done 2026-11-23: the grid stamp fell from 0.023 to 0.001 ms a tick, Pip's system from 0.044 to 0.021 ms | Multi-seed `EXPORT=json` diff, byte-identical |
 | [26](../briefs/todo/26-the-state-machine-keeps-its-entry-tick.md) | One engine helper keeps `enteredTick` true on every state change | Multi-seed diff for Farm and Hollow, byte-identical |
 | [27](../briefs/todo/27-hollow-walks-by-the-ground-covered.md) | Hollow's gait advances with the distance walked, capped, and holds when the agent stops | Render only, the sim is not touched |
 
 ## Not verified
 
-- How many tile features a Farm run holds, so brief 25's saving per tick is unmeasured. The brief measures it.
 - `object_collision.c` beyond the player's pass, and most of `camera.c`, were skimmed, not read whole.

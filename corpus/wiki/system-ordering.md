@@ -1,6 +1,6 @@
 ---
 summary: Why every system in bootstrapSim sits where it does — the ten bands, the inbox lifecycle, cross-cutting invariants, and the system-to-brief provenance map.
-updated: 2026-07-11
+updated: 2026-11-23
 ---
 
 # Scheduler System Ordering
@@ -55,7 +55,7 @@ Everything here must run **after `InboxDispatchSystem` and before `PerceiveSyste
 | `ApSystem` | Action-point accounting before movement/actions. |
 
 ### 7. Movement (only when a pathfinder is supplied)
-`FeatureCollisionSystem` → `ChaseSystem` → `TravelSystem`. They share one walkable grid: FeatureCollision blocks tree/stone tiles on it each tick so farmers never path through features. `ChaseSystem` **re-points the pursuit travel intent before TravelSystem steps it** — swap the two and a chaser trails its quarry by a tick. TravelSystem also holds a **separate boat grid** (water lanes dock→reef, brief 48) it swaps to while a farmer is aboard — keeps the land grid and engine pathfinder untouched. Without a pathfinder (legacy tests), farmers stay put.
+`FeatureCollisionSystem` → `ChaseSystem` → `TravelSystem`. They share one walkable grid: FeatureCollision blocks tree/stone tiles and solid footprints on it so farmers never path through features. Since brief 25 it restamps only on a tick where the shared `FeatureCells` index was rebuilt (a feature or solid joined or left); `PlayerControlSystem` reads the same index instead of the grid, which is one tick stale at its stage, and the index rebuilds at read time, so it sees a feature a GROW-stage system added that same tick. `ChaseSystem` **re-points the pursuit travel intent before TravelSystem steps it** — swap the two and a chaser trails its quarry by a tick. TravelSystem also holds a **separate boat grid** (water lanes dock→reef, brief 48) it swaps to while a farmer is aboard — keeps the land grid and engine pathfinder untouched. Without a pathfinder (legacy tests), farmers stay put.
 
 ### 8. Act & resolve
 `ActSystem` (consumes intentions, sets `busyUntilTick`, queues bus messages) → `MarketSystem` (drains the wall; also runs the per-tick offer-TTL sweep) → `ShopkeeperSystem` → `AuctionSystem` → `CarpenterSystem` (drains ONT_COMMISSION.BUILD orders delivered the tick after a farmer's commission act; escrows cost, delivers after build time — the shopkeeper's order→fulfill twin, brief 44).

@@ -4364,7 +4364,7 @@ to 2.4 ms. Farm's ghost pass: old scan 0.003 ms, grid only 0.78 ms, hybrid 0.007
 Nintendo code, so nothing copied). Most of what it does well the engine already does (ids that never repeat,
 despawn-safe iteration, frame-rate-independent camera smoothing, named random forks). Four small gaps became
 briefs: [24](briefs/done/24-hollow-builds-its-static-draws-once.md) Hollow builds its static draws once,
-[25](briefs/todo/25-farm-finds-tile-features-by-cell.md) Farm finds tile features by cell,
+[25](briefs/done/25-farm-finds-tile-features-by-cell.md) Farm finds tile features by cell,
 [26](briefs/todo/26-the-state-machine-keeps-its-entry-tick.md) the state machine keeps its entry tick,
 [27](briefs/todo/27-hollow-walks-by-the-ground-covered.md) Hollow walks by the ground covered. Side findings not
 briefed (camera world-edge clamp, explicit spawn ids and an id lookup) are on the page.
@@ -4398,3 +4398,11 @@ bounds (the top site, 112 K of a frame's 451 K), and `separateCircles` keeps one
 allocated a frame fell 40% (451 K to 269 K); GL draw calls and `drawInstances` are unchanged within the run-to-run
 noise of the old code. The bench's heap `drops` did not fall (a 1 Hz reading can't count scavenges). Evidence in
 [2026-11-23-hollow-allocations](verify/2026-11-23-hollow-allocations/README.md); outcome in [the brief](briefs/done/24-hollow-builds-its-static-draws-once.md).
+
+## [2026-11-23] done | Brief 25: Farm finds tile features by cell, not by scan
+
+`Query` gets a `version` counter, and Farm's `FeatureCells` index (first tile feature per tile, solid tiles) rebuilds
+only when a feature or solid joins or leaves. `FeatureCollisionSystem` restamps the grid only after a rebuild, and
+Pip's `featureAt`, `bushAt` and axe/pickaxe intents read one cell. Per tick: the stamp 0.023 to 0.001 ms, Pip's
+system 0.044 to 0.021 ms; the index rebuilt on 22 of 3600 ticks. Three-seed export diff is byte-identical.
+Outcome in [the brief](briefs/done/25-farm-finds-tile-features-by-cell.md).
