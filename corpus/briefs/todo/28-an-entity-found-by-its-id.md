@@ -6,7 +6,7 @@ light optimization under the owner's rule of 2026-11-23 ([decisions.md](../../wi
 
 **Builder:** Sonnet ([routing.md](../../routing.md)).
 
-**Depends on:** [25](25-farm-finds-tile-features-by-cell.md), because both edit `engine/core/src/ecs/world.ts` and
+**Depends on:** [25](../done/25-farm-finds-tile-features-by-cell.md), because both edit `engine/core/src/ecs/world.ts` and
 its test.
 
 ## Context
