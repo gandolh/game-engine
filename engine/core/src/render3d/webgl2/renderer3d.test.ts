@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { SceneRenderer3D, MAX_MATERIALS, type Frame3d } from "./renderer3d";
 import type { GlDevice3d } from "./device3d";
 import { FLOATS_PER_MATERIAL, packInstances, type Material } from "../buffers";
-import { identity } from "../mat4";
+import { identity, translation } from "../mat4";
 import type { Mesh } from "../types";
 
 // node's vitest env has no real WebGL2 / DOM. Per the project convention (see
@@ -215,6 +215,28 @@ describe("SceneRenderer3D#render", () => {
     expect(calls.drawElementsInstanced).toEqual([
       { mode: gl.TRIANGLES, count: mesh.indexCount, type: gl.UNSIGNED_INT, instanceCount: 1 },
     ]);
+  });
+
+  it("draws only the instances the frustum holds, and skips a draw whose instances are all outside", () => {
+    const { gl, calls } = makeFakeGl();
+    const renderer = new SceneRenderer3D(makeDevice3d(gl));
+    renderer.setMaterials([{ color: [1, 1, 1] }]);
+    const mesh = renderer.uploadMesh(TRI_MESH, materialIndexOf);
+    const at = (x: number) => ({ model: translation([x, 0, 0.5]), tint: [1, 1, 1, 1] as const });
+    // FRAME's viewProj is the identity: the visible box is x, y in [-1, 1], z in [0, 1].
+    const mixed = packInstances([at(0), at(40), at(-0.5)]);
+    const outside = packInstances([at(40), at(-40)]);
+
+    renderer.render({
+      ...FRAME,
+      draws: [
+        { mesh, instances: mixed, instanceCount: 3 },
+        { mesh, instances: outside, instanceCount: 2 },
+      ],
+    });
+
+    expect(calls.drawElementsInstanced.map((c) => c.instanceCount)).toEqual([2]);
+    expect(renderer.lastDrawStats).toEqual({ drawCalls: 1, instances: 2 });
   });
 
   it("mesh.indexCount matches tris.length * 3 (one triangle, no vertex splitting)", () => {

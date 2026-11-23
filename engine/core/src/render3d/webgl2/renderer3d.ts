@@ -43,6 +43,13 @@ import { PipelineCache, type Pipeline3d, type ShaderSource } from "./pipeline-ca
 import { createVao, setupAttrib } from "../../render/webgl2/program";
 import { createArrayBuffer, createElementArrayBuffer, createUniformBuffer } from "./gl-buffers";
 import { FLOATS_PER_INSTANCE, FLOATS_PER_MATERIAL, packMaterials, packMesh, type Material } from "../buffers";
+import {
+  boundingSphereOf,
+  cullInstances,
+  extractFrustumPlanes,
+  FRUSTUM_PLANE_FLOATS,
+  type BoundingSphere,
+} from "../cull";
 import vertSrcRaw from "./shaders/scene3d.vert.glsl?raw";
 import fragSrcRaw from "./shaders/scene3d.frag.glsl?raw";
 
@@ -118,8 +125,17 @@ export class MeshHandle {
   readonly vertexBuffer: WebGLBuffer;
   /** @internal */
   readonly indexBuffer: WebGLBuffer;
+  /** @internal The mesh's bounding sphere in its own space, computed once at upload (frustum culling). */
+  readonly bounds: BoundingSphere;
 
-  constructor(vao: WebGLVertexArrayObject, vertexBuffer: WebGLBuffer, indexBuffer: WebGLBuffer, indexCount: number) {
+  constructor(
+    vao: WebGLVertexArrayObject,
+    vertexBuffer: WebGLBuffer,
+    indexBuffer: WebGLBuffer,
+    indexCount: number,
+    bounds: BoundingSphere,
+  ) {
+    this.bounds = bounds;
     this.vao = vao;
     this.vertexBuffer = vertexBuffer;
     this.indexBuffer = indexBuffer;
@@ -178,6 +194,9 @@ export class SceneRenderer3D {
    * them). Plain counters, kept every frame: two additions per draw.
    */
   readonly lastDrawStats = { drawCalls: 0, instances: 0 };
+  private readonly frustumPlanes = new Float32Array(FRUSTUM_PLANE_FLOATS);
+  /** Reused by every draw of a frame: the instance rows that survive culling (grown, never shrunk). */
+  private cullScratch = new Float32Array(FLOATS_PER_INSTANCE * 256);
   private readonly instanceBuffers = new Map<MeshHandle, { buffer: WebGLBuffer; capacityBytes: number }>();
 
   constructor(device3d: GlDevice3d, options: SceneRendererOptions = {}) {
@@ -285,7 +304,7 @@ export class SceneRenderer3D {
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
     });
 
-    return new MeshHandle(vao, vertexBuffer, indexBuffer, packed.indexCount);
+    return new MeshHandle(vao, vertexBuffer, indexBuffer, packed.indexCount, boundingSphereOf(mesh));
   }
 
   /**
@@ -325,19 +344,32 @@ export class SceneRenderer3D {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.useProgram(this.pipeline.program);
 
+    // One camera, one frustum: culled once per frame against the same matrix the shader draws with. There is
+    // no shadow or other pass with a different camera.
+    extractFrustumPlanes(frame.viewProj, this.frustumPlanes);
     let drawCalls = 0;
     let instances = 0;
     for (const draw of frame.draws) {
       if (draw.instanceCount === 0) continue;
-      const instanceBuffer = this._instanceBufferFor(draw.mesh, draw.instances);
+      const needed = draw.instanceCount * FLOATS_PER_INSTANCE;
+      if (this.cullScratch.length < needed) this.cullScratch = new Float32Array(needed);
+      const kept = cullInstances(
+        draw.instances,
+        draw.instanceCount,
+        draw.mesh.bounds,
+        this.frustumPlanes,
+        this.cullScratch,
+      );
+      if (kept === 0) continue;
+      const instanceBuffer = this._instanceBufferFor(draw.mesh, this.cullScratch, kept * FLOATS_PER_INSTANCE, needed);
 
       gl.bindVertexArray(draw.mesh.vao);
       gl.bindBuffer(gl.ARRAY_BUFFER, instanceBuffer);
       for (const spec of this.pipeline.instanceAttribs) setupAttrib(gl, spec);
 
-      gl.drawElementsInstanced(gl.TRIANGLES, draw.mesh.indexCount, gl.UNSIGNED_INT, 0, draw.instanceCount);
+      gl.drawElementsInstanced(gl.TRIANGLES, draw.mesh.indexCount, gl.UNSIGNED_INT, 0, kept);
       drawCalls += 1;
-      instances += draw.instanceCount;
+      instances += kept;
     }
     this.lastDrawStats.drawCalls = drawCalls;
     this.lastDrawStats.instances = instances;
@@ -362,16 +394,23 @@ export class SceneRenderer3D {
     gl.bindBuffer(gl.UNIFORM_BUFFER, null);
   }
 
-  private _instanceBufferFor(mesh: MeshHandle, data: Float32Array): WebGLBuffer {
+  private _instanceBufferFor(
+    mesh: MeshHandle,
+    data: Float32Array,
+    floatCount: number,
+    capacityFloats: number,
+  ): WebGLBuffer {
     const gl = this.gl;
-    const neededBytes = Math.max(data.byteLength, FLOATS_PER_INSTANCE * 4);
+    // Sized for the whole draw, not the surviving rows: the kept count moves every frame as the camera does,
+    // and a capacity that followed it would reallocate the buffer on every rise.
+    const neededBytes = Math.max(capacityFloats * 4, FLOATS_PER_INSTANCE * 4);
     let entry = this.instanceBuffers.get(mesh);
     if (!entry || entry.capacityBytes < neededBytes) {
       entry = { buffer: createArrayBuffer(gl, neededBytes, gl.DYNAMIC_DRAW), capacityBytes: neededBytes };
       this.instanceBuffers.set(mesh, entry);
     }
     gl.bindBuffer(gl.ARRAY_BUFFER, entry.buffer);
-    gl.bufferSubData(gl.ARRAY_BUFFER, 0, data);
+    gl.bufferSubData(gl.ARRAY_BUFFER, 0, data, 0, floatCount);
     gl.bindBuffer(gl.ARRAY_BUFFER, null);
     return entry.buffer;
   }
