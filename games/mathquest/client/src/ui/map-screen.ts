@@ -497,14 +497,15 @@ const OUTLINE_OFFSETS: readonly (readonly [number, number])[] = [
   [0, 1],
   [1, 1],
 ];
-let stampBase: Painter | null = null;
+const NO_PAINTER: Painter = { rect: () => {}, text: () => {}, ctext: () => {}, visible: () => false };
+let stampBase: Painter = NO_PAINTER;
 let stampDx = 0;
 let stampDy = 0;
 const stampPainter: Painter = {
-  rect: (x, y, w, h) => stampBase!.rect(x + stampDx, y + stampDy, w, h, MATE_PAL.black, 0.9),
+  rect: (x, y, w, h) => stampBase.rect(x + stampDx, y + stampDy, w, h, MATE_PAL.black, 0.9),
   text: () => {},
   ctext: () => {},
-  visible: (x, w) => stampBase!.visible(x, w),
+  visible: (x, w) => stampBase.visible(x, w),
 };
 
 /** Draw `fn(painter, arg)` with a 1px dark keyline (silhouette outline) so props pop against any terrain. */
@@ -515,7 +516,7 @@ function outlineDraw<T>(P: Painter, fn: (p: Painter, arg: T) => void, arg: T): v
     stampDy = off[1];
     fn(stampPainter, arg);
   }
-  stampBase = null;
+  stampBase = NO_PAINTER;
   fn(P, arg);
 }
 
@@ -739,16 +740,17 @@ export function createMapScreen(): MapScreen {
   let propsKey = "";
   const visibleProps: Prop[] = [];
   // One painter for the whole screen: the surface and camera offset it reads are set each frame.
-  let curSurface: UISurface | null = null;
+  let curSurface: UISurface | undefined;
   let ox = 0;
   let oy = 0;
   const P: Painter = {
-    rect: (x, y, w, h, color, alpha = 1) => curSurface!.rect(x + ox, y + oy, w, h, color, alpha),
+    rect: (x, y, w, h, color, alpha = 1) => curSurface?.rect(x + ox, y + oy, w, h, color, alpha),
     text: (t, x, y, color, alpha = 1, scale = 1) => {
-      drawText(curSurface!, t, x + ox, y + oy, { color, alpha, scale });
+      if (curSurface !== undefined) drawText(curSurface, t, x + ox, y + oy, { color, alpha, scale });
     },
     ctext: (t, cx, y, color, alpha = 1) => {
-      if (t.length > 0) drawText(curSurface!, t, cx - measureText(t) / 2 + ox, y + oy, { color, alpha });
+      if (curSurface !== undefined && t.length > 0)
+        drawText(curSurface, t, cx - measureText(t) / 2 + ox, y + oy, { color, alpha });
     },
     visible: (x, w) => x + w >= camX - CULL_PAD && x <= camX + viewW + CULL_PAD,
   };

@@ -42,6 +42,23 @@ class FakeSurface {
   push(quad: UIQuad): void {
     this.quads.push(quad);
   }
+  /** `UISurface.quad` reuses one record per call, so keep a copy. */
+  quad(
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    atlasId: string | undefined,
+    frame: string | undefined,
+    color: string | undefined,
+    alpha: number,
+  ): void {
+    const q: UIQuad = { x, y, width, height, alpha };
+    if (atlasId !== undefined) q.atlasId = atlasId;
+    if (frame !== undefined) q.frame = frame;
+    if (color !== undefined) q.color = color;
+    this.quads.push(q);
+  }
 }
 
 function series(
