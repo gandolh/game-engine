@@ -1,0 +1,108 @@
+{
+  "schema": "game-engine-profile/1",
+  "game": "citadel",
+  "build": "development",
+  "url": "http://127.0.0.1:5174/?profile&cozy",
+  "seed": 439041101,
+  "collectedAt": "2026-11-21T22:05:27.594Z",
+  "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/157.0.8103.78 Safari/537.36",
+  "device": {
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "vendor": "Google Inc. (Google)",
+    "dpr": 1,
+    "devicePixelRatio": 1,
+    "canvas": {
+      "width": 1280,
+      "height": 775,
+      "clientWidth": 1280,
+      "clientHeight": 775
+    }
+  },
+  "frames": {
+    "durationMs": 5999.8,
+    "displayTicks": 100,
+    "interval": {
+      "samples": 99,
+      "mean": 60.604040404040404,
+      "p50": 50,
+      "p95": 83.29999999999995,
+      "p99": 750,
+      "over16_7": 1,
+      "over33_3": 0.9595959595959596,
+      "fps": 16.500550018333943
+    },
+    "drawn": {
+      "frames": 100,
+      "meanMs": 6.180000000000873,
+      "p95Ms": 4.7999999999883585,
+      "fps": 18.311329219388014
+    }
+  },
+  "gpu": "unavailable",
+  "heap": {
+    "samples": [
+      {
+        "tMs": 482.8999999999942,
+        "usedBytes": 19300000
+      },
+      {
+        "tMs": 1537.5,
+        "usedBytes": 19300000
+      },
+      {
+        "tMs": 2582.5,
+        "usedBytes": 19300000
+      },
+      {
+        "tMs": 3638,
+        "usedBytes": 19300000
+      },
+      {
+        "tMs": 4682.600000000006,
+        "usedBytes": 19300000
+      },
+      {
+        "tMs": 5728.700000000012,
+        "usedBytes": 19300000
+      }
+    ],
+    "drops": 0
+  },
+  "timers": {
+    "render.endFrame": {
+      "count": 100,
+      "mean": 5.20100000000064,
+      "p95": 2.6000000000058208
+    },
+    "frame": {
+      "count": 100,
+      "mean": 6.180000000000873,
+      "p95": 5.699999999982538
+    }
+  },
+  "counters": {
+    "drawGroups": {
+      "mean": 0.96,
+      "p95": 1
+    },
+    "glDrawCalls": {
+      "mean": 95.11,
+      "p95": 95
+    },
+    "drawInstances": {
+      "mean": 799.4,
+      "p95": 804
+    },
+    "uiQuads": {
+      "mean": 759.28,
+      "p95": 760
+    },
+    "textureBytesPerFrame": {
+      "mean": 758906.92,
+      "p95": 0
+    },
+    "textureBytesTotal": 76025092,
+    "textureUploads": 9,
+    "texturesCreated": 9
+  }
+}

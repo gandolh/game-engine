@@ -4207,3 +4207,77 @@ reverted where that helps. The plan is [frame-budget.md](wiki/frame-budget.md).
   mipmaps (wrong for pixel art), and a binary codec for Farm (measured not worth it on 2026-06-10).
 
 The sprite-gen research moved to `todos/closed/`, and its open question was closed into brief 13.
+
+## [2026-11-21] done | Brief 05: one frame profiler in every game
+
+Every game has one `?profile` now, in production builds too: the engine's `FrameProfile` reports the frame
+interval from display ticks (p50, p95, p99, the share over 16.7 ms and 33.3 ms), frames drawn and their CPU
+time, the GPU's own time where `EXT_disjoint_timer_query_webgl2` is exposed, the JS heap where Chrome shows
+it, named timers and GL counters, in one export, `game-engine-profile/1`. Without `?profile` nothing is
+created. Headless Chromium exports for all four games are in `verify/2026-11-21-frame-profiler/`, and their
+counters are on [performance-measurements.md](wiki/performance-measurements.md), whose "Measuring" section
+describes the export. The texture counter found Farm re-uploading a full-canvas light overlay every frame,
+filed as a measure-first todo with its trigger on [frame-budget.md](wiki/frame-budget.md). The bar is now a
+"Frame budget" entry in [decisions.md](wiki/decisions.md). `npm run check` and `npm run gates` pass.
+
+## [2026-11-21] done | Brief 06: a bench scene in every game
+
+`?bench` on any game's URL (production builds too) runs that game's fixed scene: a fixed seed, menus
+skipped, a 3 s warm-up, 30 s sampled, then `window.__benchResult` (the `game-engine-profile/1` export plus
+the scene name) and a Save button for phones. Farm pans at the default and widest zoom with its panels
+open, Citadel circles the town close and at the whole map, Hollow orbits its town at 1x with the
+chronicle open, and MateQuest plays the map, answered combat turns and loot in a loop. `npm run bench --
+<folder>` runs all four headless and stamps frame times `"gpu-not-real"` on SwiftShader. Two cold runs
+agree on the counters (Farm's draw groups within 0.5%, the rest exactly); MateQuest needed its run to end
+on a whole screen first, since its map draws ten times the quads of its other screens. The portal passes
+`bench` and `profile` into its frame. The scenes, how to run them and the two runs' numbers are on a new
+page, [bench-scenes.md](wiki/bench-scenes.md); evidence in
+`verify/2026-11-21-bench-scenes/`.
+
+## [2026-11-21] done | Brief 08: Farm renders on requestAnimationFrame
+
+Farm's draw loop is display-paced now: `animationFrameLoop` in `render-loop.ts` draws one frame per
+`requestAnimationFrame` callback with its timestamp, and replaces brief 84's `setTimeout(renderFrame, 0)`.
+That reverts brief 84's call, recorded under Renderer on [decisions.md](wiki/decisions.md) and beside brief
+84's note on [performance.md](wiki/performance.md). A fake-rAF test shows one frame per callback and none
+between; in headless Chromium frames drawn now equal rAF callbacks (398 of 398 at 480×300). On SwiftShader
+the timer loop had drawn fewer frames than rAF fired, not more, because a frame there costs more than a
+refresh; the discarded-frames case shows on real hardware. After a home-to-game switch, twice, only the game
+loop's callbacks run.
+
+## [2026-11-21] done | Brief 09: the atlas cook serves every game
+
+`tools/atlas-builder` takes a per-game `AtlasConfig` (recipes, sheets, swatches and palette, hashed files,
+output) instead of Farm's values written into its code. `npm run atlas` cooks every registered game and
+`npm run atlas -- farm` one. Farm's config moved to `@farm/atlas-recipes/atlas` and cooks byte for byte as
+before, `inputsHash` included. A swatch outside a config's palette fails the cook naming the recipe and the
+character. How to add a game is on [asset-pipeline.md](wiki/asset-pipeline.md); the Assets entry of
+[decisions.md](wiki/decisions.md) records one cook for every game, still with no external art pipeline.
+
+## [2026-11-21] done | Brief 10: one runtime atlas page per game
+
+The cook packs each game's sheets as whole blocks into power-of-two runtime pages (Farm: one 512×1024
+page) and lists them in `index.json`; the loader gives every sheet on a page the page's bitmap with offset
+frames, the GL store uploads one texture per bitmap, and the renderer groups by texture. Farm's world went
+from 49 draw groups to 1 in the probe, and from 47.8 to 1 a frame in the bench scene; boot creates 6
+textures instead of 11. The card scene and the world preview are byte for byte the same. The sheets stay
+the authoring and cache units, which reverts "don't merge" at run time only (Assets on
+[decisions.md](wiki/decisions.md)). The cook's record moved to a new page, [atlas-cook.md](wiki/atlas-cook.md),
+to keep [asset-pipeline.md](wiki/asset-pipeline.md) under the size cap.
+
+## [2026-11-21] done | Brief 11: recipe checks as tests
+
+Every recipe of every game the cook knows is now checked in `npm run test` for three pixel-art habits
+borrowed from sprite-gen: no lone opaque pixel, clear corners (tiles exempt for both), and one floor row and
+height per set of frames of one size. Farm's 263 findings are all on its allowlist under 38 entries with
+reasons, two marked "to review"; a stale entry fails the test. The rules and how to allow a frame are on
+[asset-pipeline.md](wiki/asset-pipeline.md); every finding is in `verify/2026-11-21-recipe-checks/`.
+
+## [2026-11-22] done | Brief 12: MateQuest draws its combat sprites from an atlas
+
+Făt-Frumos and the six enemies are pixel recipes now, in a new `@mathquest/atlas-recipes` package, ported
+from their shape drawings at one pixel per unit and cooked by the shared cook into a `combat` sheet. The
+combat screen draws each as one quad at a whole-number scale, so the creatures look the same but crisper,
+and its UI quads fell by 30 to 127 a frame per enemy. The layering test lets the cook alone import every
+game's recipe package. Before and after screenshots of all six enemies are in
+`verify/2026-11-22-mathquest-combat-atlas/`; the record is on [mathquest-ui.md](wiki/mathquest-ui.md).

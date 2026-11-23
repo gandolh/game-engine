@@ -1,0 +1,195 @@
+{
+  "schema": "game-engine-profile/1",
+  "game": "mathquest",
+  "build": "development",
+  "url": "http://127.0.0.1:5176/?profile",
+  "seed": 1,
+  "collectedAt": "2026-11-21T22:06:59.727Z",
+  "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/157.0.8103.78 Safari/537.36",
+  "device": {
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "vendor": "Google Inc. (Google)",
+    "dpr": 1,
+    "devicePixelRatio": 1,
+    "canvas": {
+      "width": 1280,
+      "height": 800,
+      "clientWidth": 1280,
+      "clientHeight": 800
+    }
+  },
+  "frames": {
+    "durationMs": 31048.8,
+    "displayTicks": 94,
+    "interval": {
+      "samples": 93,
+      "mean": 333.85806451612905,
+      "p50": 350,
+      "p95": 400,
+      "p99": 416.7000000000007,
+      "over16_7": 0.978494623655914,
+      "over33_3": 0.946236559139785,
+      "fps": 2.995284841926258
+    },
+    "drawn": {
+      "frames": 94,
+      "meanMs": 4.671276595744433,
+      "p95Ms": 9.699999999953434,
+      "fps": 3.030185808414889
+    }
+  },
+  "gpu": "unavailable",
+  "heap": {
+    "samples": [
+      {
+        "tMs": 21.70000000001164,
+        "usedBytes": 10000000
+      },
+      {
+        "tMs": 1275.4000000000233,
+        "usedBytes": 10000000
+      },
+      {
+        "tMs": 2366.4000000000233,
+        "usedBytes": 10000000
+      },
+      {
+        "tMs": 3399.4000000000233,
+        "usedBytes": 10000000
+      },
+      {
+        "tMs": 4745.400000000023,
+        "usedBytes": 10000000
+      },
+      {
+        "tMs": 5764.100000000035,
+        "usedBytes": 10000000
+      },
+      {
+        "tMs": 6794,
+        "usedBytes": 10000000
+      },
+      {
+        "tMs": 7843.200000000012,
+        "usedBytes": 10000000
+      },
+      {
+        "tMs": 9001.100000000035,
+        "usedBytes": 10000000
+      },
+      {
+        "tMs": 10080.400000000023,
+        "usedBytes": 10000000
+      },
+      {
+        "tMs": 11159.799999999988,
+        "usedBytes": 10000000
+      },
+      {
+        "tMs": 12201.799999999988,
+        "usedBytes": 10000000
+      },
+      {
+        "tMs": 13251.299999999988,
+        "usedBytes": 10000000
+      },
+      {
+        "tMs": 14406.299999999988,
+        "usedBytes": 10000000
+      },
+      {
+        "tMs": 15554.900000000023,
+        "usedBytes": 10000000
+      },
+      {
+        "tMs": 16596.5,
+        "usedBytes": 10000000
+      },
+      {
+        "tMs": 17659.5,
+        "usedBytes": 10000000
+      },
+      {
+        "tMs": 18678.70000000001,
+        "usedBytes": 10000000
+      },
+      {
+        "tMs": 19705.600000000035,
+        "usedBytes": 10000000
+      },
+      {
+        "tMs": 20755.79999999999,
+        "usedBytes": 10000000
+      },
+      {
+        "tMs": 21758,
+        "usedBytes": 10000000
+      },
+      {
+        "tMs": 22791.5,
+        "usedBytes": 10000000
+      },
+      {
+        "tMs": 23813.900000000023,
+        "usedBytes": 10000000
+      },
+      {
+        "tMs": 25177.900000000023,
+        "usedBytes": 10000000
+      },
+      {
+        "tMs": 26300.900000000023,
+        "usedBytes": 10000000
+      },
+      {
+        "tMs": 27408.900000000023,
+        "usedBytes": 10000000
+      },
+      {
+        "tMs": 28500.600000000035,
+        "usedBytes": 10000000
+      },
+      {
+        "tMs": 29531.600000000035,
+        "usedBytes": 10000000
+      },
+      {
+        "tMs": 30688.400000000023,
+        "usedBytes": 10000000
+      }
+    ],
+    "drops": 0
+  },
+  "timers": {
+    "frame": {
+      "count": 94,
+      "mean": 4.671276595744433,
+      "p95": 9.699999999953434
+    }
+  },
+  "counters": {
+    "drawGroups": {
+      "mean": 0,
+      "p95": 0
+    },
+    "glDrawCalls": {
+      "mean": 29.95744680851064,
+      "p95": 32
+    },
+    "drawInstances": {
+      "mean": 19269.191489361703,
+      "p95": 20583
+    },
+    "uiQuads": {
+      "mean": 19269.191489361703,
+      "p95": 20583
+    },
+    "textureBytesPerFrame": {
+      "mean": 0.0425531914893617,
+      "p95": 0
+    },
+    "textureBytesTotal": 29956,
+    "textureUploads": 2,
+    "texturesCreated": 2
+  }
+}

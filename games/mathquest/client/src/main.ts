@@ -47,7 +47,14 @@
  * fresh every frame via `render(...)`'s own arguments.
  */
 import "./style.css";
-import { Camera2D, createRenderer, showUnsupportedNotice, type RendererLike } from "@engine/core";
+import {
+  Camera2D,
+  FrameProfile,
+  createRenderer,
+  loadAllAtlasSheets,
+  showUnsupportedNotice,
+  type RendererLike,
+} from "@engine/core";
 import {
   UISurface,
   loadFontAtlas,
@@ -60,6 +67,7 @@ import {
   type A11yMirror,
 } from "@engine/ui";
 import {
+  DEFAULT_LOCALE,
   EMPTY_MASTERY_STORE,
   LIFELINE_KINDS,
   LOCALE_STORAGE_KEY,
@@ -69,6 +77,7 @@ import {
 } from "@mathquest/sim-core";
 import type { AnswerResponse, GameSnapshot, Locale, MasteryStore } from "@mathquest/sim-core";
 import { MATE_PAL } from "./render/mate-palette";
+import { benchRequested, mateBenchScene, runBench } from "./bench";
 import { MATE_THEME } from "./render/mate-theme";
 import { getStrings, type Strings } from "./strings";
 import { createCombatScreen, type CombatScreen, type CombatScreenActions } from "./ui/combat-screen";
@@ -88,9 +97,12 @@ const SEED = 1;
 // unbounded if the player mashes the keypad.
 const MAX_ANSWER_DIGITS = 5;
 
-// ?profile — time the widget UI pass each frame (refresh, layout, draw, mirror) and expose the
-// summary as `window.__mqProfile()`. Off by default; it doesn't change the default path.
-const PROFILE = new URLSearchParams(location.search).has("profile");
+// ?profile — the shared frame profile (corpus brief 05): the frame interval, GPU time, GL counters and
+// the widget UI pass's own timers (`ui.refresh`, `ui.layout`, `ui.draw`, `ui.mirror`), exported as
+// `window.__exportProfile()`. Off by default; it doesn't change the default path.
+// `?bench` (corpus brief 06) is the fixed benchmark scene, and implies `?profile`.
+const BENCH = benchRequested();
+const PROFILE = new URLSearchParams(location.search).has("profile") || BENCH;
 
 const canvasRaw = document.getElementById("scene");
 if (!(canvasRaw instanceof HTMLCanvasElement)) {
@@ -165,13 +177,29 @@ async function main(): Promise<void> {
     throw err;
   }
   renderer.clearColor = MATE_PAL.black;
+  // Made before the atlas uploads so the profile's texture counters include them.
+  const profile = new FrameProfile({
+    game: "mathquest",
+    enabled: PROFILE,
+    canvas,
+    build: import.meta.env.MODE,
+    seed: SEED,
+    overlayParent: document.body,
+    overlayCorner: "bottom-right",
+  });
+  if (profile.enabled) renderer.profileUi = true;
   renderer.addAtlas(await loadFontAtlas());
+  // The combat creatures' atlas (corpus brief 12), cooked by `npm run atlas` into `public/atlas/`.
+  for (const atlas of (await loadAllAtlasSheets("/atlas/index.json", import.meta.env.BASE_URL)).values()) {
+    renderer.addAtlas(atlas);
+  }
   const surface = new UISurface(renderer);
 
   // --- Locale (M5 slice 2) ----------------------------------------------------------------------
   // The sim's OWN language, re-init'd on every toggle — see the module doc. `strings` is the
   // CLIENT UI chrome bundle resolved from the SAME `locale`, kept in lockstep.
-  let locale: Locale = loadLocale();
+  // `?bench` reads nothing saved, so every run plays the same problems.
+  let locale: Locale = BENCH ? DEFAULT_LOCALE : loadLocale();
   let strings: Strings = getStrings(locale);
 
   // --- Worker ---------------------------------------------------------------------------------
@@ -186,14 +214,15 @@ async function main(): Promise<void> {
   // M5 slice 2: the run's CURRENT mastery store, kept in lockstep with every snapshot — `toggleLocale`
   // hands this straight back into the re-`init`'d sim so mastery survives the language switch
   // (only the run's POSITION is lost, per the module doc — never progression).
-  let currentMastery: MasteryStore = loadMastery();
+  let currentMastery: MasteryStore = BENCH ? EMPTY_MASTERY_STORE : loadMastery();
   worker.addEventListener("message", (event: MessageEvent<WorkerOutbound>) => {
     const msg = event.data;
     if (msg.type === "snapshot") {
       latest = msg.snapshot;
       currentMastery = msg.snapshot.run.mastery;
       const serialized = JSON.stringify(msg.snapshot.run.mastery);
-      if (serialized !== lastPersistedMastery) {
+      // `?bench` saves nothing: its run must not change the player's progress.
+      if (!BENCH && serialized !== lastPersistedMastery) {
         lastPersistedMastery = serialized;
         saveMastery(serialized);
       }
@@ -581,30 +610,13 @@ async function main(): Promise<void> {
   /** Fallback inset for a card screen on a viewport too small to centre the card in. */
   const CARD_INSET = 24;
 
-  // ?profile: per-frame ms of the widget UI pass (refresh = re-bind, layout, draw, mirror). A ring
-  // of the last 600 widget frames; map frames are not counted.
-  const PROFILE_RING = 600;
-  const profileRing: Array<{ refresh: number; layout: number; draw: number; mirror: number; mode: string }> = [];
-  if (PROFILE) {
-    const stat = (xs: number[]): { avg: number; p50: number; p95: number } => {
-      const sorted = [...xs].sort((a, b) => a - b);
-      const at = (q: number): number => sorted[Math.min(sorted.length - 1, Math.floor(q * sorted.length))] ?? 0;
-      return { avg: xs.reduce((a, b) => a + b, 0) / Math.max(1, xs.length), p50: at(0.5), p95: at(0.95) };
-    };
-    (window as unknown as { __mqProfile?: unknown }).__mqProfile = (mode?: string) => {
-      const rows = mode === undefined ? profileRing : profileRing.filter((r) => r.mode === mode);
-      return {
-        frames: rows.length,
-        refresh: stat(rows.map((r) => r.refresh)),
-        layout: stat(rows.map((r) => r.layout)),
-        draw: stat(rows.map((r) => r.draw)),
-        mirror: stat(rows.map((r) => r.mirror)),
-      };
-    };
-  }
+  // ?profile: the widget UI pass (refresh = re-bind, layout, draw, mirror) as named timers in the shared
+  // profile; map frames have no widget pass and are not counted in them.
+  const timers = profile.timers;
 
   // --- Render loop ----------------------------------------------------------------------------
   function frame(): void {
+    profile.beginFrame();
     renderer.beginFrame();
     if (latest !== null) {
       const snapshot = latest;
@@ -684,22 +696,25 @@ async function main(): Promise<void> {
           const t3 = PROFILE ? performance.now() : 0;
           if (changed) mirror?.update(root); // reconcile a11y DOM only when the tree changed
           if (PROFILE) {
-            profileRing.push({
-              refresh: t1 - t0,
-              layout: t2 - t1,
-              draw: t3 - t2,
-              mirror: performance.now() - t3,
-              mode: snapshot.mode,
-            });
-            if (profileRing.length > PROFILE_RING) profileRing.shift();
+            timers.add("ui.refresh", t1 - t0);
+            timers.add("ui.layout", t2 - t1);
+            timers.add("ui.draw", t3 - t2);
+            timers.add("ui.mirror", performance.now() - t3);
           }
         }
       }
     }
     renderer.endFrame();
+    profile.endFrame({ drawGroups: renderer.lastDrawStats?.groups, uiQuads: renderer.lastUiFlush?.quads });
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
+  profile.start();
+  if (BENCH)
+    runBench(
+      profile,
+      mateBenchScene(post, () => latest),
+    );
 }
 
 // DEV only: `?card` draws the games portal's card art instead of the game (see ./card.ts).

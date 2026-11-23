@@ -1,6 +1,6 @@
 // gl-atlas-store.ts — WebGL2 port of ../webgpu/texture-atlas.ts (`GpuAtlasStore`).
 //
-// One `TEXTURE_2D` per atlas sheet (not `TEXTURE_2D_ARRAY`): `layer` is always 0 in
+// One `TEXTURE_2D` per atlas image (not `TEXTURE_2D_ARRAY`), shared by the sheets of one runtime page: `layer` is always 0 in
 // the WebGPU original — `AtlasUV.layer` exists in the shape but nothing ever
 // indexes into a texture array with it (`GpuAtlasStore` creates one 2D texture +
 // one bind group per sheet, same as here). Kept the field for shape parity with
@@ -30,12 +30,25 @@ interface GlSheet {
   height: number;
 }
 
+/** A texture and how many sheets draw from it. */
+interface GlImage {
+  texture: WebGLTexture;
+  users: number;
+}
+
 export class GlAtlasStore {
   private readonly gl: WebGL2RenderingContext;
 
   private readonly images = new Map<string, LoadedAtlasImage>();
 
   private readonly sheets = new Map<string, GlSheet>();
+
+  /**
+   * One texture per image (corpus brief 10). The sheets of a runtime page share their page's bitmap object,
+   * so the page is uploaded once and every sheet on it resolves to the same texture, which is what lets the
+   * renderer batch them. Keyed by the bitmap object itself, not by a URL or an id.
+   */
+  private readonly byImage = new Map<object, GlImage>();
 
   /** Lazily-created 1x1 opaque-white texture — see `whiteTexture()`. */
   private white: WebGLTexture | null = null;
@@ -49,12 +62,17 @@ export class GlAtlasStore {
     const id = atlas.manifest.id;
     const { width, height } = atlas.manifest;
 
-    const existing = this.sheets.get(id);
-    if (existing !== undefined) {
-      gl.deleteTexture(existing.texture);
-    }
+    const previous = this.images.get(id);
+    if (previous !== undefined) this.release(previous.bitmap);
 
     this.images.set(id, atlas);
+
+    const shared = this.byImage.get(atlas.bitmap);
+    if (shared !== undefined) {
+      shared.users += 1;
+      this.sheets.set(id, { texture: shared.texture, width, height });
+      return;
+    }
 
     const texture = gl.createTexture();
     if (!texture) {
@@ -77,7 +95,18 @@ export class GlAtlasStore {
 
     gl.bindTexture(gl.TEXTURE_2D, null);
 
+    this.byImage.set(atlas.bitmap, { texture, users: 1 });
     this.sheets.set(id, { texture, width, height });
+  }
+
+  /** One sheet stops drawing from `bitmap`; its texture is deleted when no sheet does. */
+  private release(bitmap: object): void {
+    const image = this.byImage.get(bitmap);
+    if (image === undefined) return;
+    image.users -= 1;
+    if (image.users > 0) return;
+    this.gl.deleteTexture(image.texture);
+    this.byImage.delete(bitmap);
   }
 
   get(id: string): LoadedAtlasImage | undefined {
@@ -166,9 +195,10 @@ export class GlAtlasStore {
    *  GC + `GPUTexture.destroy()` on `add()` replace) — WebGL2 textures need an explicit release
    *  path when the whole store is torn down (context loss / renderer disposal). */
   dispose(): void {
-    for (const sheet of this.sheets.values()) {
-      this.gl.deleteTexture(sheet.texture);
+    for (const image of this.byImage.values()) {
+      this.gl.deleteTexture(image.texture);
     }
+    this.byImage.clear();
     if (this.white !== null) {
       this.gl.deleteTexture(this.white);
       this.white = null;

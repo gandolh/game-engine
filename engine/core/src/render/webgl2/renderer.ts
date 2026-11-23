@@ -178,6 +178,9 @@ export class WebGl2Renderer implements RendererLike {
 
   private _groups: DrawGroup[] = [];
   private _groupLen = 0;
+  /** `_textureOf`'s one-entry memo, cleared at the start of every frame's grouping. */
+  private _lastTextureId: string | null = null;
+  private _lastTexture: WebGLTexture | null = null;
 
   private readonly _inst: GlSpriteInstance = {
     x: 0,
@@ -595,13 +598,23 @@ export class WebGl2Renderer implements RendererLike {
    *  `this._groups[0, groupLen)`. Only called from inside the `profileUi`
    *  guard in `endFrame`, so it costs nothing in production frames. */
   private _countDistinctAtlases(groupLen: number): number {
-    const seen = new Set<string>();
+    // Textures, not atlas ids: the sheets of one runtime page are one texture (corpus brief 10).
+    const seen = new Set<WebGLTexture | null>();
     for (let idx = 0; idx < groupLen; idx += 1) {
       const grp = this._groups[idx];
       if (grp === undefined) continue;
-      seen.add(grp.atlasId);
+      seen.add(grp.texture);
     }
     return seen.size;
+  }
+
+  /** The texture an atlas id draws from, remembering the last lookup: runs of one sheet are common. */
+  private _textureOf(atlasId: string): WebGLTexture {
+    if (atlasId !== this._lastTextureId || this._lastTexture === null) {
+      this._lastTexture = this._store.texture(atlasId);
+      this._lastTextureId = atlasId;
+    }
+    return this._lastTexture;
   }
 
   private _packSprite(s: Sprite, sx: number, sy: number, ox: number, oy: number, alpha: number): number {
@@ -721,6 +734,8 @@ export class WebGl2Renderer implements RendererLike {
 
     this._batch.begin();
     this._groupLen = 0;
+    this._lastTextureId = null;
+    this._lastTexture = null;
     let occludableCount = 0;
 
     let i = 0;
@@ -730,13 +745,16 @@ export class WebGl2Renderer implements RendererLike {
         i++;
         continue;
       }
+      // A group runs while the texture stays the same, across sheet ids: the sheets of one runtime page share
+      // a texture (corpus brief 10).
       const currentAtlas = s.atlasId;
+      const currentTexture = this._textureOf(currentAtlas);
       const groupFirst = this._batch.count;
 
       let j = i;
       while (j < this._queueLen) {
         const sp = this._queue[j];
-        if (sp === undefined || sp.atlasId !== currentAtlas) break;
+        if (sp === undefined || (sp.atlasId !== currentAtlas && this._textureOf(sp.atlasId) !== currentTexture)) break;
 
         if (sp.occludable) {
           this._occludableIdx[occludableCount] = j;
@@ -780,6 +798,7 @@ export class WebGl2Renderer implements RendererLike {
       }
 
       const currentAtlas = g.atlasId;
+      const currentTexture = this._textureOf(currentAtlas);
       const groupFirst = this._batch.count;
 
       let m = k;
@@ -794,7 +813,7 @@ export class WebGl2Renderer implements RendererLike {
           m += 1;
           continue;
         }
-        if (gm.atlasId !== currentAtlas) break;
+        if (gm.atlasId !== currentAtlas && this._textureOf(gm.atlasId) !== currentTexture) break;
         if (!this._ghostCovered(mi, gm)) {
           m += 1;
           continue;

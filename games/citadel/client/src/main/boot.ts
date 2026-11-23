@@ -1,4 +1,4 @@
-import { showUnsupportedNotice } from "@engine/core";
+import { FrameProfile, profileRequested, showUnsupportedNotice } from "@engine/core";
 import { CITADEL_PAL as EDG } from "../render/citadel-palette";
 import { findCoreBox, CORE_BOX_W, CORE_BOX_H } from "@citadel/sim-core";
 import { MAX_ZOOM } from "@engine/core";
@@ -14,10 +14,19 @@ import { initInspectPanel } from "./inspect";
 import { initVillagerPanel, initBuildBar, updateModeLabel } from "./build-controls";
 import { initSettingsDispatcher } from "./settings";
 import { initMinimap } from "./minimap-wiring";
-import { initDebugOverlay } from "./debug-overlay-wiring";
+import { debugOverlay, initDebugOverlay } from "./debug-overlay-wiring";
 import { initNewGameModal, newGameMirror } from "./new-game";
-import { useServer, client, markOpeningFramed, currentBuildings, currentVillagers, latestSnapshot } from "./sim-client";
-import { loop } from "./render-loop";
+import {
+  useServer,
+  client,
+  markOpeningFramed,
+  openingFramed,
+  currentBuildings,
+  currentVillagers,
+  latestSnapshot,
+} from "./sim-client";
+import { benchRequested, startCitadelBench } from "./bench";
+import { loop, setFrameProfile } from "./render-loop";
 import { tileToScreenCss } from "./screen-mapping";
 // Side-effect imports: these modules register DOM event listeners / construct singletons at
 // module load, in the same relative order the original single-file main.ts did (see the
@@ -113,6 +122,19 @@ async function boot(): Promise<void> {
   }
   setRendererState(created);
 
+  // The shared frame profile (corpus brief 05), behind `?profile` (or `?bench`, which implies it). Made
+  // before the atlases upload so its texture counters include them.
+  const bench = benchRequested();
+  const profile = new FrameProfile({
+    game: "citadel",
+    enabled: profileRequested() || bench,
+    canvas,
+    build: import.meta.env.MODE,
+    seed: SEED,
+  });
+  if (profile.enabled) renderer.profileUi = true;
+  setFrameProfile(profile);
+
   // engine-ui chunk 7: register the bitmap font atlas (once), build the in-canvas HUD,
   // and wire its render/input/a11y plumbing.
   //  - addAtlas(loadFontAtlas()) makes drawText's glyph quads resolvable by the renderer.
@@ -146,6 +168,7 @@ async function boot(): Promise<void> {
   // mounted on document.body like Farm's, not the in-canvas UI surface, since it's a raw DOM
   // overlay element, not an @engine/ui panel.
   initDebugOverlay(document.body);
+  if (debugOverlay !== undefined) profile.attachOverlay(debugOverlay);
 
   // Brief 103: the ruleset is chosen at founding, in-canvas, BEFORE the sim is inited — the
   // picker is a SEVENTH UI root with its own dispatcher + a11y mirror. It is not dismissable, so
@@ -154,9 +177,10 @@ async function boot(): Promise<void> {
   // Two paths skip it and start immediately:
   //   - MP (`?mp`): the server owns the ruleset, so there is nothing for a solo picker to choose.
   //   - the URL fast-path (`?challenge` / `?cozy`): the dev/playtest shortcut, which is why it
-  //     stays — a scripted browser run must be able to enter a mode without a click.
+  //     stays — a scripted browser run must be able to enter a mode without a click. `?bench` (corpus
+  //     brief 06) is a cozy run.
   const params = typeof location !== "undefined" ? new URLSearchParams(location.search) : new URLSearchParams();
-  const urlMode: GameMode | null = params.has("challenge") ? "challenge" : params.has("cozy") ? "cozy" : null;
+  const urlMode: GameMode | null = params.has("challenge") ? "challenge" : params.has("cozy") || bench ? "cozy" : null;
   const preChosen: GameMode | null = useServer ? "cozy" : urlMode;
   initNewGameModal(preChosen, startGame);
 
@@ -164,6 +188,15 @@ async function boot(): Promise<void> {
   // dialog, and the HUD reads its zero-state — no snapshot arrives until `client.init()` is called.
   if (preChosen !== null) startGame(preChosen);
   requestAnimationFrame(loop);
+  profile.start();
+  // `?bench`: the fixed scene flies around the town once the opening frame has centred it.
+  if (bench)
+    startCitadelBench(
+      profile,
+      () => camera,
+      iso.worldPxW,
+      () => openingFramed,
+    );
 }
 
 // art-06: DEV-only all-assets SHOWCASE mode. `?showcase` short-circuits the full

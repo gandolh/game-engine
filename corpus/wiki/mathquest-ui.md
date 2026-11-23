@@ -1,6 +1,6 @@
 ---
-summary: Whether MateQuest's screens should be immediate-mode (IMGUI) instead of @engine/ui's retained trees — what retained mode costs today, what an IMGUI must keep, the three places it could live, and the measured ?imgui combat prototype. Verdict: keep retained; the layer moved into @engine/ui as an option (2026-11-03).
-updated: 2026-11-03
+summary: Whether MateQuest's screens should be immediate-mode (IMGUI) instead of @engine/ui's retained trees — what retained mode costs today, what an IMGUI must keep, the three places it could live, and the measured ?imgui combat prototype. Verdict: keep retained; the layer moved into @engine/ui as an option (2026-11-03). Also: the combat sprites drawn from an atlas since 2026-11-22.
+updated: 2026-11-22
 ---
 
 # MateQuest — retained or immediate-mode UI
@@ -96,3 +96,16 @@ the widget pass per frame.
 deleted as the research recommended. MateQuest keeps its retained screens. Recorded in
 [decisions.md](decisions.md) → *UI — retained by default, immediate mode optional*; built by
 [the move spec](../todos/closed/2026-10-28-mathquest-retire-imgui-prototype.md).
+
+## Combat sprites from an atlas (2026-11-22, brief 12)
+
+Făt-Frumos and the six enemies were composed from rects and triangles every frame, at a continuous unit
+`u`, so their "pixels" landed on fractional screen positions. They are now pixel recipes in
+[`@mathquest/atlas-recipes`](../../games/mathquest/atlas-recipes/src/index.ts), ported from those drawings at
+one pixel per unit (each unit cell sampled at its centre; the drop shadow stays a draw-time shape). The cook
+turns them into one `combat` sheet and page in `public/atlas/`, and
+[sprites.ts](../../games/mathquest/client/src/ui/sprites.ts) draws each as one `surface.sprite` quad at
+`max(2, floor(u))`, feet on the ground line, centred on its old `cx`. The combat screen's UI quads a frame
+fell by 30 to 127 per enemy (dragon 671 → 567, Muma Pădurii 703 → 576); the screenshots are in
+[verify/2026-11-22-mathquest-combat-atlas/](../verify/2026-11-22-mathquest-combat-atlas/). The map screen's
+scenery and its small hero stay shape-drawn; brief 14 redraws the creatures.

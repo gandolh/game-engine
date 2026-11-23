@@ -1,6 +1,6 @@
 ---
-summary: The bake principle (assets are code, not images), asset-cooking and atlas research, the cache-key/incremental-build recommendations that became brief 71, the 2026-10-28 large-image research, and the static layer's patches as built 2026-11-03 (the 4096 px single-texture ceiling, lazy per-patch bakes, painted images, the dev page, the upside-down upload fix).
-updated: 2026-11-03
+summary: The bake principle (assets are code, not images), the recipe checks every recipe passes (2026-11-21), asset-cooking and atlas research, the cache-key/incremental-build recommendations that became brief 71, the 2026-10-28 large-image research, and the static layer's patches as built 2026-11-03 (the 4096 px single-texture ceiling, lazy per-patch bakes, painted images, the dev page, the upside-down upload fix).
+updated: 2026-11-21
 ---
 
 # Asset Pipeline — Baking, Caching, and Atlas Strategy
@@ -43,7 +43,7 @@ Because our artifacts are **committed**, the natural cache store is the manifest
 
 ## Atlas best practice — filtered for a pixel-art game
 
-**How many sheets / what sizes.** Web-safe max texture is 4096² (99% of devices; only ~50% support more). Irrelevant at our scale: ~170 frames of 16×16 (a few 32px) ≈ 45k px² of content — everything fits in one 256² sheet. Our 6-sheet split is justified by **authoring ergonomics and git-diff locality** (regenerate just `crops` when a crop changes), not by GPU limits. Keep ~6; don't over-split (per-sheet decode + HTTP fetch overhead) and don't merge (kills the per-sheet cache win). Power-of-two dimensions (already done via `nextPow2`) remain the safe default.
+**How many sheets / what sizes.** Web-safe max texture is 4096² (99% of devices; only ~50% support more). Irrelevant at our scale: ~170 frames of 16×16 (a few 32px) ≈ 45k px² of content — everything fits in one 256² sheet. Our 6-sheet split is justified by **authoring ergonomics and git-diff locality** (regenerate just `crops` when a crop changes), not by GPU limits. Keep ~6; don't over-split (per-sheet decode + HTTP fetch overhead) and don't merge (kills the per-sheet cache win). *Reverted at run time only, 2026-11-21 (brief 10): the sheets stay the authoring and cache units, and the cook packs them into one runtime page; see [atlas-cook.md](atlas-cook.md).* Power-of-two dimensions (already done via `nextPow2`) remain the safe default.
 
 **Packing algorithm.** Jylänki's survey ("A Thousand Ways to Pack the Bin", 2010) ranks MaxRects-BSSF best for occupancy (95–98% vs 85–92% for shelf/guillotine) — but the gap only matters for *mixed-size* inputs. Our frames are near-uniform 16×16, where shelf packing is already near-optimal, deterministic, and ~50 lines of in-repo code. **Verdict: keep shelf**; note [maxrects-packer](https://www.npmjs.com/package/maxrects-packer) (TypeScript, zero deps, `smart`/`pot`/`allowRotation:false` options) as the drop-in upgrade if multi-tile structures ever bloat a sheet. Never enable rotation for pixel art.
 
@@ -72,6 +72,22 @@ nothing), but the reason changed from ergonomics-only to ergonomics **plus** bat
 3. **Pin PNG encoder options** for byte-stable committed artifacts (one-time whole-atlas diff when this lands).
 4. Keep shelf packing, 1px padding, pow2, 6 sheets; document maxrects-packer as the future upgrade path.
 5. Load-time: verify/adopt `createImageBitmap` per sheet. *(Verified 2026-06-10: already the case in [loader.ts](../../engine/core/src/assets/loader.ts).)*
+
+## The cook today (2026-11-21)
+
+One cook serves every game's recipes through a per-game config (brief 09), and packs each game's sheets
+into one runtime page (brief 10): [atlas-cook.md](atlas-cook.md), with how to add a game.
+
+## Recipe checks (2026-11-21, brief 11)
+
+`npm run test` checks every recipe of every game the cook knows
+([recipe-checks.ts](../../tools/atlas-builder/src/recipe-checks.ts), rules borrowed from sprite-gen's
+`pixel-draw`): no **lone** opaque pixel (tiles exempt), **clear corners** (tiles exempt), and the frames of one
+set (name up to the last segment, same frame size) on one **floor row** and within a pixel of one **height**.
+A failure names the frame, the rule and the pixel. Frames that break a rule on purpose go on the recipe
+package's allowlist with a reason, `set/*` for a whole set (Farm's:
+[recipe-check-allowlist.ts](../../games/farm/atlas-recipes/src/recipe-check-allowlist.ts)); "to review" marks
+one a later brief judges by eye, and a test fails an entry that no longer matches anything.
 
 ## Art direction (2026-06-10 art pass)
 

@@ -1,6 +1,6 @@
 ---
 summary: What MateQuest is (a Romanian-curriculum math roguelike — the FOURTH game on the shared engine) — design-of-record v0.1, BUILT (M0–M5 complete, playable). Turn-based Pokémon-style + Slay-the-Spire combat where solving a programa-școlară problem (**grades I–IV** — narrowed from the I–VIII intention on 2026-09-19, audit-54) IS the action; branching runs, two-layer progression (in-run XP + persistent per-topic mastery), soft-roguelike death, loot that grants math lifelines, Romanian-folklore theme, Resurrect-64 palette, Web-Worker solo build like Citadel; renders on the engine's WebGL2 backend (Canvas2D until 2026-08-18). Design settled 2026-07-21; the whole milestone plan shipped by 2026-07-23.
-updated: 2026-10-28
+updated: 2026-11-22
 ---
 
 # MateQuest — overview
@@ -123,7 +123,9 @@ for the "solving IS the action" pillar.
 - **Name** — *MateQuest* codename; *Cetatea Cifrelor* proposed RO title. **Provisional.**
 - ~~**Generator scope order** — build grades **I–IV first**, prove the loop, then V–VIII.~~ **SETTLED 2026-09-19:** I–IV is the game's scope, not a first phase of it. See the scope decision above.
 - **Art** — start with **placeholder shapes/sprites** to prove the loop; commission pixel art via the
-  atlas-recipe pipeline once the fun is confirmed. (Recommended.)
+  atlas-recipe pipeline once the fun is confirmed. (Recommended.) *Since 2026-11-22 (brief 12) the combat
+  creatures are pixel recipes cooked into an atlas and drawn at whole-number scales, a port of the shape
+  drawings ([mathquest-ui.md](mathquest-ui.md)); the map's scenery stays shape-drawn.*
 
 ## Relationship to the rest of the repo
 

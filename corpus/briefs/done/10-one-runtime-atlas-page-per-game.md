@@ -84,3 +84,45 @@ resolve to one texture, and the batcher groups by texture.
 
 - If brief 07 has run, repeat Farm's bench on both reference devices.
 - Deploy: `node cli.ts farm-valley deploy` from the vps-deploy checkout (static client only).
+
+## Outcome (2026-11-21)
+
+Done, with one check replaced (below). The record is [atlas-cook.md](../../wiki/atlas-cook.md) → *One runtime
+page per game*.
+
+- **The cook** ([pages.ts](../../../tools/atlas-builder/src/pages.ts), [cook.ts](../../../tools/atlas-builder/src/cook.ts))
+  packs a game's sheets as whole blocks after cooking them: tallest first into columns, in the smallest
+  power-of-two page that holds them (the squarer on a tie), at most 2048 px a side, a second page only if they
+  don't fit one. `index.json` gains `pages`, `placements` and `pagesHash` (every sheet's `inputsHash`, the cook's
+  version and options, the URL base); the page is composed again only when that changes, and `--force` writes
+  the same bytes. Farm: one 512×1024 `page-0.png`, the layout this brief predicted. The sheet PNGs are still
+  cooked and cached, and `world-preview` still reads them.
+- **The loader** ([loader.ts](../../../engine/core/src/assets/loader.ts)): `loadAllAtlasSheets` fetches each page
+  once and builds every sheet on it with `sheetOnPage` (the page's bitmap and size, frames offset by the sheet's
+  corner). An index without pages loads as before. The Farm client's boot needed no change.
+- **The GL store** ([gl-atlas-store.ts](../../../engine/core/src/render/webgl2/gl-atlas-store.ts)) keeps one texture
+  per bitmap object, counting the sheets that use it, so a page uploads once and is freed with its last sheet.
+- **The renderer** ([renderer.ts](../../../engine/core/src/render/webgl2/renderer.ts)) runs a group while the texture
+  stays the same (main and ghost passes), with a one-entry lookup memo, and `lastDrawStats.atlases` counts
+  textures.
+- **The probe** ([probe-draw-groups.ts](../../../tools/run-sim/src/probes/probe-draw-groups.ts)) reads each sheet's
+  page from the cooked index and counts runs of the same texture, printing the per-sheet count beside it.
+
+**Acceptance.**
+
+- The probe on seed `0xc0ffee`: **49 groups on 4 sheets before, 1 group on 1 texture after**; layer 40 went
+  from 40 groups to 1 ([before](../../verify/2026-11-21-runtime-page/probe-before.txt),
+  [after](../../verify/2026-11-21-runtime-page/probe-after.txt)). In the browser, Farm's bench scene
+  (`?bench&profile`): main-pass draw groups 47.8 a frame → **1**, `draw.atlases` 5.28 → **1**.
+- Farm creates **6 textures at boot instead of 11** (the brief-05 counter): one page instead of six sheets.
+- Nothing looks different: `npm run preview` writes the same PNG (md5 `71554653…`); Farm's `?card` scene, which
+  draws terrain, crops, buildings and farmers through the WebGL2 renderer, is **byte for byte the same**
+  ([before](../../verify/2026-11-21-runtime-page/card-before.png), [after](../../verify/2026-11-21-runtime-page/card-after.png));
+  and a builder test checks every sheet's pixels unchanged at its place on the page.
+  **The replaced check:** a screenshot of the running game at a fixed seed and tick could not be made
+  repeatable here. Two runs of the *same* build, paused and stepped with a fake clock and a seeded
+  `Math.random`, still differed in 534 of 1,024,000 pixels, from the time-based water, ambient and particle
+  animation. So the `?card` scene stands in for it.
+- `npm run atlas` twice: the second reports 6 sheets and the page cached.
+- `npm run check` exits 0, and `bash corpus/lint.sh` passes.
+

@@ -24,7 +24,7 @@ export default {
     "ws",
   ],
   workspaces: {
-    ".": { entry: ["inspirations/fetch.mjs", "scripts/*.mjs", "vendor/house-style/bin/*.mjs"] },
+    ".": { entry: ["inspirations/fetch.mjs", "scripts/*.mjs", "scripts/*.ts", "vendor/house-style/bin/*.mjs"] },
     "engine/core": { entry: ["src/node-import-check.ts"] },
     "engine/ui": { entry: ["tools/*.ts"] },
     "engine/wasm-modules": { entry: ["build/*.mjs", "src/*.ts"] },

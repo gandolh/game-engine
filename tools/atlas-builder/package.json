@@ -13,7 +13,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@engine/core": "0.1.0",
     "@farm/atlas-recipes": "0.0.0",
+    "@mathquest/atlas-recipes": "0.0.0",
     "pngjs": "7.0.0"
   },
   "devDependencies": {

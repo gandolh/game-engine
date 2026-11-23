@@ -2,8 +2,13 @@ import { describe, it, expect } from "vitest";
 import { readdirSync, statSync, readFileSync, writeFileSync, existsSync } from "node:fs";
 import { join, relative, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { PNG } from "pngjs";
 import { BASE_RECIPES, RECIPES, RECIPES_SRC_DIR } from "@farm/atlas-recipes";
-import { buildAtlas } from "./index";
+import { ATLAS_CONFIG } from "@farm/atlas-recipes/atlas";
+import { buildAtlas as cook } from "./cook";
+
+/** Cooks Farm, the one registered game these tests are about. */
+const buildAtlas = (opts: { force?: boolean } = {}) => cook(ATLAS_CONFIG, opts);
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ASSETS_DIR = join(RECIPES_SRC_DIR, "assets");
@@ -121,5 +126,30 @@ describe("per-sheet cache", () => {
 
     buildAtlas({ force: true });
     expect(buildAtlas().built, "after restore + --force, a no-op run rebuilds nothing").toHaveLength(0);
+  });
+});
+
+describe("Farm's runtime page (brief 10)", () => {
+  it("holds every sheet's pixels unchanged at its placement, in one page", () => {
+    buildAtlas();
+    const index = JSON.parse(readFileSync(join(ATLAS_OUT_DIR, "index.json"), "utf8")) as {
+      pages: { id: string; width: number; height: number }[];
+      placements: Record<string, { page: string; x: number; y: number }>;
+    };
+    expect(index.pages.map((p) => [p.id, p.width, p.height])).toEqual([["page-0", 512, 1024]]);
+    const page = PNG.sync.read(readFileSync(join(ATLAS_OUT_DIR, "page-0.png")));
+    for (const [sheetId, at] of Object.entries(index.placements)) {
+      const sheet = PNG.sync.read(readFileSync(join(ATLAS_OUT_DIR, `${sheetId}.png`)));
+      for (let row = 0; row < sheet.height; row++) {
+        const want = sheet.data.subarray(row * sheet.width * 4, (row + 1) * sheet.width * 4);
+        const start = ((at.y + row) * page.width + at.x) * 4;
+        expect(page.data.subarray(start, start + sheet.width * 4).equals(want), `${sheetId} row ${row}`).toBe(true);
+      }
+    }
+  });
+
+  it("is composed again only when a sheet's hash changes", () => {
+    buildAtlas({ force: true });
+    expect(buildAtlas().pagesBuilt).toBe(false);
   });
 });

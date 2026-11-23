@@ -105,6 +105,39 @@ describe("GlAtlasStore#add", () => {
   });
 });
 
+describe("GlAtlasStore: sheets on one page (brief 10)", () => {
+  it("uploads a shared image once, gives every sheet on it the same texture, and frees it with the last", () => {
+    const { gl, raw, deletedTextures } = makeFakeGl();
+    const store = new GlAtlasStore(gl);
+    const page = {} as unknown as ImageBitmap;
+    const onPage = (id: string, x: number): LoadedAtlasImage => ({
+      ...fakeAtlas(id, 512, 1024, { f: { x, y: 0, w: 16, h: 16 } }),
+      bitmap: page,
+    });
+    store.add(onPage("terrain", 256));
+    store.add(onPage("crops", 384));
+
+    expect((raw.createTexture as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(1);
+    expect(store.texture("terrain")).toBe(store.texture("crops"));
+    expect(store.uv("crops", "f").u0).toBe(384 / 512);
+
+    store.add(fakeAtlas("crops", 64, 64, { f: { x: 0, y: 0, w: 16, h: 16 } }));
+    expect(deletedTextures).toHaveLength(0); // terrain still draws from the page
+    store.add(fakeAtlas("terrain", 64, 64, { f: { x: 0, y: 0, w: 16, h: 16 } }));
+    expect(deletedTextures).toHaveLength(1);
+  });
+
+  it("dispose() deletes a shared texture once", () => {
+    const { gl, deletedTextures } = makeFakeGl();
+    const store = new GlAtlasStore(gl);
+    const page = {} as unknown as ImageBitmap;
+    store.add({ ...fakeAtlas("a", 64, 64, { f: { x: 0, y: 0, w: 16, h: 16 } }), bitmap: page });
+    store.add({ ...fakeAtlas("b", 64, 64, { f: { x: 0, y: 0, w: 16, h: 16 } }), bitmap: page });
+    store.dispose();
+    expect(deletedTextures).toHaveLength(1);
+  });
+});
+
 describe("GlAtlasStore#uv", () => {
   it("computes top-left-origin UV fractions with no extra v-flip (the flip lives in add(), not here)", () => {
     const { gl } = makeFakeGl();

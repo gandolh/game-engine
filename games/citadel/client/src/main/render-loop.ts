@@ -1,6 +1,6 @@
 import { TILE_SIZE } from "@citadel/sim-core";
 import type { SettlementTier, BuildingSnapshot } from "@citadel/sim-core";
-import { expSmooth } from "@engine/core";
+import { FrameProfile, expSmooth } from "@engine/core";
 import { computeLayout, renderTree, label } from "@engine/ui";
 import type { LabelNode } from "@engine/ui";
 import { CITADEL_PAL as EDG } from "../render/citadel-palette";
@@ -121,6 +121,13 @@ let siegeLaidOutSizeKey = "";
 
 let lastFrameMs = 0; // render clock (performance.now, MAIN-thread only — NOT sim)
 
+/** The shared frame profile (corpus brief 05). boot.ts replaces this disabled one; it records nothing. */
+let frameProfile = new FrameProfile({ game: "citadel", enabled: false });
+
+export function setFrameProfile(profile: FrameProfile): void {
+  frameProfile = profile;
+}
+
 /**
  * audit-13: the `currentBuildings` array reference last fed through
  * `syncAppearMap`/the burning-since tracker below. `getBuildings` (sim-core)
@@ -140,6 +147,7 @@ const buildBarInfoLabel: LabelNode = label("", { muted: true });
 // Animation loop
 // ---------------------------------------------------------------------------
 export function loop(): void {
+  frameProfile.beginFrame();
   // engine-ui chunk 7: the settlement readout (tier/day/pop/happiness), the goods strip + the
   // speed/pause buttons are rendered IN-CANVAS via @engine/ui now. Refresh their widget
   // text/state from the latest snapshot here; the actual layout + draw happens after the
@@ -635,7 +643,7 @@ export function loop(): void {
     renderer.setCloudOptions(cloudOptionsFor(season, day, dayFraction, timeSec));
   }
 
-  renderer.endFrame(wash, particles, weatherField);
+  frameProfile.timers.time("render.endFrame", () => renderer.endFrame(wash, particles, weatherField));
 
   toasts.tick(nowMs); // age toasts on the render clock
 
@@ -648,6 +656,7 @@ export function loop(): void {
     alpha: interpPhase,
     entityCount: currentBuildings.length + currentVillagers.length + currentRaiders.length,
   });
+  frameProfile.endFrame({ drawGroups: renderer.lastDrawStats?.groups, uiQuads: renderer.lastUiFlush?.quads });
 
   requestAnimationFrame(loop);
 }

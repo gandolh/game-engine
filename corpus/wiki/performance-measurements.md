@@ -1,6 +1,6 @@
 ---
-summary: The Farm Valley profiling record — how to measure (Profiler + ?profile + DebugOverlay), plus the 2026-06-05/06-10/07-15 measured tick/frame results that every optimization claim is scored against.
-updated: 2026-09-19
+summary: How every game measures itself since 2026-11-21 (the shared ?profile, its game-engine-profile/1 export and which fields mean something on SwiftShader; the ?bench scenes are on bench-scenes.md), plus the measured tick/frame/draw-group results every optimization claim is scored against.
+updated: 2026-11-21
 ---
 
 # Performance — measurement harness & measured results
@@ -52,9 +52,9 @@ across the map and then sorts them by Y — maximal alternation by construction.
 `LAYER.ACTOR === LAYER.BUILDING === 50` as the mechanism. The *mechanism* — atlas alternation inside
 one layer — is right, but layer 50 contributes 6 groups, not the bulk. So the spec's ranked fix list
 reads differently now: option **(b)**, texture arrays across the whole sprite path, is a large change
-aimed at a problem living in **one layer with two sheets**. Merging `props` and `buildings`, or giving
-layer-40 dressing its own sheet, collapses 40 groups to 1 for an atlas-builder change. Not yet done —
-it needs its own spec.
+aimed at a problem living in **one layer with two sheets**. **Done 2026-11-21 by brief 10:** groups follow
+textures and Farm's sheets share one page, so the probe counts **1 group** and the bench scene's main pass
+fell from 47.8 groups a frame to 1 ([atlas-cook.md](atlas-cook.md)).
 
 **Scope, so the number is not over-quoted:** this counts the `buildSprites` snapshot queue only. The
 live client also pushes the static layer, ambient scenery, occluder ghosts and indicator quads into
@@ -93,6 +93,55 @@ back under the 16.6 ms budget with every panel open. `panels`/`pushSprites` impr
 secondary (less timer interference at 280 ms frames). Baseline/post-fix exports:
 `farm-valley-profile-seed-c0ffee-2026-07-15T17-09-02` / `…17-11-06` (session scratchpad;
 schema `farm-valley-profile/1`).
+
+## Measuring (one profiler in every game since 2026-11-21, brief 05)
+
+`?profile` on any game's URL (Farm, Citadel, Hollow, MateQuest; production builds too) turns on the shared
+[`FrameProfile`](../../engine/core/src/debug/frame-profile.ts). It shows the
+[DebugOverlay](../../engine/core/src/debug/overlay.ts) with the frame interval and an **Export profile**
+button, and `window.__exportProfile()` returns the same JSON. Without `?profile` nothing is created: no
+timer query, no samples, no extra animation frame, and the GL context is untouched (a unit test checks it).
+
+The export, `game-engine-profile/1`:
+
+- **`frames.interval`**: the frame interval from the profile's own `requestAnimationFrame` loop (display
+  ticks) at p50, p95 and p99, the share over 16.7 ms and over 33.3 ms, and fps. **`frames.drawn`**: the
+  frames the game drew, their CPU time and rate. The two differ in a game whose loop is not paced by the
+  display.
+- **`gpu`**: the GPU's own frame time from `EXT_disjoint_timer_query_webgl2`, read a few frames late
+  without stalling, disjoint results dropped. `"unavailable"` where the browser hides the extension.
+- **`heap`**: `usedJSHeapSize` once a second (Chrome only, else `"unavailable"`); `drops` marks GCs.
+- **`timers`**: every named step's mean and p95 (Farm's sub-timers, Hollow's `interp`/`collision`,
+  MateQuest's `ui.refresh`/`ui.layout`/`ui.draw`/`ui.mirror`, Citadel's `render.endFrame`, and `frame`).
+- **`counters`**: draw groups and UI quads (2D renderer), GL draw calls and instances, texture bytes
+  uploaded per frame, and totals since boot (bytes, uploads, textures created), counted by wrapping the
+  GL context's own methods while profiling.
+- **`device`**, **`seed`**, **`build`**, **`url`**, and Farm's old fields under `extra.farm`.
+
+**On SwiftShader** (a builder's sandbox) only the counters and the named steps' CPU milliseconds mean
+something: frame intervals and fps measure the rasteriser. Read frame times on a reference device
+([frame-budget.md](frame-budget.md)).
+
+The fixed `?bench` scenes and `npm run bench` (brief 06) are on [bench-scenes.md](bench-scenes.md).
+
+### The first exports (2026-11-21, headless Chromium on SwiftShader, brief 05)
+
+[corpus/verify/2026-11-21-frame-profiler/](../verify/2026-11-21-frame-profiler/) holds one export per
+game, taken a few seconds into play at 1280×800. Counters only, per frame (mean):
+
+| Game | GL draw calls | Draw groups | UI quads | Texture bytes uploaded |
+|---|---:|---:|---:|---|
+| Farm (seed `0xc0ffee`, a run started) | 61.9 | 20.7 | 189 | 4,096,000 every frame; 474 MB in total |
+| Citadel (cozy) | 95.1 | 1.0 | 759 | boot and bakes only (76 MB in total) |
+| Hollow (3D, seed default) | 26.9 | n/a | n/a | none |
+| MateQuest (map screen) | 30.0 | 0.0 | 19,269 | the font atlas only |
+
+Two numbers stand out. Farm re-uploads a full-canvas texture every frame: the light overlay paints on a
+CPU 2D canvas and `OverlayLightPass` uploads it whole (4 MB at 1280×800, about 8 MB at 1080p with DPR
+capped at 2). That is a measure-first todo,
+[light overlay as a full-canvas upload](../todos/2026-11-21-light-overlay-full-canvas-upload.md). And
+MateQuest's map screen flushes about 19,000 UI quads a frame from its shape-drawn scenery, which brief 12
+leaves as it is (it moves only the combat creatures onto an atlas).
 
 ## Measuring (P0 — shipped 2026-06-05)
 

@@ -77,3 +77,62 @@ mean something on SwiftShader. Brief 07 runs the same scenes on real hardware.
 ## Owner steps
 
 - None to close this brief. Brief 07 uses the scenes on real hardware.
+
+## Outcome (2026-11-21)
+
+Done. Each game client has a bench module and `?bench` in its boot path, in production builds too, and
+`?bench` implies `?profile`:
+
+- [games/farm/client/src/main/bench.ts](../../../games/farm/client/src/main/bench.ts): seed `0xc0ffee`, home
+  screen skipped, the six collapsible panels built open from an in-memory layout
+  (`panelPrefsConfig(true)` in [panels.ts](../../../games/farm/client/src/main/panels.ts), so a player's saved
+  layout is never written), nobody followed; one sweep east and west at zoom 3, a diagonal sweep at 0.5,
+  back to the centre at 3. It starts when the loading screen goes.
+- [games/citadel/client/src/main/bench.ts](../../../games/citadel/client/src/main/bench.ts): a cozy run, picker
+  skipped; once the opening frame centres the town, a circle at zoom 6, a zoom out to 1 (the whole map),
+  a wider circle, a zoom back in. The boot zoom and the closest zoom are the same in Citadel: the opening
+  frame sets `MAX_ZOOM`. So the second zoom the scene covers is the whole-map one, the camera's own before
+  the opening frame.
+- [games/hollow/client/src/bench.ts](../../../games/hollow/client/src/bench.ts): seed 42 (the card's), founding
+  form skipped, 1x, chronicle open (the left rail always shows it), one orbit of the camera's yaw. The
+  app gained an `onSceneReady(camera, profile)` option for it.
+- [games/mathquest/client/src/bench.ts](../../../games/mathquest/client/src/bench.ts): seed 1, empty mastery
+  and the default locale (nothing read or saved), played through the game's own commands, answering from
+  the prompt. A test drives the real sim through the loop.
+
+The harness is the same 80 lines in all four (no engine change, as the brief asked): a 3 s warm-up, a
+`profile.reset()`, 30 s sampled, then `window.__benchResult = { ...exportProfile(), scene }` and a **Save
+bench result** button. [scripts/bench.ts](../../../scripts/bench.ts) runs under Node's own type stripping
+(`npm run bench -- <folder> [game…]`); the portal passes `bench` and `profile` into its frame.
+
+**One scene needed a change to be repeatable.** MateQuest's first two runs differed by 6.4% in UI quads
+(2267.66 against 2413.31). Its moves are paced in display ticks, so the screens came in the same order,
+but the 30 s cut fell four ticks apart. Those last ticks were on the map screen, which flushes about
+20,000 quads a frame against about 2,000 on the others. The run now ends on a whole screen, up to 30
+ticks past 30 s (`mayEndAt` on the scene), and the two runs below match exactly.
+
+**Acceptance.**
+
+- `npm run bench -- corpus/verify/2026-11-21-bench-scenes/run-1` (and `run-2`), with no dev server up
+  beforehand, started each server, wrote four JSON files each with `scene`, `seed`, the counters and
+  `"gpu-not-real"` in every frame-time field, and stopped the servers again.
+- Two runs, means per frame ([run-1](../../verify/2026-11-21-bench-scenes/run-1/),
+  [run-2](../../verify/2026-11-21-bench-scenes/run-2/)):
+
+  | Scene | Draw groups | UI quads |
+  |---|---:|---:|
+  | Farm | 48.11 / 47.85 (0.5%) | 1819.38 / 1819.36 |
+  | Citadel | 1 / 1 | 760 / 760 |
+  | MateQuest | 0 / 0 | 3887.99 / 3887.99 |
+  | Hollow (3D, GL draw calls instead) | 35.80 / 35.80 | n/a |
+
+- A production build of Hollow (`HOLLOW_BASE=/hollow/`), served with the portal by
+  `portal/scripts/serve-all.mjs`, ran its scene at `/hollow/?bench&profile` (`build: "production"`), and
+  the portal's `/games/hollow/?bench&profile` framed `/hollow/?bench&profile` and ran it there; the result
+  was read off the frame's `window`.
+- `npm run check` exits 0 (lint warnings unchanged at 3573), and `bash corpus/lint.sh` passes.
+
+**Found on the way:** Farm records `draw.sprites`, `draw.atlases` and `draw.ghostGroups` through its timer
+object, so the export lists sprite counts under `timers` as if they were milliseconds. Noted on
+[bench-scenes.md](../../wiki/bench-scenes.md); not changed here.
+

@@ -36,9 +36,9 @@ export default [
       "verifyProblem",
     ],
     // One recipe per file, each a default export read through the recipe index.
-    defaultExports: ["games/farm/atlas-recipes/src/**"],
-    // TypeScript that no tsconfig covers (hand-run generators and the portal's card list).
-    untyped: ["engine/ui/tools/**", "portal/scripts/**"],
+    defaultExports: ["games/farm/atlas-recipes/src/**", "games/mathquest/atlas-recipes/src/assets/**"],
+    // TypeScript that no tsconfig covers (hand-run generators, the portal's card list and the bench runner).
+    untyped: ["engine/ui/tools/**", "portal/scripts/**", "scripts/*.ts"],
     ignores: [
       // The Docusaurus site has its own conventions and its own build.
       "docs/**",

@@ -32,8 +32,9 @@ const IS_TEST_FILE = /\.test\.tsx?$/;
 // already-capped canvas.width/height, for support triage — capping it would
 // throw away the exact information the field exists to capture. Not part of
 // sweep-06's evidence table (engine + Citadel + Hollow only) or this sweep's
-// file ownership.
-const ALLOWED_RAW_READS = new Set<string>([join("games", "farm", "client", "src", "main", "profile-export.ts")]);
+// file ownership. Since corpus brief 05 that export is the shared profile's (`game-engine-profile/1`,
+// `device.devicePixelRatio` beside the capped `device.dpr`); Farm's own export no longer reads it.
+const ALLOWED_RAW_READS = new Set<string>([join("engine", "core", "src", "debug", "frame-profile.ts")]);
 
 // A line is a comment mention (documentation referring to `devicePixelRatio`
 // by name), not a real read, if its trimmed text opens a `//` line comment or

@@ -1,0 +1,224 @@
+{
+  "schema": "game-engine-profile/1",
+  "game": "mathquest",
+  "build": "development",
+  "url": "http://localhost:5176/?bench&profile",
+  "seed": 1,
+  "collectedAt": "2026-11-21T22:51:14.954Z",
+  "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.0.0 Safari/537.36",
+  "device": {
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "vendor": "Google Inc. (Google)",
+    "dpr": 1,
+    "devicePixelRatio": 1,
+    "canvas": {
+      "width": 1280,
+      "height": 800,
+      "clientWidth": 1280,
+      "clientHeight": 800
+    }
+  },
+  "frames": {
+    "durationMs": 29498.9,
+    "displayTicks": 360,
+    "interval": {
+      "samples": 359,
+      "mean": "gpu-not-real",
+      "p50": "gpu-not-real",
+      "p95": "gpu-not-real",
+      "p99": "gpu-not-real",
+      "over16_7": "gpu-not-real",
+      "over33_3": "gpu-not-real",
+      "fps": "gpu-not-real"
+    },
+    "drawn": {
+      "frames": 360,
+      "meanMs": "gpu-not-real",
+      "p95Ms": "gpu-not-real",
+      "fps": "gpu-not-real"
+    }
+  },
+  "gpu": "unavailable",
+  "heap": {
+    "samples": [
+      {
+        "tMs": 325.60000000009313,
+        "usedBytes": 77044371
+      },
+      {
+        "tMs": 1458.1000000000931,
+        "usedBytes": 88257287
+      },
+      {
+        "tMs": 2537,
+        "usedBytes": 99368771
+      },
+      {
+        "tMs": 3641.7000000001863,
+        "usedBytes": 78839127
+      },
+      {
+        "tMs": 4705.399999999907,
+        "usedBytes": 89594327
+      },
+      {
+        "tMs": 5772.399999999907,
+        "usedBytes": 100348635
+      },
+      {
+        "tMs": 6871.399999999907,
+        "usedBytes": 79540987
+      },
+      {
+        "tMs": 7893.600000000093,
+        "usedBytes": 90210331
+      },
+      {
+        "tMs": 8986.899999999907,
+        "usedBytes": 100880063
+      },
+      {
+        "tMs": 10017.30000000028,
+        "usedBytes": 80003895
+      },
+      {
+        "tMs": 11043.80000000028,
+        "usedBytes": 85779665
+      },
+      {
+        "tMs": 12060.200000000186,
+        "usedBytes": 92054065
+      },
+      {
+        "tMs": 13064.80000000028,
+        "usedBytes": 97794989
+      },
+      {
+        "tMs": 14072.399999999907,
+        "usedBytes": 76835006
+      },
+      {
+        "tMs": 15096.30000000028,
+        "usedBytes": 82149586
+      },
+      {
+        "tMs": 16102.899999999907,
+        "usedBytes": 87474513
+      },
+      {
+        "tMs": 17239.899999999907,
+        "usedBytes": 99569035
+      },
+      {
+        "tMs": 18290.399999999907,
+        "usedBytes": 78546047
+      },
+      {
+        "tMs": 19349.399999999907,
+        "usedBytes": 88977671
+      },
+      {
+        "tMs": 20430,
+        "usedBytes": 99409927
+      },
+      {
+        "tMs": 21479.899999999907,
+        "usedBytes": 78314923
+      },
+      {
+        "tMs": 22513.399999999907,
+        "usedBytes": 88747223
+      },
+      {
+        "tMs": 23809.30000000028,
+        "usedBytes": 102622439
+      },
+      {
+        "tMs": 24850.30000000028,
+        "usedBytes": 81385851
+      },
+      {
+        "tMs": 25909.80000000028,
+        "usedBytes": 91689235
+      },
+      {
+        "tMs": 26915.899999999907,
+        "usedBytes": 98866236
+      },
+      {
+        "tMs": 27919.200000000186,
+        "usedBytes": 55587034
+      },
+      {
+        "tMs": 28947.399999999907,
+        "usedBytes": 55200348
+      }
+    ],
+    "drops": 9
+  },
+  "timers": {
+    "frame": {
+      "count": 360,
+      "mean": 1.1527777777933,
+      "p95": 3.8000000002793968
+    },
+    "ui.refresh": {
+      "count": 301,
+      "mean": 0.047176079736385136,
+      "p95": 0.20000000018626451
+    },
+    "ui.layout": {
+      "count": 301,
+      "mean": 0.08006644518148662,
+      "p95": 0.20000000018626451
+    },
+    "ui.draw": {
+      "count": 301,
+      "mean": 0.11926910300364724,
+      "p95": 0.20000000018626451
+    },
+    "ui.mirror": {
+      "count": 301,
+      "mean": 0.015614617939271108,
+      "p95": 0.09999999962747097
+    }
+  },
+  "counters": {
+    "drawGroups": {
+      "mean": 0,
+      "p95": 0
+    },
+    "glDrawCalls": {
+      "mean": 23.447222222222223,
+      "p95": 43
+    },
+    "drawInstances": {
+      "mean": 3887.9861111111113,
+      "p95": 20583
+    },
+    "uiQuads": {
+      "mean": 3887.9861111111113,
+      "p95": 20583
+    },
+    "textureBytesPerFrame": {
+      "mean": 0,
+      "p95": 0
+    },
+    "textureBytesTotal": 29956,
+    "textureUploads": 2,
+    "texturesCreated": 2
+  },
+  "scene": "mathquest-map-combat-loot-loop",
+  "sceneReport": {
+    "screens": {
+      "map": 60,
+      "combat": 270,
+      "loot": 30
+    },
+    "moves": 12
+  },
+  "bench": {
+    "frameTimes": "gpu-not-real",
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)"
+  }
+}

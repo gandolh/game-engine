@@ -13,6 +13,7 @@
   "dependencies": {
     "@engine/core": "0.1.0",
     "@engine/ui": "0.1.0",
+    "@mathquest/atlas-recipes": "0.0.0",
     "@mathquest/sim-core": "0.0.0"
   },
   "devDependencies": {

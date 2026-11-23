@@ -21,7 +21,8 @@
  * API this needed (engine/core/src/debug/overlay.ts) — generic, defaults to "top-left" so Farm's
  * exact pixel position is unchanged.
  */
-import { DebugOverlay } from "@engine/core";
+import { DebugOverlay, profileRequested } from "@engine/core";
+import { benchRequested } from "./bench";
 
 /**
  * The live overlay instance, or `undefined` outside dev builds (or before `initDebugOverlay`
@@ -37,6 +38,8 @@ export let debugOverlay: DebugOverlay | undefined;
  * every caller gets the same gate for free.
  */
 export function initDebugOverlay(parent: HTMLElement): void {
-  if (!import.meta.env.DEV) return;
+  // `?profile` mounts it in a production build too: the shared profile (corpus brief 05) shows its frame
+  // stats and export button here, and brief 07 reads it on the deployed game. `?bench` implies `?profile`.
+  if (!import.meta.env.DEV && !profileRequested() && !benchRequested()) return;
   debugOverlay = new DebugOverlay(parent, { corner: "bottom-right" });
 }

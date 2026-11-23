@@ -172,6 +172,12 @@ export class SceneRenderer3D {
   private readonly materialsBuffer: WebGLBuffer;
 
   private materialsSet = false;
+
+  /**
+   * Draw calls and instances submitted by the last `render()` (corpus brief 05: the shared profile reads
+   * them). Plain counters, kept every frame: two additions per draw.
+   */
+  readonly lastDrawStats = { drawCalls: 0, instances: 0 };
   private readonly instanceBuffers = new Map<MeshHandle, { buffer: WebGLBuffer; capacityBytes: number }>();
 
   constructor(device3d: GlDevice3d, options: SceneRendererOptions = {}) {
@@ -319,6 +325,8 @@ export class SceneRenderer3D {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.useProgram(this.pipeline.program);
 
+    let drawCalls = 0;
+    let instances = 0;
     for (const draw of frame.draws) {
       if (draw.instanceCount === 0) continue;
       const instanceBuffer = this._instanceBufferFor(draw.mesh, draw.instances);
@@ -328,7 +336,11 @@ export class SceneRenderer3D {
       for (const spec of this.pipeline.instanceAttribs) setupAttrib(gl, spec);
 
       gl.drawElementsInstanced(gl.TRIANGLES, draw.mesh.indexCount, gl.UNSIGNED_INT, 0, draw.instanceCount);
+      drawCalls += 1;
+      instances += draw.instanceCount;
     }
+    this.lastDrawStats.drawCalls = drawCalls;
+    this.lastDrawStats.instances = instances;
 
     gl.bindVertexArray(null);
   }

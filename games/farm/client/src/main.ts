@@ -8,6 +8,7 @@ import {
   RainField,
   createNoiseGeneratorFromUrl,
   showUnsupportedNotice,
+  FrameProfile,
 } from "@engine/core";
 import type { NoiseGenerator, RendererLike } from "@engine/core";
 import { loadFontAtlas, computeLayout, renderTree } from "@engine/ui";
@@ -18,7 +19,8 @@ import { createLoadingScreen } from "./ui/canvas/loading-screen";
 import { SimClient } from "./net/sim-client";
 import { parseRun, serializeRun } from "@farm/sim-core/run-descriptor";
 
-import { CONFIG, CAMERA_CONFIG } from "./main/config";
+import { CONFIG, CAMERA_CONFIG, PROFILE_ENABLED } from "./main/config";
+import { benchRequested, farmBenchScene, runBench } from "./main/bench";
 import {
   setupCameraListeners,
   setSimClient,
@@ -41,6 +43,8 @@ import { hostClientId } from "./main/host-client-id";
 
 interface Runtime {
   renderer: RendererLike;
+  /** The shared frame profile (corpus brief 05); does nothing without `?profile`. */
+  profile: FrameProfile;
   noiseGen: NoiseGenerator | null;
   keyboard: Keyboard;
   uiHost: UIHost;
@@ -88,6 +92,13 @@ async function setupRuntime(canvas: HTMLCanvasElement): Promise<Runtime> {
     });
     throw err;
   }
+  // Made before the atlases upload, so the profile's texture counters include the boot uploads.
+  const profile = new FrameProfile({
+    game: "farm",
+    enabled: PROFILE_ENABLED,
+    canvas,
+    build: import.meta.env.MODE,
+  });
   for (const atlas of atlasMap.values()) {
     renderer.addAtlas(atlas);
   }
@@ -126,7 +137,7 @@ async function setupRuntime(canvas: HTMLCanvasElement): Promise<Runtime> {
   window.addEventListener("pointerdown", unlockAudio, { once: true });
   window.addEventListener("keydown", unlockAudio, { once: true });
 
-  return { renderer, noiseGen, keyboard, uiHost, camera, audio };
+  return { renderer, profile, noiseGen, keyboard, uiHost, camera, audio };
 }
 
 /**
@@ -169,6 +180,16 @@ async function boot(): Promise<void> {
     throw err;
   }
   const { renderer, uiHost } = runtime;
+
+  // `?bench` (corpus brief 06): the fixed scene starts a run on the boot seed, with no home screen.
+  if (benchRequested()) {
+    void startGame(canvas, fatal, runtime, {
+      seed: CONFIG.seed,
+      maxDays: CONFIG.maxDays,
+      ticksPerDay: CONFIG.ticksPerDay,
+    });
+    return;
+  }
 
   // --- Home screen (in-canvas) ---------------------------------------------------------------
   // Rendered through the shared UI host each frame until Start is clicked. The seed field is the
@@ -251,11 +272,14 @@ async function startGame(
 
   let staticBaked = false;
   let firstFrame = false;
+  /** Set once the panels exist; starts the `?bench` scene when the loading screen goes. */
+  let startBench: (() => void) | null = null;
   function maybeDismiss(): void {
-    if (staticBaked && firstFrame) {
+    if (staticBaked && firstFrame && loadingActive) {
       loadingActive = false;
       cancelAnimationFrame(loadingRafId);
       loadingRoot.mirror?.update(loading.root); // clears the AT view (getRoot() now null)
+      startBench?.();
     }
   }
 
@@ -325,15 +349,23 @@ async function startGame(
       if (_camera !== null) applyFocusAndPan(_camera);
     };
 
-    const panels = buildPanels(document.body, uiHost, canvas, {
-      onSelectFarmer: focusFarmer,
-      playback: playbackActions,
-      onShare,
-      swapSlots: (from, to) => {
-        if (client.owner) client.swapSlots(from, to);
+    const panels = buildPanels(
+      document.body,
+      uiHost,
+      canvas,
+      {
+        onSelectFarmer: focusFarmer,
+        playback: playbackActions,
+        onShare,
+        swapSlots: (from, to) => {
+          if (client.owner) client.swapSlots(from, to);
+        },
+        isOwner: () => client.owner,
       },
-      isOwner: () => client.owner,
-    });
+      benchRequested(),
+    );
+
+    if (benchRequested()) startBench = () => runBench(runtime.profile, farmBenchScene());
 
     const ambient = new AmbientLayer();
     bakeStaticLayer(client, renderer, noiseGen, seed, ambient, () => {
@@ -359,9 +391,12 @@ async function startGame(
       clientId: hostClientId(),
     });
 
-    const renderFrame = createRenderLoop({
+    // One display-paced loop for the rest of the page's life: the home and loading screens' own loops
+    // are cancelled by then (corpus brief 08).
+    const renderLoop = createRenderLoop({
       client,
       renderer,
+      profile: runtime.profile,
       keyboard,
       particles,
       particleDirector,
@@ -381,7 +416,7 @@ async function startGame(
       },
     });
 
-    requestAnimationFrame(renderFrame);
+    renderLoop.start();
   } catch (err) {
     loadingActive = false;
     cancelAnimationFrame(loadingRafId);

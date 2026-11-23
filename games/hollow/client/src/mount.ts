@@ -78,6 +78,7 @@ import type {
   WorkerOutbound,
 } from "./worker/sim-worker";
 import { startHollowApp } from "./render3d/app";
+import { HOLLOW_BENCH_SEED, hollowBenchScene, runBench } from "./bench";
 import { DebugOverlay, showUnsupportedNotice } from "@engine/core";
 import { HOLLOW_PAL } from "./render/hollow-palette";
 import { createOverlayCanvas, resizeOverlayCanvas, drawAgentOverlay, type OverlayAgentInput } from "./render3d/overlay";
@@ -114,6 +115,11 @@ export interface MountOptions {
    * overlay but the 3D scene and sets `window.__cardReady` for the portal's capture script.
    */
   readonly card?: boolean;
+  /**
+   * `?bench` on the standalone page (corpus brief 06), production builds included: the fixed benchmark
+   * scene. Skips the authoring screen, runs a fixed seed at the default speed and orbits the camera once.
+   */
+  readonly bench?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -304,6 +310,7 @@ export function mountHollow(container: HTMLElement, options: MountOptions): () =
     // Disposed by this run's teardown (`stopRun`), which releases the GL context.
     const app = startHollowApp(canvas, worker, {
       ticksPerDay: TICKS_PER_DAY,
+      seed: currentSeed,
       onAgentClicked: handleAgentClicked,
       onFollowCancelled: () => {
         followingAgentId = null;
@@ -314,6 +321,9 @@ export function mountHollow(container: HTMLElement, options: MountOptions): () =
       // blank canvas, while the sim + chronicle + dashboard keep running
       // behind it. Delegates to the shared `showUnsupportedNotice`, which is
       // idempotent (see engine/core/src/render/unsupported-notice.ts).
+      onSceneReady: (camera, profile) => {
+        if (options.bench === true) runBench(profile, hollowBenchScene(camera));
+      },
       onRendererUnavailable: (message) =>
         showUnsupportedNotice(
           appEl,
@@ -585,6 +595,8 @@ export function mountHollow(container: HTMLElement, options: MountOptions): () =
         (window as unknown as { __cardReady?: boolean }).__cardReady = true;
       }, 1500);
     }, 20000);
+  } else if (options.bench === true) {
+    startRun({ seed: HOLLOW_BENCH_SEED });
   } else if (hashDescriptor) {
     startRun({
       seed: hashDescriptor.seed,

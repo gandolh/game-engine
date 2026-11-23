@@ -10,7 +10,7 @@
  */
 import { DebugOverlay } from "@engine/core";
 import { createPanelPrefs, safeLocalStorage } from "@engine/ui";
-import type { PanelPrefs } from "@engine/ui";
+import type { PanelPrefs, PanelPrefsConfig } from "@engine/ui";
 import { createWorldClock } from "../ui/canvas/world-clock";
 import type { WorldClock } from "../ui/canvas/world-clock";
 import { createHotbar } from "../ui/canvas/hotbar";
@@ -104,18 +104,32 @@ function mount(id: string): HTMLElement | null {
  * Build + register every in-canvas panel with the host. Returns the panel handles the render loop
  * drives. `app` still hosts the (dev-only) DebugOverlay; every other surface is now in-canvas.
  */
-export function buildPanels(app: HTMLElement, host: UIHost, canvas: HTMLCanvasElement, actions: PanelActions): Panels {
+/**
+ * The open/closed store's settings. A player's layout is read from and saved to `localStorage`, every id
+ * closed until they open it. The `?bench` layout (corpus brief 06) is every panel open, kept in memory,
+ * so the scene is the same on every device and the player's saved layout is never touched.
+ */
+export function panelPrefsConfig(bench: boolean): PanelPrefsConfig<PanelId> {
+  if (!bench) return { storageKey: PANEL_STORAGE_KEY, ids: PANEL_IDS, storage: safeLocalStorage() };
+  const defaults: Partial<Record<PanelId, boolean>> = {};
+  for (const id of PANEL_IDS) defaults[id] = true;
+  return { storageKey: PANEL_STORAGE_KEY, ids: PANEL_IDS, storage: null, defaults };
+}
+
+export function buildPanels(
+  app: HTMLElement,
+  host: UIHost,
+  canvas: HTMLCanvasElement,
+  actions: PanelActions,
+  bench = false,
+): Panels {
   const overlay = new DebugOverlay(app);
 
   // Shared collapsible-panel open/closed store (brief 117; sweep-09 promoted the implementation
   // to @engine/ui/state, keyed here under Farm's own id union + storage key) — built once, passed
-  // into every collapsible panel factory below. No `defaults` passed — all six ids fall back to
-  // the store's built-in closed default, unchanged from before the promotion.
-  const panelPrefs = createPanelPrefs<PanelId>({
-    storageKey: PANEL_STORAGE_KEY,
-    ids: PANEL_IDS,
-    storage: safeLocalStorage(),
-  });
+  // into every collapsible panel factory below. A player's layout passes no `defaults`: all six ids
+  // fall back to the store's built-in closed default, unchanged from before the promotion.
+  const panelPrefs = createPanelPrefs<PanelId>(panelPrefsConfig(bench));
 
   const worldClock = createWorldClock();
   const clockRoot = host.registerRoot({

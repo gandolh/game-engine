@@ -1,0 +1,51 @@
+{
+  "id": "combat",
+  "imageUrl": "/atlas/combat.png",
+  "width": 128,
+  "height": 64,
+  "frames": {
+    "hero": {
+      "x": 1,
+      "y": 1,
+      "w": 18,
+      "h": 29
+    },
+    "enemy/dragon": {
+      "x": 20,
+      "y": 1,
+      "w": 30,
+      "h": 23
+    },
+    "enemy/balaur": {
+      "x": 51,
+      "y": 1,
+      "w": 24,
+      "h": 24
+    },
+    "enemy/strigoi": {
+      "x": 76,
+      "y": 1,
+      "w": 18,
+      "h": 26
+    },
+    "enemy/varcolac": {
+      "x": 95,
+      "y": 1,
+      "w": 16,
+      "h": 24
+    },
+    "enemy/capcaun": {
+      "x": 1,
+      "y": 31,
+      "w": 22,
+      "h": 23
+    },
+    "enemy/muma": {
+      "x": 24,
+      "y": 31,
+      "w": 20,
+      "h": 32
+    }
+  },
+  "inputsHash": "7252a6cf76dc4c091450e0860edc2ee779fc2e6809d90a0b0f2e6faaf12f3502"
+}

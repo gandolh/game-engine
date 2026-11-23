@@ -25,6 +25,11 @@
  * HIGHER than what this prints. Treat this as a lower bound, and `?profile`'s `draw.groups` as the
  * whole truth.
  *
+ * TEXTURES, not sheets (corpus brief 10): the renderer now runs a group while the TEXTURE stays the same,
+ * and Farm's six sheets share one runtime page. So this counts runs of the same texture, reading each sheet's
+ * page from the cooked `games/farm/client/public/atlas/index.json` (a sheet with no page is its own texture).
+ * It also prints the per-sheet runs, the count before pages, for comparison.
+ *
  * Run: `npm start -w @tool/run-sim -- --probe-draw-groups`, or via `tsx`. Env: SEED, TICKS_PER_DAY,
  * DAYS.
  */
@@ -73,20 +78,38 @@ function assertComparatorMatchesSource(repoRoot: string): void {
 interface Counted {
   sprites: number;
   atlases: number;
+  /** Distinct textures in the queue: the floor for groups. */
+  textures: number;
   groups: number;
+  /** Groups if every sheet were its own texture, as before runtime pages. */
+  sheetGroups: number;
   byLayer: Map<number, { sprites: number; atlases: Set<string>; groups: number }>;
   perAtlas: Map<string, number>;
 }
 
+/** The sheet → page map from the cooked atlas index; a sheet it doesn't place is its own texture. */
+function loadTextureOf(repoRoot: string): (atlasId: string) => string {
+  const index = JSON.parse(readFileSync(`${repoRoot}/games/farm/client/public/atlas/index.json`, "utf8")) as {
+    placements?: Record<string, { page: string }>;
+  };
+  const placements = index.placements ?? {};
+  return (atlasId) => placements[atlasId]?.page ?? atlasId;
+}
+
 /**
  * Mirrors the renderer's coalescing: sort the queue, then walk it counting maximal runs of the
- * same `atlasId`. `groups` is what `drawRange` is called with, once each.
+ * same texture. `groups` is what `drawRange` is called with, once each.
  */
-function countGroups(sprites: { atlasId: string; layer: number; y: number; sortY?: number }[]): Counted {
+function countGroups(
+  sprites: { atlasId: string; layer: number; y: number; sortY?: number }[],
+  textureOf: (atlasId: string) => string,
+): Counted {
   const sorted = [...sprites].sort((a, b) => compareSprite(a, b));
 
   let groups = 0;
-  let prevAtlas: string | null = null;
+  let sheetGroups = 0;
+  let prevSheet: string | null = null;
+  let prevTexture: string | null = null;
   let prevLayer: number | null = null;
   const byLayer = new Map<number, { sprites: number; atlases: Set<string>; groups: number }>();
   const perAtlas = new Map<string, number>();
@@ -101,30 +124,37 @@ function countGroups(sprites: { atlasId: string; layer: number; y: number; sortY
     bucket.atlases.add(s.atlasId);
     perAtlas.set(s.atlasId, (perAtlas.get(s.atlasId) ?? 0) + 1);
 
-    // A new group starts whenever the atlas changes. The renderer's loop breaks its run on
-    // `sp.atlasId !== currentAtlas` only — it does not break on layer — so this matches it.
-    // Layer is tracked separately, for attribution.
-    if (s.atlasId !== prevAtlas) {
+    // A new group starts whenever the texture changes. The renderer's loop breaks its run on a
+    // texture change only — it does not break on layer — so this matches it. Layer is tracked
+    // separately, for attribution.
+    const texture = textureOf(s.atlasId);
+    if (texture !== prevTexture) {
       groups += 1;
       bucket.groups += 1;
     } else if (s.layer !== prevLayer) {
       bucket.groups += 1; // same run spanning a layer boundary: attribute a group to this layer too
     }
-    prevAtlas = s.atlasId;
+    if (s.atlasId !== prevSheet) sheetGroups += 1;
+    prevTexture = texture;
+    prevSheet = s.atlasId;
     prevLayer = s.layer;
   }
 
   return {
     sprites: sorted.length,
     atlases: new Set(sorted.map((s) => s.atlasId)).size,
+    textures: new Set(sorted.map((s) => textureOf(s.atlasId))).size,
     groups,
+    sheetGroups,
     byLayer,
     perAtlas,
   };
 }
 
 async function main(): Promise<void> {
-  assertComparatorMatchesSource(new URL("../../../..", import.meta.url).pathname);
+  const repoRoot = new URL("../../../..", import.meta.url).pathname;
+  assertComparatorMatchesSource(repoRoot);
+  const textureOf = loadTextureOf(repoRoot);
 
   const seed = Number(process.env.SEED ?? 0xc0ffee);
   const ticksPerDay = Number(process.env.TICKS_PER_DAY ?? 1200);
@@ -142,7 +172,7 @@ async function main(): Promise<void> {
 
   console.log(
     `sweep-05 draw-group probe — seed 0x${seed.toString(16)}, ${days} day(s) @ ${ticksPerDay} ticks/day\n` +
-      `counting maximal same-atlas runs after sorting by compareSprite (layer, sortY)\n`,
+      `counting maximal same-texture runs after sorting by compareSprite (layer, sortY)\n`,
   );
 
   const samples: Counted[] = [];
@@ -160,12 +190,12 @@ async function main(): Promise<void> {
         y: sp.y,
         ...(sp.z !== undefined ? { sortY: sp.y - sp.z } : {}),
       }));
-      const counted = countGroups(sprites);
+      const counted = countGroups(sprites, textureOf);
       samples.push(counted);
       console.log(
         `day ${String(day).padStart(2)} — sprites ${String(counted.sprites).padStart(4)}  ` +
-          `atlases ${counted.atlases}  groups ${String(counted.groups).padStart(4)}  ` +
-          `groups/atlas ${(counted.groups / counted.atlases).toFixed(1)}x  ` +
+          `atlases ${counted.atlases}  textures ${counted.textures}  groups ${String(counted.groups).padStart(4)}  ` +
+          `(per sheet ${counted.sheetGroups})  ` +
           `groups/sprite ${(counted.groups / counted.sprites).toFixed(3)}`,
       );
     }
@@ -179,9 +209,10 @@ async function main(): Promise<void> {
 
   console.log(`\n── final sample breakdown (day ${days}) ──`);
   console.log(`sprites in queue : ${last.sprites}`);
-  console.log(`distinct atlases : ${last.atlases}  <- the theoretical floor for groups`);
-  console.log(`draw groups      : ${last.groups}`);
-  console.log(`fragmentation    : ${(last.groups / last.atlases).toFixed(1)}x the floor`);
+  console.log(`distinct atlases : ${last.atlases}`);
+  console.log(`distinct textures: ${last.textures}  <- the theoretical floor for groups`);
+  console.log(`draw groups      : ${last.groups}  (${last.sheetGroups} if each sheet were its own texture)`);
+  console.log(`fragmentation    : ${(last.groups / last.textures).toFixed(1)}x the floor`);
   console.log(`GL calls/frame   : ${last.groups * 29} at 29/group (was ${last.groups * 43} at 43)`);
 
   console.log(`\nper atlas:`);

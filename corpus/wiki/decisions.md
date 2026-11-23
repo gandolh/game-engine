@@ -1,6 +1,6 @@
 ---
-summary: Locked tech choices that future briefs must not relitigate — stack, sim, ECS, renderer (WebGL2-only as of 2026-08-18; static-layer patches past 4096 px and the no-flip texture upload, 2026-11-03), assets, palette, concurrency, tick-pump/speed semantics, build & verify gates (the turbo cache-key rule, the Node-importable barrel rule), WASM, and the gameplay source-of-truth.
-updated: 2026-11-11
+summary: Locked tech choices that future briefs must not relitigate — stack, sim, ECS, renderer (WebGL2-only as of 2026-08-18; static-layer patches past 4096 px and the no-flip texture upload, 2026-11-03; every game on requestAnimationFrame, 2026-11-21), assets, palette, concurrency, tick-pump/speed semantics, build & verify gates (the turbo cache-key rule, the Node-importable barrel rule), WASM, and the gameplay source-of-truth.
+updated: 2026-11-21
 ---
 
 # Locked Decisions
@@ -64,6 +64,16 @@ Tech choices that are settled. Listed here so future briefs and reviews don't re
   - **Rejected: a quick cap in Citadel first.** The owner folded the boot fix into the patches work
     instead of writing code that would be deleted.
 
+- **Every game draws on `requestAnimationFrame`, Farm included (2026-11-21, brief 08).** This reverts brief 84's
+  call (2026-06-12) to keep Farm's uncapped `setTimeout(renderFrame, 0)` loop for input latency. Farm now
+  draws one frame per animation-frame callback, with its timestamp as `nowMs`
+  ([render-loop.ts](../../games/farm/client/src/main/render-loop.ts), `animationFrameLoop`). **Why:** a frame the
+  display never shows still costs CPU, GPU and battery, which on a phone is heat and then throttling; a
+  timer loop drifts against vsync, so the frames shown are spaced unevenly; input read at the top of a
+  display-paced frame is at most one frame old, which is what browser games ship; and the other three games
+  already ran this way. Do not bring the timer loop back for "lower latency".
+  ([brief](../briefs/done/08-farm-renders-on-request-animation-frame.md))
+
 - **Every texture upload keeps `UNPACK_FLIP_Y_WEBGL` off; a source's top row is v=0 (fixed 2026-11-03).**
   Every shader here reads v=0 as the top edge, which is WebGL's default for any source. The WebGL2 port
   set the flag on, on the belief that WebGL stores images bottom-up. It does not, and the flag flips canvas
@@ -72,9 +82,39 @@ Tech choices that are settled. Listed here so future briefs and reviews don't re
   A mock GL can't see orientation, so the check is in a browser: the patch harness puts a sand band on its
   top edge only. Do not "restore" the flip.
 
+## Frame budget (2026-11-20)
+
+- **Every game holds 60 fps on the reference devices, measured as a percentile, gated on counters.**
+  *(The owner, 2026-11-20; recorded by brief 05.)* The rule: in each game's bench scene, on each
+  reference device, the frame interval's 95th percentile is at most 16.7 ms and fewer than 1% of frames
+  take longer than 33.3 ms. A 120 Hz display does not raise it. The reference devices are the Windows 11
+  laptop with the AMD Radeon integrated GPU (Chrome, ANGLE on Direct3D 11) and the owner's Android phone
+  (Chrome). The plan and the briefs that build toward it are on [frame-budget.md](frame-budget.md).
+  - **Why a percentile and not an average fps.** An average hides the hitches players feel; p95 and the
+    long-frame share are what studios gate on.
+  - **Why builders gate on counters.** A builder's sandbox renders on SwiftShader, a CPU rasteriser whose
+    frame times this repo has twice learned not to trust. So a brief's acceptance uses what the GPU does
+    not change (draw groups, GL draw calls, UI quads, texture bytes uploaded, the CPU milliseconds of
+    named steps), and the real-GPU reading is an owner step. The shared `?profile` export
+    (`game-engine-profile/1`, [performance-measurements.md](performance-measurements.md) → Measuring)
+    carries both.
+  - **Rejected: frame times read in the sandbox as the gate.** They measure the rasteriser, not the game.
+
 ## Assets
 
 - **Build-time procedural atlas** via [tools/atlas-builder](../../tools/atlas-builder/). PNG + JSON manifest. No external art pipeline.
+  **One cook for every game's recipes (2026-11-21, brief 09).** The cook takes a per-game `AtlasConfig`
+  (recipes, sheets, swatches and palette, hashed files, output) instead of Farm's values written into its code,
+  as TexturePacker, Unity's sprite atlas and Godot's import step take a project's configuration. **Why:** with
+  Farm hard-coded no other game could have an atlas, and MateQuest's combat sprites are drawn from rectangles
+  every frame. Still no external art pipeline: recipes stay code. How to add a game:
+  [atlas-cook.md](atlas-cook.md).
+  **One runtime page per game (2026-11-21, brief 10).** The sheets stay the authoring and cache units, and the
+  cook packs them as whole blocks into one power-of-two page (a second only past 2048 px); the renderer groups
+  by texture. This reverts "keep about six sheets, don't merge" at run time only. **Why:** WebGL2 batches per
+  texture, and Farm's world went from 49 draw groups to 1, and from six atlas textures to one, with nothing
+  drawn differently. Rejected: texture arrays across the sprite path (a large change for one layer's problem)
+  and merging the sheets themselves (loses the per-sheet cache and small diffs).
 
 ## Art / Palette
 

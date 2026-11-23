@@ -8,6 +8,17 @@ export interface OverlayStats {
   entityCount: number;
 }
 
+/** Frame statistics the shared profile shows (corpus brief 05). `gpuMs` is `null` when the browser has no
+ *  GPU timer. */
+export interface OverlayFrameStats {
+  p50: number;
+  p95: number;
+  p99: number;
+  over16_7: number;
+  over33_3: number;
+  gpuMs: number | null;
+}
+
 export interface OverlayExport {
   fps: number;
   frameMs: number;
@@ -38,6 +49,7 @@ const CORNER_CSS: Record<OverlayCorner, string> = {
 
 export class DebugOverlay {
   private readonly element: HTMLElement;
+  private readonly text: HTMLElement;
   private lastWallMs = performance.now();
   private frameCount = 0;
   private fps = 0;
@@ -48,6 +60,7 @@ export class DebugOverlay {
   private frameReport: ProfileReport | null = null;
   private lastTick = 0;
   private lastEntityCount = 0;
+  private frameStats: OverlayFrameStats | null = null;
 
   constructor(parent: HTMLElement, options?: OverlayOptions) {
     const corner = options?.corner ?? "top-left";
@@ -64,13 +77,20 @@ export class DebugOverlay {
       "pointer-events: none",
       "white-space: pre",
     ].join(";");
+    const text = document.createElement("div");
+    el.appendChild(text);
     parent.appendChild(el);
     this.element = el;
+    this.text = text;
   }
 
-  update(stats: Omit<OverlayStats, "fps">): void {
-    this.lastTick = stats.tick;
-    this.lastEntityCount = stats.entityCount;
+  /**
+   * Redraws the readout. A game without a sim tick (or an alpha, or an entity count) leaves the field out
+   * and its line is not shown. Call once per frame drawn: the fps and ms lines time the calls.
+   */
+  update(stats: Partial<Omit<OverlayStats, "fps">> = {}): void {
+    if (stats.tick !== undefined) this.lastTick = stats.tick;
+    if (stats.entityCount !== undefined) this.lastEntityCount = stats.entityCount;
     const now = performance.now();
     const dt = now - this.lastWallMs;
     this.lastWallMs = now;
@@ -83,12 +103,10 @@ export class DebugOverlay {
       this.frameCount = 0;
       this.accumulatedMs = 0;
     }
-    let text =
-      `fps   ${this.fps.toFixed(1)}\n` +
-      `ms    ${this.frameMs.toFixed(1)}\n` +
-      `tick  ${stats.tick}\n` +
-      `alpha ${stats.alpha.toFixed(3)}\n` +
-      `ents  ${stats.entityCount}`;
+    let text = `fps   ${this.fps.toFixed(1)}\n` + `ms    ${this.frameMs.toFixed(1)}`;
+    if (stats.tick !== undefined) text += `\ntick  ${stats.tick}`;
+    if (stats.alpha !== undefined) text += `\nalpha ${stats.alpha.toFixed(3)}`;
+    if (stats.entityCount !== undefined) text += `\nents  ${stats.entityCount}`;
 
     const fmt = (label: string, report: ProfileReport | null, key: string, unit: "ms" | "kb"): string => {
       const s = report?.[key];
@@ -105,7 +123,45 @@ export class DebugOverlay {
       text += fmt("frame", this.frameReport, "frame", "ms");
       text += fmt("interp", this.frameReport, "interp", "ms");
     }
-    this.element.textContent = text;
+    const fs = this.frameStats;
+    if (fs !== null) {
+      const pct = (v: number): string => `${(v * 100).toFixed(1)}%`;
+      text += "\n— frame interval —";
+      text += `\np50/95/99 ${fs.p50.toFixed(1)}/${fs.p95.toFixed(1)}/${fs.p99.toFixed(1)}ms`;
+      text += `\n>16.7 ${pct(fs.over16_7)}  >33.3 ${pct(fs.over33_3)}`;
+      text += `\ngpu   ${fs.gpuMs === null ? "n/a" : `${fs.gpuMs.toFixed(2)}ms`}`;
+    }
+    this.text.textContent = text;
+  }
+
+  /** The frame-interval block (corpus brief 05). `null` hides it. */
+  setFrameStats(stats: OverlayFrameStats | null): void {
+    this.frameStats = stats;
+  }
+
+  /**
+   * Adds a button under the readout, the one part of the overlay that takes the pointer (the shared
+   * profile's export button, corpus brief 05). Returns the button so the caller can relabel it.
+   */
+  addButton(label: string, onClick: () => void): HTMLButtonElement {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.textContent = label;
+    btn.style.cssText = [
+      "display: block",
+      "margin-top: 6px",
+      "padding: 4px 8px",
+      "font: 12px/1 ui-monospace, monospace",
+      `color: ${EDG.white}`,
+      "background: rgba(24, 20, 37, 0.78)",
+      `border: 1px solid ${EDG.silver}`,
+      "border-radius: 4px",
+      "cursor: pointer",
+      "pointer-events: auto",
+    ].join(";");
+    btn.addEventListener("click", onClick);
+    this.element.appendChild(btn);
+    return btn;
   }
 
   exportReport(): OverlayExport {
