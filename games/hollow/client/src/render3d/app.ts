@@ -65,7 +65,7 @@ import {
   HEAD_TOP_LOCAL,
   type PoseKey,
 } from "./humanoid";
-import { AgentFacingTracker, poseForAgent, walkBob, agentModelMatrix } from "./agent-anim";
+import { AgentFacingTracker, AgentGaitTracker, poseForAgent, walkBob, agentModelMatrix } from "./agent-anim";
 import { selectedTint } from "./selection";
 import { separatedAgentPositions } from "./agent-collision";
 import { cachedInstanceAABB } from "./agent-bounds";
@@ -199,6 +199,7 @@ export function startHollowApp(canvas: HTMLCanvasElement, worker: Worker, opts: 
   // first `resize()`.
   let currentDpr = effectiveDpr();
   const facingTracker = new AgentFacingTracker();
+  const gaitTracker = new AgentGaitTracker();
 
   // Perf HUD (mirrors Farm's render-loop Profiler): times the per-frame
   // scene build+submit under "frame" and the interpolation sub-step under
@@ -629,17 +630,20 @@ export function startHollowApp(canvas: HTMLCanvasElement, worker: Worker, opts: 
         const byAgentVariant = new Map<MeshHandle, Instance[]>();
         const aliveAgentIds = new Set<number>();
 
+        gaitTracker.beginFrame(nowMs);
         for (const agent of latest.agents) {
           const pos = renderPositions.get(agent.id);
           if (!pos) continue; // defensive — positions are built from latest.agents itself
           aliveAgentIds.add(agent.id);
 
           const { facing, moving } = facingTracker.update(agent.id, pos);
-          const pose = poseForAgent(agent.action, moving, nowMs, agent.id);
+          // Gait phase advances by the interpolated ground covered, so a paused walker holds mid-stride.
+          const gaitPhase = gaitTracker.update(agent.id, pos);
+          const pose = poseForAgent(agent.action, moving, gaitPhase);
           const variant = agentVariantFor(agent.appearance.skinTone, agent.appearance.hairTone, pose);
 
           const groundZ = groundHeightAt(Math.round(pos.x), Math.round(pos.y));
-          const bob = moving || agent.action === "walk" ? walkBob(nowMs, agent.id) : 0;
+          const bob = moving || agent.action === "walk" ? walkBob(gaitPhase) : 0;
           const model = agentModelMatrix({
             pos,
             groundZ,
@@ -672,6 +676,7 @@ export function startHollowApp(canvas: HTMLCanvasElement, worker: Worker, opts: 
           });
         }
         facingTracker.prune(aliveAgentIds);
+        gaitTracker.prune(aliveAgentIds);
         for (const [handle, list] of byAgentVariant) {
           draws.push({ mesh: handle, instances: packInstances(list), instanceCount: list.length });
         }

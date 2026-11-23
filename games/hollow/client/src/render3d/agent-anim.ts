@@ -1,7 +1,8 @@
 /**
- * Render-clock agent animation (chunk hollow-09b) — walk-cycle phase, facing,
- * and the per-instance model-matrix assembly. Everything in this module
- * reads ONLY the RENDER clock (`performance.now()`, passed in as `nowMs` —
+ * Render-side agent animation (chunk hollow-09b) — walk-cycle phase, facing,
+ * and the per-instance model-matrix assembly. The gait phase advances by the
+ * ground covered (brief 27), not by the clock. Everything in this module
+ * reads ONLY the render frame time (`performance.now()`, passed in as `nowMs` —
  * never read directly here so it stays pure/testable) plus the render-side
  * interpolated agent positions from `interp.ts` — never sim state, never
  * `Math.random` (see CLAUDE.md's sim/render boundary + determinism notes).
@@ -16,35 +17,86 @@ import { hashAgentId, poseForAction, type PoseKey } from "./humanoid";
 // Walk-cycle phase
 // ---------------------------------------------------------------------------
 
-/** Stride cadence, in full gait cycles per second. */
-const WALK_HZ = 1.6;
+/**
+ * Ground covered by one full gait cycle, in tiles. Measured, not guessed: the sim steps a walking
+ * agent one tile (or one diagonal) per tick, and over 3 seeds x 1500 ticks x 20 agents the mean
+ * interpolated distance per walking agent-tick was 1.23 tiles (1.20, 1.25, 1.25). The worker runs
+ * 20 ticks per second at 1x, so a walker covers about 24.6 tiles/s, and
+ * 24.6 tiles/s / 1.6 cycles/s = 15.4 tiles per cycle. At 1x this keeps the old 1.6 Hz.
+ */
+export const STRIDE_TILES = 15.4;
+
+/** Cadence cap in cycles per second (owner, 2026-11-23). At 8x the ground speed asks for ~12.8 Hz,
+ *  which would flicker the two gait meshes; past the cap the walker slides a little instead. */
+export const MAX_GAIT_HZ = 4;
+
+/** Longest frame step the cap trusts, in seconds, so a stalled tab doesn't spin the legs on return. */
+const MAX_FRAME_DT_S = 0.25;
 
 /** Deterministic per-agent phase offset in `[0, 1)` — NOT random (see
  *  `hashAgentId`'s doc) — so a crowd of walking agents doesn't step in
  *  lockstep. */
-function phaseOffsetFor(agentId: number): number {
+export function initialGaitPhase(agentId: number): number {
   return (hashAgentId(agentId) % 10000) / 10000;
 }
 
-/** This agent's fractional position within its walk cycle at `nowMs`, in
- *  `[0, 1)`. Pure; deterministic for a given `(nowMs, agentId)` pair. */
-export function walkPhase(nowMs: number, agentId: number): number {
-  const t = (nowMs / 1000) * WALK_HZ + phaseOffsetFor(agentId);
+/**
+ * Pure: advance a gait phase by the ground covered this frame. `distanceTiles / STRIDE_TILES` cycles,
+ * capped at `MAX_GAIT_HZ * dtSeconds`. No distance leaves the phase unchanged (a paused or blocked
+ * walker holds mid-stride). Result in `[0, 1)`.
+ */
+export function advanceGaitPhase(phase: number, distanceTiles: number, dtSeconds: number): number {
+  const dt = Math.min(Math.max(dtSeconds, 0), MAX_FRAME_DT_S);
+  const cycles = Math.min(Math.max(distanceTiles, 0) / STRIDE_TILES, MAX_GAIT_HZ * dt);
+  const t = phase + cycles;
   return t - Math.floor(t);
 }
 
-/** Which of the two stride-phase variant meshes to show right now. */
-export function gaitPoseFor(nowMs: number, agentId: number): PoseKey {
-  return walkPhase(nowMs, agentId) < 0.5 ? "walkA" : "walkB";
+/** Which of the two stride-phase variant meshes to show at this gait phase. */
+export function gaitPoseFor(phase: number): PoseKey {
+  return phase < 0.5 ? "walkA" : "walkB";
 }
 
 const BOB_AMPLITUDE = 0.05;
 
 /** A gentle vertical bob for a walking agent — two bounces per full stride
  *  (one per footfall), bounded to `[0, BOB_AMPLITUDE]`. Pure. */
-export function walkBob(nowMs: number, agentId: number): number {
-  const phase = walkPhase(nowMs, agentId);
+export function walkBob(phase: number): number {
   return Math.abs(Math.sin(phase * Math.PI * 2)) * BOB_AMPLITUDE;
+}
+
+/** Stateful (render-only) per-agent gait phase, advanced by the interpolated ground each agent covers.
+ *  Sits beside `AgentFacingTracker`: call `update` once per agent per frame, `prune` once per frame. */
+export class AgentGaitTracker {
+  private readonly lastPos = new Map<number, InterpPos>();
+  private readonly phase = new Map<number, number>();
+  private lastNowMs: number | undefined;
+  private dtSeconds = 0;
+
+  /** Call once per frame, before the agents' `update`s, with the render clock. */
+  beginFrame(nowMs: number): void {
+    this.dtSeconds = this.lastNowMs === undefined ? 0 : (nowMs - this.lastNowMs) / 1000;
+    this.lastNowMs = nowMs;
+  }
+
+  update(agentId: number, pos: InterpPos): number {
+    const prev = this.lastPos.get(agentId);
+    const before = this.phase.get(agentId) ?? initialGaitPhase(agentId);
+    const distance = prev ? Math.hypot(pos.x - prev.x, pos.y - prev.y) : 0;
+    const next = advanceGaitPhase(before, distance, this.dtSeconds);
+    this.phase.set(agentId, next);
+    this.lastPos.set(agentId, pos);
+    return next;
+  }
+
+  prune(aliveIds: ReadonlySet<number>): void {
+    for (const id of this.phase.keys()) {
+      if (!aliveIds.has(id)) {
+        this.phase.delete(id);
+        this.lastPos.delete(id);
+      }
+    }
+  }
 }
 
 /**
@@ -54,8 +106,8 @@ export function walkBob(nowMs: number, agentId: number): number {
  * stationary — e.g. blocked/at a tile boundary), otherwise the static pose
  * for its current action (`humanoid.ts`'s `poseForAction`).
  */
-export function poseForAgent(action: string, moving: boolean, nowMs: number, agentId: number): PoseKey {
-  if (moving || action === "walk") return gaitPoseFor(nowMs, agentId);
+export function poseForAgent(action: string, moving: boolean, phase: number): PoseKey {
+  if (moving || action === "walk") return gaitPoseFor(phase);
   return poseForAction(action);
 }
 

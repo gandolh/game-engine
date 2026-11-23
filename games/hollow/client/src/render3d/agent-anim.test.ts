@@ -1,7 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { transformPoint } from "@engine/core/render3d";
 import {
-  walkPhase,
+  advanceGaitPhase,
+  initialGaitPhase,
+  AgentGaitTracker,
+  STRIDE_TILES,
+  MAX_GAIT_HZ,
   gaitPoseFor,
   walkBob,
   poseForAgent,
@@ -10,62 +14,128 @@ import {
   agentModelMatrix,
 } from "./agent-anim";
 
-describe("walkPhase", () => {
-  it("is deterministic for the same (nowMs, agentId)", () => {
-    expect(walkPhase(12345, 7)).toBe(walkPhase(12345, 7));
+describe("advanceGaitPhase", () => {
+  it("leaves the phase unchanged when no ground is covered", () => {
+    expect(advanceGaitPhase(0.37, 0, 0.016)).toBe(0.37);
   });
 
-  it("stays within [0, 1)", () => {
-    for (const t of [0, 1, 999, 123456.7]) {
-      const p = walkPhase(t, 3);
-      expect(p).toBeGreaterThanOrEqual(0);
-      expect(p).toBeLessThan(1);
+  it("advances by distance / stride", () => {
+    expect(advanceGaitPhase(0.1, STRIDE_TILES * 0.05, 0.016)).toBeCloseTo(0.15, 10);
+  });
+
+  it("wraps into [0, 1)", () => {
+    const p = advanceGaitPhase(0.9, STRIDE_TILES * 0.3, 1);
+    expect(p).toBeCloseTo(0.2, 10);
+    expect(p).toBeGreaterThanOrEqual(0);
+    expect(p).toBeLessThan(1);
+  });
+
+  it("caps the cadence at MAX_GAIT_HZ at 8x ground speed", () => {
+    // 1x walker: ~24.6 tiles/s. 8x: ~197 tiles/s, asking for ~12.8 Hz. One 60 fps frame of it:
+    const dt = 1 / 60;
+    const eightX = 24.6 * 8 * dt;
+    const next = advanceGaitPhase(0, eightX, dt);
+    expect(next).toBeCloseTo(MAX_GAIT_HZ * dt, 10);
+    expect(next * 60).toBeLessThanOrEqual(MAX_GAIT_HZ + 1e-9);
+  });
+
+  it("keeps 1.6 Hz for a walker at the 1x ground speed", () => {
+    const dt = 1 / 60;
+    let phase = 0;
+    let cycles = 0;
+    for (let i = 0; i < 600; i++) {
+      const next = advanceGaitPhase(phase, 24.6 * dt, dt);
+      cycles += (next - phase + 1) % 1;
+      phase = next;
     }
+    expect(cycles / 10).toBeGreaterThan(1.6 * 0.9);
+    expect(cycles / 10).toBeLessThan(1.6 * 1.1);
+  });
+});
+
+describe("initialGaitPhase", () => {
+  it("is in [0, 1) and deterministic", () => {
+    const p = initialGaitPhase(3);
+    expect(p).toBeGreaterThanOrEqual(0);
+    expect(p).toBeLessThan(1);
+    expect(initialGaitPhase(3)).toBe(p);
+  });
+});
+
+describe("AgentGaitTracker", () => {
+  function run(tracker: AgentGaitTracker, ids: number[], frames: number, tilesPerFrame: number): number[] {
+    let phases: number[] = [];
+    for (let f = 0; f < frames; f++) {
+      tracker.beginFrame(f * 16);
+      phases = ids.map((id) => tracker.update(id, { x: f * tilesPerFrame, y: 0 }));
+    }
+    return phases;
+  }
+
+  it("holds the phase when the agent does not move (paused)", () => {
+    const t = new AgentGaitTracker();
+    const [moving] = run(t, [4], 10, 0.4);
+    t.beginFrame(1000);
+    const held = t.update(4, { x: 9 * 0.4, y: 0 });
+    t.beginFrame(1016);
+    expect(t.update(4, { x: 9 * 0.4, y: 0 })).toBe(held);
+    expect(held).not.toBe(initialGaitPhase(4));
+    expect(moving).toBeDefined();
   });
 
-  it("gives different agents a different phase offset — not lockstep", () => {
-    expect(walkPhase(0, 1)).not.toBe(walkPhase(0, 2));
+  it("starts each agent from its own offset, so two agents covering the same ground stay out of step", () => {
+    const t = new AgentGaitTracker();
+    const [a, b] = run(t, [1, 2], 30, 0.4);
+    expect(a).not.toBeCloseTo(b as number, 3);
+  });
+
+  it("drops pruned agents", () => {
+    const t = new AgentGaitTracker();
+    run(t, [1, 2], 5, 0.4);
+    t.prune(new Set([1]));
+    t.beginFrame(9999);
+    expect(t.update(2, { x: 0, y: 0 })).toBe(initialGaitPhase(2));
   });
 });
 
 describe("gaitPoseFor", () => {
-  it("alternates between walkA and walkB across a stride", () => {
-    const poses = new Set<string>();
-    for (let ms = 0; ms < 2000; ms += 50) poses.add(gaitPoseFor(ms, 5));
-    expect(poses.has("walkA")).toBe(true);
-    expect(poses.has("walkB")).toBe(true);
-    expect(poses.size).toBe(2);
+  it("is walkA in the first half of the cycle and walkB in the second", () => {
+    expect(gaitPoseFor(0.1)).toBe("walkA");
+    expect(gaitPoseFor(0.5)).toBe("walkB");
+    expect(gaitPoseFor(0.99)).toBe("walkB");
   });
 });
 
 describe("walkBob", () => {
   it("stays within [0, amplitude)", () => {
-    for (let ms = 0; ms < 2000; ms += 37) {
-      const b = walkBob(ms, 9);
+    for (let i = 0; i < 100; i++) {
+      const b = walkBob(i / 100);
       expect(b).toBeGreaterThanOrEqual(0);
       expect(b).toBeLessThan(0.1);
     }
   });
 
-  it("is deterministic for the same (nowMs, agentId)", () => {
-    expect(walkBob(500, 11)).toBe(walkBob(500, 11));
+  it("is deterministic and follows the phase", () => {
+    expect(walkBob(0.3)).toBe(walkBob(0.3));
+    expect(walkBob(0)).toBeCloseTo(0, 10);
+    expect(walkBob(0.25)).toBeCloseTo(0.05, 10);
   });
 });
 
 describe("poseForAgent", () => {
   it("uses the gait pose while moving, regardless of the coarse action label", () => {
-    const pose = poseForAgent("idle", true, 0, 1);
+    const pose = poseForAgent("idle", true, 0.1);
     expect(["walkA", "walkB"]).toContain(pose);
   });
 
   it("uses the gait pose whenever action is 'walk', even if this frame reads as still", () => {
-    const pose = poseForAgent("walk", false, 0, 1);
+    const pose = poseForAgent("walk", false, 0.1);
     expect(["walkA", "walkB"]).toContain(pose);
   });
 
   it("uses the static action pose when still and not walking", () => {
-    expect(poseForAgent("eat", false, 0, 1)).toBe("eat");
-    expect(poseForAgent("idle", false, 0, 1)).toBe("stand");
+    expect(poseForAgent("eat", false, 0.1)).toBe("eat");
+    expect(poseForAgent("idle", false, 0.1)).toBe("stand");
   });
 });
 
