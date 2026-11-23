@@ -4363,7 +4363,7 @@ to 2.4 ms. Farm's ghost pass: old scan 0.003 ms, grid only 0.78 ms, hybrid 0.007
 [Research page](wiki/research-sm64-decomp.md): n64decomp/sm64 read at `9921382` for techniques only (decompiled
 Nintendo code, so nothing copied). Most of what it does well the engine already does (ids that never repeat,
 despawn-safe iteration, frame-rate-independent camera smoothing, named random forks). Four small gaps became
-briefs: [24](briefs/todo/24-hollow-builds-its-static-draws-once.md) Hollow builds its static draws once,
+briefs: [24](briefs/done/24-hollow-builds-its-static-draws-once.md) Hollow builds its static draws once,
 [25](briefs/todo/25-farm-finds-tile-features-by-cell.md) Farm finds tile features by cell,
 [26](briefs/todo/26-the-state-machine-keeps-its-entry-tick.md) the state machine keeps its entry tick,
 [27](briefs/todo/27-hollow-walks-by-the-ground-covered.md) Hollow walks by the ground covered. Side findings not
@@ -4390,3 +4390,11 @@ Grilled with the owner on the Super Mario 64 research. [Brief 28](briefs/todo/28
 [Brief 29](briefs/todo/29-the-camera-centre-stays-on-the-map.md): the camera's centre stays on the map in Farm,
 Citadel and Hollow (the owner's pick: half a screen of off-map at most). Brief 27's two calls are settled: a 4 Hz
 gait cap at 8×, and a paused walker holds mid-stride.
+
+## [2026-11-23] done | Brief 24: Hollow builds its static draws once
+
+Hollow's territory and ground instances are packed when the territory changes, agent bounds reuse the mesh's local
+bounds (the top site, 112 K of a frame's 451 K), and `separateCircles` keeps one hash across its passes. Bytes
+allocated a frame fell 40% (451 K to 269 K); GL draw calls and `drawInstances` are unchanged within the run-to-run
+noise of the old code. The bench's heap `drops` did not fall (a 1 Hz reading can't count scavenges). Evidence in
+[2026-11-23-hollow-allocations](verify/2026-11-23-hollow-allocations/README.md); outcome in [the brief](briefs/done/24-hollow-builds-its-static-draws-once.md).

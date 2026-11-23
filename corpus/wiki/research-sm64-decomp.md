@@ -168,7 +168,7 @@ machinery that procedurally generated, deterministic sims don't need.
 
 | Brief | Idea | Proof that the baseline holds |
 |---|---|---|
-| [24](../briefs/todo/24-hollow-builds-its-static-draws-once.md) | Hollow builds territory and ground draws per snapshot, and its frame allocates less | Render only: the bench counters are unchanged |
+| [24](../briefs/done/24-hollow-builds-its-static-draws-once.md) | Hollow builds territory and ground draws per snapshot, and its frame allocates less. Done 2026-11-23: 451 K to 269 K bytes a frame (-40%) | Render only: the bench counters are unchanged within noise |
 | [25](../briefs/todo/25-farm-finds-tile-features-by-cell.md) | Farm keeps a tile-feature index rebuilt only when features change, and the ECS pins its query order | Multi-seed `EXPORT=json` diff, byte-identical |
 | [26](../briefs/todo/26-the-state-machine-keeps-its-entry-tick.md) | One engine helper keeps `enteredTick` true on every state change | Multi-seed diff for Farm and Hollow, byte-identical |
 | [27](../briefs/todo/27-hollow-walks-by-the-ground-covered.md) | Hollow's gait advances with the distance walked, capped, and holds when the agent stops | Render only, the sim is not touched |
@@ -176,5 +176,4 @@ machinery that procedurally generated, deterministic sims don't need.
 ## Not verified
 
 - How many tile features a Farm run holds, so brief 25's saving per tick is unmeasured. The brief measures it.
-- Hollow's bytes allocated per frame, so brief 24's win is unmeasured. The brief measures it.
 - `object_collision.c` beyond the player's pass, and most of `camera.c`, were skimmed, not read whole.

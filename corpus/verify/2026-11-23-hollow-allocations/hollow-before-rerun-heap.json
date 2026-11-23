@@ -1,0 +1,228 @@
+{
+  "url": "http://localhost:5175/?bench&profile",
+  "frames": 1019,
+  "totalBytes": 456344160,
+  "bytesPerFrame": 447835,
+  "heapDrops": 0,
+  "counters": {
+    "drawGroups": null,
+    "glDrawCalls": {
+      "mean": 35.66928361138371,
+      "p95": 41
+    },
+    "drawInstances": {
+      "mean": 95.72031403336605,
+      "p95": 107
+    },
+    "uiQuads": null,
+    "textureBytesPerFrame": {
+      "mean": 0,
+      "p95": 0
+    },
+    "textureBytesTotal": 0,
+    "textureUploads": 0,
+    "texturesCreated": 0
+  },
+  "ranked": [
+    {
+      "site": "boundsOf engine/core/src/render3d/geometry.ts:120",
+      "bytes": 113109520,
+      "bytesPerFrame": 111001
+    },
+    {
+      "site": "queryRadius engine/core/src/collision/spatial-hash.ts:75",
+      "bytes": 34210252,
+      "bytesPerFrame": 33572
+    },
+    {
+      "site": "separateCircles engine/core/src/collision/separate.ts:58",
+      "bytes": 31040772,
+      "bytesPerFrame": 30462
+    },
+    {
+      "site": "agentModelMatrix /src/render3d/agent-anim.ts:118",
+      "bytes": 29792280,
+      "bytesPerFrame": 29237
+    },
+    {
+      "site": "instanceAABB engine/core/src/render3d/buffers.ts:146",
+      "bytes": 23556180,
+      "bytesPerFrame": 23117
+    },
+    {
+      "site": "onMessage /src/render3d/app.ts:98",
+      "bytes": 22687448,
+      "bytesPerFrame": 22264
+    },
+    {
+      "site": "frame /src/render3d/app.ts:311",
+      "bytes": 20743544,
+      "bytesPerFrame": 20357
+    },
+    {
+      "site": "translation engine/core/src/render3d/mat4.ts:105",
+      "bytes": 14695052,
+      "bytesPerFrame": 14421
+    },
+    {
+      "site": "multiply engine/core/src/render3d/mat4.ts:26",
+      "bytes": 9669460,
+      "bytesPerFrame": 9489
+    },
+    {
+      "site": "set :0 <- separateCircles engine/core/src/collision/separate.ts:58 < separatedAgentPositions /src/render3d/agent-collision.ts:27 < (anon) /src/render3d/app.ts:525",
+      "bytes": 9343896,
+      "bytesPerFrame": 9170
+    },
+    {
+      "site": "Set :0 <- queryRadius engine/core/src/collision/spatial-hash.ts:75 < separateCircles engine/core/src/collision/separate.ts:58 < separatedAgentPositions /src/render3d/agent-collision.ts:27",
+      "bytes": 9062276,
+      "bytesPerFrame": 8893
+    },
+    {
+      "site": "householdLayout /src/render3d/household-layout.ts:46",
+      "bytes": 8242092,
+      "bytesPerFrame": 8088
+    },
+    {
+      "site": "add :0 <- queryRadius engine/core/src/collision/spatial-hash.ts:75 < separateCircles engine/core/src/collision/separate.ts:58 < separatedAgentPositions /src/render3d/agent-collision.ts:27",
+      "bytes": 8102420,
+      "bytesPerFrame": 7951
+    },
+    {
+      "site": "scaling engine/core/src/render3d/mat4.ts:113",
+      "bytes": 8047836,
+      "bytesPerFrame": 7898
+    },
+    {
+      "site": "agentVariantFor /src/render3d/app.ts:223",
+      "bytes": 6594636,
+      "bytesPerFrame": 6472
+    },
+    {
+      "site": "packInstances engine/core/src/render3d/buffers.ts:117",
+      "bytes": 6068476,
+      "bytesPerFrame": 5955
+    },
+    {
+      "site": "subarray :0 <- cullInstances engine/core/src/render3d/cull.ts:94 < render engine/core/src/render3d/webgl2/renderer3d.ts:219 < frame /src/render3d/app.ts:311",
+      "bytes": 5751720,
+      "bytesPerFrame": 5644
+    },
+    {
+      "site": "(anon) /src/render3d/agent-collision.ts:28",
+      "bytes": 5239208,
+      "bytesPerFrame": 5142
+    },
+    {
+      "site": "from :0 <- queryRadius engine/core/src/collision/spatial-hash.ts:75 < separateCircles engine/core/src/collision/separate.ts:58 < separatedAgentPositions /src/render3d/agent-collision.ts:27",
+      "bytes": 5166056,
+      "bytesPerFrame": 5070
+    },
+    {
+      "site": "render engine/core/src/render3d/webgl2/renderer3d.ts:219",
+      "bytes": 3989592,
+      "bytesPerFrame": 3915
+    },
+    {
+      "site": "add :0 <- queryRadius engine/core/src/collision/spatial-hash.ts:75 < separateCircles engine/core/src/collision/separate.ts:58 < (anon) /src/render3d/app.ts:525",
+      "bytes": 3783420,
+      "bytesPerFrame": 3713
+    },
+    {
+      "site": "Set :0 <- queryRadius engine/core/src/collision/spatial-hash.ts:75 < separateCircles engine/core/src/collision/separate.ts:58 < (anon) /src/render3d/app.ts:525",
+      "bytes": 3725384,
+      "bytesPerFrame": 3656
+    },
+    {
+      "site": "set :0 <- separateCircles engine/core/src/collision/separate.ts:58 < (anon) /src/render3d/app.ts:525 < time engine/core/src/debug/profiler.ts:31",
+      "bytes": 3709376,
+      "bytesPerFrame": 3640
+    },
+    {
+      "site": "transformPoint engine/core/src/render3d/mat4.ts:183",
+      "bytes": 3530880,
+      "bytesPerFrame": 3465
+    },
+    {
+      "site": "lerpEntityPositions engine/core/src/render/snapshot-interp.ts:25",
+      "bytes": 3359976,
+      "bytesPerFrame": 3297
+    },
+    {
+      "site": "set :0 <- frame /src/render3d/app.ts:311",
+      "bytes": 2840564,
+      "bytesPerFrame": 2788
+    },
+    {
+      "site": "rotationZ engine/core/src/render3d/mat4.ts:125",
+      "bytes": 2719084,
+      "bytesPerFrame": 2668
+    },
+    {
+      "site": "next :0 <- frame /src/render3d/app.ts:311",
+      "bytes": 2678056,
+      "bytesPerFrame": 2628
+    },
+    {
+      "site": "overlayFrame /src/mount.ts:448",
+      "bytes": 2609396,
+      "bytesPerFrame": 2561
+    },
+    {
+      "site": "insert engine/core/src/collision/spatial-hash.ts:46",
+      "bytes": 2602560,
+      "bytesPerFrame": 2554
+    },
+    {
+      "site": "humanoidTint /src/render3d/humanoid.ts:344",
+      "bytes": 2346568,
+      "bytesPerFrame": 2303
+    },
+    {
+      "site": "drawAgentOverlay /src/render3d/overlay.ts:84",
+      "bytes": 2113468,
+      "bytesPerFrame": 2074
+    },
+    {
+      "site": "from :0 <- queryRadius engine/core/src/collision/spatial-hash.ts:75 < separateCircles engine/core/src/collision/separate.ts:58 < (anon) /src/render3d/app.ts:525",
+      "bytes": 1911660,
+      "bytesPerFrame": 1876
+    },
+    {
+      "site": "Map :0 <- householdLayout /src/render3d/household-layout.ts:46 < frame /src/render3d/app.ts:311",
+      "bytes": 1853876,
+      "bytesPerFrame": 1819
+    },
+    {
+      "site": "next :0 <- householdLayout /src/render3d/household-layout.ts:46 < frame /src/render3d/app.ts:311",
+      "bytes": 1826808,
+      "bytesPerFrame": 1793
+    },
+    {
+      "site": "set :0 <- householdLayout /src/render3d/household-layout.ts:46 < frame /src/render3d/app.ts:311",
+      "bytes": 1628768,
+      "bytesPerFrame": 1598
+    },
+    {
+      "site": "set :0 <- lerpEntityPositions engine/core/src/render/snapshot-interp.ts:25 < interpolatedPositions engine/core/src/render/snapshot-interp.ts:101 < interpolatedAgentPositions /src/render3d/interp.ts:107",
+      "bytes": 1615244,
+      "bytesPerFrame": 1585
+    },
+    {
+      "site": "next :0 <- separatedAgentPositions /src/render3d/agent-collision.ts:27 < (anon) /src/render3d/app.ts:525 < time engine/core/src/debug/profiler.ts:31",
+      "bytes": 1467384,
+      "bytesPerFrame": 1440
+    },
+    {
+      "site": "update engine/core/src/debug/overlay.ts:46",
+      "bytes": 1412352,
+      "bytesPerFrame": 1386
+    },
+    {
+      "site": "sort :0 <- queryRadius engine/core/src/collision/spatial-hash.ts:75 < separateCircles engine/core/src/collision/separate.ts:58 < separatedAgentPositions /src/render3d/agent-collision.ts:27",
+      "bytes": 1376816,
+      "bytesPerFrame": 1351
+    }
+  ]
+}

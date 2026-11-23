@@ -126,6 +126,7 @@ sitting comes right after 06.
 | [21](../briefs/todo/21-a-tile-chunk-ground-spike-in-farm.md) | A spike: Farm's ground as tile chunks behind `?tilechunks`, measured against today | none |
 | [22](../briefs/done/22-animations-declared-with-the-recipes.md) | Animations declared with the recipes and cooked into the manifest; one Farm clip moved | none |
 | [23](../briefs/done/23-recipes-to-png-and-back.md) | Recipe export to an indexed PNG and import back, for pixel editors | none |
+| [24](../briefs/done/24-hollow-builds-its-static-draws-once.md) | Hollow builds its territory and ground instances once per territory change, and its frame allocates less. Done 2026-11-23: bytes a frame 451 K to 269 K (-40%), the top site being `instanceAABB` walking each agent mesh every frame; bench counters unchanged within noise | none |
 
 ## The measure-first todos (all promoted 2026-11-23)
 
