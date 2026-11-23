@@ -1,0 +1,242 @@
+{
+  "url": "http://localhost:5176/?bench&profile",
+  "frames": 390,
+  "totalBytes": 333067504,
+  "bytesPerFrame": 854019,
+  "heapDrops": 0,
+  "counters": {
+    "drawGroups": {
+      "mean": 0,
+      "p95": 0
+    },
+    "glDrawCalls": {
+      "mean": 27.966666666666665,
+      "p95": 47
+    },
+    "drawInstances": {
+      "mean": 3573.5923076923077,
+      "p95": 20583
+    },
+    "uiQuads": {
+      "mean": 3573.5923076923077,
+      "p95": 20583
+    },
+    "textureBytesPerFrame": {
+      "mean": 0,
+      "p95": 0
+    },
+    "textureBytesTotal": 62724,
+    "textureUploads": 3,
+    "texturesCreated": 3
+  },
+  "sceneReport": {
+    "screens": {
+      "map": 60,
+      "combat": 300,
+      "loot": 30
+    },
+    "moves": 13
+  },
+  "ranked": [
+    {
+      "site": "next :0 <- pack engine/core/src/render/webgl2/ui-quad-pass.ts:135 < endFrame engine/core/src/render/webgl2/renderer.ts:552 < frame /src/main.ts:594",
+      "bytes": 74710184,
+      "bytesPerFrame": 191565
+    },
+    {
+      "site": "rect /src/ui/map-screen.ts:473",
+      "bytes": 48131472,
+      "bytesPerFrame": 123414
+    },
+    {
+      "site": "pack engine/core/src/render/webgl2/ui-quad-pass.ts:135",
+      "bytes": 45825108,
+      "bytesPerFrame": 117500
+    },
+    {
+      "site": "rect engine/ui/src/render/ui-surface.ts:34",
+      "bytes": 42229692,
+      "bytesPerFrame": 108281
+    },
+    {
+      "site": "drawRoad /src/ui/map-screen.ts:542",
+      "bytes": 18984264,
+      "bytesPerFrame": 48678
+    },
+    {
+      "site": "drawTriangle /src/ui/map-screen.ts:284",
+      "bytes": 18586176,
+      "bytesPerFrame": 47657
+    },
+    {
+      "site": "ellipse /src/ui/combat-screen.ts:700",
+      "bytes": 10843008,
+      "bytesPerFrame": 27803
+    },
+    {
+      "site": "stampPlank /src/ui/map-screen.ts:531",
+      "bytes": 8264544,
+      "bytesPerFrame": 21191
+    },
+    {
+      "site": "render /src/ui/map-screen.ts:646",
+      "bytes": 7536880,
+      "bytesPerFrame": 19325
+    },
+    {
+      "site": "stampCobble /src/ui/map-screen.ts:526",
+      "bytes": 6734304,
+      "bytesPerFrame": 17267
+    },
+    {
+      "site": "outlineDraw /src/ui/map-screen.ts:471",
+      "bytes": 6178244,
+      "bytesPerFrame": 15842
+    },
+    {
+      "site": "rect /src/ui/map-screen.ts:664",
+      "bytes": 5720208,
+      "bytesPerFrame": 14667
+    },
+    {
+      "site": "layoutTextQuads engine/ui/src/text/draw.ts:9",
+      "bytes": 4082640,
+      "bytesPerFrame": 10468
+    },
+    {
+      "site": "drawProp /src/ui/map-screen.ts:491",
+      "bytes": 3823068,
+      "bytesPerFrame": 9803
+    },
+    {
+      "site": "_setupInstanceAttribs engine/core/src/render/webgl2/sprite-batch.ts:225",
+      "bytes": 3690288,
+      "bytesPerFrame": 9462
+    },
+    {
+      "site": "layoutText engine/ui/src/text/layout.ts:20",
+      "bytes": 3052400,
+      "bytesPerFrame": 7827
+    },
+    {
+      "site": "drawText engine/ui/src/text/draw.ts:51",
+      "bytes": 2651928,
+      "bytesPerFrame": 6800
+    },
+    {
+      "site": "arrange engine/ui/src/layout/layout.ts:145",
+      "bytes": 2075428,
+      "bytesPerFrame": 5322
+    },
+    {
+      "site": "wrapParagraph engine/ui/src/text/layout.ts:48",
+      "bytes": 1825744,
+      "bytesPerFrame": 4681
+    },
+    {
+      "site": "drawPine /src/ui/map-screen.ts:298",
+      "bytes": 1136256,
+      "bytesPerFrame": 2913
+    },
+    {
+      "site": "drawGroundShadow /src/ui/map-screen.ts:293",
+      "bytes": 1119852,
+      "bytesPerFrame": 2871
+    },
+    {
+      "site": "measureNode engine/ui/src/layout/layout.ts:62",
+      "bytes": 892592,
+      "bytesPerFrame": 2289
+    },
+    {
+      "site": "drawPeak /src/ui/map-screen.ts:339",
+      "bytes": 726060,
+      "bytesPerFrame": 1862
+    },
+    {
+      "site": "next :0 <- render /src/ui/map-screen.ts:646 < frame /src/main.ts:594",
+      "bytes": 722660,
+      "bytesPerFrame": 1853
+    },
+    {
+      "site": "drawNode engine/ui/src/widget/render.ts:30",
+      "bytes": 681704,
+      "bytesPerFrame": 1748
+    },
+    {
+      "site": "resolvePadding engine/ui/src/layout/props.ts:2",
+      "bytes": 587856,
+      "bytesPerFrame": 1507
+    },
+    {
+      "site": "drawCottage /src/ui/map-screen.ts:316",
+      "bytes": 586584,
+      "bytesPerFrame": 1504
+    },
+    {
+      "site": "set :0 <- measureNode engine/ui/src/layout/layout.ts:62 < measureNode engine/ui/src/layout/layout.ts:62 < measureNode engine/ui/src/layout/layout.ts:62",
+      "bytes": 524048,
+      "bytesPerFrame": 1344
+    },
+    {
+      "site": "next :0 <- layoutTextQuads engine/ui/src/text/draw.ts:9 < drawText engine/ui/src/text/draw.ts:51 < drawLabel engine/ui/src/widget/render.ts:73",
+      "bytes": 496840,
+      "bytesPerFrame": 1274
+    },
+    {
+      "site": "drawFlower /src/ui/map-screen.ts:366",
+      "bytes": 463524,
+      "bytesPerFrame": 1189
+    },
+    {
+      "site": "filter :0 <- arrange engine/ui/src/layout/layout.ts:145 < arrange engine/ui/src/layout/layout.ts:145 < arrange engine/ui/src/layout/layout.ts:145",
+      "bytes": 437332,
+      "bytesPerFrame": 1121
+    },
+    {
+      "site": "drawWell /src/ui/map-screen.ts:326",
+      "bytes": 406104,
+      "bytesPerFrame": 1041
+    },
+    {
+      "site": "update engine/core/src/debug/overlay.ts:46",
+      "bytes": 369492,
+      "bytesPerFrame": 947
+    },
+    {
+      "site": "counted engine/core/src/debug/gl-counters.ts:86",
+      "bytes": 361368,
+      "bytesPerFrame": 927
+    },
+    {
+      "site": "collectProps /src/ui/map-screen.ts:446",
+      "bytes": 355072,
+      "bytesPerFrame": 910
+    },
+    {
+      "site": "toString :0 <- layoutTextQuads engine/ui/src/text/draw.ts:9 < drawText engine/ui/src/text/draw.ts:51 < drawLabel engine/ui/src/widget/render.ts:73",
+      "bytes": 320112,
+      "bytesPerFrame": 821
+    },
+    {
+      "site": "drawLabel engine/ui/src/widget/render.ts:73",
+      "bytes": 283544,
+      "bytesPerFrame": 727
+    },
+    {
+      "site": "textSize engine/ui/src/layout/layout.ts:28",
+      "bytes": 262804,
+      "bytesPerFrame": 674
+    },
+    {
+      "site": "(anon) /src/ui/map-screen.ts:687",
+      "bytes": 237912,
+      "bytesPerFrame": 610
+    },
+    {
+      "site": "drawButton engine/ui/src/widget/render.ts:94",
+      "bytes": 234032,
+      "bytesPerFrame": 600
+    }
+  ]
+}
