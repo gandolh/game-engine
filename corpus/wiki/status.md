@@ -155,7 +155,7 @@ step, and it was not kept in step.
 Newest first, one line each. Detail is in the [log.md](../log.md) entry for the same date.
 
 - **2026-11-23**: the laptop half of brief 07's real-GPU reading ([real-gpu-readings.md](real-gpu-readings.md)).
-  Citadel, Hollow and MateQuest meet the 60 fps bar; Farm is on the line and CPU-bound. The sprite sort
+  Citadel, Hollow and MateQuest meet the 60 fps bar; Farm meets it at its edge and is CPU-bound. The sprite sort
   todo became [brief 15](../briefs/todo/15-the-sprite-sort-under-1-ms.md), and the counter budgets are on
   [frame-budget.md](frame-budget.md). The phone half waits for the owner.
 

@@ -16,7 +16,7 @@ The reading of these files is on [real-gpu-readings.md](../../wiki/real-gpu-read
   fresh build of main that morning. MateQuest came from a local build of main served by
   `portal/scripts/serve-all.mjs`, because production did not have brief 12 yet. Each file's
   `benchSource` says which. Each `url` keeps only the path.
-- **The machine** was in normal use, plugged in, with VS Code open.
+- **The machine** was in normal use, with VS Code open. Whether it ran on mains power was not recorded.
 
 ## Files
 

@@ -4288,8 +4288,10 @@ The session drove Windows Chrome on the laptop's AMD iGPU from WSL (`tools/bench
 `verify/2026-11-23-real-gpu-baseline/`): two passes of the four bench scenes, Hollow framed and direct,
 a third Citadel pass after a one-off stall, a CPU-profiled Farm run and an emulated-phone pass. Production
 matched main except MateQuest, which ran from a local build. Citadel, Hollow and MateQuest meet the 60 fps
-bar with room to spare. Farm is on the line: p95 16.7 ms with 5.7–7.2% of intervals over it on a 120 Hz
-display, CPU-bound at 6.1–6.3 ms a frame against 2.6–2.7 ms of GPU. `compareSprite` alone costs it 1.07 ms
+bar with room to spare. Farm meets it at its edge: about 13% of its frames take two 120 Hz refreshes, so
+its p95 is exactly 16.7 ms, and it is CPU-bound at 6.1–6.3 ms a frame against 2.6–2.7 ms of GPU. All three
+Farm runs also show a 150–675 ms hitch early in the sweep, outside JavaScript (GPU process or compositor),
+not yet placed. `compareSprite` alone costs it 1.07 ms
 a frame, so the sprite sort todo became brief 15. The ghost check (about 0 ms) and the light overlay's CPU
 side (0.16 ms) did not fire. Hollow framed and direct agree, which closes the 2026-11-03 check: the gap was
 SwiftShader. Counter budgets per scene are on [frame-budget.md](wiki/frame-budget.md), and the readings on

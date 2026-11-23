@@ -20,8 +20,8 @@ and 4,638 at p95, at the widest zoom. A CPU profile of that scene
 ([real-gpu-readings.md](../../wiki/real-gpu-readings.md), "Where Farm's frame goes") puts **1.07 ms per
 frame, on average,** in `compareSprite` alone. `endFrame`'s own 0.67 ms, which includes the sort's
 built-in work, comes on top. The widest frames sort twice as many sprites, so the p95 is well above 1 ms.
-Farm is the one game on the 60 fps line: it misses a 120 Hz refresh on 5.7–7.2% of frames, and it is
-CPU-bound (6.1–6.3 ms of CPU against 2.6–2.7 ms of GPU). The emulated phone pass ran its
+Farm is the one game at the edge of the 60 fps bar: about 13% of its frames miss a 120 Hz refresh, and
+it is CPU-bound (6.1–6.3 ms of CPU against 2.6–2.7 ms of GPU). The emulated phone pass ran its
 `render.endFrame` at 16.9 ms with the CPU slowed 4×.
 
 Why the order matters beyond looks: the sorted order also decides how many draw groups a frame costs.

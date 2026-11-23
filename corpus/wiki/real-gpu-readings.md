@@ -33,12 +33,14 @@ spread across passes.
 **Citadel, Hollow and MateQuest meet the bar with room to spare.** Their p95 is one 120 Hz refresh,
 and no run has more than one frame over 33.3 ms. Their GPU time is under 3 ms on average.
 
-**Farm is on the line.** Its p95 is 16.7 ms, but 5.7–7.2% of intervals are over 16.7 ms, so the
-true 95th percentile sits just above it. On a 120 Hz display, a frame that misses one refresh lands on the
-next at 16.7 ms, so Farm keeps falling back to 60 Hz pacing: 105–107 fps against 120. Only 1–2 frames a
-run take over 33.3 ms, far under the 1% limit. Farm is CPU-bound: its frame costs 6.1–6.3 ms of CPU
-on average and 10.2–12.0 ms at p95, against 2.6–2.7 ms of GPU. The work in a frame fits 16.7 ms, so a
-60 Hz display would likely hold 60 fps, but no 60 Hz reading was taken.
+**Farm meets the bar at its edge.** It drew 3,153–3,197 display ticks in 30 s against about 3,595 for
+the other games, so about 13% of its frames take two 120 Hz refreshes, 16.7 ms. That makes its p95
+exactly two refreshes. The "over 16.7" share (5.7–7.2%) is not a count of slower frames: the profiler
+counts an interval strictly over 16.7 ms, and timestamp jitter puts about half the two-refresh intervals at
+16.8 ms. Only 1–2 frames a run take over 33.3 ms, far under the 1% limit. Farm is CPU-bound: its frame
+costs 6.1–6.3 ms of CPU on average and 10.2–12.0 ms at p95, against 2.6–2.7 ms of GPU. A frame that
+costs more than 8.3 ms misses a 120 Hz refresh, while every frame fits 16.7 ms. So a 60 Hz display would
+likely hold 60 fps, but no 60 Hz reading was taken.
 
 ### Where Farm's frame goes
 
@@ -65,13 +67,20 @@ and frame CPU a little lower framed. The canvas fills the frame exactly, 1905×8
 1920×945 direct. The 50 ms against 33 ms of 2026-11-03 ([portal.md](portal.md)) was SwiftShader under load.
 Hollow keeps its frame.
 
-### The heap
+### The heap, and a hitch early in Farm's sweep
 
 Every game collects about every 2 s (9–16 drops in 30 s). Farm swings between 16 and 55 MB and MateQuest
-between 13 and 69 MB, so both allocate fast, but a collection costs Farm 0.10 ms a frame on average, and long
-frames are too rare to line up with anything. Both Farm passes show a 1.2–1.7 s gap between heap samples
-at 1.0–2.7 s into the run, with no drop across it. The sampler is a timer, and Farm's opening sweep keeps the
-main thread busy enough to starve it. Neither pass shows a long frame there.
+between 13 and 69 MB, so both allocate fast, but a collection costs Farm 0.10 ms a frame on average.
+
+The heap is read inside the profiler's own `requestAnimationFrame` loop, once a second, so a gap between
+heap samples is a long frame interval. All three Farm runs, the profiled one included, have one at the
+same scene time: no display tick for 150–675 ms somewhere between 1.0 and 2.7 s into the run. It is the 1–2
+frames over 33.3 ms each run counts, and the heap does not drop across it, so it is not a collection.
+In the profiled run, the main thread sits idle through about 0.7 s around that time, woken only by small
+tasks about every 50 ms, while no frame is scheduled. So the wait is outside JavaScript, in the GPU process
+or the compositor. The usual suspects are ANGLE compiling a shader the first time a pass draws, and the
+first upload of a large texture, but the CPU profile cannot tell which. A Chrome trace with the GPU
+categories would. It stays well under the bar's 1%, but a player would see it as a hitch.
 
 ## Emulated phone (not a reading)
 

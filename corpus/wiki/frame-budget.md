@@ -19,7 +19,7 @@ knew whether any game missed 60 fps on real hardware. The first three briefs bui
 measurement, and nothing that only helps speed gets built before a number says it is needed.
 
 The laptop's reading came in on 2026-11-23 ([real-gpu-readings.md](real-gpu-readings.md)). Citadel,
-Hollow and MateQuest meet the bar with room to spare. Farm is on the line, and its frame is CPU-bound.
+Hollow and MateQuest meet the bar with room to spare. Farm meets it at its edge, and its frame is CPU-bound.
 The phone's reading is still to come.
 
 ## The bar
@@ -52,7 +52,12 @@ light overlay, for one, uploads 4.10 MB a frame there and 7.26 MB at 1920×945.
 | Farm | 1 | 2,200 | 4.9 | 1 group, 1,819 quads, 4.10 MB |
 | Citadel | 1 | 910 | 0 | 1 group, 760 quads, 0 MB |
 | Hollow | n/a (3D) | n/a | 0 | 0 MB; its 35.6 GL draw calls get a ceiling of 43 instead |
-| MateQuest | 0 | 5,900 | 0 | 0 groups, 4,890 quads, 0 MB |
+| MateQuest | 0 | 5,900 (soft) | 0 | 0 groups, 4,890 quads, 0 MB |
+
+MateQuest's UI quad ceiling is soft. Its scene moves to the next screen every 30 display ticks, and the
+map screen draws about 20,000 quads against the combat screen's few thousand. So the mean depends on how
+many ticks SwiftShader manages in 30 s: 270 on 2026-11-23 (mean 4,890) and 360 on 2026-11-21 (mean 3,888).
+Compare two MateQuest runs only when their `sceneReport` screen counts match.
 
 ## The asset pick (2026-11-20)
 
