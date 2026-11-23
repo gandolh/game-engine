@@ -260,10 +260,11 @@ export class UiQuadPass {
         continue;
       }
 
-      const [r, g, b] = quad.color !== undefined ? floatsOf(quad.color) : WHITE;
-      inst.r = r;
-      inst.g = g;
-      inst.b = b;
+      // Indexed, not destructured: array destructuring makes an iterator object per quad.
+      const rgb = quad.color !== undefined ? floatsOf(quad.color) : WHITE;
+      inst.r = rgb[0];
+      inst.g = rgb[1];
+      inst.b = rgb[2];
       inst.a = alpha;
 
       // Centre + extent, in device pixels. The corners land on exactly the

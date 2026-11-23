@@ -75,12 +75,17 @@ function hexToRgbaFloats(hex: string, alpha = 1): [number, number, number, numbe
  * precisely how Citadel's ghost previews, footprint shadows and night light pools
  * shipped opaque; fixed 2026-08-23 in that client's `spriteAlphaOf`).
  */
-function tintFloats(tintRgba: number | undefined, spriteAlpha: number): [number, number, number, number] {
+function tintFloats(
+  inst: { r: number; g: number; b: number; a: number },
+  tintRgba: number | undefined,
+  spriteAlpha: number,
+): void {
+  // Written into the scratch instance, not returned as a tuple: this runs once per sprite per frame.
   const t = tintRgba !== undefined ? tintRgba >>> 0 : 0xffffffff;
-  const r = ((t >>> 24) & 0xff) / 255;
-  const g = ((t >>> 16) & 0xff) / 255;
-  const b = ((t >>> 8) & 0xff) / 255;
-  return [r, g, b, spriteAlpha];
+  inst.r = ((t >>> 24) & 0xff) / 255;
+  inst.g = ((t >>> 16) & 0xff) / 255;
+  inst.b = ((t >>> 8) & 0xff) / 255;
+  inst.a = spriteAlpha;
 }
 
 /**
@@ -627,19 +632,11 @@ export class WebGl2Renderer implements RendererLike {
     inst.w = s.width;
     inst.h = s.height;
 
-    const uv = this._store.uv(s.atlasId, s.frame);
-    inst.u0 = uv.u0;
-    inst.v0 = uv.v0;
-    inst.u1 = uv.u1;
-    inst.v1 = uv.v1;
+    this._store.uvInto(s.atlasId, s.frame, inst);
     inst.rotation = s.rotation;
     inst.flipX = s.flipX ? 1 : 0;
 
-    const [r, g, b, a] = tintFloats(s.tintRgba, alpha);
-    inst.r = r;
-    inst.g = g;
-    inst.b = b;
-    inst.a = a;
+    tintFloats(inst, s.tintRgba, alpha);
 
     inst.swayPhase = s.swayPhase ?? 0;
     inst.swayAmp = s.swayAmp ?? 0;

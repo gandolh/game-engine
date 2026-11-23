@@ -58,9 +58,24 @@ export function measureText(text: string, opts: TextLayoutOptions = {}): number 
  */
 export function layoutText(text: string, opts: TextLayoutOptions = {}): TextLayout {
   const font = opts.font ?? DEFAULT_FONT;
-  const m = font.metrics;
   const scale = opts.scale ?? 1;
   const maxWidth = opts.maxWidth ?? Infinity;
+  // The UI is rebuilt every frame and most strings repeat, so the last layout of each string is kept and
+  // handed back while its font, scale and wrap width match. Callers only read a layout.
+  const hit = layoutCache.get(text);
+  if (hit !== undefined && hit.font === font && hit.scale === scale && hit.maxWidth === maxWidth) return hit.layout;
+  const layout = computeLayout(text, font, scale, maxWidth);
+  if (layoutCache.size >= LAYOUT_CACHE_MAX) layoutCache.clear();
+  layoutCache.set(text, { font, scale, maxWidth, layout });
+  return layout;
+}
+
+/** Most strings kept at once. Text that changes every frame (a clock, a counter) cycles through the cap. */
+const LAYOUT_CACHE_MAX = 1024;
+const layoutCache = new Map<string, { font: UiFont; scale: number; maxWidth: number; layout: TextLayout }>();
+
+function computeLayout(text: string, font: UiFont, scale: number, maxWidth: number): TextLayout {
+  const m = font.metrics;
   const lineHeight = m.lineHeight * scale;
 
   const lines: TextLine[] = [];

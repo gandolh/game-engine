@@ -3,6 +3,7 @@ import { OCCLUDER_WALLS, CLIFFS, BIG_STRUCTURES, BRIDGES } from "./geometry";
 import { frameToAtlasId, seasonalTreeFrame } from "./frames";
 import type { Season } from "../protocols/weather";
 import { TILE } from "@engine/core/render";
+import type { Sprite } from "@engine/core/render";
 
 const BRIDGE_SWAY_AMP = 1.5;
 const BRIDGE_ROPE_SAG = 4;
@@ -16,9 +17,16 @@ function bridgeSway(nowMs: number): number {
 
 const ENTITY_LAYER = 50;
 
-export function pushOccluderSprites(renderer: Pick<RendererLike, "push">): void {
+/**
+ * The wall and cliff sprites never change, so they are built once and the same objects are pushed every
+ * frame. The renderer keeps a pushed sprite only until the frame ends and never writes to it.
+ */
+let staticOccluders: Sprite[] | null = null;
+
+function buildStaticOccluders(): Sprite[] {
+  const out: Sprite[] = [];
   for (const wall of OCCLUDER_WALLS) {
-    renderer.push({
+    out.push({
       x: wall.tx * TILE + TILE / 2,
       y: wall.ty * TILE + TILE / 2,
       sortY: (wall.ty + 1) * TILE,
@@ -31,9 +39,8 @@ export function pushOccluderSprites(renderer: Pick<RendererLike, "push">): void 
       alpha: 1,
     });
   }
-
   for (const cliff of CLIFFS) {
-    renderer.push({
+    out.push({
       x: cliff.tx * TILE + TILE / 2,
       y: cliff.ty * TILE + TILE / 2,
       sortY: (cliff.ty + 1) * TILE,
@@ -46,52 +53,63 @@ export function pushOccluderSprites(renderer: Pick<RendererLike, "push">): void 
       alpha: 1,
     });
   }
+  return out;
+}
+
+export function pushOccluderSprites(renderer: Pick<RendererLike, "push">): void {
+  staticOccluders ??= buildStaticOccluders();
+  for (const sprite of staticOccluders) renderer.push(sprite);
+}
+
+/** One bridge's three sprites, reused every frame: only the sway moves `x`, `y` and the rope's sag. */
+interface BridgeSprites {
+  deck: Sprite;
+  posts: Sprite;
+  rope: Sprite;
+}
+
+let bridgePool: BridgeSprites[] | null = null;
+
+function bridgeSprite(b: (typeof BRIDGES)[number], frame: string, layer: number): Sprite {
+  return {
+    x: 0,
+    y: 0,
+    width: TILE,
+    height: TILE,
+    frame,
+    atlasId: frameToAtlasId(frame),
+    rotation: b.rotation,
+    layer,
+    alpha: 1,
+  };
 }
 
 export function pushBridgeSprites(renderer: Pick<RendererLike, "push">, nowMs: number): void {
+  bridgePool ??= BRIDGES.map((b) => ({
+    deck: bridgeSprite(b, "tile/bridge-h", 3),
+    posts: bridgeSprite(b, "tile/bridge-rail-posts", ENTITY_LAYER + 2),
+    rope: bridgeSprite(b, "tile/bridge-rail-rope", ENTITY_LAYER + 3),
+  }));
   const sway = bridgeSway(nowMs);
-  for (const b of BRIDGES) {
+  for (let i = 0; i < BRIDGES.length; i += 1) {
+    const b = BRIDGES[i];
+    const sprites = bridgePool[i];
+    if (b === undefined || sprites === undefined) continue;
     const dx = b.runsVertical ? sway : 0;
     const dy = b.runsVertical ? 0 : sway;
     const x = b.tx * TILE + TILE / 2 + dx;
     const y = b.ty * TILE + TILE / 2 + dy;
-
-    renderer.push({
-      x,
-      y,
-      width: TILE,
-      height: TILE,
-      frame: "tile/bridge-h",
-      atlasId: frameToAtlasId("tile/bridge-h"),
-      rotation: b.rotation,
-      layer: 3,
-      alpha: 1,
-    });
-
-    renderer.push({
-      x,
-      y,
-      width: TILE,
-      height: TILE,
-      frame: "tile/bridge-rail-posts",
-      atlasId: frameToAtlasId("tile/bridge-rail-posts"),
-      rotation: b.rotation,
-      layer: ENTITY_LAYER + 2,
-      alpha: 1,
-    });
-
     const sag = BRIDGE_ROPE_SAG * 4 * b.spanT * (1 - b.spanT);
-    renderer.push({
-      x,
-      y: y + sag,
-      width: TILE,
-      height: TILE,
-      frame: "tile/bridge-rail-rope",
-      atlasId: frameToAtlasId("tile/bridge-rail-rope"),
-      rotation: b.rotation,
-      layer: ENTITY_LAYER + 3,
-      alpha: 1,
-    });
+
+    sprites.deck.x = x;
+    sprites.deck.y = y;
+    sprites.posts.x = x;
+    sprites.posts.y = y;
+    sprites.rope.x = x;
+    sprites.rope.y = y + sag;
+    renderer.push(sprites.deck);
+    renderer.push(sprites.posts);
+    renderer.push(sprites.rope);
   }
 }
 

@@ -34,6 +34,21 @@ export function layoutTextQuads(
   y: number,
   opts: DrawTextOptions,
 ): { quads: UIQuad[]; layout: TextLayout } {
+  const quads: UIQuad[] = [];
+  const alpha = opts.alpha ?? 1;
+  const layout = emitGlyphs(text, x, y, opts, (qx, qy, width, height, atlasId, frame) =>
+    quads.push({ x: qx, y: qy, width, height, atlasId, frame, color: opts.color, alpha }),
+  );
+  return { quads, layout };
+}
+
+function emitGlyphs(
+  text: string,
+  x: number,
+  y: number,
+  opts: DrawTextOptions,
+  emit: (x: number, y: number, width: number, height: number, atlasId: string, frame: string) => void,
+): TextLayout {
   const layout = layoutText(text, opts);
   const font = layout.font;
   const m = font.metrics;
@@ -41,10 +56,8 @@ export function layoutTextQuads(
   const glyphW = m.glyphWidth * scale;
   const glyphH = m.glyphHeight * scale;
   const advance = m.advance * scale;
-  const alpha = opts.alpha ?? 1;
   const atlasId = fontAtlasId(font);
 
-  const quads: UIQuad[] = [];
   for (let li = 0; li < layout.lines.length; li += 1) {
     const line = layout.lines[li]!.text;
     const lineY = y + li * layout.lineHeight;
@@ -52,21 +65,12 @@ export function layoutTextQuads(
     for (const ch of line) {
       // Whitespace advances the pen but draws nothing.
       if (ch !== " ") {
-        quads.push({
-          x: penX,
-          y: lineY,
-          width: glyphW,
-          height: glyphH,
-          atlasId,
-          frame: frameNameFor(ch),
-          color: opts.color,
-          alpha,
-        });
+        emit(penX, lineY, glyphW, glyphH, atlasId, frameNameFor(ch));
       }
       penX += advance;
     }
   }
-  return { quads, layout };
+  return layout;
 }
 
 /**
@@ -75,7 +79,9 @@ export function layoutTextQuads(
  * caller can position adjacent UI. The surface's `begin()` must already be open.
  */
 export function drawText(surface: UISurface, text: string, x: number, y: number, opts: DrawTextOptions): TextLayout {
-  const { quads, layout } = layoutTextQuads(text, x, y, opts);
-  for (const q of quads) surface.push(q);
-  return layout;
+  const color = opts.color;
+  const alpha = opts.alpha ?? 1;
+  return emitGlyphs(text, x, y, opts, (qx, qy, width, height, atlasId, frame) =>
+    surface.quad(qx, qy, width, height, atlasId, frame, color, alpha),
+  );
 }
