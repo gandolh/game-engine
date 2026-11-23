@@ -360,6 +360,8 @@ export function mountHollow(container: HTMLElement, options: MountOptions): () =
     }
 
     worker.addEventListener("message", (event: MessageEvent<WorkerOutbound>) => {
+      // The snapshot timers live in render3d/app.ts's listener, which is registered first and so is the
+      // one that pays the deserialisation; by here `event.data` is already read.
       const msg = event.data;
       if (msg.type === "snapshot") {
         latestSnapshot = msg.snapshot;

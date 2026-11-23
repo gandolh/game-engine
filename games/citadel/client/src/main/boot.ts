@@ -8,6 +8,7 @@ import type { GameMode } from "../ui/new-game-modal";
 import { SEED, TICKS_PER_DAY } from "./constants";
 import { canvas } from "./dom";
 import { terrain } from "./terrain";
+import { CitadelSimClient } from "../worker/sim-client";
 import { setRendererState, camera, iso, renderer } from "./renderer-state";
 import { initResourceHud, initSiegeHud } from "./hud-panels";
 import { initInspectPanel } from "./inspect";
@@ -134,6 +135,7 @@ async function boot(): Promise<void> {
   });
   if (profile.enabled) renderer.profileUi = true;
   setFrameProfile(profile);
+  if (client instanceof CitadelSimClient) client.setTimers(profile.timers);
 
   // engine-ui chunk 7: register the bitmap font atlas (once), build the in-canvas HUD,
   // and wire its render/input/a11y plumbing.

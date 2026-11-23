@@ -216,7 +216,10 @@ async function main(): Promise<void> {
   // (only the run's POSITION is lost, per the module doc — never progression).
   let currentMastery: MasteryStore = BENCH ? EMPTY_MASTERY_STORE : loadMastery();
   worker.addEventListener("message", (event: MessageEvent<WorkerOutbound>) => {
+    // Chrome deserialises a message on the first read of `event.data`, so that read is the copy's cost.
+    const readStart = performance.now();
     const msg = event.data;
+    const readEnd = performance.now();
     if (msg.type === "snapshot") {
       latest = msg.snapshot;
       currentMastery = msg.snapshot.run.mastery;
@@ -225,6 +228,11 @@ async function main(): Promise<void> {
       if (!BENCH && serialized !== lastPersistedMastery) {
         lastPersistedMastery = serialized;
         saveMastery(serialized);
+      }
+      if (profile.enabled) {
+        profile.timers.add("snapshot.read", readEnd - readStart);
+        profile.timers.add("snapshot.apply", performance.now() - readEnd);
+        if (msg.postMs !== undefined) profile.timers.add("snapshot.post", msg.postMs);
       }
     }
   });

@@ -19,6 +19,8 @@ let tick = 0;
 let commandsPending = false;
 
 let simResult: ReturnType<typeof bootstrapSim> | null = null;
+/** How long the last snapshot `postMessage` took, sent with the next one. */
+let lastPostMs: number | null = null;
 
 /**
  * Emit a snapshot stamped with the worker-authoritative pacing (Citadel 97/13). Solo runs
@@ -29,10 +31,14 @@ let simResult: ReturnType<typeof bootstrapSim> | null = null;
 function postSnapshot(): void {
   if (simResult === null) return;
   const snap = simResult.getSnapshot(tick);
+  // `snapshot.post` (corpus brief 18): the clone runs inside postMessage; the time rides on the next message.
+  const t0 = performance.now();
   self.postMessage({
     type: "snapshot",
     snapshot: { ...snap, isHost: true, speed, paused },
+    ...(lastPostMs !== null ? { postMs: lastPostMs } : {}),
   } satisfies WorkerOutbound);
+  lastPostMs = performance.now() - t0;
 }
 
 /**

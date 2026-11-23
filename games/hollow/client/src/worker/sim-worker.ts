@@ -172,7 +172,8 @@ export type WorkerInbound =
 
 export type WorkerOutbound =
   | { type: "ready" }
-  | { type: "snapshot"; snapshot: HollowSnapshot }
+  /** `postMs`: the previous snapshot `postMessage`'s duration, for the `snapshot.post` timer (corpus brief 18). */
+  | { type: "snapshot"; snapshot: HollowSnapshot; postMs?: number }
   | { type: "inspectResult"; agentId: number; detail: InspectDetail | null }
   /** New chronicle events since the LAST `"events"` post — a delta, not
    *  the full accumulated buffer (see this file's header). Chunk hollow-11b:
@@ -191,6 +192,8 @@ export type WorkerOutbound =
 const BASE_TICK_HZ = 20;
 
 let simResult: ReturnType<typeof bootstrapHollowSim> | null = null;
+/** How long the last snapshot `postMessage` took, sent with the next one. */
+let lastPostMs: number | null = null;
 let chronicle: ReturnType<typeof createChronicle> | null = null;
 let metricsSampler: MetricsSampler | null = null;
 let ticksPerDay = 0;
@@ -224,7 +227,14 @@ function subscribeShockEvents(): void {
 function postSnapshot(): void {
   if (simResult === null) return;
   const snapshot = simResult.getSnapshot();
-  self.postMessage({ type: "snapshot", snapshot } satisfies WorkerOutbound);
+  // `snapshot.post` (corpus brief 18): the clone runs inside postMessage; the time rides on the next message.
+  const t0 = performance.now();
+  self.postMessage({
+    type: "snapshot",
+    snapshot,
+    ...(lastPostMs !== null ? { postMs: lastPostMs } : {}),
+  } satisfies WorkerOutbound);
+  lastPostMs = performance.now() - t0;
 }
 
 /** Posts only the chronicle + shock events appended since the last call — a

@@ -244,7 +244,9 @@ export interface RosterEntry {
 
 // Messages sent from Worker / server → main thread
 export type WorkerOutbound =
-  | { type: "snapshot"; snapshot: RenderSnapshot }
+  // `postMs`: how long the worker's previous snapshot `postMessage` took (structured clone), for the frame profile's
+  // `snapshot.post` timer (corpus brief 18). Absent on the first snapshot and from the MP server.
+  | { type: "snapshot"; snapshot: RenderSnapshot; postMs?: number }
   | { type: "ready" } // emitted once after bootstrap
   | { type: "save-data"; save: CitadelSave } // Phase 5: save response
   // Citadel 36: ephemeral social layer (relayed, OFF the command log)

@@ -220,8 +220,19 @@ export function startHollowApp(canvas: HTMLCanvasElement, worker: Worker, opts: 
   let followAgentId: number | null = null;
 
   const onMessage = (event: MessageEvent<WorkerOutbound>): void => {
+    // This listener is registered before mount.ts's, so it pays Chrome's deserialisation: the first read of
+    // `event.data` is `snapshot.read`, the buffer ingest is `snapshot.apply` (corpus brief 18). The
+    // timers record nothing until `?profile` replaces the disabled profile below.
+    const readStart = performance.now();
     const msg = event.data;
-    if (msg.type === "snapshot") snapshotBuffer.ingest(msg.snapshot, performance.now());
+    const readEnd = performance.now();
+    if (msg.type === "snapshot") {
+      snapshotBuffer.ingest(msg.snapshot, readEnd);
+      const timers = frameProfile.timers;
+      timers.add("snapshot.read", readEnd - readStart);
+      timers.add("snapshot.apply", performance.now() - readEnd);
+      if (msg.postMs !== undefined) timers.add("snapshot.post", msg.postMs);
+    }
   };
   worker.addEventListener("message", onMessage);
 

@@ -12,12 +12,15 @@ import type {
   CitadelCommand,
   CitadelSave,
 } from "@citadel/sim-core/snapshot";
+import type { Profiler } from "@engine/core";
 
 export class CitadelSimClient {
   private readonly worker: Worker;
   private currentSnapshot: RenderSnapshot | null = null;
   private snapshotCallback: ((snap: RenderSnapshot) => void) | null = null;
   private saveCallback: ((save: CitadelSave) => void) | null = null;
+  /** The frame profile's timers (`?profile`): `snapshot.post`, `snapshot.read`, `snapshot.apply`. */
+  private timers: Profiler | null = null;
 
   constructor() {
     this.worker = new Worker(new URL("./sim-worker.ts", import.meta.url), {
@@ -25,11 +28,19 @@ export class CitadelSimClient {
     });
 
     this.worker.onmessage = (event: MessageEvent<WorkerOutbound>) => {
+      // Chrome deserialises a message on the first read of `event.data`, so that read is the copy's cost.
+      const t0 = performance.now();
       const msg = event.data;
+      const t1 = performance.now();
       switch (msg.type) {
         case "snapshot":
           this.currentSnapshot = msg.snapshot;
           this.snapshotCallback?.(msg.snapshot);
+          if (this.timers !== null) {
+            this.timers.add("snapshot.read", t1 - t0);
+            this.timers.add("snapshot.apply", performance.now() - t1);
+            if (msg.postMs !== undefined) this.timers.add("snapshot.post", msg.postMs);
+          }
           break;
         case "save-data":
           this.saveCallback?.(msg.save);
@@ -107,6 +118,11 @@ export class CitadelSimClient {
    */
   loadSave(save: CitadelSave): void {
     this.send({ type: "load-save", save });
+  }
+
+  /** Routes the snapshot timers into the frame profile's timers. */
+  setTimers(timers: Profiler): void {
+    this.timers = timers;
   }
 
   onSnapshot(cb: (snap: RenderSnapshot) => void): void {

@@ -113,14 +113,24 @@ export type WorkerInbound =
   | WorkerUseLifelineMessage
   | WorkerNewRunMessage;
 
-export type WorkerOutbound = { type: "ready" } | { type: "snapshot"; snapshot: GameSnapshot };
+export type WorkerOutbound = { type: "ready" } | { type: "snapshot"; snapshot: GameSnapshot; postMs?: number };
 
 let sim: ReturnType<typeof bootstrapMathquestSim> | null = null;
+
+/** How long the last snapshot `postMessage` took, sent with the next one. */
+let lastPostMs: number | null = null;
 
 function postSnapshot(): void {
   if (sim === null) return;
   const snapshot = sim.getSnapshot();
-  self.postMessage({ type: "snapshot", snapshot } satisfies WorkerOutbound);
+  // `snapshot.post` (corpus brief 18): the clone runs inside postMessage; the time rides on the next message.
+  const t0 = performance.now();
+  self.postMessage({
+    type: "snapshot",
+    snapshot,
+    ...(lastPostMs !== null ? { postMs: lastPostMs } : {}),
+  } satisfies WorkerOutbound);
+  lastPostMs = performance.now() - t0;
 }
 
 self.onmessage = (event: MessageEvent<WorkerInbound>) => {
