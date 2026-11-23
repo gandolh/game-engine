@@ -4353,3 +4353,7 @@ to 2.4 ms. Farm's ghost pass: old scan 0.003 ms, grid only 0.78 ms, hybrid 0.007
 ## [2026-11-23] done | Brief 20: fewer allocations per frame
 
 [Brief](briefs/done/20-fewer-allocations-per-frame.md). Farm 2.75 to 1.54 MB a frame (heap drops 15 to 8): static and pooled bridge sprites, a text layout cache, pooled UI quads, no tuples in the pack loops. MateQuest's map screen uses one keyline painter and cached sorted props (about -80% per map frame). Counters unchanged. Farm's JSON decode left as the wire format. Profiler and numbers in `verify/2026-11-23-allocations/`. Updated [frame-budget.md](wiki/frame-budget.md), [real-gpu-readings.md](wiki/real-gpu-readings.md) and the [todo](todos/2026-11-20-allocation-free-frames.md).
+
+## [2026-11-23] done | Brief 18: worker snapshots timed, and transferred in one game
+
+[Brief](briefs/done/18-worker-snapshots-timed-and-transferred.md). `snapshot.post`, `snapshot.read` and `snapshot.apply` are in the frame profile of Citadel, Hollow and MateQuest. Hollow costs most (read mean 0.30 ms, p95 0.6; Citadel 0.09 and 0.2), so its agent positions now travel as a transferred `Float32Array` (`worker/snapshot-wire.ts`). `snapshot.read` did not fall: the cost is the per-agent objects, not the numbers. Sims untouched, `sim:citadel` and `sim:hollow` unchanged. Updated [frame-budget.md](wiki/frame-budget.md), [real-gpu-readings.md](wiki/real-gpu-readings.md) and the [todo](todos/2026-11-20-worker-snapshot-transfer.md).

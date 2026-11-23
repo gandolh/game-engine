@@ -1,6 +1,6 @@
 # Worker snapshot transfer
 
-status: promoted to brief 18 on 2026-11-23 ([18](../briefs/todo/18-worker-snapshots-timed-and-transferred.md)), by the owner's call to
+status: promoted to brief 18 on 2026-11-23 ([18](../briefs/done/18-worker-snapshots-timed-and-transferred.md)), done 2026-11-23: the copy is timed in all three games (about 0.3 ms read and 0.3 ms post in Hollow, the costliest); Hollow's positions now travel as a transferred array, which did not lower `snapshot.read` (the cost is the per-agent objects). Promoted by the owner's call to
 build light optimizations without waiting for a trigger. Its trigger was to promote it when receiving and applying a snapshot on the main thread takes more than 2 ms
 at p95 in the Citadel, Hollow or MateQuest bench.
 created: 2026-11-20

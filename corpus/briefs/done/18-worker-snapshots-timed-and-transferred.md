@@ -66,3 +66,45 @@ most, and only its per-entity positions.
 
 - Deploy the converted game and the two with new timers, from the vps-deploy checkout:
   `node cli.ts citadel deploy`, `node cli.ts hollow deploy` and `node cli.ts mathquest deploy`.
+
+## Outcome (2026-11-23)
+
+Built. Acceptance is met except one bullet: the converted game's `snapshot.read` p95 did not fall.
+
+**Timers.** `snapshot.post` (the worker's `postMessage`, sent back as `postMs` on the next snapshot message),
+`snapshot.read` (the first read of `event.data`, where Chrome deserialises) and `snapshot.apply` (the handler)
+are in the frame profile's `timers` for Citadel, Hollow and MateQuest, so `?profile` and the bench export carry
+them. In Hollow the first reader is `render3d/app.ts`'s listener (registered before `mount.ts`'s), so the
+timers live there.
+
+**Bench, headless on SwiftShader, mean / p95 in ms (timer step 0.1 ms; load average 25-31 throughout).**
+
+| Game | read before | read after | apply before | apply after | post before | post after |
+|---|---|---|---|---|---|---|
+| Citadel | 0.092 / 0.2 | 0.091 / 0.2 | 0.036 / 0.1 | 0.040 / 0.1 | 0.114 / 0.2 | 0.126 / 0.2 |
+| Hollow | 0.300 / 0.6 | 0.359 / 0.7 (rerun 0.344 / 0.7) | 0.022 / 0.1 | 0.032 / 0.1 (rerun 0.074 / 0.1) | 0.274 / 0.4 | 0.284 / 0.5 (rerun 0.305 / 0.5) |
+| MateQuest | 0.100 / 0.1 (1 sample) | 0.111 / 0.2 (9 samples) | 0.200 (1 sample) | 0.044 / 0.1 | 0 (1 sample) | 0.056 / 0.1 |
+
+Citadel and MateQuest were not converted, so their "after" is noise. Sizes, offline (seed 1, tick 3000, not the
+bench scene): Hollow 21,325 bytes of JSON and a 0.33 ms `structuredClone` (44 agents, 18,980 bytes of them the
+agents); Citadel 5,060 bytes, 0.07 ms; MateQuest 1,438 bytes, 0.04 ms.
+
+**Converted game: Hollow**, the costliest by a wide margin. Each agent's grid position (`gx`, `gy`) travels as one
+`Float32Array` in the transfer list (`worker/snapshot-wire.ts`, `packSnapshot`; a fresh array every post, so
+nothing reuses a detached buffer). The rest stays in the plain object. `SnapshotBuffer.ingest` reads the array.
+The sim's `getSnapshot()` and `HollowSnapshot` are untouched. Tests (`snapshot-wire.test.ts`) round-trip a snapshot
+through `structuredClone` with transfer, get the same positions, check the source buffer detaches and the
+interpolation gives the same result.
+
+**Why read did not fall.** An offline clone of the stripped snapshot plus the transferred array took 0.366 ms
+against 0.355 ms for the full one. The 44 agents' 88 position numbers are a rounding error beside their
+objects: `needs`, `inventory` and `appearance` records and strings. Cutting `snapshot.read` needs those moved
+(a fixed need-kind order in a typed array, a string table), which the brief excludes. That is the next step if
+the copy ever matters; at 0.3 ms read and 0.3 ms post every 50 ms it does not today.
+
+`npm run sim:citadel` and `npm run sim:hollow` print the same output before and after (diffed).
+
+## Owner steps (unchanged)
+
+Deploy `node cli.ts citadel deploy`, `node cli.ts hollow deploy` and `node cli.ts mathquest deploy` from the
+vps-deploy checkout.

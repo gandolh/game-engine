@@ -122,7 +122,7 @@ Hollow's handler stores the snapshot and passes the year's events to the chronic
 0 ms. The 0.60 ms is the chronicle appending rows to the DOM, plus 0.53 ms a frame in `overlayFrame`, the
 HTML overlay. The structured-clone copy of each snapshot runs in native code, inside the 1.01 ms the
 profile can't attribute along with style and layout. So the snapshot's own cost has an upper bound but no
-measurement, and a p95 needs a named timer around it.
+measurement, and a p95 needs a named timer around it. Brief 18 added them (`snapshot.post`, `snapshot.read`, `snapshot.apply`; headless bench on SwiftShader, timer step 0.1 ms): Hollow reads a snapshot in 0.30 ms on average (p95 0.6) and posts it in 0.27 ms, Citadel 0.09 and 0.11. See [frame-budget.md](frame-budget.md).
 
 Citadel's handler receives the snapshot and feeds its interpolation in 0.005 ms a frame. Some Windows runs
 between about 10:45 and 11:10 drew no frames at all; a rerun that failed the same way reported the page as
