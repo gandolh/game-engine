@@ -13,14 +13,15 @@
  *   - `wash`    → `TintPass.draw`, last before the 2D overlay.  ✅
  *   - `weather` (a `RainField`) → `WeatherPass.draw` when `useGpuEffects`.  ✅  (see weather.ts)
  *   - `particles` → `ParticleBatch.draw` — renders, but Citadel doesn't use it.
- *   - `overlay` (OverlayFn) → `OverlayLightPass.draw`, additive, after sprites
- *     and BEFORE the wash.  ✅ — **this changed.** The old WebGPU backend
- *     accepted the callback and silently dropped it (the same bug that kept
- *     Farm's night lighting from ever rendering); WebGL2 honours it.
+ *   - `overlay` (a `LightOverlay`: a list of light pools, since 2026-11-23) →
+ *     `OverlayLightPass.draw`, additive instanced quads, after sprites and BEFORE
+ *     the wash.  ✅ (Until 2026-11-23 it was a 2D-canvas callback; the old WebGPU
+ *     backend silently dropped it, which kept Farm's night lighting from ever
+ *     rendering.)
  * So the day/night wash is passed straight to `endFrame(wash, …)`. The light pool
  * is still emitted as sprite-batch quads rather than through the overlay channel:
  * that was originally forced by the no-op, and is now a choice — the quads y-sort
- * against buildings, which a full-screen additive composite cannot do. Citadel
+ * against buildings, which the screen-space overlay pass cannot do. Citadel
  * passes no `overlay` today (see `main/render-loop.ts`).
  */
 import { dayFraction, nightFactor } from "@engine/core/sim";
