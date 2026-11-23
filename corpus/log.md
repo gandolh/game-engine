@@ -4385,7 +4385,7 @@ briefed (camera world-edge clamp, explicit spawn ids and an id lookup) are on th
 
 ## [2026-11-23] briefs | 28 and 29 from the sm64 side findings; 27 settled
 
-Grilled with the owner on the Super Mario 64 research. [Brief 28](briefs/todo/28-an-entity-found-by-its-id.md):
+Grilled with the owner on the Super Mario 64 research. [Brief 28](briefs/done/28-an-entity-found-by-its-id.md):
 `World` gets an id map and `get(id)`, an explicit id moves `nextId` past it, and Farm's `findById` reads the map.
 [Brief 29](briefs/todo/29-the-camera-centre-stays-on-the-map.md): the camera's centre stays on the map in Farm,
 Citadel and Hollow (the owner's pick: half a screen of off-map at most). Brief 27's two calls are settled: a 4 Hz
@@ -4413,3 +4413,11 @@ Outcome in [the brief](briefs/done/25-farm-finds-tile-features-by-cell.md).
 fields are readonly. The 15 direct writes in the engine, Farm and Hollow go through it, with the same states at
 the same ticks. Three-seed exports for Farm and Hollow are byte-identical before and after, and both determinism
 checks pass. Outcome in [the brief](briefs/done/26-the-state-machine-keeps-its-entry-tick.md).
+
+## [2026-11-24] done | Brief 28: an entity found by its id
+
+`World` keeps an id map and `World.get(id)`; an explicit id moves `nextId` past itself, and a second object with a
+live entity's id throws. Farm's `findById` reads the map with the query's component test, so its callers are
+unchanged. Three-seed Farm exports byte-identical, Citadel and Hollow sims identical, determinism check passed.
+Five other by-id scans in Farm are listed in [the brief](briefs/done/28-an-entity-found-by-its-id.md), not changed.
+Ready for deploy: `node cli.ts farm-valley deploy`.

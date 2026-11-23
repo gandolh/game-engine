@@ -62,3 +62,27 @@ market and carpenter systems.
 ## Owner decisions
 
 - None.
+
+## Outcome (2026-11-24)
+
+`World` keeps a `Map` from id to entity beside `all` (`engine/core/src/ecs/world.ts`): `spawn` adds, `despawn`
+removes, and `World.get(id)` reads it. An explicit id at or above `nextId` moves `nextId` to `id + 1`. A second
+object spawned with a live entity's id throws `World.spawn: id N is already held by a live entity`; respawning the
+same object stays a no-op. `World` has no clear or reset member, so nothing else had to keep the map in step.
+Farm's `findById` keeps its signature: it looks the id up, then returns the entity only if every named component is
+defined, the same test a query's `matches` makes, so none of its 20 callers changed.
+
+- **Tests.** `world.test.ts`: `get` finds a spawned entity and not a despawned one; an automatic id after explicit
+  999 is 1000; an explicit id below `nextId` leaves it; the throw names the id; a despawned id can be reused; the same
+  object respawned is a no-op. The old test that asserted an explicit id 100 left the next automatic id at 1 was
+  replaced, since this brief reverses that behaviour. `entity-helpers.test.ts` (new): `findById` returns `undefined`
+  for a missing component, an unknown id and a despawned id.
+- **Baseline.** Farm `npm run sim` with `EXPORT=json MAX_DAYS=10` for seeds 1, 2 and 3: byte-identical before and
+  after (`cmp`). `sim:citadel` and `sim:hollow` output identical. `CHECK_DETERMINISM=1 npm run sim` passed.
+- **Other by-id scans in Farm**, listed and not changed: `rivalry/system.ts:122`, `event-feed/system.ts:437`,
+  `cognition/trust.ts:71`, `combat/chase.ts:106` and `combat/system.ts:371`, all under
+  `games/farm/sim-core/src/systems/`. Citadel's `sim-state.ts:343` looks up a player and MateQuest's
+  `sim-bootstrap.ts:318` a map node; neither is an entity scan.
+- **Built by** a Sonnet builder, which handed back while its `npm run check` was still running; the controller read
+  the diff, confirmed the check exited 0 and the exports were taken around the final code, and closed it out.
+- **Ships with** `node cli.ts farm-valley deploy`; the other games take the engine change with their next deploys.
