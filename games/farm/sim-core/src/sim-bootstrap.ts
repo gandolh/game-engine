@@ -24,6 +24,7 @@ import { HarvestSystem } from "./systems/farming/harvest";
 import { PlotSenseSystem } from "./systems/farming/plot-sense";
 import { DeliberateSystem } from "./systems/cognition/deliberate";
 import { PlayerControlSystem } from "./systems/player-control";
+import { FeatureCells } from "./world/feature-cells";
 import { ActSystem } from "./systems/act";
 import { TravelSystem } from "./systems/travel";
 import { FeatureCollisionSystem } from "./systems/world-time/feature-collision";
@@ -245,6 +246,8 @@ export function bootstrapSim(opts: SimBootstrapOptions): BootedSim {
   const combat = new CombatSystem(world, bus, rng, opts.ticksPerDay);
   const runHistory = new RunHistorySystem(world, bus);
   const eventFeed = new EventFeedSystem(world, dayClock, rivalry, runHistory);
+  // One per-tile feature index, shared by Pip's collision checks and the grid stamp (rebuilt lazily on change).
+  const featureCells = new FeatureCells(world);
   const scheduler = new Scheduler().stage("CLOCK").add(dayClock);
 
   if (opts.shock !== false) {
@@ -293,7 +296,7 @@ export function bootstrapSim(opts: SimBootstrapOptions): BootedSim {
     .add(new PlotSenseSystem(world))
     .stage("DELIBERATE")
     .add(new DeliberateSystem(world))
-    .add(new PlayerControlSystem(world))
+    .add(new PlayerControlSystem(world, featureCells))
     .add(new AggressionSystem(world, combat))
     .add(weatherFeature.apSystem);
 
@@ -302,7 +305,7 @@ export function bootstrapSim(opts: SimBootstrapOptions): BootedSim {
     // separate boat grid (water lanes); TravelSystem swaps to it while a farmer is aboard
     const boatGrid = buildBoatGrid();
     scheduler.stage("MOVE");
-    scheduler.add(new FeatureCollisionSystem(world, grid));
+    scheduler.add(new FeatureCollisionSystem(world, grid, featureCells));
     // ChaseSystem (re)points the pursuit travel intent BEFORE TravelSystem steps it.
     scheduler.add(new ChaseSystem(world, bus, combat, opts.ticksPerDay));
     scheduler.add(new TravelSystem(world, opts.pathfinder as Pathfinder, grid, bus, boatGrid));

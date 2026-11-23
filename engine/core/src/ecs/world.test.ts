@@ -127,4 +127,82 @@ describe("World", () => {
       expect(q.entities).not.toContain(e);
     });
   });
+
+  describe("query version and order", () => {
+    const T = { x: 0, y: 0, prevX: 0, prevY: 0, rotation: 0 };
+    const S = { atlasId: "a", frame: "f", layer: 0, tintRgba: 0xffffffff };
+
+    it("version rises on a join and on a leave", () => {
+      const world = new World();
+      const q = world.query("transform");
+      expect(q.version).toBe(0);
+      const e = world.spawn({ transform: T });
+      expect(q.version).toBe(1);
+      world.despawn(e);
+      expect(q.version).toBe(2);
+    });
+
+    it("version rises on addComponent / removeComponent that change membership", () => {
+      const world = new World();
+      const e = world.spawn({ transform: T });
+      const q = world.query("transform", "sprite");
+      expect(q.version).toBe(0);
+      world.addComponent(e, "sprite", S);
+      expect(q.version).toBe(1);
+      world.removeComponent(e, "sprite");
+      expect(q.version).toBe(2);
+    });
+
+    it("version does not move for an unrelated component change or a spawn the query does not match", () => {
+      const world = new World();
+      const e = world.spawn({ transform: T });
+      const q = world.query("transform");
+      const before = q.version;
+      world.addComponent(e, "sprite", S);
+      world.removeComponent(e, "sprite");
+      world.spawn({ sprite: S });
+      e.transform = { ...T, x: 5 };
+      expect(q.version).toBe(before);
+    });
+
+    it("version does not move when despawning an entity that was never a member", () => {
+      const world = new World();
+      const q = world.query("transform");
+      const other = world.spawn({ sprite: S });
+      world.despawn(other);
+      expect(q.version).toBe(0);
+    });
+
+    it("entities iterate in spawn order", () => {
+      const world = new World();
+      const a = world.spawn({ transform: T });
+      const b = world.spawn({ transform: T });
+      const c = world.spawn({ transform: T });
+      expect([...world.query("transform")]).toEqual([a, b, c]);
+    });
+
+    it("a despawn keeps the others' order", () => {
+      const world = new World();
+      const a = world.spawn({ transform: T });
+      const b = world.spawn({ transform: T });
+      const c = world.spawn({ transform: T });
+      world.despawn(b);
+      const d = world.spawn({ transform: T });
+      expect([...world.query("transform")]).toEqual([a, c, d]);
+    });
+
+    it("an entity that gains a component later joins at the end", () => {
+      const world = new World();
+      const a = world.spawn({ sprite: S });
+      const b = world.spawn({ transform: T, sprite: S });
+      const q = world.query("sprite");
+      const c = world.spawn({ transform: T });
+      world.addComponent(c, "sprite", S);
+      world.addComponent(a, "transform", T);
+      expect([...q]).toEqual([a, b, c]);
+      world.removeComponent(a, "sprite");
+      world.addComponent(a, "sprite", S);
+      expect([...q]).toEqual([b, c, a]);
+    });
+  });
 });

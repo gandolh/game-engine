@@ -1,5 +1,6 @@
 import type { SimContext, System, World, PathfinderGrid } from "@engine/core";
 import type { GameEntity } from "../../components";
+import { FeatureCells } from "../../world/feature-cells";
 
 export class FeatureCollisionSystem implements System {
   private readonly world: World<GameEntity>;
@@ -11,14 +12,24 @@ export class FeatureCollisionSystem implements System {
 
   private blocked: number[] = [];
 
-  constructor(world: World<GameEntity>, grid: PathfinderGrid) {
+  private readonly cells: FeatureCells;
+  private stampedRevision = -1;
+
+  constructor(world: World<GameEntity>, grid: PathfinderGrid, cells: FeatureCells = new FeatureCells(world)) {
     this.world = world;
     this.grid = grid;
+    this.cells = cells;
 
     this.base = Uint8Array.from(grid.cells);
   }
 
   run(_ctx: SimContext): void {
+    // Features and solids change only when one is chopped, mined, built or regrown (never moved in
+    // place), so the stamp is redone only when the index was rebuilt since the last one.
+    const revision = this.cells.revision;
+    if (revision === this.stampedRevision) return;
+    this.stampedRevision = revision;
+
     const { cells, width, height } = this.grid;
     for (const i of this.blocked) cells[i] = this.base[i]!;
     this.blocked.length = 0;

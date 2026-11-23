@@ -526,3 +526,141 @@ describe("PlayerControlSystem — port hop", () => {
     expect(Math.round(pip.transform!.x)).toBe(PORT.dock.x);
   });
 });
+
+describe("PlayerControlSystem — feature index (brief 25)", () => {
+  type Setup = ReturnType<typeof setup>;
+
+  const player = (s: Setup): NonNullable<GameEntity["player"]> => s.pip.player as NonNullable<GameEntity["player"]>;
+  const xf = (s: Setup): NonNullable<GameEntity["transform"]> =>
+    s.pip.transform as NonNullable<GameEntity["transform"]>;
+
+  function feature(
+    { world, pip }: Setup,
+    kind: "tree" | "stone" | "bush",
+    tx: number,
+    ty: number,
+  ): ReturnType<typeof world.spawn> {
+    return world.spawn({
+      transform: { x: tx, y: ty, prevX: tx, prevY: ty, rotation: 0 },
+      tileFeature: { kind, tileX: tx, tileY: ty, regionId: "farm-pip", ownerId: pip.id ?? 0 },
+    });
+  }
+
+  function intentOf(s: Setup): string | undefined {
+    return s.pip.intentions?.queue[0]?.kind;
+  }
+
+  it("slides along a row of features without entering any of them", () => {
+    const s = setup();
+    for (let dy = 0; dy < 4; dy++) feature(s, "tree", PIP.x + 1, PIP.y + dy);
+    player(s).pendingMoveX = "right";
+    player(s).pendingMoveY = "down";
+    for (let t = 0; t < 8; t++) tick(s.world, s.control, s.act, t);
+    expect(xf(s).x).toBeLessThanOrEqual(PIP.x + 0.2 + 0.001);
+    expect(xf(s).y).toBeGreaterThan(PIP.y + 0.5);
+  });
+
+  it("is blocked by a solid footprint", () => {
+    const s = setup();
+    s.world.spawn({ solid: { isSolid: true, tileX: PIP.x + 1, tileY: PIP.y } });
+    player(s).pendingMoveX = "right";
+    for (let t = 0; t < 6; t++) tick(s.world, s.control, s.act, t);
+    expect(xf(s).x).toBeLessThanOrEqual(PIP.x + 0.2 + 0.001);
+  });
+
+  it("sees a feature added earlier in the same tick, and one removed earlier in the same tick", () => {
+    const s = setup();
+    player(s).pendingMoveX = "right";
+    // Warm the index with an empty tile row, then add a tree "by an earlier system" in the same tick.
+    tick(s.world, s.control, s.act, 0);
+    xf(s).x = PIP.x;
+    const tree = feature(s, "tree", PIP.x + 1, PIP.y);
+    for (let t = 1; t < 7; t++) tick(s.world, s.control, s.act, t);
+    expect(xf(s).x).toBeLessThanOrEqual(PIP.x + 0.2 + 0.001);
+
+    // The tree is removed right before the next run: Pip walks through at once.
+    s.world.despawn(tree);
+    s.control.run({ tick: 7 });
+    expect(xf(s).x).toBeGreaterThan(PIP.x + 0.2 + 0.001);
+  });
+
+  it("sees a solid added and removed between runs", () => {
+    const s = setup();
+    player(s).pendingMoveX = "right";
+    s.control.run({ tick: 0 });
+    const solid = s.world.spawn({ solid: { isSolid: true, tileX: PIP.x + 1, tileY: PIP.y } });
+    xf(s).x = PIP.x;
+    for (let t = 1; t < 6; t++) s.control.run({ tick: t });
+    expect(xf(s).x).toBeLessThanOrEqual(PIP.x + 0.2 + 0.001);
+    s.world.despawn(solid);
+    s.control.run({ tick: 6 });
+    expect(xf(s).x).toBeGreaterThan(PIP.x + 0.2 + 0.001);
+  });
+
+  it("bushAt: a faced bush queues gather-bush; a tree or empty tile does not", () => {
+    const s = setup();
+    feature(s, "bush", PIP.x + 1, PIP.y);
+    player(s).facing = "right";
+    player(s).pendingAction = true;
+    s.control.run({ tick: 0 });
+    expect(intentOf(s)).toBe("gather-bush");
+
+    const t = setup();
+    feature(t, "tree", xf(t).x + 1, PIP.y);
+    player(t).facing = "right";
+    player(t).pendingAction = true;
+    t.control.run({ tick: 0 });
+    expect(intentOf(t)).toBeUndefined();
+
+    const u = setup();
+    player(u).facing = "right";
+    player(u).pendingAction = true;
+    u.control.run({ tick: 0 });
+    expect(intentOf(u)).toBeUndefined();
+  });
+
+  it("two features on one tile: the first in spawn order decides the bush check and the axe intent", () => {
+    const bushFirst = setup();
+    feature(bushFirst, "bush", PIP.x + 1, PIP.y);
+    feature(bushFirst, "tree", PIP.x + 1, PIP.y);
+    player(bushFirst).facing = "right";
+    player(bushFirst).pendingAction = true;
+    bushFirst.control.run({ tick: 0 });
+    expect(intentOf(bushFirst)).toBe("gather-bush");
+
+    const treeFirst = setup();
+    feature(treeFirst, "tree", PIP.x + 1, PIP.y);
+    feature(treeFirst, "bush", PIP.x + 1, PIP.y);
+    player(treeFirst).facing = "right";
+    player(treeFirst).selectedSlot = SLOT.axe;
+    player(treeFirst).pendingAction = true;
+    treeFirst.control.run({ tick: 0 });
+    expect(intentOf(treeFirst)).toBe("chop-tree");
+
+    // The pickaxe wants stone but the first feature is a tree: no intent, same as the scan.
+    const wrongTool = setup();
+    feature(wrongTool, "tree", PIP.x + 1, PIP.y);
+    feature(wrongTool, "stone", PIP.x + 1, PIP.y);
+    player(wrongTool).facing = "right";
+    player(wrongTool).selectedSlot = SLOT.pickaxe;
+    player(wrongTool).pendingAction = true;
+    wrongTool.control.run({ tick: 0 });
+    expect(intentOf(wrongTool)).toBeUndefined();
+  });
+
+  it("after the first of two stacked features is removed, the second one answers", () => {
+    const s = setup();
+    const first = feature(s, "bush", PIP.x + 1, PIP.y);
+    feature(s, "tree", PIP.x + 1, PIP.y);
+    player(s).facing = "right";
+    player(s).selectedSlot = SLOT.axe;
+    player(s).pendingAction = true;
+    s.control.run({ tick: 0 });
+    expect(intentOf(s)).toBe("gather-bush");
+    (s.pip.intentions as NonNullable<GameEntity["intentions"]>).queue = [];
+    s.world.despawn(first);
+    player(s).pendingAction = true;
+    s.control.run({ tick: 1 });
+    expect(intentOf(s)).toBe("chop-tree");
+  });
+});

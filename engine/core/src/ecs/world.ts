@@ -21,6 +21,15 @@ export class Query<E extends object, K extends keyof E = keyof E> implements Ite
   readonly components: readonly K[];
 
   readonly entities: With<E, K>[] = [];
+
+  /**
+   * A counter that goes up by one each time an entity joins or leaves this query, at the moment it
+   * happens (spawn, despawn, addComponent, removeComponent). It does not move for a change to a
+   * component the query does not match on, nor for a value change inside a matched component.
+   * A reader that caches something derived from `entities` rebuilds when it differs from the
+   * value it saw at the last build.
+   */
+  version = 0;
   private readonly members = new Set<E>();
 
   constructor(components: readonly K[]) {
@@ -40,6 +49,7 @@ export class Query<E extends object, K extends keyof E = keyof E> implements Ite
     if (now && !had) {
       this.members.add(entity);
       this.entities.push(entity as With<E, K>);
+      this.version++;
     } else if (!now && had) {
       this.drop(entity);
     }
@@ -49,6 +59,7 @@ export class Query<E extends object, K extends keyof E = keyof E> implements Ite
     if (!this.members.delete(entity)) return;
     const idx = this.entities.indexOf(entity as With<E, K>);
     if (idx >= 0) this.entities.splice(idx, 1);
+    this.version++;
   }
 
   // Pooled scratch buffers: iteration takes a snapshot of `entities` at loop start,

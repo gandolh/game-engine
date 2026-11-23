@@ -2,6 +2,7 @@ import type { SimContext, System, World, Intention } from "@engine/core";
 import type { GameEntity, ItemRef } from "../../components";
 import { regionAt, isWalkable, isFishingIsle } from "../../world/regions";
 import { isDockTile } from "../../world/coral";
+import { FeatureCells } from "../../world/feature-cells";
 import { isPortDockTile, isPortLaneTile } from "../../world/ports";
 import { DIR_DELTA, PLAYER_STEP_TICKS } from "./hotbar";
 import { defaultItemSlots, syncItemSlots } from "./items";
@@ -15,8 +16,11 @@ export class PlayerControlSystem implements System {
 
   readonly name = "PlayerControlSystem";
 
-  constructor(world: World<GameEntity>) {
+  private readonly cells: FeatureCells;
+
+  constructor(world: World<GameEntity>, cells: FeatureCells = new FeatureCells(world)) {
     this.world = world;
+    this.cells = cells;
   }
 
   run(_ctx: SimContext): void {
@@ -150,13 +154,10 @@ export class PlayerControlSystem implements System {
         case "axe":
         case "pickaxe": {
           const wantKind = ref.tool === "axe" ? "tree" : "stone";
-          for (const f of this.world.query("tileFeature")) {
-            if (f.tileFeature.tileX !== tx || f.tileFeature.tileY !== ty) continue;
-            if (f.tileFeature.kind !== wantKind) return null;
-            const kind = ref.tool === "axe" ? "chop-tree" : "mine-stone";
-            return { kind, data: { tileX: tx, tileY: ty }, priority: 0 };
-          }
-          return null;
+          const f = this.cells.featureAt(tx, ty);
+          if (f === undefined || f.tileFeature.kind !== wantKind) return null;
+          const kind = ref.tool === "axe" ? "chop-tree" : "mine-stone";
+          return { kind, data: { tileX: tx, tileY: ty }, priority: 0 };
         }
         case "can": {
           const plot = this.ownedPlotAt(entity, tx, ty);
@@ -197,12 +198,7 @@ export class PlayerControlSystem implements System {
   }
 
   private bushAt(tx: number, ty: number): boolean {
-    for (const f of this.world.query("tileFeature")) {
-      if (f.tileFeature.tileX === tx && f.tileFeature.tileY === ty) {
-        return f.tileFeature.kind === "bush";
-      }
-    }
-    return false;
+    return this.cells.featureAt(tx, ty)?.tileFeature.kind === "bush";
   }
 
   private farmerAt(tx: number, ty: number, selfId: number | undefined): number | undefined {
@@ -214,13 +210,7 @@ export class PlayerControlSystem implements System {
   }
 
   private featureAt(tx: number, ty: number): boolean {
-    for (const f of this.world.query("tileFeature")) {
-      if (f.tileFeature.tileX === tx && f.tileFeature.tileY === ty) return true;
-    }
-    for (const s of this.world.query("solid")) {
-      if (s.solid.tileX === tx && s.solid.tileY === ty) return true;
-    }
-    return false;
+    return this.cells.blockedAt(tx, ty);
   }
 
   private canStand(tx: number, ty: number, aboard: boolean): boolean {
