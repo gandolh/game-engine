@@ -1,6 +1,7 @@
 # Hollow 3D culling
 
-status: open. Promote when Hollow's bench breaks the bar on the reference laptop, or runs clearly
+status: promoted to brief 19 on 2026-11-23 ([19](../briefs/todo/19-hollow-culls-what-the-camera-cannot-see.md)), by the owner's call to
+build light optimizations without waiting for a trigger. Its trigger was to promote it when Hollow's bench breaks the bar on the reference laptop, or runs clearly
 slower framed in the portal than opened directly.
 created: 2026-11-20
 context: the 60 fps plan, [frame-budget.md](../wiki/frame-budget.md).

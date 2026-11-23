@@ -1,5 +1,5 @@
 ---
-summary: The 60 fps rule (the bar, the reference devices, the metric), the counter budgets per bench scene, the 2026-11-20 asset pick and the three decisions it reverts, the brief order 05-15, and the measure-first todos with the trigger that promotes each and the laptop's reading against it.
+summary: The 60 fps rule (the bar, the reference devices, the metric), the counter budgets per bench scene, the 2026-11-20 asset pick and the three decisions it reverts, the brief order 05-23, and the former measure-first todos, all promoted to briefs on 2026-11-23, with the laptop's reading against each trigger.
 updated: 2026-11-23
 ---
 
@@ -16,7 +16,9 @@ The last real-GPU readings are from before the WebGL2-only renderer (2026-08-18)
 2026-06-12, and 57 fps with every Farm panel open on 2026-07-15. Every reading since then ran on
 SwiftShader, a CPU rasteriser, whose frame times this repo has twice learned not to trust. So nobody
 knew whether any game missed 60 fps on real hardware. The first three briefs build the
-measurement, and nothing that only helps speed gets built before a number says it is needed.
+measurement. Until 2026-11-23 nothing that only helps speed got built before a number said it was
+needed; since then the owner wants light optimizations built anyway, so long as each is not too heavy,
+complex or wide ([decisions.md](decisions.md) → Frame budget).
 
 The laptop's reading came in on 2026-11-23 ([real-gpu-readings.md](real-gpu-readings.md)). Citadel,
 Hollow and MateQuest meet the bar with room to spare. Farm meets it at its edge, and its frame is CPU-bound.
@@ -116,25 +118,34 @@ sitting comes right after 06.
 | [13](../briefs/todo/13-the-sprite-gen-pixel-draw-trial.md) | A blind trial of `pixel-draw` against an agent writing recipes | 11, 12 and the owner |
 | [14](../briefs/todo/14-mathquest-combat-sprites-as-pixel-art.md) | MateQuest's combat sprites redrawn as real pixel art | 13 |
 | [15](../briefs/todo/15-the-sprite-sort-under-1-ms.md) | The per-frame sprite sort under 1 ms, with today's order kept exactly. Promoted from a todo by 07's laptop reading | none |
+| [16](../briefs/todo/16-the-light-overlay-drawn-on-the-gpu.md) | Farm's light pools as instanced quads, with no full-canvas upload | none |
+| [17](../briefs/todo/17-the-ghost-check-on-a-grid.md) | The occluder ghost check on a uniform grid, same results | 15 |
+| [18](../briefs/todo/18-worker-snapshots-timed-and-transferred.md) | Snapshot timers in the three worker games, and typed-array transfer in the costliest | none |
+| [19](../briefs/todo/19-hollow-culls-what-the-camera-cannot-see.md) | Frustum culling of Hollow's instances | none |
+| [20](../briefs/todo/20-fewer-allocations-per-frame.md) | The top allocation sites per frame in Farm and MateQuest removed | 15, 16 |
+| [21](../briefs/todo/21-a-tile-chunk-ground-spike-in-farm.md) | A spike: Farm's ground as tile chunks behind `?tilechunks`, measured against today | none |
+| [22](../briefs/todo/22-animations-declared-with-the-recipes.md) | Animations declared with the recipes and cooked into the manifest; one Farm clip moved | none |
+| [23](../briefs/todo/23-recipes-to-png-and-back.md) | Recipe export to an indexed PNG and import back, for pixel editors | none |
 
-## Measure-first todos
+## The measure-first todos (all promoted 2026-11-23)
 
-Each todo names the number that promotes it to a brief. Brief 07 checks every trigger against the
-real-GPU readings, and so does any later bench reading. The third column is the laptop's reading of
-2026-11-23 ([real-gpu-readings.md](real-gpu-readings.md)). The phone is not measured (the owner's call,
-2026-11-23), so a trigger fires on the laptop or not at all. A todo whose trigger did not fire stays open.
+Each todo named the number that would promote it to a brief, and brief 07 checked every trigger against the
+real-GPU readings: the laptop's of 2026-11-23 is the third column
+([real-gpu-readings.md](real-gpu-readings.md)); the phone is not measured. Only the sprite sort fired. On
+2026-11-23 the owner promoted the other eight anyway, as light optimizations
+([decisions.md](decisions.md) → Frame budget). The last column names each brief.
 
-| Todo | Promote when | Laptop, 2026-11-23 |
-|---|---|---|
-| [Static layer as tile chunks](../todos/2026-11-20-static-layer-as-tile-chunks.md) | The static layer's GPU time or memory breaks the bar on a reference device | Not fired. GPU 2.6–2.7 ms a frame in Farm and 1.6–2.7 ms in Citadel on average; both frames are CPU-bound. Phone not measured |
-| [Sprite sort only on change](../todos/2026-11-20-sprite-sort-only-on-change.md) | The per-frame sort takes more than 1 ms at p95 in a bench scene | **Fired: [brief 15](../briefs/todo/15-the-sprite-sort-under-1-ms.md).** `compareSprite` alone 1.07 ms a frame on average in Farm (CPU profile) |
-| [Ghost pass scan](../todos/2026-11-20-ghost-pass-scan.md) | The occluder ghost check takes more than 1 ms at p95 | Not fired. `_ghostCovered` about 0 ms in Farm's profile; Citadel's whole `render.endFrame` is 0.6–0.8 ms at p95 |
-| [Worker snapshot transfer](../todos/2026-11-20-worker-snapshot-transfer.md) | Receiving and applying a snapshot takes more than 2 ms at p95 on the main thread | Not fired on what a CPU profile can see. Receiving and storing a snapshot costs about 0 ms in all three worker games (Citadel 0.005 ms a frame); Hollow's message handler costs 0.60 ms a frame on average, nearly all of it the chronicle's DOM append. The structured-clone copy runs in native code the profile can't separate (at most 0.7–1.0 ms a frame of unattributed native time). A p95 needs a sub-timer |
-| [Hollow 3D culling](../todos/2026-11-20-hollow-3d-culling.md) | Hollow breaks the bar on the iGPU, or runs slower framed in the portal than direct | Not fired. p95 8.5 ms, GPU 2.6–2.8 ms, framed and direct the same |
-| [Allocation-free frames](../todos/2026-11-20-allocation-free-frames.md) | Long frames line up with garbage-collection drops in the heap reading | Not fired. At most 2 frames a run over 33.3 ms in any game; collection costs Farm 0.10 ms a frame. Phone not measured |
-| [Animation tags in the manifest](../todos/2026-11-20-animation-tags-in-the-manifest.md) | The first animated MateQuest sprite, or the next new Farm animation | Not a measurement |
-| [Recipe and PNG round trip](../todos/2026-11-20-recipe-and-png-round-trip.md) | Someone wants to edit art in a pixel editor such as Aseprite | Not a measurement |
-| [Light overlay as a full-canvas upload](../todos/2026-11-21-light-overlay-full-canvas-upload.md) | Farm's light overlay (its canvas paint plus the upload) takes more than 1 ms at p95, or the GPU time drops by more than 1 ms with it off. Measured on SwiftShader by brief 05: 4,096,000 bytes uploaded every frame at 1280×800 | Not fired on the CPU: 0.16 ms a frame on average, upload call included, for 7,257,600 bytes a frame at 1920×945. The GPU half needs a run with the overlay off. Phone not measured |
+| Todo | Promote when | Laptop, 2026-11-23 | Brief |
+|---|---|---|---|
+| [Static layer as tile chunks](../todos/2026-11-20-static-layer-as-tile-chunks.md) | The static layer's GPU time or memory breaks the bar on a reference device | Not fired. GPU 2.6–2.7 ms a frame in Farm and 1.6–2.7 ms in Citadel on average; both frames are CPU-bound. Phone not measured | [21](../briefs/todo/21-a-tile-chunk-ground-spike-in-farm.md) |
+| [Sprite sort only on change](../todos/2026-11-20-sprite-sort-only-on-change.md) | The per-frame sort takes more than 1 ms at p95 in a bench scene | **Fired: [brief 15](../briefs/todo/15-the-sprite-sort-under-1-ms.md).** `compareSprite` alone 1.07 ms a frame on average in Farm (CPU profile) | [15](../briefs/todo/15-the-sprite-sort-under-1-ms.md) |
+| [Ghost pass scan](../todos/2026-11-20-ghost-pass-scan.md) | The occluder ghost check takes more than 1 ms at p95 | Not fired. `_ghostCovered` about 0 ms in Farm's profile; Citadel's whole `render.endFrame` is 0.6–0.8 ms at p95 | [17](../briefs/todo/17-the-ghost-check-on-a-grid.md) |
+| [Worker snapshot transfer](../todos/2026-11-20-worker-snapshot-transfer.md) | Receiving and applying a snapshot takes more than 2 ms at p95 on the main thread | Not fired on what a CPU profile can see. Receiving and storing a snapshot costs about 0 ms in all three worker games (Citadel 0.005 ms a frame); Hollow's message handler costs 0.60 ms a frame on average, nearly all of it the chronicle's DOM append. The structured-clone copy runs in native code the profile can't separate (at most 0.7–1.0 ms a frame of unattributed native time). A p95 needs a sub-timer | [18](../briefs/todo/18-worker-snapshots-timed-and-transferred.md) |
+| [Hollow 3D culling](../todos/2026-11-20-hollow-3d-culling.md) | Hollow breaks the bar on the iGPU, or runs slower framed in the portal than direct | Not fired. p95 8.5 ms, GPU 2.6–2.8 ms, framed and direct the same | [19](../briefs/todo/19-hollow-culls-what-the-camera-cannot-see.md) |
+| [Allocation-free frames](../todos/2026-11-20-allocation-free-frames.md) | Long frames line up with garbage-collection drops in the heap reading | Not fired. At most 2 frames a run over 33.3 ms in any game; collection costs Farm 0.10 ms a frame. Phone not measured | [20](../briefs/todo/20-fewer-allocations-per-frame.md) |
+| [Animation tags in the manifest](../todos/2026-11-20-animation-tags-in-the-manifest.md) | The first animated MateQuest sprite, or the next new Farm animation | Not a measurement | [22](../briefs/todo/22-animations-declared-with-the-recipes.md) |
+| [Recipe and PNG round trip](../todos/2026-11-20-recipe-and-png-round-trip.md) | Someone wants to edit art in a pixel editor such as Aseprite | Not a measurement | [23](../briefs/todo/23-recipes-to-png-and-back.md) |
+| [Light overlay as a full-canvas upload](../todos/2026-11-21-light-overlay-full-canvas-upload.md) | Farm's light overlay (its canvas paint plus the upload) takes more than 1 ms at p95, or the GPU time drops by more than 1 ms with it off. Measured on SwiftShader by brief 05: 4,096,000 bytes uploaded every frame at 1280×800 | Not fired on the CPU: 0.16 ms a frame on average, upload call included, for 7,257,600 bytes a frame at 1920×945. The GPU half needs a run with the overlay off. Phone not measured | [16](../briefs/todo/16-the-light-overlay-drawn-on-the-gpu.md) |
 
 ## Checked and dropped
 

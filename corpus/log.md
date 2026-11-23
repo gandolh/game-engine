@@ -4312,3 +4312,16 @@ and the structured-clone copy needs a named timer. Under a 4× CPU slowdown Holl
 11:10 drew no frames; a rerun that failed the same way reported the page as hidden, and Citadel's profiled
 run then went through normally (its snapshot handling: 0.005 ms a frame). The 4× factor and the rule that an
 estimate never fires a todo are the session's choices, recorded for the owner to overrule.
+
+## [2026-11-23] promote | The eight measure-first todos become briefs 16–23
+
+The owner: "Optimizations are cool and we should do it if it's not too heavy, complex or refactors too
+many components." That replaces the 2026-11-20 rule that nothing only helping speed is built before a
+number asks for it ([decisions.md](wiki/decisions.md) → Frame budget). Each todo became a brief scoped to a
+contained first step: 16 the light overlay on the GPU, 17 the ghost check on a grid (after 15), 18 snapshot
+timers in the three worker games and typed-array transfer in the costliest one, 19 frustum culling in
+Hollow (merging static geometry is left for later), 20 the top allocation sites in Farm and MateQuest (after
+15 and 16), 21 a tile-chunk ground spike in Farm behind `?tilechunks` (adoption is a later brief), 22
+animations declared with the recipes with one Farm clip moved, and 23 recipe export to PNG and import back.
+Every todo's status line names its brief, and [frame-budget.md](wiki/frame-budget.md) lists the briefs in
+order.

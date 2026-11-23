@@ -1,6 +1,7 @@
 # Light overlay as a full-canvas upload
 
-status: open. Promote when a bench scene on a reference device shows Farm's light overlay, its canvas
+status: promoted to brief 16 on 2026-11-23 ([16](../briefs/todo/16-the-light-overlay-drawn-on-the-gpu.md)), by the owner's call to
+build light optimizations without waiting for a trigger. Its trigger was to promote it when a bench scene on a reference device shows Farm's light overlay, its canvas
 paint plus the upload, above 1 ms at p95, or the GPU time dropping by more than 1 ms with the overlay off.
 created: 2026-11-21
 context: the 60 fps plan, [frame-budget.md](../wiki/frame-budget.md); found by brief 05's texture counter.

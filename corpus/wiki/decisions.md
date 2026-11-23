@@ -108,6 +108,12 @@ Tech choices that are settled. Listed here so future briefs and reviews don't re
     USB debugging, which would measure it; an Android emulator would only measure the laptop again. For
     context: the portal marks all four games as not playable on phones (`playsOnPhones: false` in
     `portal/src/games.ts`).
+  - **Revisited 2026-11-23: light optimizations don't wait for a number.** *(The owner, 2026-11-23:
+    "Optimizations are cool and we should do it if it's not too heavy, complex or refactors too many
+    components.")* The rule "nothing that only helps speed gets built before a number says it is needed"
+    is replaced: every measure-first todo became a brief (16–23), each kept to a contained first step.
+    A brief that would need a large refactor stops at its spike or its first game, and the next step is a
+    new brief. Measuring stays: each brief times what it changes, before and after.
   - **Rejected: frame times read in the sandbox as the gate.** They measure the rasteriser, not the game.
 
 ## Assets

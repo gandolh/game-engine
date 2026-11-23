@@ -1,6 +1,7 @@
 # Animation tags in the manifest
 
-status: open. Promote with the first animated MateQuest sprite, or the next new Farm animation.
+status: promoted to brief 22 on 2026-11-23 ([22](../briefs/todo/22-animations-declared-with-the-recipes.md)), by the owner's call to
+build light optimizations without waiting for a trigger. Its trigger was to promote it with the first animated MateQuest sprite, or the next new Farm animation.
 created: 2026-11-20
 context: the 60 fps plan, [frame-budget.md](../wiki/frame-budget.md).
 

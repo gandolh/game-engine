@@ -1,6 +1,7 @@
 # Allocation-free frames
 
-status: open. Promote when a bench export shows long frames that line up with drops in the JS heap,
+status: promoted to brief 20 on 2026-11-23 ([20](../briefs/todo/20-fewer-allocations-per-frame.md)), by the owner's call to
+build light optimizations without waiting for a trigger. Its trigger was to promote it when a bench export shows long frames that line up with drops in the JS heap,
 which mark garbage collections.
 created: 2026-11-20
 context: the 60 fps plan, [frame-budget.md](../wiki/frame-budget.md).

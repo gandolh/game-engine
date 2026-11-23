@@ -1,6 +1,7 @@
 # Worker snapshot transfer
 
-status: open. Promote when receiving and applying a snapshot on the main thread takes more than 2 ms
+status: promoted to brief 18 on 2026-11-23 ([18](../briefs/todo/18-worker-snapshots-timed-and-transferred.md)), by the owner's call to
+build light optimizations without waiting for a trigger. Its trigger was to promote it when receiving and applying a snapshot on the main thread takes more than 2 ms
 at p95 in the Citadel, Hollow or MateQuest bench.
 created: 2026-11-20
 context: the 60 fps plan, [frame-budget.md](../wiki/frame-budget.md).
