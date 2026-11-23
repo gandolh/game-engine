@@ -4341,3 +4341,11 @@ owner step.
 quads with a shader falloff; `OverlayFn` became `LightOverlay`. Headless texture bytes a frame at 1280x800:
 4,096,000 to 0. Updated [frame-budget.md](wiki/frame-budget.md), [real-gpu-readings.md](wiki/real-gpu-readings.md)
 and the [todo](todos/2026-11-21-light-overlay-full-canvas-upload.md)'s status line.
+
+## [2026-11-23] done | Brief 17: the ghost check on a grid
+
+[Brief](briefs/done/17-the-ghost-check-on-a-grid.md). `_ghostCovered` tests a ghost candidate against the sprites
+in the cells its rectangle touches (`GhostGrid`, `engine/core/src/render/webgl2/ghost-grid.ts`) instead of every
+later sprite; the answers equal the old scan's on random scenes. Worst case (300 occluders, 4,000 sprites) 100.9 ms
+to 2.4 ms. `lastDrawStats.ghostMs` and Farm's `render.ghost` time the ghost pass. Updated
+[frame-budget.md](wiki/frame-budget.md) and the [todo](todos/2026-11-20-ghost-pass-scan.md)'s status line.

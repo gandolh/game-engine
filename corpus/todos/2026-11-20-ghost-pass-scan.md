@@ -1,6 +1,6 @@
 # Ghost pass scan
 
-status: promoted to brief 17 on 2026-11-23 ([17](../briefs/todo/17-the-ghost-check-on-a-grid.md)), by the owner's call to
+status: promoted to brief 17 on 2026-11-23 and built the same day ([17](../briefs/done/17-the-ghost-check-on-a-grid.md)), by the owner's call to
 build light optimizations without waiting for a trigger. Its trigger was to promote it when a sub-timer around the occluder ghost check shows it above 1 ms at p95 in
 a bench scene.
 created: 2026-11-20

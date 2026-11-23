@@ -56,3 +56,27 @@ widest zoom.
 
 - Deploy the three games that draw through this renderer, from the vps-deploy checkout:
   `node cli.ts farm-valley deploy`, `node cli.ts citadel deploy` and `node cli.ts mathquest deploy`.
+
+## Outcome (2026-11-23)
+
+- **What.** `GhostGrid` (`engine/core/src/render/webgl2/ghost-grid.ts`) replaces the scan in `_ghostCovered`.
+  Once a frame, when the queue holds any occludable sprite, it buckets every sprite that can cover a ghost
+  (not occludable, below the UI layer) into a uniform grid over the view: one cell about the mean occluder's
+  width, at most 128 cells along an axis, in compressed rows reused between frames. A candidate is tested only
+  against the entries in the cells its rectangle touches. A binary search over each cell's ascending queue
+  indices skips the sprites at or before the candidate, so "only later sprites" holds. The old scan stays as
+  `ghostCoveredLinear` in the same file, as the reference the tests compare to.
+- **Timing.** `lastDrawStats.ghostMs` times the whole ghost pass (grid build, the checks and packing the
+  covered ghosts) under the `profileUi` flag; Farm records it as `render.ghost`.
+- **Worst case** (`ghost-grid.test.ts`: 300 occluders sorted ahead of 4,000 sprites on a 2,400 square, the
+  plain scan's worst case, in Node): the plain check 100.9 ms, the grid (build plus every check) 2.4 ms,
+  about 43 times faster. The test asserts at least 5 times.
+- **Same answers.** The test compares the grid to the plain scan on eight seeds of 400 sprites (half snapped
+  to an 8-unit lattice so edges sit on cell borders, some lifted with `z`, some on UI layers, a third
+  occludable), on a queue with sprites before and after an occluder, on an empty queue, and on arrays reused
+  over three frames of growing size.
+- **Farm bench** (headless, SwiftShader, 1280x800): `draw.ghostGroups` 0 before and after; `render.ghost`
+  recorded, mean 0.47 ms and p95 1.5 ms. Farm's scene has occluders but nothing covers them, so that is the
+  grid build plus the checks with no ghost drawn. The before run had no timer to compare with, and the two
+  runs differ in length (90 and 180 frames). Draw groups 1 in both.
+- **Checks.** `npm run check` exits 0; `bash corpus/lint.sh` passes.
