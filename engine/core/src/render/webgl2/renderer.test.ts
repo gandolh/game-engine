@@ -305,6 +305,7 @@ vi.mock("../rain-field", () => ({
 import { WebGl2Renderer } from "./renderer";
 import { Camera2D } from "../camera";
 import { RainField } from "../rain-field";
+import { compareSprite } from "../raster2d";
 import type { LoadedAtlasImage } from "../../assets/loader";
 import type { ParticleSystem, Sprite, WeatherLike } from "..";
 
@@ -463,6 +464,37 @@ describe("WebGl2Renderer sprite draw-group hoist (sweep-05)", () => {
   });
 });
 
+describe("WebGl2Renderer sprite order", () => {
+  it("draws in exactly the order of a stable compareSprite sort, ties included, over two frames", () => {
+    const r = makeRenderer();
+    const queueOf = (): Sprite[] => (r as unknown as { _queue: Sprite[] })._queue;
+    for (const frame of [0, 1]) {
+      r.beginFrame();
+      let seed = 12345;
+      const next = (): number => {
+        seed = (seed * 1664525 + 1013904223) >>> 0;
+        return seed / 4294967296;
+      };
+      for (let i = 0; i < 2000; i += 1) {
+        const moved = frame === 1 && i % 7 === 0 ? 3 : 0;
+        r.push(
+          makeSprite({
+            x: Math.floor(next() * 200) - 100,
+            y: Math.floor(next() * 200) - 100 + moved,
+            layer: Math.floor(next() * 4) * 10,
+            ...(i % 3 === 0 ? { sortY: Math.floor(next() * 20) } : {}),
+          }),
+        );
+      }
+      const expected = queueOf().slice().sort(compareSprite);
+      r.endFrame();
+      const actual = queueOf();
+      expect(actual.length).toBe(expected.length);
+      expect(actual.every((s, i) => s === expected[i])).toBe(true);
+    }
+  });
+});
+
 describe("WebGl2Renderer draw-group profiling seam (sweep-05)", () => {
   it("leaves lastDrawStats at its zeroed default when profileUi is off", () => {
     const r = makeRenderer();
@@ -471,7 +503,7 @@ describe("WebGl2Renderer draw-group profiling seam (sweep-05)", () => {
     r.push(makeSprite({ atlasId: "b" }));
     r.endFrame();
 
-    expect(r.lastDrawStats).toEqual({ groups: 0, ghostGroups: 0, sprites: 0, atlases: 0 });
+    expect(r.lastDrawStats).toEqual({ groups: 0, ghostGroups: 0, sprites: 0, atlases: 0, sortMs: 0 });
   });
 
   it("reports the main-pass group count, sprite-queue length, and distinct atlas count when profileUi is on", () => {

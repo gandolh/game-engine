@@ -681,6 +681,7 @@ export function createRenderLoop(deps: RenderLoopDeps): FrameLoop {
     if (PROFILE_ENABLED && renderer.lastDrawStats !== undefined) {
       frameProfiler.add("draw.ghostGroups", renderer.lastDrawStats.ghostGroups);
       frameProfiler.add("draw.sprites", renderer.lastDrawStats.sprites);
+      frameProfiler.add("render.sort", renderer.lastDrawStats.sortMs);
       frameProfiler.add("draw.atlases", renderer.lastDrawStats.atlases);
     }
 

@@ -34,7 +34,8 @@ import { OverlayLightPass } from "./overlay-light-pass";
 import type { OverlayLightView } from "./overlay-light-pass";
 import { UiQuadPass, screenSpaceView } from "./ui-quad-pass";
 import { RainField } from "../rain-field";
-import { compareSprite, spritesOverlap } from "../raster2d";
+import { spritesOverlap } from "../raster2d";
+import { SpriteSorter } from "../sprite-sort";
 
 const CULL_MARGIN = 32;
 const GHOST_ALPHA = 0.4;
@@ -137,6 +138,7 @@ export class WebGl2Renderer implements RendererLike {
 
   private _queue: Sprite[] = [];
   private _queueLen = 0;
+  private readonly _sorter = new SpriteSorter();
 
   private _shadowQueue: ShadowRecord[] = [];
   private _shadowLen = 0;
@@ -172,7 +174,7 @@ export class WebGl2Renderer implements RendererLike {
   // submitted this frame (`_queueLen`), and `atlases` is the number of
   // distinct atlases actually bound across the main-pass groups — the
   // theoretical floor `groups` is measured against.
-  lastDrawStats = { groups: 0, ghostGroups: 0, sprites: 0, atlases: 0 };
+  lastDrawStats = { groups: 0, ghostGroups: 0, sprites: 0, atlases: 0, sortMs: 0 };
 
   private _occludableIdx: number[] = [];
 
@@ -536,6 +538,7 @@ export class WebGl2Renderer implements RendererLike {
       sprite.y - halfH > this._cullBottom
     )
       return;
+    this._sorter.setKey(this._queueLen, sprite.layer, sprite.sortY ?? sprite.y);
     this._queue[this._queueLen] = sprite;
     this._queueLen += 1;
   }
@@ -730,7 +733,9 @@ export class WebGl2Renderer implements RendererLike {
     this._cloudPass.setView(view);
 
     if (this._queue.length !== this._queueLen) this._queue.length = this._queueLen;
-    this._queue.sort(compareSprite);
+    const sortT0 = this.profileUi ? performance.now() : 0;
+    this._sorter.sort(this._queue, this._queueLen);
+    const sortMs = this.profileUi ? performance.now() - sortT0 : 0;
 
     this._batch.begin();
     this._groupLen = 0;
@@ -966,6 +971,7 @@ export class WebGl2Renderer implements RendererLike {
       this.lastDrawStats.groups = mainGroupLen;
       this.lastDrawStats.ghostGroups = this._groupLen - mainGroupLen;
       this.lastDrawStats.atlases = this._countDistinctAtlases(mainGroupLen);
+      this.lastDrawStats.sortMs = sortMs;
     }
   }
 }
