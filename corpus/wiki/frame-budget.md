@@ -125,7 +125,7 @@ sitting comes right after 06.
 | [20](../briefs/done/20-fewer-allocations-per-frame.md) | The top allocation sites per frame in Farm and MateQuest removed | 15, 16 |
 | [21](../briefs/todo/21-a-tile-chunk-ground-spike-in-farm.md) | A spike: Farm's ground as tile chunks behind `?tilechunks`, measured against today | none |
 | [22](../briefs/done/22-animations-declared-with-the-recipes.md) | Animations declared with the recipes and cooked into the manifest; one Farm clip moved | none |
-| [23](../briefs/todo/23-recipes-to-png-and-back.md) | Recipe export to an indexed PNG and import back, for pixel editors | none |
+| [23](../briefs/done/23-recipes-to-png-and-back.md) | Recipe export to an indexed PNG and import back, for pixel editors | none |
 
 ## The measure-first todos (all promoted 2026-11-23)
 
@@ -144,7 +144,7 @@ real-GPU readings: the laptop's of 2026-11-23 is the third column
 | [Hollow 3D culling](../todos/2026-11-20-hollow-3d-culling.md) | Hollow breaks the bar on the iGPU, or runs slower framed in the portal than direct | Not fired. p95 8.5 ms, GPU 2.6–2.8 ms, framed and direct the same. Brief 19 built the frustum-culling step anyway (3% fewer instances at the bench camera); merging static geometry is still open | [19](../briefs/done/19-hollow-culls-what-the-camera-cannot-see.md) |
 | [Allocation-free frames](../todos/2026-11-20-allocation-free-frames.md) | Long frames line up with garbage-collection drops in the heap reading | Not fired. At most 2 frames a run over 33.3 ms in any game; collection costs Farm 0.10 ms a frame. Phone not measured. Built anyway on the owner's call: **[brief 20](../briefs/done/20-fewer-allocations-per-frame.md)**. Farm 2.75 to 1.54 MB a frame, heap drops 15 to 8; MateQuest's map screen -80% per map frame | [20](../briefs/done/20-fewer-allocations-per-frame.md) |
 | [Animation tags in the manifest](../todos/2026-11-20-animation-tags-in-the-manifest.md) | The first animated MateQuest sprite, or the next new Farm animation | Not a measurement | [22](../briefs/done/22-animations-declared-with-the-recipes.md) |
-| [Recipe and PNG round trip](../todos/2026-11-20-recipe-and-png-round-trip.md) | Someone wants to edit art in a pixel editor such as Aseprite | Not a measurement | [23](../briefs/todo/23-recipes-to-png-and-back.md) |
+| [Recipe and PNG round trip](../todos/2026-11-20-recipe-and-png-round-trip.md) | Someone wants to edit art in a pixel editor such as Aseprite | Not a measurement | [23](../briefs/done/23-recipes-to-png-and-back.md) |
 | [Light overlay as a full-canvas upload](../todos/2026-11-21-light-overlay-full-canvas-upload.md) | Farm's light overlay (its canvas paint plus the upload) takes more than 1 ms at p95, or the GPU time drops by more than 1 ms with it off. Measured on SwiftShader by brief 05: 4,096,000 bytes uploaded every frame at 1280×800 | Not fired on the CPU: 0.16 ms a frame on average, upload call included, for 7,257,600 bytes a frame at 1920×945. The GPU half needs a run with the overlay off. Phone not measured | [16](../briefs/done/16-the-light-overlay-drawn-on-the-gpu.md) |
 
 ## Checked and dropped

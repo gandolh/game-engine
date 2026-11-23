@@ -4377,3 +4377,8 @@ briefed (camera world-edge clamp, explicit spawn ids and an id lookup) are on th
 
 [Brief](briefs/done/22-animations-declared-with-the-recipes.md). A recipe set can declare animations; the cook checks them and writes them into the sheet's manifest; `clipFromDeclaration` builds a clip. Farm's forge fire clip is built from its declaration (`@farm/atlas-recipes/animations`), same frames and timing, PNGs and `npm run sim` unchanged. The other eight clips are left for a follow-up. Pages: [atlas-cook.md](wiki/atlas-cook.md), [animation.md](wiki/animation.md).
 
+
+## [2026-11-23] done | Brief 23: recipes to PNG and back
+
+`tools/recipe-export` writes a recipe as an indexed PNG in the game's swatch table; `tools/recipe-import` maps an edited PNG back by exact colour, refuses off-palette pixels by position and colour, and rewrites only the pixel rows of the recipe file (the file is the template), so all 239 Farm and 7 MateQuest recipe files round-trip byte-identical. The 143 frames Farm generates in code have no file and cannot be imported. How to edit a sprite in a pixel editor is on [asset-pipeline.md](wiki/asset-pipeline.md); outcome in [the brief](briefs/done/23-recipes-to-png-and-back.md).
+

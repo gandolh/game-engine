@@ -1,6 +1,6 @@
 # Recipe and PNG round trip
 
-status: promoted to brief 23 on 2026-11-23 ([23](../briefs/todo/23-recipes-to-png-and-back.md)), by the owner's call to
+status: built 2026-11-23 as brief 23 ([23](../briefs/done/23-recipes-to-png-and-back.md)); promoted, by the owner's call to
 build light optimizations without waiting for a trigger. Its trigger was to promote it when someone wants to edit art in a pixel editor such as Aseprite or
 LibreSprite, for example a commissioned artist.
 created: 2026-11-20

@@ -51,3 +51,15 @@ The cook already writes PNGs with `pngjs` (`tools/atlas-builder`).
 ## Owner steps
 
 - None. Try it once if you like: export a sprite, open it in a pixel editor, change a pixel, import it.
+
+## Outcome (2026-11-23)
+
+Built: `tools/recipe-export` (`npm run recipe:export -- <game> <frame> [--out <file|folder>]`) and `tools/recipe-import` (`npm run recipe:import -- <game> <file.png> [--frame <name>] [--out <file>]`). How to use them is in [asset-pipeline.md](../../wiki/asset-pipeline.md).
+
+- **Export.** Indexed PNG (8-bit, colour type 3) with the swatch table as PLTE in order, index 0 transparent through tRNS. `pngjs` cannot write indexed PNGs, so `export.ts` writes the chunks itself (zlib deflate, `zlib.crc32`). The game lookup uses the cook's registered `AtlasConfig`s, so a game added to the cook is covered; it finds the recipe folder through the `palette.ts` in the config's `hashInputs`.
+- **Import.** Reads indexed or RGBA PNGs (`pngjs` decodes both to RGBA), exact-colour match. Refuses off-palette and partly transparent pixels, naming each (first eight listed) and the colour; refuses a size mismatch. The one-reader-per-format seam is `src/png.ts` (`readPngGrid`); brief 13 adds a `grid.txt` reader beside it and calls `importRecipeText`.
+- **Byte-identical: the original file is the template** (no sidecar). Only the characters inside the `pixels: [ ... ]` rows are replaced, so comments, `size`, spacing and the trailing newline survive. A pixel that keeps its colour keeps its character (Farm's `g` and `L` share a colour); a changed pixel gets the first swatch with that colour. The import needs the game's own recipe file to exist and reads it only; `--out` decides where the result goes, stdout without it.
+- **Not covered:** the 143 of Farm's 382 frames generated in code from `templates.ts` (`farmer/*` poses and the like) have no recipe file. They export, and import refuses them with a message. All 239 Farm and 7 MateQuest recipe files round-trip.
+- **Tests:** `import.test.ts` round-trips every file recipe of both games through a real PNG in a temp dir; one off-palette pixel gives a refusal naming `pixel (3, 5)` and `#010203`; also partial alpha, wrong size, first-in-table, transparent pixels, generated frames. `export.test.ts` checks the PNG's type, palette and decoded pixels. Nothing writes into a game.
+- **Trap:** npm runs a workspace script from its own folder, so the CLIs read `INIT_CWD` for relative paths. `npm --prefix <repo> run ...` from elsewhere makes `INIT_CWD` the repo root; run from the folder you mean.
+- **Outside the owned files:** `engine/core/src/layering.test.ts` lists every workspace and failed on the two new ones; they are added with scope `null` (they import no game; they reach the games through `@tool/atlas-builder`).
