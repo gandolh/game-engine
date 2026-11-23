@@ -1,4 +1,4 @@
-import type { SimContext, System, World, Rng, MessageBus } from "@engine/core";
+import { enterState, type SimContext, type System, type World, type Rng, type MessageBus } from "@engine/core";
 import type { GameEntity } from "../../components";
 import { applyTrustDelta } from "../cognition/trust";
 import { ONT_SIMULATION } from "../../protocols/simulation";
@@ -83,8 +83,8 @@ export class CombatSystem implements System {
     const b = this.findFarmer(targetId);
     if (!a || !b || !a.health || !b.health || !a.fsm || !b.fsm) return false;
 
-    a.fsm.current = "FIGHTING";
-    b.fsm.current = "FIGHTING";
+    enterState(a.fsm, "FIGHTING", tick);
+    enterState(b.fsm, "FIGHTING", tick);
     const key = pairKey(initiatorId, targetId);
     const bout: Bout = {
       aId: initiatorId,
@@ -186,7 +186,7 @@ export class CombatSystem implements System {
     const a = this.findFarmer(bout.aId);
     const b = this.findFarmer(bout.bId);
     if (!a || !b || !a.health || !b.health) {
-      this.endBout(bout, {
+      this.endBout(bout, tick, {
         context: bout.context,
         winnerId: null,
         loserId: null,
@@ -201,24 +201,24 @@ export class CombatSystem implements System {
 
     if (bout.context === "street" && fork.nextFloat() < STREET_FLEE_CHANCE) {
       const fledId = fork.nextFloat() < 0.5 ? bout.aId : bout.bId;
-      this.endBout(bout, { context: "street", winnerId: null, loserId: null, koed: false, fledId, looted: 0 });
+      this.endBout(bout, tick, { context: "street", winnerId: null, loserId: null, koed: false, fledId, looted: 0 });
       return;
     }
 
     const aCanSwing = this.swing(a, b, fork);
 
     if (b.health.current <= 0) {
-      this.resolveKo(bout, a, b);
+      this.resolveKo(bout, a, b, tick);
       return;
     }
     const bCanSwing = this.swing(b, a, fork);
     if (a.health.current <= 0) {
-      this.resolveKo(bout, b, a);
+      this.resolveKo(bout, b, a, tick);
       return;
     }
 
     if (!aCanSwing || !bCanSwing) {
-      this.resolveExhaustion(bout, a, b, aCanSwing, bCanSwing);
+      this.resolveExhaustion(bout, a, b, aCanSwing, bCanSwing, tick);
       return;
     }
 
@@ -235,7 +235,7 @@ export class CombatSystem implements System {
     return true;
   }
 
-  private resolveKo(bout: Bout, winner: GameEntity, loser: GameEntity): void {
+  private resolveKo(bout: Bout, winner: GameEntity, loser: GameEntity, tick: number): void {
     let looted = 0;
     if (bout.context === "ring") {
       this.applyRingOutcome(winner, loser);
@@ -243,7 +243,7 @@ export class CombatSystem implements System {
       looted = lootGoods(winner, loser);
       this.applyWitnessPenalties(bout.initiatorId, loser, looted > 0);
     }
-    this.endBout(bout, {
+    this.endBout(bout, tick, {
       context: bout.context,
       winnerId: winner.id ?? null,
       loserId: loser.id ?? null,
@@ -253,7 +253,14 @@ export class CombatSystem implements System {
     });
   }
 
-  private resolveExhaustion(bout: Bout, a: GameEntity, b: GameEntity, aCanSwing: boolean, bCanSwing: boolean): void {
+  private resolveExhaustion(
+    bout: Bout,
+    a: GameEntity,
+    b: GameEntity,
+    aCanSwing: boolean,
+    bCanSwing: boolean,
+    tick: number,
+  ): void {
     // MUTUAL EXHAUSTION IS A DRAW, in either context (audit-46).
     //
     // Hoisted ABOVE the ring branch because that branch already assumes exactly one side is out
@@ -277,7 +284,7 @@ export class CombatSystem implements System {
         if (aEnt?.health) aEnt.health.current = aEnt.health.max;
         if (bEnt?.health) bEnt.health.current = bEnt.health.max;
       }
-      this.endBout(bout, {
+      this.endBout(bout, tick, {
         context: bout.context,
         winnerId: null,
         loserId: null,
@@ -295,7 +302,7 @@ export class CombatSystem implements System {
       const winner = aOut ? b : a;
       const loser = aOut ? a : b;
       this.applyRingOutcome(winner, loser);
-      this.endBout(bout, {
+      this.endBout(bout, tick, {
         context: "ring",
         winnerId: winner.id ?? null,
         loserId: loser.id ?? null,
@@ -337,15 +344,15 @@ export class CombatSystem implements System {
     }
   }
 
-  private endBout(bout: Bout, result: CombatResultBody): void {
+  private endBout(bout: Bout, tick: number, result: CombatResultBody): void {
     const a = this.findFarmer(bout.aId);
     const b = this.findFarmer(bout.bId);
     if (bout.context === "ring") {
       this.teleportBack(a, bout.returnA);
       this.teleportBack(b, bout.returnB);
     }
-    if (a?.fsm) a.fsm.current = "WAIT_DAY";
-    if (b?.fsm) b.fsm.current = "WAIT_DAY";
+    if (a?.fsm) enterState(a.fsm, "WAIT_DAY", tick);
+    if (b?.fsm) enterState(b.fsm, "WAIT_DAY", tick);
     this.bouts.delete(pairKey(bout.aId, bout.bId));
     this.bus.send(
       {

@@ -11,6 +11,7 @@
  * state agents) from immediately overwriting it.
  */
 import { describe, it, expect } from "vitest";
+import { enterState } from "@engine/core";
 import { bootstrapHollowSim, type HollowSimOptions, type BootedHollowSim } from "./sim-bootstrap";
 import type { HollowEntity } from "./components";
 import { GOOD_FOOD } from "./economy";
@@ -34,7 +35,7 @@ function forceIntention(
   intention: { kind: string; data: Record<string, unknown>; priority: number },
 ): void {
   const agent = findAgent(sim, actorId);
-  agent.fsm!.current = "ACT";
+  enterState(agent.fsm!, "ACT", 0);
   agent.intentions!.queue = [intention];
 }
 

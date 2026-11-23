@@ -1,4 +1,4 @@
-import type { SimContext, System, World, Intention } from "@engine/core";
+import { enterState, type SimContext, type System, type World, type Intention } from "@engine/core";
 import type { GameEntity, ItemRef } from "../../components";
 import { regionAt, isWalkable, isFishingIsle } from "../../world/regions";
 import { isDockTile } from "../../world/coral";
@@ -23,7 +23,7 @@ export class PlayerControlSystem implements System {
     this.cells = cells;
   }
 
-  run(_ctx: SimContext): void {
+  run(ctx: SimContext): void {
     for (const entity of this.world.query("player", "transform", "farmer", "intentions")) {
       const player = entity.player;
       const transform = entity.transform;
@@ -113,7 +113,7 @@ export class PlayerControlSystem implements System {
                   : null;
         if (intent !== null) {
           entity.intentions.queue = [intent];
-          entity.fsm!.current = "ACT";
+          enterState(entity.fsm!, "ACT", ctx.tick);
         }
       }
     }

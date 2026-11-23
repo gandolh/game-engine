@@ -13,9 +13,25 @@ export interface Sprite {
   tintRgba: number;
 }
 
+/**
+ * An agent's state machine position. `enteredTick` is the tick the agent entered `current`: it is set at spawn
+ * and moves only through {@link enterState}, which is the one writer. The fields are readonly so the type
+ * refuses a direct assignment.
+ */
 export interface FsmState<S extends string = string> {
-  current: S;
-  enteredTick: number;
+  readonly current: S;
+  readonly enteredTick: number;
+}
+
+/**
+ * The one writer of {@link FsmState}. Sets `current` to `next`; `enteredTick` becomes `tick` only when `next`
+ * differs from `current`, so writing the state an agent is already in keeps its age true.
+ */
+export function enterState<S extends string>(fsm: FsmState<S>, next: S, tick: number): void {
+  // The narrow cast is the only place that may write the readonly fields.
+  const writable = fsm as { current: S; enteredTick: number };
+  if (writable.current !== next) writable.enteredTick = tick;
+  writable.current = next;
 }
 
 export interface Beliefs {

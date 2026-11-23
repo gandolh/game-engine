@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { World } from "@engine/core";
+import { World, enterState } from "@engine/core";
 import type { GameEntity } from "../../components";
 import { PerceiveSystem } from "./perceive";
 import { ONT_SIMULATION, type PhaseStartBody } from "../../protocols";
@@ -117,7 +117,7 @@ describe("PerceiveSystem — intra-day phases", () => {
 
   it("does not interrupt a farmer mid-cycle (only re-arms from WAIT_DAY/SLEEP)", () => {
     const f = spawnFarmer(world);
-    f.fsm!.current = "ACT";
+    enterState(f.fsm!, "ACT", 0);
     pushPhase(f, "work");
     sys.run({ tick: 240 });
     expect(f.fsm!.current).toBe("ACT");

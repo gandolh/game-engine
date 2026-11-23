@@ -1,6 +1,6 @@
 import { ZERO_CROPS } from "../economy";
 import { describe, it, expect, beforeEach } from "vitest";
-import { World, MessageBus } from "@engine/core";
+import { World, MessageBus, enterState } from "@engine/core";
 import type { GameEntity } from "../components";
 import { ActSystem } from "./act";
 import { maxApForDay, SHRINE_AP_BOOST, SHRINE_COOLDOWN_DAYS, HELPER_AP_BOOST, HELPER_AP_MARGIN } from "./economy/ap";
@@ -263,7 +263,7 @@ describe("ActSystem hire-help (tavern day-helper)", () => {
     const goldAfterFirst = farmer.inventory!.gold;
     const apAfterFirst = farmer.ap!.current;
 
-    farmer.fsm!.current = "ACT";
+    enterState(farmer.fsm!, "ACT", 0);
     farmer.intentions!.queue.push({ kind: "hire-help", data: {}, priority: 0 });
     sys.run({ tick: 1 });
     expect(farmer.inventory!.gold).toBe(goldAfterFirst);

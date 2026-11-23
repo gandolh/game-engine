@@ -1,5 +1,6 @@
 export { World, Query } from "./world";
 export type { EngineEntity, Entity, With } from "./world";
+export { enterState } from "./components";
 export type {
   Transform,
   Sprite,

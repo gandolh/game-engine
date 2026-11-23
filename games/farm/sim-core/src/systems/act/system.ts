@@ -1,4 +1,4 @@
-import type { SimContext, System, World, MessageBus, Rng } from "@engine/core";
+import { enterState, type SimContext, type System, type World, type MessageBus, type Rng } from "@engine/core";
 import type { GameEntity } from "../../components";
 import { actionTicks } from "./helpers";
 import type { ActContext } from "./types";
@@ -312,7 +312,7 @@ export class ActSystem implements System {
       }
 
       intentions.length = 0;
-      farmer.fsm.current = "FINISH_DAY";
+      enterState(farmer.fsm, "FINISH_DAY", ctx.tick);
     }
   }
 }

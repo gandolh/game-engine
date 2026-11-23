@@ -17,7 +17,7 @@
  *     "PERCEIVE"-state agents) re-plans it, and ActSystem executes the new
  *     top intention later in the SAME tick.
  */
-import type { SimContext, System, World, MessageBus } from "@engine/core";
+import { enterState, type SimContext, type System, type World, type MessageBus } from "@engine/core";
 import { PERFORMATIVE, needIsDepleted } from "@engine/core/agent";
 import type { HollowEntity, HollowFsmState } from "../components";
 import { NEED_FOOD, STARVATION_TICKS } from "../economy";
@@ -49,7 +49,7 @@ export class HollowPerceiveSystem implements System {
       this.updateStarvation(entity, ctx);
 
       if (entity.fsm.current === ACT_STATE && entity.intentions.queue.length === 0) {
-        entity.fsm.current = PERCEIVE_STATE;
+        enterState(entity.fsm, PERCEIVE_STATE, ctx.tick);
       }
     }
   }

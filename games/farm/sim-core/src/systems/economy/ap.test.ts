@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { World } from "@engine/core";
+import { World, enterState } from "@engine/core";
 import type { GameEntity } from "../../components";
 import { ApSystem, maxApForDay, tradeInitCost } from "./ap";
 
@@ -174,7 +174,7 @@ describe("ApSystem", () => {
       expect(farmer.ap!.penaltyPending).toBe(true);
 
       const before = farmer.ap!.current;
-      farmer.fsm!.current = "WAIT_DAY";
+      enterState(farmer.fsm!, "WAIT_DAY", 0);
       system.run(makeContext(1));
 
       expect(farmer.ap!.current).toBe(before);

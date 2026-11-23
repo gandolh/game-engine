@@ -13,7 +13,7 @@
 
 import type { SimContext, System } from "../sim";
 import type { World, EngineEntity, With } from "../ecs";
-import type { FsmState } from "../ecs/components";
+import { enterState, type FsmState } from "../ecs/components";
 import type { DeliberationContext, PersonalityRegistry } from "./registry";
 
 /** The fsm state-string union of an agent entity (a game's fsm state type). */
@@ -63,7 +63,7 @@ export function createDeliberateSystem<E extends EngineEntity, Ctx = Deliberatio
         } else {
           agent.intentions!.queue.length = 0;
         }
-        fsm.current = actState;
+        enterState(fsm, actState, ctx.tick);
       }
     },
   };

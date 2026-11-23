@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { World, createRng } from "@engine/core";
+import { World, createRng, enterState } from "@engine/core";
 import type { GameEntity, CropKind } from "../../../components";
 import { ZERO_CROPS } from "../../../economy";
 import { ActSystem } from "../system";
@@ -99,7 +99,7 @@ describe("chop-tree seed bonus", () => {
     const N = 300;
     for (let i = 0; i < N; i++) {
       spawnFeature(world, "tree", 5, 5);
-      farmer.fsm!.current = "ACT";
+      enterState(farmer.fsm!, "ACT", 0);
       farmer.intentions!.queue.push({ kind: "chop-tree", data: { tileX: 5, tileY: 5 }, priority: 0 });
       sys.run({ tick: i + 1 });
     }

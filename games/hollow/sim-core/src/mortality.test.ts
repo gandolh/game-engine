@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { World, MessageBus, createRng, type SimContext } from "@engine/core";
+import { World, enterState, MessageBus, createRng, type SimContext } from "@engine/core";
 import { bootstrapHollowSim } from "./sim-bootstrap";
 import type { HollowEntity } from "./components";
 import { makeCorpse, makeDisease } from "./components";
@@ -241,7 +241,7 @@ describe("HollowCareActSystem — grave-digger + medic (chunk hollow-15)", () =>
     // Feed one treat intention per patient across four ticks of the SAME day.
     for (const p of [p1, p2, p3, p4]) {
       medic.intentions!.queue = [{ kind: "treat", data: { patientId: p.id }, priority: 40 }];
-      medic.fsm!.current = "ACT";
+      enterState(medic.fsm!, "ACT", 0);
       sys.run(ctxAt(1)); // dayOfRun 0 for all four
     }
 

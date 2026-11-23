@@ -1,4 +1,4 @@
-import type { SimContext, System, World } from "@engine/core";
+import { enterState, type SimContext, type System, type World } from "@engine/core";
 import type { GameEntity } from "../../components";
 import { ONT_SIMULATION, type DayStartBody, type PhaseStartBody } from "../../protocols";
 import { ONT_SHOP, type AuctionCfpBody, type AuctionResultBody } from "../../protocols/shop";
@@ -27,7 +27,7 @@ export class PerceiveSystem implements System {
         const phase = farmer.beliefs.data.phase as string | undefined;
         const settled = farmer.fsm.current === "WAIT_DAY";
         if (settled && phase && phase !== "night") {
-          farmer.fsm.current = "PERCEIVE";
+          enterState(farmer.fsm, "PERCEIVE", ctx.tick);
         }
       }
 
@@ -38,7 +38,7 @@ export class PerceiveSystem implements System {
       ) {
         const livePhase = farmer.beliefs.data.phase as string | undefined;
         if (livePhase && livePhase !== "night") {
-          farmer.fsm.current = "PERCEIVE";
+          enterState(farmer.fsm, "PERCEIVE", ctx.tick);
         }
       }
 
@@ -49,7 +49,7 @@ export class PerceiveSystem implements System {
           farmer.beliefs.data.daysRemaining = body.daysRemaining;
           farmer.beliefs.revision += 1;
         } else if (msg.ontology === ONT_SIMULATION.PHASE_START) {
-          this.handlePhaseStart(farmer, msg.body as unknown as PhaseStartBody);
+          this.handlePhaseStart(farmer, msg.body as unknown as PhaseStartBody, ctx.tick);
         } else if (msg.ontology === ONT_SHOP.AUCTION_CFP) {
           const cfp = msg.body as unknown as AuctionCfpBody;
           farmer.beliefs.data.openAuction = cfp;
@@ -84,7 +84,7 @@ export class PerceiveSystem implements System {
               phase &&
               isActivePhase(phase)
             ) {
-              farmer.fsm.current = "PERCEIVE";
+              enterState(farmer.fsm, "PERCEIVE", ctx.tick);
             }
           }
         }
@@ -110,7 +110,7 @@ export class PerceiveSystem implements System {
     }
   }
 
-  private handlePhaseStart(farmer: GameEntity, body: PhaseStartBody): void {
+  private handlePhaseStart(farmer: GameEntity, body: PhaseStartBody, tick: number): void {
     if (!farmer.beliefs || !farmer.fsm) return;
     farmer.beliefs.data.phase = body.phase;
     farmer.beliefs.revision += 1;
@@ -126,7 +126,7 @@ export class PerceiveSystem implements System {
         farmer.ap.away = false;
         farmer.ap.penaltyPending = false;
       }
-      if (settled) farmer.fsm.current = "PERCEIVE";
+      if (settled) enterState(farmer.fsm, "PERCEIVE", tick);
       return;
     }
 
@@ -139,10 +139,10 @@ export class PerceiveSystem implements System {
       const onCamp = farmer.farmer?.currentRegion === CAMP_REGION_ID && settledTile;
       const rested = home || onCamp;
       if (farmer.ap) farmer.ap.unrested = !rested;
-      if (settled) farmer.fsm.current = "SLEEP";
+      if (settled) enterState(farmer.fsm, "SLEEP", tick);
       return;
     }
 
-    if (isActivePhase(body.phase) && settled) farmer.fsm.current = "PERCEIVE";
+    if (isActivePhase(body.phase) && settled) enterState(farmer.fsm, "PERCEIVE", tick);
   }
 }
