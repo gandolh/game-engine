@@ -1,6 +1,6 @@
 ---
 summary: How every game measures itself since 2026-11-21 (the shared ?profile, its game-engine-profile/1 export and which fields mean something on SwiftShader; the ?bench scenes are on bench-scenes.md), plus the measured tick/frame/draw-group results every optimization claim is scored against.
-updated: 2026-11-21
+updated: 2026-11-23
 ---
 
 # Performance — measurement harness & measured results
@@ -142,6 +142,12 @@ capped at 2). That is a measure-first todo,
 [light overlay as a full-canvas upload](../todos/2026-11-21-light-overlay-full-canvas-upload.md). And
 MateQuest's map screen flushes about 19,000 UI quads a frame from its shape-drawn scenery, which brief 12
 leaves as it is (it moves only the combat creatures onto an atlas).
+
+### The first real-GPU readings (2026-11-23, brief 07)
+
+The laptop's AMD iGPU read every bench scene twice: Citadel, Hollow and MateQuest meet the 60 fps bar
+with room to spare, and Farm is on the line, CPU-bound at 6.1–6.3 ms a frame. The tables, Farm's CPU
+profile and an emulated-phone pass are on [real-gpu-readings.md](real-gpu-readings.md).
 
 ## Measuring (P0 — shipped 2026-06-05)
 

@@ -1,0 +1,254 @@
+{
+  "schema": "game-engine-profile/1",
+  "game": "mathquest",
+  "build": "production",
+  "url": "/mathquest/?bench&profile",
+  "seed": 1,
+  "collectedAt": "2026-11-23T08:00:57.450Z",
+  "userAgent": "Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/158.0.0.0 Mobile Safari/537.36",
+  "device": {
+    "renderer": "ANGLE (AMD, AMD Radeon (TM) Graphics (0x00001681) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "vendor": "Google Inc. (AMD)",
+    "dpr": 2,
+    "devicePixelRatio": 2.625,
+    "canvas": {
+      "width": 1830,
+      "height": 824,
+      "clientWidth": 915,
+      "clientHeight": 412
+    }
+  },
+  "frames": {
+    "durationMs": 30188.4,
+    "displayTicks": 3330,
+    "interval": {
+      "samples": 3329,
+      "mean": 9.068308801441873,
+      "p50": 8.30000000000291,
+      "p95": 16.699999999999818,
+      "p99": 16.799999999999272,
+      "over16_7": 0.06248122559327125,
+      "over33_3": 0.00030039050765995795,
+      "fps": 110.27414503584158
+    },
+    "drawn": {
+      "frames": 3330,
+      "meanMs": 3.4579579578684614,
+      "p95Ms": 9,
+      "fps": 110.34016580855254
+    }
+  },
+  "gpu": {
+    "frames": 3330,
+    "mean": 0.891825798798799,
+    "p50": 0.6092,
+    "p95": 2.51955,
+    "p99": 3.82808,
+    "dropped": 0,
+    "skipped": 0
+  },
+  "heap": {
+    "samples": [
+      {
+        "tMs": 16.69999998807907,
+        "usedBytes": 20851037
+      },
+      {
+        "tMs": 1021.3999999761581,
+        "usedBytes": 13504879
+      },
+      {
+        "tMs": 2022.199999988079,
+        "usedBytes": 8363631
+      },
+      {
+        "tMs": 3023.699999988079,
+        "usedBytes": 17303043
+      },
+      {
+        "tMs": 4023.7999999523163,
+        "usedBytes": 21743025
+      },
+      {
+        "tMs": 5027.099999964237,
+        "usedBytes": 16089460
+      },
+      {
+        "tMs": 6035.099999964237,
+        "usedBytes": 12565505
+      },
+      {
+        "tMs": 7035.899999976158,
+        "usedBytes": 18056847
+      },
+      {
+        "tMs": 8036.5,
+        "usedBytes": 10896146
+      },
+      {
+        "tMs": 9040.5,
+        "usedBytes": 14783317
+      },
+      {
+        "tMs": 10050,
+        "usedBytes": 7058659
+      },
+      {
+        "tMs": 11057.5,
+        "usedBytes": 20840848
+      },
+      {
+        "tMs": 12058.199999988079,
+        "usedBytes": 14097694
+      },
+      {
+        "tMs": 13060,
+        "usedBytes": 32794674
+      },
+      {
+        "tMs": 14064,
+        "usedBytes": 39702468
+      },
+      {
+        "tMs": 15068.5,
+        "usedBytes": 23995852
+      },
+      {
+        "tMs": 16069.599999964237,
+        "usedBytes": 31357636
+      },
+      {
+        "tMs": 17071,
+        "usedBytes": 24008919
+      },
+      {
+        "tMs": 18071.19999998808,
+        "usedBytes": 30711284
+      },
+      {
+        "tMs": 19076.19999998808,
+        "usedBytes": 23388410
+      },
+      {
+        "tMs": 20083.099999964237,
+        "usedBytes": 29615149
+      },
+      {
+        "tMs": 21091.69999998808,
+        "usedBytes": 26532448
+      },
+      {
+        "tMs": 22092.099999964237,
+        "usedBytes": 22136099
+      },
+      {
+        "tMs": 23092.19999998808,
+        "usedBytes": 12580091
+      },
+      {
+        "tMs": 24093.899999976158,
+        "usedBytes": 17451360
+      },
+      {
+        "tMs": 25094.099999964237,
+        "usedBytes": 9315967
+      },
+      {
+        "tMs": 26096,
+        "usedBytes": 11194986
+      },
+      {
+        "tMs": 27096.399999976158,
+        "usedBytes": 6793373
+      },
+      {
+        "tMs": 28097.799999952316,
+        "usedBytes": 16155014
+      },
+      {
+        "tMs": 29098.299999952316,
+        "usedBytes": 7663757
+      },
+      {
+        "tMs": 30099.899999976158,
+        "usedBytes": 14889631
+      }
+    ],
+    "drops": 16
+  },
+  "timers": {
+    "frame": {
+      "count": 3330,
+      "mean": 3.4579579578684614,
+      "p95": 9
+    },
+    "ui.refresh": {
+      "count": 2851,
+      "mean": 0.14149421246500862,
+      "p95": 0.30000001192092896
+    },
+    "ui.layout": {
+      "count": 2851,
+      "mean": 0.37807786728114007,
+      "p95": 0.7000000476837158
+    },
+    "ui.draw": {
+      "count": 2851,
+      "mean": 0.38091897502442235,
+      "p95": 0.7000000476837158
+    },
+    "ui.mirror": {
+      "count": 2851,
+      "mean": 0.06843212939947792,
+      "p95": 0.19999998807907104
+    }
+  },
+  "counters": {
+    "drawGroups": {
+      "mean": 0,
+      "p95": 0
+    },
+    "glDrawCalls": {
+      "mean": 26.015915915915915,
+      "p95": 47
+    },
+    "drawInstances": {
+      "mean": 1645.1510510510511,
+      "p95": 8479
+    },
+    "uiQuads": {
+      "mean": 1645.1510510510511,
+      "p95": 8479
+    },
+    "textureBytesPerFrame": {
+      "mean": 0,
+      "p95": 0
+    },
+    "textureBytesTotal": 62724,
+    "textureUploads": 3,
+    "texturesCreated": 3
+  },
+  "scene": "mathquest-map-combat-loot-loop",
+  "sceneReport": {
+    "screens": {
+      "map": 480,
+      "combat": 2280,
+      "loot": 300,
+      "level_up": 150,
+      "run_lost": 120
+    },
+    "moves": 111
+  },
+  "topWindow": {
+    "innerWidth": 915,
+    "innerHeight": 412,
+    "dpr": 2.625
+  },
+  "benchSource": "local build of main, served by portal/scripts/serve-all.mjs (production had not deployed brief 12)",
+  "emulation": {
+    "device": "Pixel 7 metrics, landscape 915x412 CSS px at DPR 2.625, touch, Android user agent",
+    "cpuThrottle": 4,
+    "gpu": "the laptop AMD iGPU, not a phone GPU",
+    "note": "EMULATED on the laptop through Chrome DevTools; not a phone reading"
+  }
+}

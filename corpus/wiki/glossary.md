@@ -1,6 +1,6 @@
 ---
 summary: The project's vocabulary — one canonical name per concept across the engine and the four games, each listing the synonyms it displaces (tick vs frame, spec vs brief, the two senses of "villager").
-updated: 2026-10-28
+updated: 2026-11-23
 ---
 
 # Glossary
@@ -58,6 +58,11 @@ The byte-exact output of a seeded headless run — what a determinism check comp
 changes sim results *by design* **moves the baseline**, and must say so; work that moves it by accident
 is a bug.
 _Avoid_: regression, drift, golden (unqualified).
+
+**Real-GPU reading**:
+A bench scene's profile export taken on a reference device's GPU, not on SwiftShader. Brief 07 calls the
+first set "the real-GPU baseline"; the readings are on [real-gpu-readings.md](real-gpu-readings.md).
+_Avoid_: baseline (that is a seeded headless run's byte-exact output).
 
 **Verdict**:
 A recorded PASS / CONDITIONAL / FAIL judgement on a visual or behavioural acceptance bar, with its

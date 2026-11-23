@@ -1,0 +1,321 @@
+{
+  "schema": "game-engine-profile/1",
+  "game": "farm",
+  "build": "production",
+  "url": "/farm-valley/?bench&profile",
+  "seed": 12648430,
+  "collectedAt": "2026-11-23T08:06:37.643Z",
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/158.0.0.0 Safari/537.36",
+  "device": {
+    "renderer": "ANGLE (AMD, AMD Radeon (TM) Graphics (0x00001681) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "vendor": "Google Inc. (AMD)",
+    "dpr": 1,
+    "devicePixelRatio": 1,
+    "canvas": {
+      "width": 1920,
+      "height": 945,
+      "clientWidth": 1920,
+      "clientHeight": 945
+    }
+  },
+  "frames": {
+    "durationMs": 29996.600000000002,
+    "displayTicks": 3166,
+    "interval": {
+      "samples": 3165,
+      "mean": 9.477598736176937,
+      "p50": 8.39999999999418,
+      "p95": 16.700000000000728,
+      "p99": 16.799999999999272,
+      "over16_7": 0.06413902053712481,
+      "over33_3": 0.000631911532385466,
+      "fps": 105.51195802190914
+    },
+    "drawn": {
+      "frames": 3166,
+      "meanMs": 6.553537586672127,
+      "p95Ms": 11.099999964237213,
+      "fps": 105.54635071654643
+    }
+  },
+  "gpu": {
+    "frames": 3166,
+    "mean": 3.987855827542641,
+    "p50": 3.4916,
+    "p95": 7.19285,
+    "p99": 8.88382,
+    "dropped": 0,
+    "skipped": 0
+  },
+  "heap": {
+    "samples": [
+      {
+        "tMs": 7.900000035762787,
+        "usedBytes": 33780304
+      },
+      {
+        "tMs": 1009,
+        "usedBytes": 17154541
+      },
+      {
+        "tMs": 2582.900000035763,
+        "usedBytes": 45534553
+      },
+      {
+        "tMs": 3586.5,
+        "usedBytes": 27686936
+      },
+      {
+        "tMs": 4587.5,
+        "usedBytes": 32220342
+      },
+      {
+        "tMs": 5591.5,
+        "usedBytes": 41491520
+      },
+      {
+        "tMs": 6598,
+        "usedBytes": 42022243
+      },
+      {
+        "tMs": 7603.700000047684,
+        "usedBytes": 26787650
+      },
+      {
+        "tMs": 8608.200000047684,
+        "usedBytes": 29950397
+      },
+      {
+        "tMs": 9608.300000011921,
+        "usedBytes": 23571947
+      },
+      {
+        "tMs": 10612.5,
+        "usedBytes": 24934064
+      },
+      {
+        "tMs": 11619.600000023842,
+        "usedBytes": 27237854
+      },
+      {
+        "tMs": 12621.300000011921,
+        "usedBytes": 51495993
+      },
+      {
+        "tMs": 13622.300000011921,
+        "usedBytes": 27437860
+      },
+      {
+        "tMs": 14632.600000023842,
+        "usedBytes": 39764155
+      },
+      {
+        "tMs": 15637.900000035763,
+        "usedBytes": 41455394
+      },
+      {
+        "tMs": 16643.600000023842,
+        "usedBytes": 39533090
+      },
+      {
+        "tMs": 17647.30000001192,
+        "usedBytes": 30365475
+      },
+      {
+        "tMs": 18652.200000047684,
+        "usedBytes": 27333843
+      },
+      {
+        "tMs": 19661.700000047684,
+        "usedBytes": 24003655
+      },
+      {
+        "tMs": 20663.700000047684,
+        "usedBytes": 40960991
+      },
+      {
+        "tMs": 21673.30000001192,
+        "usedBytes": 30683213
+      },
+      {
+        "tMs": 22674.80000001192,
+        "usedBytes": 20555973
+      },
+      {
+        "tMs": 23684.400000035763,
+        "usedBytes": 28741060
+      },
+      {
+        "tMs": 24693.5,
+        "usedBytes": 30588914
+      },
+      {
+        "tMs": 25700.30000001192,
+        "usedBytes": 31648082
+      },
+      {
+        "tMs": 26702.80000001192,
+        "usedBytes": 18515678
+      },
+      {
+        "tMs": 27710.700000047684,
+        "usedBytes": 19573395
+      },
+      {
+        "tMs": 28711.700000047684,
+        "usedBytes": 22390475
+      },
+      {
+        "tMs": 29712.600000023842,
+        "usedBytes": 25250824
+      }
+    ],
+    "drops": 12
+  },
+  "timers": {
+    "interp": {
+      "count": 3166,
+      "mean": 0.0863866075562738,
+      "p95": 0.19999998807907104
+    },
+    "weather": {
+      "count": 3166,
+      "mean": 0.004042956340335549,
+      "p95": 0
+    },
+    "particles.update": {
+      "count": 3166,
+      "mean": 0.014687302665324883,
+      "p95": 0.10000002384185791
+    },
+    "pushSprites": {
+      "count": 3166,
+      "mean": 1.4902400506762712,
+      "p95": 2.300000011920929
+    },
+    "ambient": {
+      "count": 3166,
+      "mean": 0.009538850336984525,
+      "p95": 0.10000002384185791
+    },
+    "panels": {
+      "count": 3166,
+      "mean": 1.5257422617734873,
+      "p95": 2.5
+    },
+    "render.endFrame": {
+      "count": 3166,
+      "mean": 3.2719204039304075,
+      "p95": 7.100000023841858
+    },
+    "ui.flush": {
+      "count": 3166,
+      "mean": 0.5923562857521838,
+      "p95": 0.8999999761581421
+    },
+    "draw.ghostGroups": {
+      "count": 3166,
+      "mean": 0,
+      "p95": 0
+    },
+    "draw.sprites": {
+      "count": 3166,
+      "mean": 2045.9425142135187,
+      "p95": 4635
+    },
+    "draw.atlases": {
+      "count": 3166,
+      "mean": 1,
+      "p95": 1
+    },
+    "frame": {
+      "count": 3166,
+      "mean": 6.553537586672127,
+      "p95": 11.099999964237213
+    }
+  },
+  "counters": {
+    "drawGroups": {
+      "mean": 1,
+      "p95": 1
+    },
+    "glDrawCalls": {
+      "mean": 93.64624131396083,
+      "p95": 95
+    },
+    "drawInstances": {
+      "mean": 4113.982943777637,
+      "p95": 7024
+    },
+    "uiQuads": {
+      "mean": 1781.1468730259003,
+      "p95": 1810
+    },
+    "textureBytesPerFrame": {
+      "mean": 7257600,
+      "p95": 7257600
+    },
+    "textureBytesTotal": 26101445124,
+    "textureUploads": 3594,
+    "texturesCreated": 6
+  },
+  "extra": {
+    "farm": {
+      "run": {
+        "seed": 12648430,
+        "maxDays": 100,
+        "ticksPerDay": 1200
+      },
+      "display": {
+        "fps": 119.62,
+        "frameMs": 8.22,
+        "tick": 739,
+        "entityCount": 828
+      },
+      "camera": {
+        "zoom": 3,
+        "worldUnitsX": 1280,
+        "worldUnitsY": 1280,
+        "centerX": 1920,
+        "centerY": 1920
+      },
+      "workerProfile": {
+        "tick": {
+          "count": 721,
+          "mean": 2.3741533073286214,
+          "min": 0.8473479747772217,
+          "max": 9.944256961345673,
+          "p50": 2.173054039478302,
+          "p95": 3.991151988506317,
+          "last": 3.121638000011444
+        },
+        "snapshot.build": {
+          "count": 721,
+          "mean": 1.1030867968996365,
+          "min": 0.3620370030403137,
+          "max": 6.875042974948883,
+          "p50": 0.9703869819641113,
+          "p95": 1.6874859929084778,
+          "last": 1.0157209634780884
+        },
+        "snapshot.bytes": {
+          "count": 721,
+          "mean": 129185.8875,
+          "min": 128113,
+          "max": 129952,
+          "p50": 129358,
+          "p95": 129947,
+          "last": 128123
+        }
+      }
+    }
+  },
+  "scene": "farm-pan-default-wide-return",
+  "topWindow": {
+    "innerWidth": 1920,
+    "innerHeight": 945,
+    "dpr": 1
+  },
+  "benchSource": "production build, identical to main (same asset hashes)",
+  "cpuProfiled": "Chrome CPU profiler on (200 µs sampling) from 8 s after navigation to the end; kept out of the baseline"
+}

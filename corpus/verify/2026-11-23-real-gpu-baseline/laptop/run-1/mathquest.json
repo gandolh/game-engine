@@ -1,0 +1,244 @@
+{
+  "schema": "game-engine-profile/1",
+  "game": "mathquest",
+  "build": "production",
+  "url": "/mathquest/?bench&profile",
+  "seed": 1,
+  "collectedAt": "2026-11-23T07:55:12.468Z",
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/158.0.0.0 Safari/537.36",
+  "device": {
+    "renderer": "ANGLE (AMD, AMD Radeon (TM) Graphics (0x00001681) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "vendor": "Google Inc. (AMD)",
+    "dpr": 1,
+    "devicePixelRatio": 1,
+    "canvas": {
+      "width": 1920,
+      "height": 945,
+      "clientWidth": 1920,
+      "clientHeight": 945
+    }
+  },
+  "frames": {
+    "durationMs": 30038.3,
+    "displayTicks": 3600,
+    "interval": {
+      "samples": 3599,
+      "mean": 8.346290636287858,
+      "p50": 8.300000000001091,
+      "p95": 8.400000000001455,
+      "p99": 8.599999999998545,
+      "over16_7": 0.0002778549597110308,
+      "over33_3": 0,
+      "fps": 119.81370450391667
+    },
+    "drawn": {
+      "frames": 3600,
+      "meanMs": 1.149222222185797,
+      "p95Ms": 5.299999952316284,
+      "fps": 119.85856689116368
+    }
+  },
+  "gpu": {
+    "frames": 3600,
+    "mean": 0.9597576333333342,
+    "p50": 0.95756,
+    "p95": 1.3598,
+    "p99": 2.79856,
+    "dropped": 0,
+    "skipped": 0
+  },
+  "heap": {
+    "samples": [
+      {
+        "tMs": 9.299999952316284,
+        "usedBytes": 26956303
+      },
+      {
+        "tMs": 1014.6999999880791,
+        "usedBytes": 23272798
+      },
+      {
+        "tMs": 2022,
+        "usedBytes": 22393968
+      },
+      {
+        "tMs": 3025.199999988079,
+        "usedBytes": 19916057
+      },
+      {
+        "tMs": 4026,
+        "usedBytes": 23096121
+      },
+      {
+        "tMs": 5027.099999964237,
+        "usedBytes": 20658845
+      },
+      {
+        "tMs": 6028.299999952316,
+        "usedBytes": 23887607
+      },
+      {
+        "tMs": 7029.199999988079,
+        "usedBytes": 15315272
+      },
+      {
+        "tMs": 8034.399999976158,
+        "usedBytes": 30429427
+      },
+      {
+        "tMs": 9039.699999988079,
+        "usedBytes": 24475485
+      },
+      {
+        "tMs": 10040.399999976158,
+        "usedBytes": 26865986
+      },
+      {
+        "tMs": 11041.199999988079,
+        "usedBytes": 12793474
+      },
+      {
+        "tMs": 12042.199999988079,
+        "usedBytes": 25041056
+      },
+      {
+        "tMs": 13043.5,
+        "usedBytes": 31183504
+      },
+      {
+        "tMs": 14049.199999988079,
+        "usedBytes": 19932353
+      },
+      {
+        "tMs": 15053.599999964237,
+        "usedBytes": 25834006
+      },
+      {
+        "tMs": 16059.299999952316,
+        "usedBytes": 31763775
+      },
+      {
+        "tMs": 17064.19999998808,
+        "usedBytes": 35991882
+      },
+      {
+        "tMs": 18065.099999964237,
+        "usedBytes": 38187352
+      },
+      {
+        "tMs": 19066,
+        "usedBytes": 27616356
+      },
+      {
+        "tMs": 20067.19999998808,
+        "usedBytes": 27978830
+      },
+      {
+        "tMs": 21068.19999998808,
+        "usedBytes": 16688302
+      },
+      {
+        "tMs": 22069.19999998808,
+        "usedBytes": 38331820
+      },
+      {
+        "tMs": 23070.099999964237,
+        "usedBytes": 13742781
+      },
+      {
+        "tMs": 24071.299999952316,
+        "usedBytes": 51810049
+      },
+      {
+        "tMs": 25077.299999952316,
+        "usedBytes": 69411704
+      },
+      {
+        "tMs": 26081.399999976158,
+        "usedBytes": 21354845
+      },
+      {
+        "tMs": 27086.099999964237,
+        "usedBytes": 26126136
+      },
+      {
+        "tMs": 28091.899999976158,
+        "usedBytes": 25192563
+      },
+      {
+        "tMs": 29092.799999952316,
+        "usedBytes": 27018062
+      }
+    ],
+    "drops": 13
+  },
+  "timers": {
+    "frame": {
+      "count": 3600,
+      "mean": 1.149222222185797,
+      "p95": 5.300000011920929
+    },
+    "ui.refresh": {
+      "count": 3091,
+      "mean": 0.03125202185279997,
+      "p95": 0.10000002384185791
+    },
+    "ui.layout": {
+      "count": 3091,
+      "mean": 0.06415399551314468,
+      "p95": 0.19999998807907104
+    },
+    "ui.draw": {
+      "count": 3091,
+      "mean": 0.07470074433873132,
+      "p95": 0.19999998807907104
+    },
+    "ui.mirror": {
+      "count": 3091,
+      "mean": 0.013329019576590719,
+      "p95": 0.09999996423721313
+    }
+  },
+  "counters": {
+    "drawGroups": {
+      "mean": 0,
+      "p95": 0
+    },
+    "glDrawCalls": {
+      "mean": 27.9775,
+      "p95": 47
+    },
+    "drawInstances": {
+      "mean": 4760.821111111111,
+      "p95": 31377
+    },
+    "uiQuads": {
+      "mean": 4760.821111111111,
+      "p95": 31377
+    },
+    "textureBytesPerFrame": {
+      "mean": 0,
+      "p95": 0
+    },
+    "textureBytesTotal": 62724,
+    "textureUploads": 3,
+    "texturesCreated": 3
+  },
+  "scene": "mathquest-map-combat-loot-loop",
+  "sceneReport": {
+    "screens": {
+      "map": 510,
+      "combat": 2460,
+      "loot": 330,
+      "level_up": 180,
+      "run_lost": 120
+    },
+    "moves": 120
+  },
+  "topWindow": {
+    "innerWidth": 1920,
+    "innerHeight": 945,
+    "dpr": 1
+  },
+  "benchSource": "local build of main, served by portal/scripts/serve-all.mjs (production had not deployed brief 12)"
+}

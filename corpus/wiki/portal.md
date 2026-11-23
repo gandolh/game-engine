@@ -1,6 +1,6 @@
 ---
 summary: The games portal at /games (portal/, built 2026-11-03) — a card per engine game, each played in a same-origin frame with a Fullscreen button, a warning page under 1280×640 for games that don't play on phones, EDG32 pixel style; the frame check per game, the card art, the deploy stacks, and what the owner still checks.
-updated: 2026-11-03
+updated: 2026-11-23
 ---
 
 # The games portal
@@ -54,11 +54,13 @@ framing headers in the morning of 2026-11-03. Since vps-deploy's baseline header
 they send `X-Frame-Options: SAMEORIGIN` and `frame-ancestors 'self'` (curl), which allow the portal,
 because it frames them from the same origin.
 
-**Hollow's gap is not a finding yet.** The research's first pass saw the same shape (33 vs 17 ms),
-both on SwiftShader under load, and this repo has been misled by a SwiftShader frame rate before
-([open-questions.md](open-questions.md) → *FPS regression was a SwiftShader artifact*). Hollow keeps
-its frame unless the owner sees the gap on a real GPU; then it opens on its own path instead
-(the owner's 2026-10-28 rule).
+**Hollow's gap was SwiftShader (closed 2026-11-23).** The research's first pass saw the same shape
+(33 vs 17 ms), both on SwiftShader under load, and this repo has been misled by a SwiftShader frame rate
+before ([open-questions.md](open-questions.md) → *FPS regression was a SwiftShader artifact*). The rule
+was that Hollow keeps its frame unless the gap shows on a real GPU (the owner's 2026-10-28 rule). On the
+laptop's AMD iGPU, two passes of Hollow's bench scene framed and direct agree: p95 8.4–8.5 ms against
+8.5 ms, GPU 2.7–2.8 ms against 2.6–2.7 ms, with the canvas filling the frame at 1905×893
+([real-gpu-readings.md](real-gpu-readings.md)). Hollow keeps its frame.
 
 ## Card art
 
@@ -89,7 +91,7 @@ Neither is deployed.
 
 ## For the owner
 
-- Hollow framed against direct on a real GPU (the play page's frame, then `/hollow/` on its own).
 - A phone (Android): the grid in two columns and the warning page.
-- Push game-engine and vps-deploy, then deploy `mathquest` and `games-portal` (`node cli.ts mathquest all`,
-  `node cli.ts games-portal all`), and the three deployed games for the patches and the upside-down fix.
+
+The deploy item is done: on 2026-11-23 production served the portal and all four games, and the portal,
+Farm, Citadel and Hollow had the same asset hashes as a fresh build of main.

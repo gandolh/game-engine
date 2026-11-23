@@ -4281,3 +4281,17 @@ combat screen draws each as one quad at a whole-number scale, so the creatures l
 and its UI quads fell by 30 to 127 a frame per enemy. The layering test lets the cook alone import every
 game's recipe package. Before and after screenshots of all six enemies are in
 `verify/2026-11-22-mathquest-combat-atlas/`; the record is on [mathquest-ui.md](wiki/mathquest-ui.md).
+
+## [2026-11-23] progress | Brief 07: the laptop half of the real-GPU reading
+
+The session drove Windows Chrome on the laptop's AMD iGPU from WSL (`tools/bench-win.mjs` in
+`verify/2026-11-23-real-gpu-baseline/`): two passes of the four bench scenes, Hollow framed and direct,
+a third Citadel pass after a one-off stall, a CPU-profiled Farm run and an emulated-phone pass. Production
+matched main except MateQuest, which ran from a local build. Citadel, Hollow and MateQuest meet the 60 fps
+bar with room to spare. Farm is on the line: p95 16.7 ms with 5.7–7.2% of intervals over it on a 120 Hz
+display, CPU-bound at 6.1–6.3 ms a frame against 2.6–2.7 ms of GPU. `compareSprite` alone costs it 1.07 ms
+a frame, so the sprite sort todo became brief 15. The ghost check (about 0 ms) and the light overlay's CPU
+side (0.16 ms) did not fire. Hollow framed and direct agree, which closes the 2026-11-03 check: the gap was
+SwiftShader. Counter budgets per scene are on [frame-budget.md](wiki/frame-budget.md), and the readings on
+the new [real-gpu-readings.md](wiki/real-gpu-readings.md). The owner's Hollow export from the same morning
+was a partial profiler export, not a bench result, and is not used. The phone half is left.

@@ -1,7 +1,9 @@
 # Sprite sort only on change
 
-status: open. Promote when a bench scene shows the per-frame sprite sort above 1 ms at p95 on a
-reference device.
+status: promoted to brief 15 on 2026-11-23 ([15](../briefs/todo/15-the-sprite-sort-under-1-ms.md)).
+Its trigger, the per-frame sprite sort above 1 ms at p95 on a reference device, fired on the laptop:
+`compareSprite` alone takes 1.07 ms per frame on average in Farm's bench scene
+([real-gpu-readings.md](../wiki/real-gpu-readings.md)).
 created: 2026-11-20
 context: the 60 fps plan, [frame-budget.md](../wiki/frame-budget.md).
 

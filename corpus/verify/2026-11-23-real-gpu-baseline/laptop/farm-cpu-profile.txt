@@ -1,0 +1,88 @@
+profile 32.3 s, ~3409 frames at 105.5 fps; ms per frame below
+-- inclusive, top
+   6.530  a ../../src/main/render-loop.ts:105
+   6.514  renderFrame ../../src/main/render-loop.ts:346
+   6.313  time engine/core/src/debug/profiler.ts:56
+   3.148   ../../src/main/render-loop.ts:674
+   3.088  endFrame engine/core/src/render/webgl2/renderer.ts:675
+   1.536   ../../src/main/render-loop.ts:434
+   1.531   ../../src/main/render-loop.ts:648
+   1.526  renderUiPanels ../../src/main/render-ui-panels.ts:246
+   1.070  compareSprite engine/core/src/render/raster2d.ts:10
+   0.974  pushSnapshotSprites ../../../sim-core/src/render-systems/snapshot-sprites.ts:27
+   0.656  renderRightColumnPanel ../../src/main/render-ui-panels.ts:90
+   0.461  renderWorldAnchoredCards ../../src/main/render-world-anchored-cards.ts:178
+   0.440  renderDiegeticHud ../../src/main/render-world-anchored-cards.ts:112
+   0.415  pack engine/core/src/render/webgl2/ui-quad-pass.ts:194
+   0.406  renderTree engine/ui/src/widget/render.ts:31
+   0.405  worldToCanvasCss ../../src/main/screen-to-tile.ts:52
+   0.404  drawNode engine/ui/src/widget/render.ts:35
+   0.402  worldPerCssX ../../src/main/screen-to-tile.ts:12
+   0.365  _packSprite engine/core/src/render/webgl2/renderer.ts:620
+   0.339  renderHotbarPanel ../../src/main/render-ui-panels.ts:116
+   0.263  pushBridgeSprites ../../../sim-core/src/render-systems/occluders.ts:51
+   0.236  frameToAtlasId ../../../sim-core/src/render-systems/frames.ts:77
+   0.208  update engine/ui/src/a11y/mirror.ts:387
+   0.207  reconcile engine/ui/src/a11y/mirror.ts:407
+   0.189  refresh ../../src/ui/canvas/right-column.ts:268
+   0.165  appendChild [native]
+   0.162  draw engine/core/src/render/webgl2/overlay-light-pass.ts:112
+   0.151  computeLayout engine/ui/src/layout/layout.ts:264
+   0.143  drawRange engine/core/src/render/webgl2/sprite-batch.ts:236
+   0.138  draw engine/core/src/render/webgl2/ui-quad-pass.ts:302
+   0.134  pushOccluderSprites ../../../sim-core/src/render-systems/occluders.ts:19
+   0.132  r.<computed> engine/core/src/debug/gl-counters.ts:118
+   0.123  setupAttrib engine/core/src/render/webgl2/program.ts:159
+   0.118  _setupInstanceAttribs engine/core/src/render/webgl2/sprite-batch.ts:269
+   0.109  ws.onmessage ../../src/net/sim-client/client.ts:80
+   0.109  refresh ../../src/ui/canvas/observer-panel.ts:261
+   0.106  texImage2D [native]
+   0.101  layoutText engine/ui/src/text/layout.ts:59
+   0.098  (garbage collector) [native]
+   0.083  endFrame engine/core/src/debug/frame-profile.ts:395
+-- self, top
+   1.726  (idle) [native]
+   1.070  compareSprite engine/core/src/render/raster2d.ts:10
+   0.968  (program) [native]
+   0.671  endFrame engine/core/src/render/webgl2/renderer.ts:675
+   0.627  pushSnapshotSprites ../../../sim-core/src/render-systems/snapshot-sprites.ts:27
+   0.402  worldPerCssX ../../src/main/screen-to-tile.ts:12
+   0.369  pack engine/core/src/render/webgl2/ui-quad-pass.ts:194
+   0.331  _packSprite engine/core/src/render/webgl2/renderer.ts:620
+   0.263  pushBridgeSprites ../../../sim-core/src/render-systems/occluders.ts:51
+   0.242  drawNode engine/ui/src/widget/render.ts:35
+   0.236  frameToAtlasId ../../../sim-core/src/render-systems/frames.ts:77
+   0.165  appendChild [native]
+   0.134  pushOccluderSprites ../../../sim-core/src/render-systems/occluders.ts:19
+   0.130  renderHotbarPanel ../../src/main/render-ui-panels.ts:116
+   0.109  ws.onmessage ../../src/net/sim-client/client.ts:80
+   0.106  texImage2D [native]
+   0.098  (garbage collector) [native]
+   0.086  layoutText engine/ui/src/text/layout.ts:59
+   0.068   ../../src/main/render-loop.ts:434
+   0.062  renderRightColumnPanel ../../src/main/render-ui-panels.ts:90
+   0.062  stats engine/core/src/debug/profiler.ts:64
+   0.057   ../../src/main/render-loop.ts:674
+   0.056  arrange engine/ui/src/layout/layout.ts:166
+   0.047  measureNode engine/ui/src/layout/layout.ts:88
+   0.047  beginFrame engine/core/src/render/overlay-2d.ts:93
+-- named targets (inclusive)
+   3.088  endFrame engine/core/src/render/webgl2/renderer.ts:675
+   1.070  compareSprite engine/core/src/render/raster2d.ts:10
+   0.162  draw engine/core/src/render/webgl2/overlay-light-pass.ts:112
+   0.138  draw engine/core/src/render/webgl2/ui-quad-pass.ts:302
+   0.106  texImage2D [native]
+   0.098  (garbage collector) [native]
+   0.083  endFrame engine/core/src/debug/frame-profile.ts:395
+   0.038  draw engine/core/src/render/webgl2/particle-batch.ts:63
+   0.024  draw engine/core/src/render/webgl2/water-pass.ts:220
+   0.018  draw engine/core/src/render/webgl2/shadow-batch.ts:125
+   0.008  draw engine/core/src/render/webgl2/static-layer-pass.ts:304
+   0.008  draw engine/core/src/render/webgl2/cloud-shadow-pass.ts:100
+   0.005  draw engine/core/src/render/webgl2/tint-pass.ts:50
+   0.003  sortedCopy engine/core/src/debug/frame-stats.ts:52
+   0.003  texImage2DBytes engine/core/src/debug/gl-counters.ts:80
+   0.001  endFrame engine/core/src/input/keyboard.ts:111
+   0.000  _ghostCovered engine/core/src/render/webgl2/renderer.ts:574
+   0.000  createRadialGradient [native]
+   0.000  _overlayWillPaint engine/core/src/render/webgl2/renderer.ts:668

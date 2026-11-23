@@ -70,3 +70,31 @@ That makes ten files: four games on two devices, plus Hollow framed and direct.
 ## Owner steps
 
 - The deploy and the sitting above, before the brief starts.
+
+## Progress (2026-11-23): the laptop half
+
+The session read the laptop itself: Windows Chrome on the AMD iGPU, driven from WSL, against production
+(identical to main for Farm, Citadel, Hollow and the portal) and a local build of main for MateQuest.
+Two passes of the four scenes, Hollow framed and direct in both orders, a third Citadel pass, one
+CPU-profiled Farm run and an emulated-phone pass. The files and how they were taken are in
+`corpus/verify/2026-11-23-real-gpu-baseline/`.
+
+Done from "What to do":
+
+1. The laptop readings, on [real-gpu-readings.md](../../wiki/real-gpu-readings.md), with a pointer from
+   [performance-measurements.md](../../wiki/performance-measurements.md).
+2. The budgets per scene, on [frame-budget.md](../../wiki/frame-budget.md), from a headless run of main
+   at 1280×800.
+3. Every todo row has the laptop's value. The sprite sort fired and is
+   [brief 15](15-the-sprite-sort-under-1-ms.md); the others stay open.
+4. The Hollow framed check is closed in [portal.md](../../wiki/portal.md) and
+   [status.md](../../wiki/status.md): no gap.
+
+Left for the phone half:
+
+- The owner deploys MateQuest (`node cli.ts mathquest deploy` from the vps-deploy checkout), the one
+  game production had behind main, then runs the four scenes in Chrome on the Android phone and saves
+  each result.
+- Their files go in the same verify folder under `phone/`. The phone rows go on
+  [real-gpu-readings.md](../../wiki/real-gpu-readings.md), and each still-open todo row gets its phone
+  value or a promotion. Then this brief is done.

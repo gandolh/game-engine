@@ -1,6 +1,6 @@
 ---
 summary: The current-state snapshot — where each game stands, current sim/determinism behaviour, which gates run, architecture milestones, and open gaps. Brief-by-brief history lives in log.md and the todos/briefs directories, not here.
-updated: 2026-11-11
+updated: 2026-11-23
 ---
 
 # Project Status
@@ -154,6 +154,11 @@ step, and it was not kept in step.
 
 Newest first, one line each. Detail is in the [log.md](../log.md) entry for the same date.
 
+- **2026-11-23**: the laptop half of brief 07's real-GPU reading ([real-gpu-readings.md](real-gpu-readings.md)).
+  Citadel, Hollow and MateQuest meet the 60 fps bar; Farm is on the line and CPU-bound. The sprite sort
+  todo became [brief 15](../briefs/todo/15-the-sprite-sort-under-1-ms.md), and the counter budgets are on
+  [frame-budget.md](frame-budget.md). The phone half waits for the owner.
+
 - **2026-11-03** — the four follow-up specs were grilled and built:
   - the engine's patched static layer, which surfaced the old upside-down static layer;
   - Citadel's terrain on patches, with the re-baking window deleted;
@@ -165,6 +170,8 @@ Newest first, one line each. Detail is in the [log.md](../log.md) entry for the 
   - deploy `mathquest` and `games-portal`, then the three live games;
   - measure Hollow framed on a real GPU;
   - check the portal on an Android phone.
+  By 2026-11-23 the first three were done: this repo pushed, the stacks deployed, and Hollow framed
+  measured on the laptop (no gap, [portal.md](portal.md)). The Android check is left.
   The README's Farm and Citadel images were retaken on 2026-11-07 ([brief 01](../briefs/done/01-retake-readme-images-after-the-flip-fix.md)).
 
 - **2026-09-20** — a **visual** pass over the six fixes produced two more closed specs and one

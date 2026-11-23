@@ -1,0 +1,218 @@
+{
+  "schema": "game-engine-profile/1",
+  "game": "hollow",
+  "build": "production",
+  "url": "/hollow/?bench&profile",
+  "seed": 42,
+  "collectedAt": "2026-11-23T07:56:24.720Z",
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/158.0.0.0 Safari/537.36",
+  "device": {
+    "renderer": "ANGLE (AMD, AMD Radeon (TM) Graphics (0x00001681) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "vendor": "Google Inc. (AMD)",
+    "dpr": 1,
+    "devicePixelRatio": 1,
+    "canvas": {
+      "width": 1920,
+      "height": 945,
+      "clientWidth": 1920,
+      "clientHeight": 945
+    }
+  },
+  "frames": {
+    "durationMs": 29996.7,
+    "displayTicks": 3592,
+    "interval": {
+      "samples": 3591,
+      "mean": 8.35329991645781,
+      "p50": 8.30000000000291,
+      "p95": 8.5,
+      "p99": 8.600000000000364,
+      "over16_7": 0.000278473962684489,
+      "over33_3": 0,
+      "fps": 119.71316844852934
+    },
+    "drawn": {
+      "frames": 3592,
+      "meanMs": 1.0615534523713561,
+      "p95Ms": 1.7999999523162842,
+      "fps": 119.74890069032791
+    }
+  },
+  "gpu": {
+    "frames": 3592,
+    "mean": 2.7160247828507815,
+    "p50": 2.56227,
+    "p95": 4.6977,
+    "p99": 6.44185,
+    "dropped": 0,
+    "skipped": 0
+  },
+  "heap": {
+    "samples": [
+      {
+        "tMs": 8.600000023841858,
+        "usedBytes": 7579370
+      },
+      {
+        "tMs": 1009.2000000476837,
+        "usedBytes": 8714150
+      },
+      {
+        "tMs": 2009.800000011921,
+        "usedBytes": 5380524
+      },
+      {
+        "tMs": 3011.300000011921,
+        "usedBytes": 10434096
+      },
+      {
+        "tMs": 4012.900000035763,
+        "usedBytes": 4562264
+      },
+      {
+        "tMs": 5013.600000023842,
+        "usedBytes": 6698176
+      },
+      {
+        "tMs": 6014.100000023842,
+        "usedBytes": 5508432
+      },
+      {
+        "tMs": 7015.300000011921,
+        "usedBytes": 7991728
+      },
+      {
+        "tMs": 8017.300000011921,
+        "usedBytes": 9760707
+      },
+      {
+        "tMs": 9018.400000035763,
+        "usedBytes": 4612667
+      },
+      {
+        "tMs": 10026,
+        "usedBytes": 4628655
+      },
+      {
+        "tMs": 11027.300000011921,
+        "usedBytes": 6455379
+      },
+      {
+        "tMs": 12028.200000047684,
+        "usedBytes": 5213763
+      },
+      {
+        "tMs": 13029.300000011921,
+        "usedBytes": 4672047
+      },
+      {
+        "tMs": 14030.100000023842,
+        "usedBytes": 9116931
+      },
+      {
+        "tMs": 15031.5,
+        "usedBytes": 7693087
+      },
+      {
+        "tMs": 16032.300000011921,
+        "usedBytes": 15691599
+      },
+      {
+        "tMs": 17033.200000047684,
+        "usedBytes": 11027163
+      },
+      {
+        "tMs": 18034.600000023842,
+        "usedBytes": 12549983
+      },
+      {
+        "tMs": 19035.400000035763,
+        "usedBytes": 10078515
+      },
+      {
+        "tMs": 20036.5,
+        "usedBytes": 17374267
+      },
+      {
+        "tMs": 21037.900000035763,
+        "usedBytes": 13373803
+      },
+      {
+        "tMs": 22039.200000047684,
+        "usedBytes": 16610807
+      },
+      {
+        "tMs": 23040.200000047684,
+        "usedBytes": 11980679
+      },
+      {
+        "tMs": 24041.100000023842,
+        "usedBytes": 7450231
+      },
+      {
+        "tMs": 25042.100000023842,
+        "usedBytes": 8563915
+      },
+      {
+        "tMs": 26043.100000023842,
+        "usedBytes": 13722123
+      },
+      {
+        "tMs": 27043.30000001192,
+        "usedBytes": 15897023
+      },
+      {
+        "tMs": 28044.5,
+        "usedBytes": 8195235
+      },
+      {
+        "tMs": 29045,
+        "usedBytes": 14606635
+      }
+    ],
+    "drops": 13
+  },
+  "timers": {
+    "interp": {
+      "count": 3592,
+      "mean": 0.011135857361462175,
+      "p95": 0.10000002384185791
+    },
+    "collision": {
+      "count": 3592,
+      "mean": 0.21102449955016309,
+      "p95": 0.3999999761581421
+    },
+    "frame": {
+      "count": 3592,
+      "mean": 1.0286748332442313,
+      "p95": 1.600000023841858
+    }
+  },
+  "counters": {
+    "drawGroups": null,
+    "glDrawCalls": {
+      "mean": 35.75807349665924,
+      "p95": 41
+    },
+    "drawInstances": {
+      "mean": 99.08129175946547,
+      "p95": 109
+    },
+    "uiQuads": null,
+    "textureBytesPerFrame": {
+      "mean": 0,
+      "p95": 0
+    },
+    "textureBytesTotal": 0,
+    "textureUploads": 0,
+    "texturesCreated": 0
+  },
+  "scene": "hollow-town-orbit",
+  "topWindow": {
+    "innerWidth": 1920,
+    "innerHeight": 945,
+    "dpr": 1
+  },
+  "benchSource": "production build, identical to main (same asset hashes)"
+}
