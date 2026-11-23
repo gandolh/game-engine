@@ -89,7 +89,6 @@
  */
 import { createTickPump } from "@engine/core/runtime";
 import { bootstrapHollowSim } from "@hollow/sim-core/sim-bootstrap";
-import type { HollowSnapshot } from "@hollow/sim-core/sim-bootstrap";
 import { createChronicle, MetricsSampler, type ChronicleEvent, type MetricsRow } from "@hollow/sim-core/observe";
 import type { LineageEntry } from "@hollow/sim-core/lineage";
 import { personaSeedToSimOptions, applyPersonaSeed, type PersonaSeed } from "@hollow/sim-core/persona";
@@ -97,6 +96,7 @@ import { ONT_SHOCK, type Shock, type Intervention } from "@hollow/sim-core/proto
 import type { InspectDetail } from "../inspect-detail";
 import { buildInspectDetail } from "./inspect";
 import { advanceChronicleCursor } from "./chronicle-cursor";
+import { packSnapshot, type WireSnapshot } from "./snapshot-wire";
 import { normalizeSpeedMultiplier, type SpeedMultiplier } from "../time-control";
 
 export interface WorkerInitMessage {
@@ -173,7 +173,7 @@ export type WorkerInbound =
 export type WorkerOutbound =
   | { type: "ready" }
   /** `postMs`: the previous snapshot `postMessage`'s duration, for the `snapshot.post` timer (corpus brief 18). */
-  | { type: "snapshot"; snapshot: HollowSnapshot; postMs?: number }
+  | { type: "snapshot"; snapshot: WireSnapshot; agentPositions: Float32Array; postMs?: number }
   | { type: "inspectResult"; agentId: number; detail: InspectDetail | null }
   /** New chronicle events since the LAST `"events"` post — a delta, not
    *  the full accumulated buffer (see this file's header). Chunk hollow-11b:
@@ -226,14 +226,19 @@ function subscribeShockEvents(): void {
 
 function postSnapshot(): void {
   if (simResult === null) return;
-  const snapshot = simResult.getSnapshot();
+  // Brief 18: the agents' grid positions go as a transferred typed array, the rest as the plain object.
+  const { snapshot, agentPositions } = packSnapshot(simResult.getSnapshot());
   // `snapshot.post` (corpus brief 18): the clone runs inside postMessage; the time rides on the next message.
   const t0 = performance.now();
-  self.postMessage({
-    type: "snapshot",
-    snapshot,
-    ...(lastPostMs !== null ? { postMs: lastPostMs } : {}),
-  } satisfies WorkerOutbound);
+  self.postMessage(
+    {
+      type: "snapshot",
+      snapshot,
+      agentPositions,
+      ...(lastPostMs !== null ? { postMs: lastPostMs } : {}),
+    } satisfies WorkerOutbound,
+    { transfer: [agentPositions.buffer] },
+  );
   lastPostMs = performance.now() - t0;
 }
 
