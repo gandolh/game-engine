@@ -682,6 +682,7 @@ export function createRenderLoop(deps: RenderLoopDeps): FrameLoop {
       frameProfiler.add("draw.ghostGroups", renderer.lastDrawStats.ghostGroups);
       frameProfiler.add("draw.sprites", renderer.lastDrawStats.sprites);
       frameProfiler.add("render.sort", renderer.lastDrawStats.sortMs);
+      frameProfiler.add("render.ghost", renderer.lastDrawStats.ghostMs);
       frameProfiler.add("draw.atlases", renderer.lastDrawStats.atlases);
     }
 

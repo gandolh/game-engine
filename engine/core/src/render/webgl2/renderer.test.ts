@@ -503,7 +503,7 @@ describe("WebGl2Renderer draw-group profiling seam (sweep-05)", () => {
     r.push(makeSprite({ atlasId: "b" }));
     r.endFrame();
 
-    expect(r.lastDrawStats).toEqual({ groups: 0, ghostGroups: 0, sprites: 0, atlases: 0, sortMs: 0 });
+    expect(r.lastDrawStats).toEqual({ groups: 0, ghostGroups: 0, sprites: 0, atlases: 0, sortMs: 0, ghostMs: 0 });
   });
 
   it("reports the main-pass group count, sprite-queue length, and distinct atlas count when profileUi is on", () => {

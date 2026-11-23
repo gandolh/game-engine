@@ -204,7 +204,14 @@ export interface RendererLike {
    * may omit it (zero overhead when unset or false); it must never affect
    * rendered output.
    */
-  lastDrawStats?: { groups: number; ghostGroups: number; sprites: number; atlases: number; sortMs: number };
+  lastDrawStats?: {
+    groups: number;
+    ghostGroups: number;
+    sprites: number;
+    atlases: number;
+    sortMs: number;
+    ghostMs: number;
+  };
 
   endFrame(wash?: WashOptions, particles?: ParticleSystem, weather?: WeatherLike, overlay?: LightOverlay): void;
 }

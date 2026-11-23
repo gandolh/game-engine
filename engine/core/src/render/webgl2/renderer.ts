@@ -34,7 +34,7 @@ import { OverlayLightPass } from "./overlay-light-pass";
 import type { OverlayLightView } from "./overlay-light-pass";
 import { UiQuadPass, screenSpaceView } from "./ui-quad-pass";
 import { RainField } from "../rain-field";
-import { spritesOverlap } from "../raster2d";
+import { GhostGrid } from "./ghost-grid";
 import { SpriteSorter } from "../sprite-sort";
 
 const CULL_MARGIN = 32;
@@ -173,10 +173,12 @@ export class WebGl2Renderer implements RendererLike {
   // counter exists to observe. `sprites` is the culled sprite-queue length
   // submitted this frame (`_queueLen`), and `atlases` is the number of
   // distinct atlases actually bound across the main-pass groups — the
-  // theoretical floor `groups` is measured against.
-  lastDrawStats = { groups: 0, ghostGroups: 0, sprites: 0, atlases: 0, sortMs: 0 };
+  // theoretical floor `groups` is measured against. `ghostMs` is the whole ghost
+  // pass: the grid build, the covered checks and packing the covered ghosts.
+  lastDrawStats = { groups: 0, ghostGroups: 0, sprites: 0, atlases: 0, sortMs: 0, ghostMs: 0 };
 
   private _occludableIdx: number[] = [];
+  private readonly _ghostGrid = new GhostGrid();
 
   private _groups: DrawGroup[] = [];
   private _groupLen = 0;
@@ -575,13 +577,7 @@ export class WebGl2Renderer implements RendererLike {
   }
 
   private _ghostCovered(queueIdx: number, g: Sprite): boolean {
-    for (let jj = queueIdx + 1; jj < this._queueLen; jj += 1) {
-      const o = this._queue[jj];
-      if (o === undefined) continue;
-      if (o.occludable || o.layer >= GHOST_UI_LAYER) continue;
-      if (spritesOverlap(g, o)) return true;
-    }
-    return false;
+    return this._ghostGrid.covered(queueIdx, g);
   }
 
   private _recordGroup(atlasId: string, first: number, count: number): void {
@@ -781,6 +777,10 @@ export class WebGl2Renderer implements RendererLike {
     // Boundary between the main pass's groups and the ghost pass's own groups
     // below — see lastDrawStats.groups / lastDrawStats.ghostGroups.
     const mainGroupLen = this._groupLen;
+    const ghostT0 = this.profileUi ? performance.now() : 0;
+    if (occludableCount > 0) {
+      this._ghostGrid.build(this._queue, this._queueLen, this._occludableIdx, occludableCount, GHOST_UI_LAYER);
+    }
 
     // Ghost redraws are packed in occludableIdx (ascending queue-index) order, so
     // consecutive covered ghosts sharing an atlas land contiguously in the batch
@@ -831,6 +831,8 @@ export class WebGl2Renderer implements RendererLike {
       if (groupCount > 0) this._recordGroup(currentAtlas, groupFirst, groupCount);
       k = m;
     }
+
+    const ghostMs = this.profileUi ? performance.now() - ghostT0 : 0;
 
     // UI quads ride in the SAME instance buffer as the world sprites — packed
     // after them so their group ranges sit past the sprite/ghost ranges, and
@@ -972,6 +974,7 @@ export class WebGl2Renderer implements RendererLike {
       this.lastDrawStats.ghostGroups = this._groupLen - mainGroupLen;
       this.lastDrawStats.atlases = this._countDistinctAtlases(mainGroupLen);
       this.lastDrawStats.sortMs = sortMs;
+      this.lastDrawStats.ghostMs = ghostMs;
     }
   }
 }
