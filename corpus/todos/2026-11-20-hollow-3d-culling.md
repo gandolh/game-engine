@@ -1,6 +1,6 @@
 # Hollow 3D culling
 
-status: promoted to brief 19 on 2026-11-23 ([19](../briefs/todo/19-hollow-culls-what-the-camera-cannot-see.md)), by the owner's call to
+status: step 1 (frustum culling) built as brief 19 on 2026-11-23 ([19](../briefs/done/19-hollow-culls-what-the-camera-cannot-see.md)); step 2 (merging static geometry) remains, and step 3 was answered (no portal gap). Promoted by the owner's call to
 build light optimizations without waiting for a trigger. Its trigger was to promote it when Hollow's bench breaks the bar on the reference laptop, or runs clearly
 slower framed in the portal than opened directly.
 created: 2026-11-20

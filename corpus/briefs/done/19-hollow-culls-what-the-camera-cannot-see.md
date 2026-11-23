@@ -60,3 +60,33 @@ is the first: frustum culling.
 ## Owner steps
 
 - Deploy Hollow from the vps-deploy checkout: `node cli.ts hollow deploy`.
+
+## Outcome (2026-11-23)
+
+Built as specified, with one placement change: the culling runs inside `SceneRenderer3D.render`, on the packed
+instance rows, instead of in `app.ts` before `packInstances`. That left Hollow's `app.ts` and
+`render3d-demo.ts` untouched and gave every caller of the renderer the same cull.
+
+- `engine/core/src/render3d/cull.ts`: `boundingSphereOf(mesh)` (bounding-box centre, radius to the farthest
+  vertex), `extractFrustumPlanes(viewProj)` (Gribb-Hartmann, normalised; near is row 2 alone, because
+  `perspective()` maps depth to [0, 1]), `sphereInFrustum`, and `cullInstances`, which reads each packed row's
+  model matrix, moves the sphere centre through it, scales the radius by the matrix's largest axis scale, and
+  copies the survivors in order into a reused scratch buffer.
+- `MeshHandle.bounds` is computed once in `uploadMesh`. `render()` extracts the planes once per frame, culls
+  each draw into `cullScratch` (grown, never shrunk), skips a draw with no survivors, and draws and counts the
+  kept rows. The GL instance buffer is still sized for the whole draw, so a changing kept count never
+  reallocates it.
+- Hollow has one camera and no shadow pass, so there is nothing to cull against a second matrix.
+- Conservative: a radius slack of 0.001, and a NaN or all-zero matrix keeps everything.
+- Tests: `cull.test.ts` (each of the six planes: outside is culled, crossing is kept, inside is kept; a scaled
+  instance whose unscaled sphere is outside but whose scaled sphere crosses the right plane is kept; an
+  off-centre mesh sphere) and one in `renderer3d.test.ts` (draw counts and `lastDrawStats`).
+- Bench (`npm run bench -- <folder> hollow`, 1280x800, load average about 20, seed 42):
+  `drawInstances` mean 98.46 to 95.63 (p95 109 to 107); `glDrawCalls` mean 35.40 to 35.57 (p95 41 both). The
+  saving is 3% because the default camera frames almost the whole town, so little is off screen; GL calls did
+  not fall because few draws lost every instance. There is no GPU number: SwiftShader's frame times are
+  stamped `gpu-not-real`. The `frame` CPU timer read 1.51 ms before and 1.77 after, within load noise.
+- Screenshots at the same four camera poses before and after are in
+  `verify/2026-11-23-hollow-culling/`; the static geometry at the frame's edges matches, nothing missing.
+- `npm run check`: every step passed (lint 3570 warnings, ceiling 3573) except one Farm live-sim test that
+  timed out in its 180 s hook under load 20 to 98 (`coral-fishing.integration.test.ts`); it passes alone in 71 s.

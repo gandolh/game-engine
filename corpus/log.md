@@ -4368,3 +4368,7 @@ briefs: [24](briefs/todo/24-hollow-builds-its-static-draws-once.md) Hollow build
 [26](briefs/todo/26-the-state-machine-keeps-its-entry-tick.md) the state machine keeps its entry tick,
 [27](briefs/todo/27-hollow-walks-by-the-ground-covered.md) Hollow walks by the ground covered. Side findings not
 briefed (camera world-edge clamp, explicit spawn ids and an id lookup) are on the page.
+
+## [2026-11-23] done | Brief 19: Hollow culls what the camera cannot see
+
+[Brief](briefs/done/19-hollow-culls-what-the-camera-cannot-see.md). `SceneRenderer3D.render` extracts six frustum planes per frame and uploads and draws only the instances whose transformed bounding sphere (one per mesh, computed at `uploadMesh`; radius times the instance's largest axis scale) is inside or crossing them. Bench `drawInstances` mean 98.46 to 95.63, GL calls 35.40 to 35.57: the default camera frames almost the whole town. Screenshots in `verify/2026-11-23-hollow-culling/`. Updated [frame-budget.md](wiki/frame-budget.md) and the [todo](todos/2026-11-20-hollow-3d-culling.md).
