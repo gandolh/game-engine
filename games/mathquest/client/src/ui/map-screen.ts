@@ -485,26 +485,38 @@ function collectProps(L: MapLayout): Prop[] {
   return props;
 }
 
-/** Draw `fn` with a 1px dark keyline (silhouette outline) so props pop against any terrain. */
-function outlineDraw(P: Painter, fn: (p: Painter) => void): void {
-  const stamp = (dx: number, dy: number): Painter => ({
-    rect: (x, y, w, h) => P.rect(x + dx, y + dy, w, h, MATE_PAL.black, 0.9),
-    text: () => {},
-    ctext: () => {},
-    visible: (x, w) => P.visible(x, w),
-  });
-  const offsets: readonly (readonly [number, number])[] = [
-    [-1, -1],
-    [0, -1],
-    [1, -1],
-    [-1, 0],
-    [1, 0],
-    [-1, 1],
-    [0, 1],
-    [1, 1],
-  ];
-  for (const [dx, dy] of offsets) fn(stamp(dx, dy));
-  fn(P);
+/** One mutable painter for the keyline stamps: the base painter and the current offset live in
+ * its fields, so a stamp allocates nothing. */
+const OUTLINE_OFFSETS: readonly (readonly [number, number])[] = [
+  [-1, -1],
+  [0, -1],
+  [1, -1],
+  [-1, 0],
+  [1, 0],
+  [-1, 1],
+  [0, 1],
+  [1, 1],
+];
+let stampBase: Painter | null = null;
+let stampDx = 0;
+let stampDy = 0;
+const stampPainter: Painter = {
+  rect: (x, y, w, h) => stampBase!.rect(x + stampDx, y + stampDy, w, h, MATE_PAL.black, 0.9),
+  text: () => {},
+  ctext: () => {},
+  visible: (x, w) => stampBase!.visible(x, w),
+};
+
+/** Draw `fn(painter, arg)` with a 1px dark keyline (silhouette outline) so props pop against any terrain. */
+function outlineDraw<T>(P: Painter, fn: (p: Painter, arg: T) => void, arg: T): void {
+  stampBase = P;
+  for (const off of OUTLINE_OFFSETS) {
+    stampDx = off[0];
+    stampDy = off[1];
+    fn(stampPainter, arg);
+  }
+  stampBase = null;
+  fn(P, arg);
 }
 
 function drawProp(P: Painter, pr: Prop): void {
@@ -721,6 +733,25 @@ export function createMapScreen(): MapScreen {
   // and just replay the opaque quads (with camera offset + horizontal cull) every frame.
   let groundQuads: readonly GroundQuad[] = [];
   let groundKey = "";
+  // Depth-sorted prop scatter, cached with the ground (same key plus the play band), and the
+  // per-frame visible subset, reused.
+  let sortedProps: readonly Prop[] = [];
+  let propsKey = "";
+  const visibleProps: Prop[] = [];
+  // One painter for the whole screen: the surface and camera offset it reads are set each frame.
+  let curSurface: UISurface | null = null;
+  let ox = 0;
+  let oy = 0;
+  const P: Painter = {
+    rect: (x, y, w, h, color, alpha = 1) => curSurface!.rect(x + ox, y + oy, w, h, color, alpha),
+    text: (t, x, y, color, alpha = 1, scale = 1) => {
+      drawText(curSurface!, t, x + ox, y + oy, { color, alpha, scale });
+    },
+    ctext: (t, cx, y, color, alpha = 1) => {
+      if (t.length > 0) drawText(curSurface!, t, cx - measureText(t) / 2 + ox, y + oy, { color, alpha });
+    },
+    visible: (x, w) => x + w >= camX - CULL_PAD && x <= camX + viewW + CULL_PAD,
+  };
 
   function clampCam(): void {
     camX = clamp(camX, 0, Math.max(0, worldW - viewW));
@@ -752,18 +783,9 @@ export function createMapScreen(): MapScreen {
     }
     clampCam();
 
-    const ox = -camX;
-    const oy = -camY;
-    const P: Painter = {
-      rect: (x, y, w, h, color, alpha = 1) => surface.rect(x + ox, y + oy, w, h, color, alpha),
-      text: (t, x, y, color, alpha = 1, scale = 1) => {
-        drawText(surface, t, x + ox, y + oy, { color, alpha, scale });
-      },
-      ctext: (t, cx, y, color, alpha = 1) => {
-        if (t.length > 0) drawText(surface, t, cx - measureText(t) / 2 + ox, y + oy, { color, alpha });
-      },
-      visible: (x, w) => x + w >= camX - CULL_PAD && x <= camX + viewW + CULL_PAD,
-    };
+    curSurface = surface;
+    ox = -camX;
+    oy = -camY;
 
     // WORLD: ground (cached) → props (depth-sorted) → footpaths → nodes → hero → zone banners
     const key = `${L.worldW}x${L.worldH}:${L.zones.map((z) => `${z.index}@${Math.round(z.startX)}`).join(",")}`;
@@ -773,10 +795,14 @@ export function createMapScreen(): MapScreen {
     }
     for (const q of groundQuads) if (P.visible(q.x, q.w)) P.rect(q.x, q.y, q.w, q.h, q.c, 1);
 
-    const props = collectProps(L)
-      .filter((pr) => P.visible(pr.x - 30, 60))
-      .sort((a, b) => a.baseY - b.baseY); // painter's order: farther (up) first
-    for (const pr of props) outlineDraw(P, (pp) => drawProp(pp, pr));
+    const pKey = `${key}|${L.playTop}|${L.playBottom}`;
+    if (pKey !== propsKey) {
+      sortedProps = collectProps(L).sort((a, b) => a.baseY - b.baseY); // painter's order: farther (up) first
+      propsKey = pKey;
+    }
+    visibleProps.length = 0;
+    for (const pr of sortedProps) if (P.visible(pr.x - 30, 60)) visibleProps.push(pr);
+    for (const pr of visibleProps) outlineDraw(P, drawProp, pr);
 
     for (const node of run.map.nodes) {
       const from = L.nodes.get(node.id);
@@ -802,9 +828,9 @@ export function createMapScreen(): MapScreen {
     }
     if (current !== null) {
       const rect = L.nodes.get(current);
-      if (rect !== undefined) outlineDraw(P, (pp) => drawHero(pp, rect.cx, rect.cy, rect.h));
+      if (rect !== undefined) outlineDraw(P, (pp) => drawHero(pp, rect.cx, rect.cy, rect.h), 0);
     } else {
-      outlineDraw(P, (pp) => drawHero(pp, L.anchor.cx, L.anchor.cy, 0));
+      outlineDraw(P, (pp) => drawHero(pp, L.anchor.cx, L.anchor.cy, 0), 0);
     }
     for (const band of L.zones) drawZoneBanner(P, band, strings);
 
