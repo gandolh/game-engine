@@ -76,6 +76,7 @@ and `app.ts` prunes it each frame. It runs for every agent before any cull.
 
 ## Owner decisions
 
-- **The cap at 8×:** 4 Hz (recommended: fast enough to read as hurrying, slow enough that the two gait
-  meshes don't flicker) or no cap (legs match the ground exactly and may flicker).
-- **A paused walker:** holds mid-stride (recommended, as games do when paused) or keeps stepping in place, as it did on 2026-11-23.
+Settled with the owner on 2026-11-23:
+
+- **The cap at 8×: 4 Hz.** Legs stay readable; a walker slides slightly once the cap is hit.
+- **A paused walker holds mid-stride**, as games do when paused (the controller's call, not asked).
