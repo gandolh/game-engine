@@ -1,0 +1,10 @@
+{
+  "url": "http://localhost:5173/",
+  "totals": {
+    "bakeStaticLayer": 767.2,
+    "buildTileChunkDecor": 0,
+    "bakeTileChunks": 0,
+    "bakeWaterPattern": 408,
+    "setWaterDepthMask": 0.3
+  }
+}

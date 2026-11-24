@@ -1,0 +1,10 @@
+{
+  "url": "http://localhost:5173/?tilechunks",
+  "totals": {
+    "bakeStaticLayer": 0,
+    "buildTileChunkDecor": 99.8,
+    "bakeTileChunks": 163.9,
+    "bakeWaterPattern": 35.2,
+    "setWaterDepthMask": 0
+  }
+}
