@@ -1,7 +1,7 @@
 /**
  * The PNG input of `recipe-import` (corpus brief 23). One input reader per format: each turns a file into a
- * grid of swatch characters, and `import.ts` turns a grid into recipe-file text. Brief 13 adds `grid.txt` as a
- * second reader beside this one.
+ * grid of swatch characters, and `import.ts` turns a grid into recipe-file text. `grid.ts` is the second reader,
+ * for sprite-gen's `grid.txt` (brief 13).
  */
 import { PNG } from "pngjs";
 import type { AtlasConfig } from "@tool/atlas-builder";
