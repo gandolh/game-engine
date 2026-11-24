@@ -1,0 +1,3 @@
+Sealed: which method drew A and which drew B on the blind sheet (corpus brief 13), drawn at random per subject.
+Leave it sealed until both picks are in. To open: the last line is base64 (base64 -d).
+eyJhcHBsZSBpY29uIjogeyJBIjogImFnZW50IiwgIkIiOiAicGl4ZWwtZHJhdyJ9LCAic3RyaWdvaSI6IHsiQSI6ICJhZ2VudCIsICJCIjogInBpeGVsLWRyYXcifX0=
