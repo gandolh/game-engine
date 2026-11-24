@@ -1,0 +1,102 @@
+{
+ "id": "c1-gen1",
+ "purpose": "generate",
+ "candidate": "c1",
+ "outcome": "reply",
+ "mode": "subscription",
+ "auth_source": "claude-login",
+ "model": "claude-opus-5-5",
+ "effort": "high",
+ "max_tokens": 32000,
+ "request_id": null,
+ "message_id": "msg_011ChNLNoHX89ZKYVmKbevHt",
+ "batch_id": null,
+ "stop_reason": "end_turn",
+ "stop_details": null,
+ "usage": {
+  "input_tokens": 2,
+  "cache_creation_input_tokens": 1965,
+  "cache_read_input_tokens": 1006,
+  "output_tokens": 4000,
+  "output_tokens_details": {
+   "thinking_tokens": 3740
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 1965,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "global",
+  "iterations": [
+   {
+    "input_tokens": 2,
+    "output_tokens": 4000,
+    "cache_read_input_tokens": 1006,
+    "cache_creation_input_tokens": 1965,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 1965
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "thinking_tokens": 3740,
+ "cost_usd": 0.0,
+ "seconds": 37.392,
+ "finished_at": "2026-11-24T19:51:32+00:00",
+ "body_sha256": "a1220b090f11f74d6d6283265b3567eb523ecfc2d60fb77841ded4e5bde71741",
+ "prompt": "Draw: An inventory icon of a red apple with a small green leaf.\nCanvas: exactly 16x16 pixels per frame.\nPalette: use only these 32 colors and transparent, no others: #BE4A2F #D77643 #EAD4AA #E4A672 #B86F50 #733E39 #3E2731 #A22633 #E43B44 #F77622 #FEAE34 #FEE761 #63C74D #3E8948 #265C42 #193C3E #124E89 #0099DB #2CE8F5 #FFFFFF #C0CBDC #8B9BB4 #5A6988 #3A4466 #262B44 #181425 #FF0044 #68386C #B55088 #F6757A #E8B796 #C28569.\nBackground: transparent.\nSafe area: draw the icon about the size of the central 14x14 pixels - rows 2-15 and columns 2-15, counting rows and columns from 1 - inside a 1-pixel margin on every side. That is a target for its average size, not a wall: when a pose or a detail needs the room (a raised weapon, a long blade, an effect, a wide stance), it may reach past the safe area into the margin, up to the canvas edge. Keep the four corner pixels transparent.\nStyle: clean, readable pixel art for a 2D RPG: a dark (not pure black) outline around the silhouette, 2-3 shades per material, light from the top-left, no anti-aliasing noise and no stray single pixels.\n\nOutput format: exactly one fenced code block tagged `pixels`, and nothing after it:\n```pixels\nPALETTE\n. transparent\na #RRGGBB\nb #RRGGBB\n...\nFRAME <frame name>\n<16 lines, each exactly 16 characters>\n...\nEND\n```\n- Each palette line is one key character and one #RRGGBB color. Keys are single characters from a-z, A-Z, 0-9; `.` is always transparent and is never redefined.\n- Each frame is exactly 16 lines of exactly 16 characters, every character a palette key, with no spaces.\n- Frames in this order: icon. Write `FRAME <name>` before each frame and `END` once after the last frame.",
+ "reply": {
+  "text": "```pixels\nPALETTE\n. transparent\no #3E2731\nr #E43B44\nd #A22633\nh #F6757A\nw #FFFFFF\ns #733E39\ng #63C74D\nG #3E8948\nFRAME icon\n................\n.......o..ooo...\n......osoogggo..\n......osoggGo...\n...oooosooooo...\n..orhhdodrrrro..\n.orhwhrrrrrrrdo.\n.orhhrrrrrrrrdo.\n.orhrrrrrrrrrdo.\n.orrrrrrrrrrrdo.\n.orrrrrrrrrrddo.\n.odrrrrrrrrrddo.\n..odrrrrrrrddo..\n...oddrrrdddo...\n....oooooooo....\n................\nEND\n```",
+  "thinking": "",
+  "stop_reason": "end_turn",
+  "usage": {
+   "input_tokens": 2,
+   "cache_creation_input_tokens": 1965,
+   "cache_read_input_tokens": 1006,
+   "output_tokens": 4000,
+   "output_tokens_details": {
+    "thinking_tokens": 3740
+   },
+   "server_tool_use": {
+    "web_search_requests": 0,
+    "web_fetch_requests": 0
+   },
+   "service_tier": "standard",
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 1965,
+    "ephemeral_5m_input_tokens": 0
+   },
+   "inference_geo": "global",
+   "iterations": [
+    {
+     "input_tokens": 2,
+     "output_tokens": 4000,
+     "cache_read_input_tokens": 1006,
+     "cache_creation_input_tokens": 1965,
+     "cache_creation": {
+      "ephemeral_5m_input_tokens": 0,
+      "ephemeral_1h_input_tokens": 1965
+     },
+     "type": "message"
+    }
+   ],
+   "speed": "standard",
+   "fallback_credit": null
+  },
+  "model": "claude-opus-5-5",
+  "message_id": "msg_011ChNLNoHX89ZKYVmKbevHt",
+  "stop_details": null,
+  "request_id": null,
+  "batch_id": null,
+  "mode": "subscription",
+  "seconds": 37.392
+ }
+}

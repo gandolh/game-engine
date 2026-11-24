@@ -1,0 +1,495 @@
+{
+ "kind": "sprite-gen-pixel-draw-report",
+ "status": "ok",
+ "out_dir": "pixel-draw/strigoi",
+ "source": "model",
+ "model": "claude-opus-5-5",
+ "auth_source": "claude-login",
+ "request": {
+  "subject": "A strigoi from Romanian folklore: a pale undead figure in a dark ragged cloak, side view facing left, standing.",
+  "size": 32,
+  "kind": "sprite",
+  "frames": [
+   "sprite"
+  ],
+  "walk_cycle": false,
+  "palette": {
+   "name": "fixed",
+   "limit": 32,
+   "colors": [
+    "#B33831",
+    "#CD683D",
+    "#FDCBB0",
+    "#E6904E",
+    "#9E4539",
+    "#6E2727",
+    "#45293F",
+    "#AE2334",
+    "#E83B3B",
+    "#FB6B1D",
+    "#F9C22B",
+    "#FBFF86",
+    "#91DB69",
+    "#239063",
+    "#165A4C",
+    "#0B5E65",
+    "#4D65B4",
+    "#4D9BE6",
+    "#30E1B9",
+    "#FFFFFF",
+    "#C7DCD0",
+    "#9BABB2",
+    "#7F708A",
+    "#323353",
+    "#3E3546",
+    "#2E222F",
+    "#F04F78",
+    "#6B3E75",
+    "#A24B6F",
+    "#F68181",
+    "#FCA790",
+    "#AB947A"
+   ]
+  },
+  "candidates": 2,
+  "effort": "high",
+  "answer_format": "chargrid",
+  "batch": false,
+  "max_tokens": 32000,
+  "pick": "vision",
+  "style": null,
+  "motion": null,
+  "poses": {},
+  "duration_ms": 150
+ },
+ "chosen": "c2",
+ "files": {
+  "grid": "grid.txt",
+  "palette": "palette.json",
+  "preview": "preview-x8.png",
+  "frames": {
+   "sprite": "frame-sprite.png"
+  }
+ },
+ "pick": {
+  "by": "vision",
+  "call": "pick",
+  "sheet": "pick-sheet.png",
+  "labels": {
+   "A": "c1",
+   "B": "c2"
+  },
+  "best": "c2",
+  "verdict": {
+   "candidates": [
+    {
+     "label": "A",
+     "subject_read": 3,
+     "craft": 3,
+     "consistency": 0,
+     "verdict": "touch_up",
+     "note": "Pale face and cloak read clearly, but the red hair is odd, the cloak isn't very ragged and the head is small next to a bulky body."
+    },
+    {
+     "label": "B",
+     "subject_read": 4,
+     "craft": 4,
+     "consistency": 0,
+     "verdict": "ship",
+     "note": "The hooded pale face with red eye and clawed reaching hand reads strongly as a cloaked undead, with clean outline and shading."
+    }
+   ],
+   "best": "B",
+   "any_shippable": true
+  }
+ },
+ "candidates": [
+  {
+   "id": "c1",
+   "status": "passed",
+   "reason": null,
+   "effort": "high",
+   "generations": [
+    "c1-gen1"
+   ],
+   "redraws": [],
+   "repairs": [],
+   "G1": {
+    "ok": true,
+    "issues": [],
+    "recovered": []
+   },
+   "gates": {
+    "ok": true,
+    "failed": [],
+    "warnings": [],
+    "info": [],
+    "G2": {
+     "ok": true,
+     "colors_used": 10,
+     "limit": 32,
+     "palette": "fixed",
+     "off_palette": []
+    },
+    "G3": {
+     "ok": true,
+     "kind": "sprite",
+     "frames": {
+      "sprite": {
+       "opaque_pixels": 419,
+       "opaque_fraction": 0.4092,
+       "corners_transparent": true,
+       "verdict": "real-alpha",
+       "alpha_zero_pct": 59.08,
+       "border_alpha_zero_pct": 100.0
+      }
+     }
+    },
+    "G5": {
+     "warn": false,
+     "isolated_pixels": 0,
+     "frames": {
+      "sprite": 0
+     }
+    },
+    "G8": {
+     "warn": false,
+     "margin": [
+      3,
+      3
+     ],
+     "safe_area": [
+      26,
+      26
+     ],
+     "physical_cap": [
+      32,
+      29
+     ],
+     "safe_box": [
+      3,
+      3,
+      28,
+      28
+     ],
+     "floor_row": 28,
+     "over_cap": [],
+     "past_safe_area": [],
+     "off_floor": {},
+     "frames": {
+      "sprite": {
+       "bbox": [
+        3,
+        3,
+        27,
+        28
+       ],
+       "size": [
+        25,
+        26
+       ],
+       "body_box": [
+        6,
+        4,
+        25,
+        28
+       ]
+      }
+     }
+    }
+   },
+   "warnings": [],
+   "info": [],
+   "files": {
+    "grid": "candidates/c1/grid.txt",
+    "palette": "candidates/c1/palette.json",
+    "preview": "candidates/c1/preview-x8.png",
+    "frames": {
+     "sprite": "candidates/c1/frame-sprite.png"
+    }
+   }
+  },
+  {
+   "id": "c2",
+   "status": "passed",
+   "reason": null,
+   "effort": "high",
+   "generations": [
+    "c2-gen1"
+   ],
+   "redraws": [],
+   "repairs": [],
+   "G1": {
+    "ok": true,
+    "issues": [],
+    "recovered": []
+   },
+   "gates": {
+    "ok": true,
+    "failed": [],
+    "warnings": [],
+    "info": [],
+    "G2": {
+     "ok": true,
+     "colors_used": 10,
+     "limit": 32,
+     "palette": "fixed",
+     "off_palette": []
+    },
+    "G3": {
+     "ok": true,
+     "kind": "sprite",
+     "frames": {
+      "sprite": {
+       "opaque_pixels": 442,
+       "opaque_fraction": 0.4316,
+       "corners_transparent": true,
+       "verdict": "real-alpha",
+       "alpha_zero_pct": 56.84,
+       "border_alpha_zero_pct": 100.0
+      }
+     }
+    },
+    "G5": {
+     "warn": false,
+     "isolated_pixels": 0,
+     "frames": {
+      "sprite": 0
+     }
+    },
+    "G8": {
+     "warn": false,
+     "margin": [
+      3,
+      3
+     ],
+     "safe_area": [
+      26,
+      26
+     ],
+     "physical_cap": [
+      32,
+      29
+     ],
+     "safe_box": [
+      3,
+      3,
+      28,
+      28
+     ],
+     "floor_row": 28,
+     "over_cap": [],
+     "past_safe_area": [],
+     "off_floor": {},
+     "frames": {
+      "sprite": {
+       "bbox": [
+        1,
+        3,
+        26,
+        28
+       ],
+       "size": [
+        26,
+        26
+       ],
+       "body_box": [
+        3,
+        3,
+        25,
+        28
+       ]
+      }
+     }
+    }
+   },
+   "warnings": [],
+   "info": [],
+   "files": {
+    "grid": "candidates/c2/grid.txt",
+    "palette": "candidates/c2/palette.json",
+    "preview": "candidates/c2/preview-x8.png",
+    "frames": {
+     "sprite": "candidates/c2/frame-sprite.png"
+    }
+   }
+  }
+ ],
+ "warnings": [],
+ "info": [],
+ "calls": [
+  {
+   "id": "c1-gen1",
+   "purpose": "generate",
+   "candidate": "c1",
+   "outcome": "reply",
+   "mode": "subscription",
+   "auth_source": "claude-login",
+   "model": "claude-opus-5-5",
+   "effort": "high",
+   "max_tokens": 32000,
+   "request_id": null,
+   "message_id": "msg_011ChNL9NoG6V1BKh4ZsMmhq",
+   "batch_id": null,
+   "stop_reason": "end_turn",
+   "stop_details": null,
+   "usage": {
+    "input_tokens": 2,
+    "cache_creation_input_tokens": 3056,
+    "cache_read_input_tokens": 0,
+    "output_tokens": 16713,
+    "output_tokens_details": {
+     "thinking_tokens": 16186
+    },
+    "server_tool_use": {
+     "web_search_requests": 0,
+     "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+     "ephemeral_1h_input_tokens": 3056,
+     "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+     {
+      "input_tokens": 2,
+      "output_tokens": 16713,
+      "cache_read_input_tokens": 0,
+      "cache_creation_input_tokens": 3056,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 3056
+      },
+      "type": "message"
+     }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+   },
+   "thinking_tokens": 16186,
+   "cost_usd": 0.0,
+   "seconds": 143.284,
+   "finished_at": "2026-11-24T19:50:25+00:00"
+  },
+  {
+   "id": "c2-gen1",
+   "purpose": "generate",
+   "candidate": "c2",
+   "outcome": "reply",
+   "mode": "subscription",
+   "auth_source": "claude-login",
+   "model": "claude-opus-5-5",
+   "effort": "high",
+   "max_tokens": 32000,
+   "request_id": null,
+   "message_id": "msg_011ChNL9PGYB81ohc2vHGKcq",
+   "batch_id": null,
+   "stop_reason": "end_turn",
+   "stop_details": null,
+   "usage": {
+    "input_tokens": 2,
+    "cache_creation_input_tokens": 3056,
+    "cache_read_input_tokens": 0,
+    "output_tokens": 19230,
+    "output_tokens_details": {
+     "thinking_tokens": 18710
+    },
+    "server_tool_use": {
+     "web_search_requests": 0,
+     "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+     "ephemeral_1h_input_tokens": 3056,
+     "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+     {
+      "input_tokens": 2,
+      "output_tokens": 19230,
+      "cache_read_input_tokens": 0,
+      "cache_creation_input_tokens": 3056,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 3056
+      },
+      "type": "message"
+     }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+   },
+   "thinking_tokens": 18710,
+   "cost_usd": 0.0,
+   "seconds": 164.094,
+   "finished_at": "2026-11-24T19:50:47+00:00"
+  },
+  {
+   "id": "pick",
+   "purpose": "pick",
+   "candidate": null,
+   "outcome": "reply",
+   "mode": "subscription",
+   "auth_source": "claude-login",
+   "model": "claude-opus-5-5",
+   "effort": "low",
+   "max_tokens": 16000,
+   "request_id": null,
+   "message_id": "msg_011ChNLNQS6TeWWJYbnNLZx6",
+   "batch_id": null,
+   "stop_reason": "tool_use",
+   "stop_details": null,
+   "usage": {
+    "input_tokens": 2,
+    "cache_creation_input_tokens": 3390,
+    "cache_read_input_tokens": 0,
+    "output_tokens": 271,
+    "output_tokens_details": {
+     "thinking_tokens": 0
+    },
+    "server_tool_use": {
+     "web_search_requests": 0,
+     "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+     "ephemeral_1h_input_tokens": 3390,
+     "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+     {
+      "input_tokens": 2,
+      "output_tokens": 271,
+      "cache_read_input_tokens": 0,
+      "cache_creation_input_tokens": 3390,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 3390
+      },
+      "type": "message"
+     }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+   },
+   "thinking_tokens": 0,
+   "cost_usd": 0.0,
+   "seconds": 4.274,
+   "finished_at": "2026-11-24T19:50:51+00:00",
+   "image": "pick-sheet.png"
+  }
+ ],
+ "batches": [],
+ "usage": {
+  "input_tokens": 6,
+  "output_tokens": 36214,
+  "thinking_tokens": 34896,
+  "cache_creation_input_tokens": 9502,
+  "cache_read_input_tokens": 0
+ },
+ "cost_usd": 0.0,
+ "seconds": 168.411
+}

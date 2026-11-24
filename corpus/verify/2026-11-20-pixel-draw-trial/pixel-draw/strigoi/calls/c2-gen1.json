@@ -1,0 +1,102 @@
+{
+ "id": "c2-gen1",
+ "purpose": "generate",
+ "candidate": "c2",
+ "outcome": "reply",
+ "mode": "subscription",
+ "auth_source": "claude-login",
+ "model": "claude-opus-5-5",
+ "effort": "high",
+ "max_tokens": 32000,
+ "request_id": null,
+ "message_id": "msg_011ChNL9PGYB81ohc2vHGKcq",
+ "batch_id": null,
+ "stop_reason": "end_turn",
+ "stop_details": null,
+ "usage": {
+  "input_tokens": 2,
+  "cache_creation_input_tokens": 3056,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 19230,
+  "output_tokens_details": {
+   "thinking_tokens": 18710
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 3056,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "global",
+  "iterations": [
+   {
+    "input_tokens": 2,
+    "output_tokens": 19230,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 3056,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 3056
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "thinking_tokens": 18710,
+ "cost_usd": 0.0,
+ "seconds": 164.094,
+ "finished_at": "2026-11-24T19:50:47+00:00",
+ "body_sha256": "94ae64538ba000b87dd0ac916301bd89c3d808892ac45ad6f91c7eafc4e8b406",
+ "prompt": "Draw: A strigoi from Romanian folklore: a pale undead figure in a dark ragged cloak, side view facing left, standing.\nCanvas: exactly 32x32 pixels per frame.\nPalette: use only these 32 colors and transparent, no others: #B33831 #CD683D #FDCBB0 #E6904E #9E4539 #6E2727 #45293F #AE2334 #E83B3B #FB6B1D #F9C22B #FBFF86 #91DB69 #239063 #165A4C #0B5E65 #4D65B4 #4D9BE6 #30E1B9 #FFFFFF #C7DCD0 #9BABB2 #7F708A #323353 #3E3546 #2E222F #F04F78 #6B3E75 #A24B6F #F68181 #FCA790 #AB947A.\nBackground: transparent.\nSafe area: draw the subject's body about the size of the central 26x26 pixels - rows 4-29 and columns 4-29, counting rows and columns from 1 - inside a 3-pixel margin on every side. That is a target for its average size, not a wall: when a pose or a detail needs the room (a raised weapon, a long blade, an effect, a wide stance), it may reach past the safe area into the margin, up to the canvas edge. Keep the four corner pixels transparent.\nFloor: row 29, the bottom row of the safe area, is the ground: the feet (or the lowest point the subject rests on) stand on row 29.\nStyle: clean, readable pixel art for a 2D RPG: a dark (not pure black) outline around the silhouette, 2-3 shades per material, light from the top-left, no anti-aliasing noise and no stray single pixels.\n\nOutput format: exactly one fenced code block tagged `pixels`, and nothing after it:\n```pixels\nPALETTE\n. transparent\na #RRGGBB\nb #RRGGBB\n...\nFRAME <frame name>\n<32 lines, each exactly 32 characters>\n...\nEND\n```\n- Each palette line is one key character and one #RRGGBB color. Keys are single characters from a-z, A-Z, 0-9; `.` is always transparent and is never redefined.\n- Each frame is exactly 32 lines of exactly 32 characters, every character a palette key, with no spaces.\n- Frames in this order: sprite. Write `FRAME <name>` before each frame and `END` once after the last frame.",
+ "reply": {
+  "text": "```pixels\nPALETTE\n. transparent\no #2E222F\nd #3E3546\nc #45293F\nl #6B3E75\ns #C7DCD0\nw #FFFFFF\ng #9BABB2\nx #7F708A\nr #E83B3B\nm #6E2727\nFRAME sprite\n................................\n................................\n................................\n..............oooooo............\n.............olllccco...........\n............ollcccccdo..........\n..........oollcccccddo..........\n.........olllccccccdddo.........\n.........ooodddcccccddo.........\n.........owrsgdcccccddo.........\n........osssggdccccdddo.........\n.........ommsgddccccdddo........\n.........owsgxddcccccddo........\n..........ooollccccccddo........\n.........oolllcccccccddo........\n..ooooooolllcdldcccldcddo.......\n.oswwwwsolcccdldcccldcddo.......\n.osssgggocccddldcccldcddo.......\n.osogooooccodcldcccldcddo.......\n.owowo..ocdolcldcccldcddo.......\n..o.o...ooolccldcccldcddo.......\n..........olccldcccldcddo.......\n.........olcccldcccldccddo......\n.........olcccldcccldccddo......\n........olccccldcccldccddo......\n.....oooolccccldcccldcccddo.....\n....owsgolccccldcccldcccddo.....\n...ossggolcoccdoocdocdocddo.....\n...oooooooo.ooo..oo.oo.ooo......\n................................\n................................\n................................\nEND\n```",
+  "thinking": "",
+  "stop_reason": "end_turn",
+  "usage": {
+   "input_tokens": 2,
+   "cache_creation_input_tokens": 3056,
+   "cache_read_input_tokens": 0,
+   "output_tokens": 19230,
+   "output_tokens_details": {
+    "thinking_tokens": 18710
+   },
+   "server_tool_use": {
+    "web_search_requests": 0,
+    "web_fetch_requests": 0
+   },
+   "service_tier": "standard",
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 3056,
+    "ephemeral_5m_input_tokens": 0
+   },
+   "inference_geo": "global",
+   "iterations": [
+    {
+     "input_tokens": 2,
+     "output_tokens": 19230,
+     "cache_read_input_tokens": 0,
+     "cache_creation_input_tokens": 3056,
+     "cache_creation": {
+      "ephemeral_5m_input_tokens": 0,
+      "ephemeral_1h_input_tokens": 3056
+     },
+     "type": "message"
+    }
+   ],
+   "speed": "standard",
+   "fallback_credit": null
+  },
+  "model": "claude-opus-5-5",
+  "message_id": "msg_011ChNL9PGYB81ohc2vHGKcq",
+  "stop_details": null,
+  "request_id": null,
+  "batch_id": null,
+  "mode": "subscription",
+  "seconds": 164.094
+ }
+}

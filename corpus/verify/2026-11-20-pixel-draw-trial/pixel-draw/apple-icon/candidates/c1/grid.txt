@@ -1,0 +1,28 @@
+PALETTE
+. transparent
+o #3E2731
+r #E43B44
+d #A22633
+h #F6757A
+w #FFFFFF
+s #733E39
+g #63C74D
+G #3E8948
+FRAME icon
+................
+.......o..ooo...
+......osoogggo..
+......osoggGo...
+...oooosooooo...
+..orhhdodrrrro..
+.orhwhrrrrrrrdo.
+.orhhrrrrrrrrdo.
+.orhrrrrrrrrrdo.
+.orrrrrrrrrrrdo.
+.orrrrrrrrrrddo.
+.odrrrrrrrrrddo.
+..odrrrrrrrddo..
+...oddrrrdddo...
+....oooooooo....
+................
+END

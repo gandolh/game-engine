@@ -1,0 +1,495 @@
+{
+ "kind": "sprite-gen-pixel-draw-report",
+ "status": "ok",
+ "out_dir": "pixel-draw/apple-icon",
+ "source": "model",
+ "model": "claude-opus-5-5",
+ "auth_source": "claude-login",
+ "request": {
+  "subject": "An inventory icon of a red apple with a small green leaf.",
+  "size": 16,
+  "kind": "icon",
+  "frames": [
+   "icon"
+  ],
+  "walk_cycle": false,
+  "palette": {
+   "name": "fixed",
+   "limit": 32,
+   "colors": [
+    "#BE4A2F",
+    "#D77643",
+    "#EAD4AA",
+    "#E4A672",
+    "#B86F50",
+    "#733E39",
+    "#3E2731",
+    "#A22633",
+    "#E43B44",
+    "#F77622",
+    "#FEAE34",
+    "#FEE761",
+    "#63C74D",
+    "#3E8948",
+    "#265C42",
+    "#193C3E",
+    "#124E89",
+    "#0099DB",
+    "#2CE8F5",
+    "#FFFFFF",
+    "#C0CBDC",
+    "#8B9BB4",
+    "#5A6988",
+    "#3A4466",
+    "#262B44",
+    "#181425",
+    "#FF0044",
+    "#68386C",
+    "#B55088",
+    "#F6757A",
+    "#E8B796",
+    "#C28569"
+   ]
+  },
+  "candidates": 2,
+  "effort": "high",
+  "answer_format": "chargrid",
+  "batch": false,
+  "max_tokens": 32000,
+  "pick": "vision",
+  "style": null,
+  "motion": null,
+  "poses": {},
+  "duration_ms": 150
+ },
+ "chosen": "c1",
+ "files": {
+  "grid": "grid.txt",
+  "palette": "palette.json",
+  "preview": "preview-x16.png",
+  "frames": {
+   "icon": "frame-icon.png"
+  }
+ },
+ "pick": {
+  "by": "vision",
+  "call": "pick",
+  "sheet": "pick-sheet.png",
+  "labels": {
+   "A": "c1",
+   "B": "c2"
+  },
+  "best": "c1",
+  "verdict": {
+   "candidates": [
+    {
+     "label": "A",
+     "subject_read": 5,
+     "craft": 4,
+     "consistency": 0,
+     "verdict": "ship",
+     "note": "Clean outline, consistent right-side shading and clear highlight; only the slightly flat bottom is a minor flaw."
+    },
+    {
+     "label": "B",
+     "subject_read": 5,
+     "craft": 3,
+     "consistency": 0,
+     "verdict": "touch_up",
+     "note": "Reads well, but the notched bottom and dented leaf make the outline a bit rough, and the highlight is a hard block."
+    }
+   ],
+   "best": "A",
+   "any_shippable": true
+  }
+ },
+ "candidates": [
+  {
+   "id": "c1",
+   "status": "passed",
+   "reason": null,
+   "effort": "high",
+   "generations": [
+    "c1-gen1"
+   ],
+   "redraws": [],
+   "repairs": [],
+   "G1": {
+    "ok": true,
+    "issues": [],
+    "recovered": []
+   },
+   "gates": {
+    "ok": true,
+    "failed": [],
+    "warnings": [],
+    "info": [],
+    "G2": {
+     "ok": true,
+     "colors_used": 8,
+     "limit": 32,
+     "palette": "fixed",
+     "off_palette": []
+    },
+    "G3": {
+     "ok": true,
+     "kind": "icon",
+     "frames": {
+      "icon": {
+       "opaque_pixels": 155,
+       "opaque_fraction": 0.6055,
+       "corners_transparent": true,
+       "verdict": "real-alpha",
+       "alpha_zero_pct": 39.45,
+       "border_alpha_zero_pct": 100.0
+      }
+     }
+    },
+    "G5": {
+     "warn": false,
+     "isolated_pixels": 0,
+     "frames": {
+      "icon": 0
+     }
+    },
+    "G8": {
+     "warn": false,
+     "margin": [
+      1,
+      1
+     ],
+     "safe_area": [
+      14,
+      14
+     ],
+     "physical_cap": [
+      16,
+      15
+     ],
+     "safe_box": [
+      1,
+      1,
+      14,
+      14
+     ],
+     "floor_row": null,
+     "over_cap": [],
+     "past_safe_area": [],
+     "off_floor": {},
+     "frames": {
+      "icon": {
+       "bbox": [
+        1,
+        1,
+        14,
+        14
+       ],
+       "size": [
+        14,
+        14
+       ],
+       "body_box": [
+        1,
+        1,
+        14,
+        14
+       ]
+      }
+     }
+    }
+   },
+   "warnings": [],
+   "info": [],
+   "files": {
+    "grid": "candidates/c1/grid.txt",
+    "palette": "candidates/c1/palette.json",
+    "preview": "candidates/c1/preview-x16.png",
+    "frames": {
+     "icon": "candidates/c1/frame-icon.png"
+    }
+   }
+  },
+  {
+   "id": "c2",
+   "status": "passed",
+   "reason": null,
+   "effort": "high",
+   "generations": [
+    "c2-gen1"
+   ],
+   "redraws": [],
+   "repairs": [],
+   "G1": {
+    "ok": true,
+    "issues": [],
+    "recovered": []
+   },
+   "gates": {
+    "ok": true,
+    "failed": [],
+    "warnings": [],
+    "info": [],
+    "G2": {
+     "ok": true,
+     "colors_used": 8,
+     "limit": 32,
+     "palette": "fixed",
+     "off_palette": []
+    },
+    "G3": {
+     "ok": true,
+     "kind": "icon",
+     "frames": {
+      "icon": {
+       "opaque_pixels": 149,
+       "opaque_fraction": 0.582,
+       "corners_transparent": true,
+       "verdict": "real-alpha",
+       "alpha_zero_pct": 41.8,
+       "border_alpha_zero_pct": 100.0
+      }
+     }
+    },
+    "G5": {
+     "warn": false,
+     "isolated_pixels": 0,
+     "frames": {
+      "icon": 0
+     }
+    },
+    "G8": {
+     "warn": false,
+     "margin": [
+      1,
+      1
+     ],
+     "safe_area": [
+      14,
+      14
+     ],
+     "physical_cap": [
+      16,
+      15
+     ],
+     "safe_box": [
+      1,
+      1,
+      14,
+      14
+     ],
+     "floor_row": null,
+     "over_cap": [],
+     "past_safe_area": [],
+     "off_floor": {},
+     "frames": {
+      "icon": {
+       "bbox": [
+        1,
+        1,
+        14,
+        14
+       ],
+       "size": [
+        14,
+        14
+       ],
+       "body_box": [
+        1,
+        1,
+        14,
+        14
+       ]
+      }
+     }
+    }
+   },
+   "warnings": [],
+   "info": [],
+   "files": {
+    "grid": "candidates/c2/grid.txt",
+    "palette": "candidates/c2/palette.json",
+    "preview": "candidates/c2/preview-x16.png",
+    "frames": {
+     "icon": "candidates/c2/frame-icon.png"
+    }
+   }
+  }
+ ],
+ "warnings": [],
+ "info": [],
+ "calls": [
+  {
+   "id": "c1-gen1",
+   "purpose": "generate",
+   "candidate": "c1",
+   "outcome": "reply",
+   "mode": "subscription",
+   "auth_source": "claude-login",
+   "model": "claude-opus-5-5",
+   "effort": "high",
+   "max_tokens": 32000,
+   "request_id": null,
+   "message_id": "msg_011ChNLNoHX89ZKYVmKbevHt",
+   "batch_id": null,
+   "stop_reason": "end_turn",
+   "stop_details": null,
+   "usage": {
+    "input_tokens": 2,
+    "cache_creation_input_tokens": 1965,
+    "cache_read_input_tokens": 1006,
+    "output_tokens": 4000,
+    "output_tokens_details": {
+     "thinking_tokens": 3740
+    },
+    "server_tool_use": {
+     "web_search_requests": 0,
+     "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+     "ephemeral_1h_input_tokens": 1965,
+     "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+     {
+      "input_tokens": 2,
+      "output_tokens": 4000,
+      "cache_read_input_tokens": 1006,
+      "cache_creation_input_tokens": 1965,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 1965
+      },
+      "type": "message"
+     }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+   },
+   "thinking_tokens": 3740,
+   "cost_usd": 0.0,
+   "seconds": 37.392,
+   "finished_at": "2026-11-24T19:51:32+00:00"
+  },
+  {
+   "id": "c2-gen1",
+   "purpose": "generate",
+   "candidate": "c2",
+   "outcome": "reply",
+   "mode": "subscription",
+   "auth_source": "claude-login",
+   "model": "claude-opus-5-5",
+   "effort": "high",
+   "max_tokens": 32000,
+   "request_id": null,
+   "message_id": "msg_011ChNLNoAagCLx8Ar2rTMcQ",
+   "batch_id": null,
+   "stop_reason": "end_turn",
+   "stop_details": null,
+   "usage": {
+    "input_tokens": 2,
+    "cache_creation_input_tokens": 1964,
+    "cache_read_input_tokens": 1006,
+    "output_tokens": 3733,
+    "output_tokens_details": {
+     "thinking_tokens": 3471
+    },
+    "server_tool_use": {
+     "web_search_requests": 0,
+     "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+     "ephemeral_1h_input_tokens": 1964,
+     "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+     {
+      "input_tokens": 2,
+      "output_tokens": 3733,
+      "cache_read_input_tokens": 1006,
+      "cache_creation_input_tokens": 1964,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 1964
+      },
+      "type": "message"
+     }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+   },
+   "thinking_tokens": 3471,
+   "cost_usd": 0.0,
+   "seconds": 35.637,
+   "finished_at": "2026-11-24T19:51:30+00:00"
+  },
+  {
+   "id": "pick",
+   "purpose": "pick",
+   "candidate": null,
+   "outcome": "reply",
+   "mode": "subscription",
+   "auth_source": "claude-login",
+   "model": "claude-opus-5-5",
+   "effort": "low",
+   "max_tokens": 16000,
+   "request_id": null,
+   "message_id": "msg_011ChNLRot5D95hNbDEosFNj",
+   "batch_id": null,
+   "stop_reason": "tool_use",
+   "stop_details": null,
+   "usage": {
+    "input_tokens": 2,
+    "cache_creation_input_tokens": 2643,
+    "cache_read_input_tokens": 725,
+    "output_tokens": 535,
+    "output_tokens_details": {
+     "thinking_tokens": 92
+    },
+    "server_tool_use": {
+     "web_search_requests": 0,
+     "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+     "ephemeral_1h_input_tokens": 2643,
+     "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+     {
+      "input_tokens": 2,
+      "output_tokens": 535,
+      "cache_read_input_tokens": 725,
+      "cache_creation_input_tokens": 2643,
+      "cache_creation": {
+       "ephemeral_5m_input_tokens": 0,
+       "ephemeral_1h_input_tokens": 2643
+      },
+      "type": "message"
+     }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+   },
+   "thinking_tokens": 92,
+   "cost_usd": 0.0,
+   "seconds": 6.386,
+   "finished_at": "2026-11-24T19:51:38+00:00",
+   "image": "pick-sheet.png"
+  }
+ ],
+ "batches": [],
+ "usage": {
+  "input_tokens": 6,
+  "output_tokens": 8268,
+  "thinking_tokens": 7303,
+  "cache_creation_input_tokens": 6572,
+  "cache_read_input_tokens": 2737
+ },
+ "cost_usd": 0.0,
+ "seconds": 43.808
+}
