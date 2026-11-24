@@ -5,9 +5,9 @@ import type { TileRegionPx } from "./tile-span";
 
 type AnyCtx2D = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 
-const BAND_ALPHA = [0.42, 0.3, 0.2, 0.11] as const;
+export const BAND_ALPHA = [0.42, 0.3, 0.2, 0.11] as const;
 
-function oceanDir(rotation: number): { dx: number; dy: number } {
+export function oceanDir(rotation: number): { dx: number; dy: number } {
   const r = ((rotation % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
   const q = Math.round(r / (Math.PI / 2)) % 4;
   if (q === 0) return { dx: 0, dy: -1 };

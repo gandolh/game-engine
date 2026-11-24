@@ -7,7 +7,7 @@ import type { TileRegionPx } from "./tile-span";
 
 type AnyCtx2D = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 
-const SPECKLE: ReadonlyArray<{ density: number; alpha: number; colors: readonly string[] } | null> = [
+export const SPECKLE: ReadonlyArray<{ density: number; alpha: number; colors: readonly string[] } | null> = [
   null,
   { density: 0.3, alpha: 0.26, colors: [EDG.cyan, EDG.skyBlue] },
   { density: 0.16, alpha: 0.18, colors: [EDG.skyBlue, EDG.blue] },
@@ -15,9 +15,9 @@ const SPECKLE: ReadonlyArray<{ density: number; alpha: number; colors: readonly 
   null,
 ];
 
-const SPECKLE_PX = 2;
+export const SPECKLE_PX = 2;
 
-const SPECKLE_COLOR_SEED = 0x85ebca6b;
+export const SPECKLE_COLOR_SEED = 0x85ebca6b;
 
 export function makeWaterDepthDecorator(
   tilePx: number,

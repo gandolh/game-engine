@@ -158,6 +158,27 @@ vi.mock("./static-layer-pass", () => ({
   },
 }));
 
+// The tile-chunk spike (corpus brief 21); its own tests are ./tile-chunk-pass.test.ts.
+vi.mock("./tile-chunk-pass", () => ({
+  TileChunkPass: class {
+    built = false;
+    stats = {};
+    build(): void {
+      this.built = true;
+      rec.life.push("chunks.build");
+    }
+    clear(): void {
+      this.built = false;
+    }
+    restore(): void {
+      rec.life.push("chunks.restore");
+    }
+    draw(): void {
+      rec.order.push("chunks");
+    }
+  },
+}));
+
 vi.mock("./water-pass", () => ({
   WaterPass: class {
     constructor() {
@@ -780,6 +801,34 @@ describe("WebGl2Renderer guards", () => {
     const r = makeRenderer();
     r.beginFrame();
     expect(rec.order).toContain("resize");
+  });
+});
+
+describe("WebGl2Renderer tile-chunk hook (brief 21 spike)", () => {
+  it("draws the chunks where the static layer was, and the static layer again once cleared", () => {
+    const r = makeRenderer();
+    r.bakeTileChunks([makeSprite()], 64, 64, 16);
+    r.beginFrame();
+    r.endFrame();
+    const drawOnly = rec.order.filter((s) => !s.includes("setView") && s !== "resize");
+    expect(drawOnly.slice(0, 4)).toEqual(["clear", "water", "chunks", "shadows"]);
+    expect(drawOnly).not.toContain("static");
+
+    r.clearStaticLayer();
+    rec.order.length = 0;
+    r.beginFrame();
+    r.endFrame();
+    expect(rec.order).toContain("static");
+    expect(rec.order).not.toContain("chunks");
+  });
+
+  it("asks the chunks to rebuild themselves after a context restore", () => {
+    const r = makeRenderer();
+    r.bakeTileChunks([makeSprite()], 64, 64, 16);
+    rec.life.length = 0;
+    rec.contexts[rec.contexts.length - 1].simulateLossAndRestore();
+    expect(rec.life).toContain("chunks.restore");
+    expect(rec.life).not.toContain("staticPass.bake");
   });
 });
 

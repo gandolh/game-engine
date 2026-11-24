@@ -47,6 +47,7 @@ import type { ParticleDirector } from "./particles";
 import type { SimClient } from "../net/sim-client";
 import type { AmbientLayer } from "./ambient";
 import { farmProfileExtra } from "./profile-export";
+import { tileChunkProfile } from "./static-layer";
 import { renderWeather } from "./render-weather";
 
 const HELD_TOOL_ANCHOR: Record<"down" | "up" | "side", { dx: number; dy: number; behind: boolean }> = {
@@ -291,9 +292,18 @@ export function createRenderLoop(deps: RenderLoopDeps): FrameLoop {
     // Farm's export fields before the shared schema (run, display, camera, worker profile) ride along
     // under `extra.farm`; the overlay shows the shared frame stats and carries the export button.
     profile.setSeed(seed);
-    profile.setExtra(() => ({
-      farm: farmProfileExtra({ overlay, camera: renderer.camera, context: { seed, maxDays, ticksPerDay } }),
-    }));
+    profile.setExtra(() => {
+      const extra: Record<string, unknown> = {
+        farm: farmProfileExtra({ overlay, camera: renderer.camera, context: { seed, maxDays, ticksPerDay } }),
+      };
+      // `?tilechunks` (brief 21 spike): what the chunk pass holds and what its build cost. Absent without the flag.
+      const chunks = tileChunkProfile();
+      if (chunks !== null) {
+        const { chunks: built, instances, decorInstances, bufferBytes, buildMs } = chunks.stats;
+        extra.tileChunks = { chunks: built, instances, decorInstances, bufferBytes, buildMs, decorMs: chunks.decorMs };
+      }
+      return extra;
+    });
     profile.attachOverlay(overlay);
     profile.start();
   }
@@ -684,6 +694,12 @@ export function createRenderLoop(deps: RenderLoopDeps): FrameLoop {
       frameProfiler.add("render.sort", renderer.lastDrawStats.sortMs);
       frameProfiler.add("render.ghost", renderer.lastDrawStats.ghostMs);
       frameProfiler.add("draw.atlases", renderer.lastDrawStats.atlases);
+    }
+    // `?tilechunks` (brief 21 spike): the chunk pass's CPU ms and GL draws this frame. Absent without the flag.
+    const chunks = PROFILE_ENABLED ? tileChunkProfile() : null;
+    if (chunks !== null) {
+      frameProfiler.add("render.tileChunks", chunks.stats.lastMs);
+      frameProfiler.add("draw.tileChunks", chunks.stats.lastDraws);
     }
 
     overlay.update({ tick: client.tick, alpha: 0, entityCount: client.entityCount });

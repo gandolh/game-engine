@@ -24,6 +24,8 @@ import type { GlSpriteInstance } from "./sprite-batch";
 import { ShadowBatch } from "./shadow-batch";
 import { Overlay2D } from "../overlay-2d";
 import { StaticLayerPass } from "./static-layer-pass";
+import { TileChunkPass } from "./tile-chunk-pass";
+import type { TileChunkDecor } from "./tile-chunk-pass";
 import { WaterPass } from "./water-pass";
 import type { VisibleRect } from "./static-layer-pass";
 import { ParticleBatch } from "./particle-batch";
@@ -128,6 +130,8 @@ export class WebGl2Renderer implements RendererLike {
   private _shadowBatch: ShadowBatch;
   private readonly _overlay: Overlay2D;
   private _staticPass: StaticLayerPass;
+  /** The tile-chunk spike (corpus brief 21): when built, it draws in place of the static layer. */
+  private _tileChunks: TileChunkPass | null = null;
   private _waterPass: WaterPass;
   private _particleBatch: ParticleBatch;
   private _weatherPass: WeatherPass;
@@ -370,6 +374,7 @@ export class WebGl2Renderer implements RendererLike {
     }
     this._waterPass.setScroll(this._waterScroll.x, this._waterScroll.y);
     this._waterPass.setSwell(this._waterSwell.alpha, this._waterSwell.x, this._waterSwell.y);
+    this._tileChunks?.restore();
   }
 
   /** True while the GL context is lost / mid-rebuild. Frames are skipped; the sim is
@@ -455,6 +460,28 @@ export class WebGl2Renderer implements RendererLike {
     this._staticLayerH = Math.max(1, Math.ceil(worldHeight));
   }
 
+  /**
+   * The tile-chunk spike (corpus brief 21): draw `sprites` as chunks of tiles from the atlas, in place of
+   * the baked static layer, until `clearStaticLayer`. Drops any baked layer and its texture. The pass is
+   * returned so the host can read its stats; it lives as long as the renderer, and replays itself after a
+   * context restore. Not part of `RendererLike`: a host feature-detects it.
+   */
+  bakeTileChunks(
+    sprites: readonly Sprite[],
+    worldWidth: number,
+    worldHeight: number,
+    tileSize: number,
+    decor?: TileChunkDecor,
+  ): TileChunkPass {
+    if (this._atlases.size === 0) throw new Error("bakeTileChunks: addAtlas must be called first");
+    this.clearStaticLayer();
+    this._staticLayerW = Math.max(1, Math.ceil(worldWidth));
+    this._staticLayerH = Math.max(1, Math.ceil(worldHeight));
+    this._tileChunks ??= new TileChunkPass(this._glCtx, () => this._store);
+    this._tileChunks.build(sprites, this._atlases, worldWidth, worldHeight, tileSize, decor);
+    return this._tileChunks;
+  }
+
   bakeWaterPattern(frame: string, atlasId: string, tileSize: number, pixelScale?: number): void {
     if (this._atlases.size === 0) throw new Error("bakeWaterPattern: addAtlas must be called first");
     this._waterPatternArgs = { frame, atlasId, tileSize, ...(pixelScale !== undefined ? { pixelScale } : {}) };
@@ -504,6 +531,7 @@ export class WebGl2Renderer implements RendererLike {
   clearStaticLayer(): void {
     this._bakeArgs = undefined;
     this._staticPass.clear();
+    this._tileChunks?.clear();
     this._staticLayerW = 0;
     this._staticLayerH = 0;
   }
@@ -875,7 +903,8 @@ export class WebGl2Renderer implements RendererLike {
 
     const zoomedOut = sx < 1;
     this._waterPass.draw(this._glCtx, view, visRect, zoomedOut);
-    this._staticPass.draw(this._glCtx, view, visRect);
+    if (this._tileChunks?.built === true) this._tileChunks.draw(this._glCtx, view, visRect);
+    else this._staticPass.draw(this._glCtx, view, visRect);
 
     this._shadowBatch.draw(gl);
 
