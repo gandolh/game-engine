@@ -183,6 +183,9 @@ vi.mock("./renderer-state", () => ({
   },
 }));
 
+// The clamp has its own test (camera-bounds.test.ts); the fake iso here has no projection to clamp with.
+vi.mock("./camera-bounds", () => ({ clampCenterToMap: (_iso: unknown, x: number, y: number) => ({ x, y }) }));
+
 vi.mock("./placement-wiring", () => ({
   placementState: fakes.placement,
 }));
