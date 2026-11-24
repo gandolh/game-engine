@@ -1,5 +1,5 @@
 // usage: [HORIZONTAL=1] node shot.mjs <url> <out-prefix> <farm|citadel|hollow>
-// HORIZONTAL=1 (Hollow) drags sideways only, which leaves the target's z alone.
+// HORIZONTAL=1 / VERTICAL=1 (Hollow) drag one way only.
 // Drags hard toward a corner and shoots, then drags back.
 // Headless Chromium over CDP (adapted from ../2026-11-23-hollow-culling/shot.mjs). Starts seed 42, zooms the orbit camera in,
 // then takes four cropped frames 300 ms apart at 1x, at 8x and paused, so the walkers legs can be compared frame to frame.
@@ -96,7 +96,14 @@ try {
   if (game === "citadel") {
     // The in-canvas ruleset dialog: pick "Cozy".
     for (const type of ["mousePressed", "mouseReleased"])
-      await send("Input.dispatchMouseEvent", { type, x: 438, y: 339, button: "left", buttons: type === "mousePressed" ? 1 : 0, clickCount: 1 });
+      await send("Input.dispatchMouseEvent", {
+        type,
+        x: 438,
+        y: 339,
+        button: "left",
+        buttons: type === "mousePressed" ? 1 : 0,
+        clickCount: 1,
+      });
     await sleep(2000);
   }
   const drag = async (x0, y0, x1, y1) => {
@@ -106,7 +113,16 @@ try {
   };
   // Dragging right/down moves the view up-left; do it many times toward the top-left corner.
   // Citadel's and Hollow's panels cover the top-left, so their drags start on the open canvas.
-  for (let k = 0; k < 25; k++) await (game === "citadel" ? drag(150, 250, 1100, 600) : game === "hollow" ? (process.env.HORIZONTAL ? drag(420, 400, 1250, 400) : drag(420, 130, 1250, 780)) : drag(100, 100, 1100, 700));
+  for (let k = 0; k < 25; k++)
+    await (game === "citadel"
+      ? drag(150, 250, 1100, 600)
+      : game === "hollow"
+        ? process.env.HORIZONTAL
+          ? drag(420, 400, 1250, 400)
+          : process.env.VERTICAL
+            ? drag(800, 130, 800, 780)
+            : drag(420, 130, 1250, 780)
+        : drag(100, 100, 1100, 700));
   await sleep(1500);
   const a = await send("Page.captureScreenshot", { format: "png" });
   writeFileSync(`${prefix}-corner.png`, Buffer.from(a.data, "base64"));
