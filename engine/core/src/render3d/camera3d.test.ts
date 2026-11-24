@@ -130,6 +130,29 @@ describe("OrbitCamera.pan target bounds", () => {
     expect(cam.target[1]).toBeCloseTo(9);
   });
 
+  it("never changes target z with bounds, however far a vertical drag goes", () => {
+    const cam = new OrbitCamera(baseConfig({ target: [5, 5, 1], pitch: Math.PI / 4, targetBounds: bounds }));
+    cam.pan(0, 1000);
+    expect(cam.target[2]).toBe(1);
+    expect(cam.target[0]).toBeGreaterThanOrEqual(0);
+    expect(cam.target[0]).toBeLessThanOrEqual(10);
+  });
+
+  it("a vertical pan inside the map moves the target on the ground", () => {
+    const cam = new OrbitCamera(baseConfig({ target: [5, 5, 1], yaw: 0, pitch: Math.PI / 4, targetBounds: bounds }));
+    cam.pan(0, 1);
+    expect(cam.target[2]).toBe(1);
+    // yaw=0: the eye is on +x, so screen-up moves the target toward -x.
+    expect(cam.target[0]).toBeCloseTo(4);
+    expect(cam.target[1]).toBeCloseTo(5);
+  });
+
+  it("without bounds a vertical pan still lifts the target (today's behaviour)", () => {
+    const cam = new OrbitCamera(baseConfig({ target: [0, 0, 0], yaw: Math.PI / 4, pitch: Math.PI / 4 }));
+    cam.pan(0, 1000);
+    expect(cam.target[2]).toBeCloseTo(707.1, 0);
+  });
+
   it("pans without limit when no bounds are given", () => {
     const cam = new OrbitCamera(baseConfig({ target: [5, 5, 0] }));
     cam.pan(1000, 0);

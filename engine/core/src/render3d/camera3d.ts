@@ -93,8 +93,20 @@ export class OrbitCamera {
   }
 
   /** Shift `target` by `dRight`/`dUp` along the camera's current right/up
-   *  screen-plane axes (world-space, z-up), then clamps x and y to `targetBounds` if set. */
+   *  screen-plane axes (world-space, z-up). With `targetBounds` set it pans along the ground
+   *  plane instead (z unchanged) and clamps x and y to the bounds. */
   pan(dRight: number, dUp: number): void {
+    const b = this.targetBounds;
+    if (b !== undefined) {
+      // Bounded: pan along the ground plane (z never changes), so the target cannot lift off the map.
+      // Right and forward are the camera's right and look directions with their z part dropped.
+      const cy = Math.cos(this.yaw);
+      const sy = Math.sin(this.yaw);
+      const x = this.target[0] + -sy * dRight + -cy * dUp;
+      const y = this.target[1] + cy * dRight + -sy * dUp;
+      this.target = [clamp(x, b.minX, b.maxX), clamp(y, b.minY, b.maxY), this.target[2]];
+      return;
+    }
     const dir = this.direction();
     let right = normalize(cross(WORLD_UP, dir));
     if (right[0] === 0 && right[1] === 0 && right[2] === 0) {
@@ -103,9 +115,7 @@ export class OrbitCamera {
       right = [1, 0, 0];
     }
     const up = cross(dir, right);
-    const moved = add(this.target, add(mulV3(right, dRight), mulV3(up, dUp)));
-    const b = this.targetBounds;
-    this.target = b === undefined ? moved : [clamp(moved[0], b.minX, b.maxX), clamp(moved[1], b.minY, b.maxY), moved[2]];
+    this.target = add(this.target, add(mulV3(right, dRight), mulV3(up, dUp)));
   }
 
   /** Scale `distance` by `factor` (>1 zooms out, <1 zooms in), clamped to
