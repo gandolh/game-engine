@@ -8,8 +8,7 @@
 //   loc2 a_uv      uvec4  uint16 ×4    atlas texel rect: x0, y0, x1, y1
 //   loc3 a_misc    uvec4  uint8 ×4     turns + 4·flipX + 8·kind, shade byte, edge mask, speckle class
 //
-// The three small ones are integer attributes (vertexAttribIPointer): a 16- or 8-bit integer read as a
-// float has no native vertex format on Direct3D 11, which ANGLE then converts; an integer one does.
+// The three small ones are integer attributes (vertexAttribIPointer), read as the integers they are.
 //
 // Rotation is whole quarter turns, done by swapping axes rather than cos/sin, so every corner stays on
 // the world grid exactly as the CPU bake's canvas put it there.
