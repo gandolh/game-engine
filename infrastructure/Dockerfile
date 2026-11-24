@@ -1,4 +1,8 @@
-# syntax=docker/dockerfile:1-labs
+# syntax=docker/dockerfile:1.20.0
+# An exact frontend, not the floating 1-labs tag: 1.20.0 is the first stable
+# release with COPY --parents (1.19.0 rejects the flag; checked by building both
+# on 2026-11-24). A floating tag can change under a build, or fail it when
+# Docker Hub is unreachable.
 # Farm Valley's sim server — the Node half of the WebGL2 game.
 #
 # Build context is the REPO ROOT. `npm ci` validates the lockfile against the
@@ -32,7 +36,11 @@
 # deploy machine and uploaded to Caddy as files; none of them belong in this
 # image.
 
-FROM node:24-alpine AS deps
+# Every stage uses one exact base. A floating `node:24-alpine` follows the tag on
+# the day of the build, so the box ends up holding several bases and every cache
+# entry keyed on the old one goes dead; the estate moves to a new patch in one
+# sweep instead.
+FROM node:24.22.1-alpine AS deps
 RUN apk add --no-cache python3 make g++
 WORKDIR /app
 COPY package.json package-lock.json ./
@@ -42,7 +50,11 @@ COPY --parents engine/*/package.json ./
 COPY --parents games/*/*/package.json ./
 COPY --parents tools/*/package.json ./
 COPY docs/package.json ./docs/
-RUN npm ci
+# Every manifest is still copied, because npm ci checks the lockfile against all
+# of them, but only the server's closure and the root's dev dependencies (vite,
+# typescript) are installed: the build stage bundles one workspace. Measured on
+# 2026-11-24: 720 MB of node_modules unscoped, 265 MB scoped.
+RUN npm ci -w @farm/server --include-workspace-root
 
 FROM deps AS build
 COPY tsconfig.base.json ./
@@ -50,7 +62,7 @@ COPY engine ./engine
 COPY games ./games
 RUN npm run build -w @farm/server
 
-FROM node:24-alpine AS prod
+FROM node:24.22.1-alpine AS prod
 LABEL org.opencontainers.image.title="Farm Valley sim server"
 WORKDIR /app
 COPY --from=build /app/games/farm/server/dist ./games/farm/server/dist
