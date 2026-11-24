@@ -42,7 +42,7 @@ export {
 } from "./mat4";
 
 export { OrbitCamera } from "./camera3d";
-export type { OrbitCameraConfig } from "./camera3d";
+export type { OrbitCameraConfig, OrbitTargetBounds } from "./camera3d";
 
 export type { Ray } from "./pick";
 export { rayFromScreen, rayIntersectAABB, rayIntersectTriangle, pickNearest } from "./pick";

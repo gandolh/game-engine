@@ -17,6 +17,14 @@ function clamp(v: number, lo: number, hi: number): number {
   return Math.min(hi, Math.max(lo, v));
 }
 
+/** Optional limits for the x and y of an orbit camera's `target`, in world units. */
+export interface OrbitTargetBounds {
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
+}
+
 export interface OrbitCameraConfig {
   target: Vec3;
   distance: number;
@@ -29,6 +37,8 @@ export interface OrbitCameraConfig {
   maxPitch: number;
   minDistance: number;
   maxDistance: number;
+  /** When set, `pan` keeps `target`'s x and y inside these bounds. */
+  targetBounds?: OrbitTargetBounds;
 }
 
 /**
@@ -49,6 +59,7 @@ export class OrbitCamera {
   readonly maxPitch: number;
   readonly minDistance: number;
   readonly maxDistance: number;
+  readonly targetBounds: OrbitTargetBounds | undefined;
 
   constructor(config: OrbitCameraConfig) {
     this.target = config.target;
@@ -62,6 +73,7 @@ export class OrbitCamera {
     this.maxPitch = config.maxPitch;
     this.minDistance = config.minDistance;
     this.maxDistance = config.maxDistance;
+    this.targetBounds = config.targetBounds;
   }
 
   /** Unit vector from `target` toward the eye, for the current yaw/pitch. */
@@ -81,7 +93,7 @@ export class OrbitCamera {
   }
 
   /** Shift `target` by `dRight`/`dUp` along the camera's current right/up
-   *  screen-plane axes (world-space, z-up). */
+   *  screen-plane axes (world-space, z-up), then clamps x and y to `targetBounds` if set. */
   pan(dRight: number, dUp: number): void {
     const dir = this.direction();
     let right = normalize(cross(WORLD_UP, dir));
@@ -91,7 +103,9 @@ export class OrbitCamera {
       right = [1, 0, 0];
     }
     const up = cross(dir, right);
-    this.target = add(this.target, add(mulV3(right, dRight), mulV3(up, dUp)));
+    const moved = add(this.target, add(mulV3(right, dRight), mulV3(up, dUp)));
+    const b = this.targetBounds;
+    this.target = b === undefined ? moved : [clamp(moved[0], b.minX, b.maxX), clamp(moved[1], b.minY, b.maxY), moved[2]];
   }
 
   /** Scale `distance` by `factor` (>1 zooms out, <1 zooms in), clamped to

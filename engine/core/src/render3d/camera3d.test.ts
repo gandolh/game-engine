@@ -103,3 +103,36 @@ describe("OrbitCamera matrices", () => {
     expect(proj[11]).toBeCloseTo(-1);
   });
 });
+
+describe("OrbitCamera.pan target bounds", () => {
+  const bounds = { minX: 0, maxX: 10, minY: 0, maxY: 10 };
+
+  it("stops at its bounds", () => {
+    const cam = new OrbitCamera(baseConfig({ target: [5, 5, 0], targetBounds: bounds }));
+    cam.pan(1000, 1000);
+    expect(cam.target[0]).toBeGreaterThanOrEqual(0);
+    expect(cam.target[0]).toBeLessThanOrEqual(10);
+    expect(cam.target[1]).toBeGreaterThanOrEqual(0);
+    expect(cam.target[1]).toBeLessThanOrEqual(10);
+    cam.pan(-1000, -1000);
+    expect(cam.target[0]).toBeGreaterThanOrEqual(0);
+    expect(cam.target[1]).toBeLessThanOrEqual(10);
+    // yaw=0: right is +y; a big right pan lands exactly on the y limit.
+    const c2 = new OrbitCamera(baseConfig({ target: [5, 5, 0], targetBounds: bounds }));
+    c2.pan(1000, 0);
+    expect(c2.target[1]).toBe(10);
+  });
+
+  it("responds at once on the way back", () => {
+    const cam = new OrbitCamera(baseConfig({ target: [5, 5, 0], targetBounds: bounds }));
+    cam.pan(1000, 0);
+    cam.pan(-1, 0);
+    expect(cam.target[1]).toBeCloseTo(9);
+  });
+
+  it("pans without limit when no bounds are given", () => {
+    const cam = new OrbitCamera(baseConfig({ target: [5, 5, 0] }));
+    cam.pan(1000, 0);
+    expect(cam.target[1]).toBeCloseTo(1005);
+  });
+});

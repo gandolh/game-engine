@@ -383,6 +383,8 @@ export function startHollowApp(canvas: HTMLCanvasElement, worker: Worker, opts: 
       maxPitch: Math.PI / 2 - 0.05,
       minDistance: 4,
       maxDistance: GRID_SIZE * 3,
+      // One world unit is one grid cell (the ground mesh spans 0..GRID_SIZE), so the target stays on the map.
+      targetBounds: { minX: 0, maxX: GRID_SIZE, minY: 0, maxY: GRID_SIZE },
     });
     cameraInput = wireOrbitCameraInput(canvas, camera, {
       // Chunk hollow-09c: click-to-inspect's ray-pick, over the agent AABBs
