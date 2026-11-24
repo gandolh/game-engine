@@ -4387,7 +4387,7 @@ briefed (camera world-edge clamp, explicit spawn ids and an id lookup) are on th
 
 Grilled with the owner on the Super Mario 64 research. [Brief 28](briefs/done/28-an-entity-found-by-its-id.md):
 `World` gets an id map and `get(id)`, an explicit id moves `nextId` past it, and Farm's `findById` reads the map.
-[Brief 29](briefs/todo/29-the-camera-centre-stays-on-the-map.md): the camera's centre stays on the map in Farm,
+[Brief 29](briefs/done/29-the-camera-centre-stays-on-the-map.md): the camera's centre stays on the map in Farm,
 Citadel and Hollow (the owner's pick: half a screen of off-map at most). Brief 27's two calls are settled: a 4 Hz
 gait cap at 8×, and a paused walker holds mid-stride.
 
@@ -4429,3 +4429,12 @@ and a paused walker holds mid-stride. The stride was re-measured with jumps excl
 no jumps in the data, so 15.4 stays. Captures at 1x, 8x and paused are in
 [verify/2026-11-24-hollow-gait](verify/2026-11-24-hollow-gait/README.md). Render only. Outcome in
 [the brief](briefs/done/27-hollow-walks-by-the-ground-covered.md). Ready for deploy: `node cli.ts hollow deploy`.
+
+## [2026-11-24] done | Brief 29: the camera's centre stays on the map
+
+Farm, Citadel and Hollow no longer let the view's centre leave the world (half a screen of off-map at most). Farm
+clamps its pan offset and re-anchors the drag, Citadel clamps in tile space, `OrbitCamera` gets optional
+`targetBounds` and pans along the ground plane when they are set (the controller's call: vertical drags used to
+lift the target off the ground). Captures in [verify/2026-11-24-camera-edge](verify/2026-11-24-camera-edge/README.md).
+Outcome in [the brief](briefs/done/29-the-camera-centre-stays-on-the-map.md). Ready for deploy:
+`node cli.ts farm-valley deploy`, `node cli.ts citadel deploy`, `node cli.ts hollow deploy`.

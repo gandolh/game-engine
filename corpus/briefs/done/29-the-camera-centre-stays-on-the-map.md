@@ -70,3 +70,22 @@ None of the three cameras stops at the world's edge, so a player can drag into e
 ## Owner decisions
 
 - Settled on 2026-11-23: the centre stays on the map (half a screen of off-map at most), not the whole screen.
+
+## Outcome (2026-11-24)
+
+The centre of the view stays on the map in all three games. Render only.
+
+- **Farm:** `clampPanOffset` keeps base plus offset inside the world and the clamped offset is stored. Beyond the
+  brief: the drag handler also re-anchors its start on the clamped offset, because it recomputed the offset from
+  the gesture start and left a dead zone within one drag.
+- **Citadel:** `clampCenterToMap` (`camera-bounds.ts`) clamps in continuous tile space and is called from the drag,
+  the zoom at the cursor and the minimap seek. Its `input.test.ts` stubs the helper, since that test's fake `iso`
+  has no projection.
+- **Hollow:** `OrbitCamera` takes optional `targetBounds`; Hollow passes `0..GRID_SIZE` (one world unit is one grid
+  cell). **The controller's call:** with bounds set, `pan` moves along the ground plane and never changes
+  `target.z`. A vertical drag used to lift the target without limit (z 708 after `pan(0, 1000)` at pitch 45
+  degrees), which lost the map even with x and y clamped. Without bounds the code path is unchanged.
+- **Captures:** [verify/2026-11-24-camera-edge](../../verify/2026-11-24-camera-edge/README.md), one corner shot per
+  game plus Hollow vertical and horizontal drags and the way back. Not taken: a Farm shot that drags past the edge
+  and back within one gesture; the re-anchor is covered by logic only.
+- Tests: Farm clamp (3), Citadel helper (3), `OrbitCamera` bounds (7 including no bounds and z unchanged).

@@ -103,8 +103,11 @@ machinery that procedurally generated, deterministic sims don't need.
 - **The camera stays in playable space.** The per-frame camera update keeps the camera above the floor and
   out of walls (`src/game/camera.c@9921382`, `resolve_geometry_collisions`). Ours:
   [OrbitCamera](../../engine/core/src/render3d/camera3d.ts) clamps only pitch and distance. **Not
-  briefed.** Hollow's terrain relief is small. Separately, and not an SM64 lesson: Farm's drag offset,
-  Citadel's pan and Hollow's orbit target (`pan`) have no world-edge clamp, so a player can look off the map.
+  briefed.** Hollow's terrain relief is small. Separately, and not an SM64 lesson: the world-edge clamp
+  that Farm's drag offset, Citadel's pan and Hollow's orbit target lacked is **built** (brief 29, 2026-11-24).
+  The centre of the view stays on the map, so at most half a screen of off-map shows at an edge. Farm clamps
+  the pan offset, Citadel clamps in tile space, and `OrbitCamera` takes optional `targetBounds` and then pans
+  along the ground plane.
 - **A mode table and per-area triggers.** About fifteen camera modes, switched by boxes placed per level.
   **Not for us.** Each of our cameras has one job.
 
