@@ -3,6 +3,7 @@ import { iso } from "./renderer-state";
 import { camera } from "./renderer-state";
 import { terrain } from "./terrain";
 import { clearFollow } from "./build-controls";
+import { clampCenterToMap } from "./camera-bounds";
 
 export let minimap: CitadelMinimap | null = null;
 
@@ -16,6 +17,7 @@ export function initMinimap(): void {
   minimap = new CitadelMinimap(iso, terrain, (tx, ty) => {
     clearFollow(); // release the follow-cam + hide the in-canvas villager panel
     const c = iso.tileToIso(tx, ty);
-    camera.setCenter(c.x, c.y);
+    const on = clampCenterToMap(iso, c.x, c.y);
+    camera.setCenter(on.x, on.y);
   });
 }

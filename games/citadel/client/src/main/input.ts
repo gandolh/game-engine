@@ -40,6 +40,7 @@ import {
 import { settingsDispatcher, settingsMirror, settingsModal, closeSettings } from "./settings";
 import { newGameDispatcher, newGameMirror, newGameOpen } from "./new-game";
 import { minimap } from "./minimap-wiring";
+import { clampCenterToMap } from "./camera-bounds";
 
 // engine-ui chunk 7: the in-canvas HUD gets first dibs on pointer/wheel/key events. These
 // CAPTURE-phase listeners run before the world (bubble-phase) handlers below; if the UI
@@ -478,7 +479,8 @@ canvas.addEventListener("mousemove", (e) => {
     const sy = canvas.height / camera.worldUnitsY;
     const dx = ((e.clientX - lastMouseX) * dpr) / sx;
     const dy = ((e.clientY - lastMouseY) * dpr) / sy;
-    camera.setCenter(camera.centerX - dx, camera.centerY - dy);
+    const panned = clampCenterToMap(iso, camera.centerX - dx, camera.centerY - dy);
+    camera.setCenter(panned.x, panned.y);
     lastMouseX = e.clientX;
     lastMouseY = e.clientY;
   }
@@ -502,7 +504,12 @@ canvas.addEventListener(
     camera.setZoom(clampZoom(camera.zoom * factor));
     fitCameraToCanvas(camera, canvas.width, canvas.height, iso);
     const after = screenToWorld(transformOf(camera, canvas.width, canvas.height), sx, sy);
-    camera.setCenter(camera.centerX + (before.worldX - after.worldX), camera.centerY + (before.worldY - after.worldY));
+    const zoomed = clampCenterToMap(
+      iso,
+      camera.centerX + (before.worldX - after.worldX),
+      camera.centerY + (before.worldY - after.worldY),
+    );
+    camera.setCenter(zoomed.x, zoomed.y);
   },
   { passive: false },
 );
