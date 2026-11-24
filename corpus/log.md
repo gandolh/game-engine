@@ -4438,3 +4438,14 @@ clamps its pan offset and re-anchors the drag, Citadel clamps in tile space, `Or
 lift the target off the ground). Captures in [verify/2026-11-24-camera-edge](verify/2026-11-24-camera-edge/README.md).
 Outcome in [the brief](briefs/done/29-the-camera-centre-stays-on-the-map.md). Ready for deploy:
 `node cli.ts farm-valley deploy`, `node cli.ts citadel deploy`, `node cli.ts hollow deploy`.
+
+## [2026-11-24] done | Brief 21: a tile-chunk ground spike in Farm
+
+`?tilechunks` draws Farm's ground from the atlas as 32×32-tile chunks (`TileChunkPass`, one renderer hook),
+with the bake's decorators as shader terms. Headless: texture bytes 61,176,324 to 2,193,924 plus 1,637,328 of
+instance buffers, ground draws 1 to 64 at the widest zoom, the pass about 0.06 ms of CPU a frame, the ground
+build 0.4-0.5 s cheaper. Without the flag the counters are unchanged. Recommendation: adopt for Farm if a
+real-GPU reading agrees, not for Citadel. Screens and numbers in
+[verify/2026-11-24-tile-chunk-spike](verify/2026-11-24-tile-chunk-spike/README.md); outcome in
+[the brief](briefs/done/21-a-tile-chunk-ground-spike-in-farm.md). Ready for test: the owner judges the
+side-by-side images.

@@ -1,6 +1,6 @@
 ---
-summary: The bake principle (assets are code, not images), the recipe checks every recipe passes (2026-11-21), asset-cooking and atlas research, the cache-key/incremental-build recommendations that became brief 71, the 2026-10-28 large-image research, and the static layer's patches as built 2026-11-03 (the 4096 px single-texture ceiling, lazy per-patch bakes, painted images, the dev page, the upside-down upload fix).
-updated: 2026-11-21
+summary: The bake principle (assets are code, not images), the recipe checks every recipe passes (2026-11-21), asset-cooking and atlas research, the cache-key/incremental-build recommendations that became brief 71, the 2026-10-28 large-image research, the static layer's patches as built 2026-11-03 (the 4096 px single-texture ceiling, lazy per-patch bakes, painted images, the dev page, the upside-down upload fix), and the 2026-11-24 tile-chunk spike (Farm's ground from the atlas behind ?tilechunks, its numbers).
+updated: 2026-11-24
 ---
 
 # Asset Pipeline — Baking, Caching, and Atlas Strategy
@@ -184,6 +184,22 @@ The [engine spec](../todos/closed/2026-10-28-engine-patched-static-layer.md) bui
   The upload set `UNPACK_FLIP_Y_WEBGL`, which flips canvas sources and is ignored for ImageBitmaps,
   so the atlases were fine and the terrain was mirrored under them. The houses-in-water in the README's
   Farm image are this bug. See [decisions.md](decisions.md) → Renderer.
+
+## Tile-chunk spike (brief 21, 2026-11-24)
+
+Farm's ground drawn as tile chunks instead of the baked image, behind `?tilechunks`
+([brief 21](../briefs/done/21-a-tile-chunk-ground-spike-in-farm.md), evidence in
+[verify/2026-11-24-tile-chunk-spike/](../verify/2026-11-24-tile-chunk-spike/README.md)).
+[`TileChunkPass`](../../engine/core/src/render/webgl2/tile-chunk-pass.ts) keeps one instance buffer per
+32×32-tile chunk and draws the chunks in view from the atlas; `renderer.bakeTileChunks` draws it in place of
+the static layer. The decorators become shader terms: the shade and the shore bands ride on each sprite of a
+ground tile, and water and bridge tiles get one quad for the shade and the hashed speckles.
+
+- **Memory:** 56.25 MB of texture becomes 1.56 MB of instance buffers (68,222 quads).
+- **Draws:** 1 becomes 9 chunk draws at the default zoom and 64 at the widest, where the whole world is in view.
+- **CPU:** about 0.06 ms a frame; the ground build at boot and at each season change is 0.4-0.5 s cheaper.
+- **Open:** the GPU cost needs a real-GPU reading. It is not for Citadel as built: iso tiles overlap their
+  neighbours, and this pass orders sprites per chunk.
 
 ## Sources
 

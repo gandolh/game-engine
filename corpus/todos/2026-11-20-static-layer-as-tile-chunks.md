@@ -1,8 +1,9 @@
 # Static layer as tile chunks
 
-status: promoted to brief 21 on 2026-11-23 ([21](../briefs/todo/21-a-tile-chunk-ground-spike-in-farm.md)), by the owner's call to
+status: promoted to brief 21 on 2026-11-23 ([21](../briefs/done/21-a-tile-chunk-ground-spike-in-farm.md)), by the owner's call to
 build light optimizations without waiting for a trigger. Its trigger was to promote it when brief 07 or a later bench reading shows the static layer's GPU time or
-memory breaking the bar on a reference device, the Android phone most likely.
+memory breaking the bar on a reference device, the Android phone most likely. The spike was done on 2026-11-24:
+it recommends adopting tile chunks for Farm if a real-GPU reading agrees, and not for Citadel.
 created: 2026-11-20
 context: the 60 fps plan, [frame-budget.md](../wiki/frame-budget.md).
 
