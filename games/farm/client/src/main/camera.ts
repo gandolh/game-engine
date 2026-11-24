@@ -88,6 +88,18 @@ export function stepFocusGlide(
   return { center: { x: rawTarget.x, y: rawTarget.y }, gliding: false, elapsedSec: 0 };
 }
 
+/** Clamp a pan offset so base + offset stays inside the world rectangle; returns the clamped offset. */
+export function clampPanOffset(
+  base: { x: number; y: number },
+  offset: { x: number; y: number },
+  worldW: number,
+  worldH: number,
+): { x: number; y: number } {
+  const cx = Math.max(0, Math.min(worldW, base.x + offset.x));
+  const cy = Math.max(0, Math.min(worldH, base.y + offset.y));
+  return { x: cx - base.x, y: cy - base.y };
+}
+
 export function applyFocusAndPan(camera: Camera2D, sprites?: SnapshotSprite[], dtSec = 0, sx = 0): void {
   let baseX: number;
   let baseY: number;
@@ -109,6 +121,8 @@ export function applyFocusAndPan(camera: Camera2D, sprites?: SnapshotSprite[], d
     baseX = (WORLD_WIDTH * TILE) / 2;
     baseY = (WORLD_HEIGHT * TILE) / 2;
   }
+  // The centre of the view stays on the map; store the clamped offset so there is no dead zone on the way back.
+  panOffset = clampPanOffset({ x: baseX, y: baseY }, panOffset, WORLD_WIDTH * TILE, WORLD_HEIGHT * TILE);
   const rawTarget = { x: baseX + panOffset.x, y: baseY + panOffset.y };
   if (dtSec > 0) {
     const focusChanged = focusedFarmerId !== _prevFocusId;

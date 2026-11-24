@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { Camera2D } from "@engine/core";
 import { WORLD_WIDTH, WORLD_HEIGHT } from "@farm/sim-core/world/regions";
-import { stepFocusGlide } from "./camera";
+import { stepFocusGlide, clampPanOffset, applyFocusAndPan, setPanOffset, panOffset } from "./camera";
 import { CAMERA_CONFIG, DEFAULT_ZOOM, TILE } from "./config";
 
 function makeState(gliding = false, elapsedSec = 0): { gliding: boolean; elapsedSec: number } {
@@ -121,5 +121,29 @@ describe("stepFocusGlide", () => {
       expect(result.center.y).toBe(raw.y);
       expect(result.gliding).toBe(false);
     }
+  });
+});
+
+describe("the camera centre stays on the map (brief 29)", () => {
+  const w = WORLD_WIDTH * TILE;
+  const h = WORLD_HEIGHT * TILE;
+
+  it("clampPanOffset leaves an on-map centre alone", () => {
+    expect(clampPanOffset({ x: 100, y: 100 }, { x: 5, y: -5 }, w, h)).toEqual({ x: 5, y: -5 });
+  });
+
+  it("clampPanOffset pulls a far centre back to the edge, relative to the base", () => {
+    expect(clampPanOffset({ x: 100, y: 200 }, { x: -9999, y: 9999 }, w, h)).toEqual({ x: -100, y: h - 200 });
+  });
+
+  it("applyFocusAndPan keeps the centre in the world and stores the clamped offset", () => {
+    const cam = new Camera2D(CAMERA_CONFIG);
+    setPanOffset({ x: -1e7, y: 1e7 });
+    applyFocusAndPan(cam);
+    expect(cam.centerX).toBe(0);
+    expect(cam.centerY).toBe(h);
+    expect(panOffset.x).toBe(-w / 2);
+    expect(panOffset.y).toBe(h / 2);
+    setPanOffset({ x: 0, y: 0 });
   });
 });
