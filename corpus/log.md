@@ -4449,3 +4449,10 @@ real-GPU reading agrees, not for Citadel. Screens and numbers in
 [verify/2026-11-24-tile-chunk-spike](verify/2026-11-24-tile-chunk-spike/README.md); outcome in
 [the brief](briefs/done/21-a-tile-chunk-ground-spike-in-farm.md). Ready for test: the owner judges the
 side-by-side images.
+
+## [2026-11-24] briefs | 30 from the infra review of 2026-11-24
+
+Filed from the estate's infra review. Brief 30: the sim image's `deps` stage installs only `@farm/server`'s
+closure (about 457 MB less build cache per cold build on the box), both bases are pinned to
+`node:24.22.1-alpine`, and the syntax line to an exact frontend version. The image that runs doesn't change.
+Ships with `node cli.ts farm-valley server`.
