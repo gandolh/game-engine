@@ -4366,7 +4366,7 @@ despawn-safe iteration, frame-rate-independent camera smoothing, named random fo
 briefs: [24](briefs/done/24-hollow-builds-its-static-draws-once.md) Hollow builds its static draws once,
 [25](briefs/done/25-farm-finds-tile-features-by-cell.md) Farm finds tile features by cell,
 [26](briefs/done/26-the-state-machine-keeps-its-entry-tick.md) the state machine keeps its entry tick,
-[27](briefs/todo/27-hollow-walks-by-the-ground-covered.md) Hollow walks by the ground covered. Side findings not
+[27](briefs/done/27-hollow-walks-by-the-ground-covered.md) Hollow walks by the ground covered. Side findings not
 briefed (camera world-edge clamp, explicit spawn ids and an id lookup) are on the page.
 
 ## [2026-11-23] done | Brief 19: Hollow culls what the camera cannot see
@@ -4421,3 +4421,11 @@ live entity's id throws. Farm's `findById` reads the map with the query's compon
 unchanged. Three-seed Farm exports byte-identical, Citadel and Hollow sims identical, determinism check passed.
 Five other by-id scans in Farm are listed in [the brief](briefs/done/28-an-entity-found-by-its-id.md), not changed.
 Ready for deploy: `node cli.ts farm-valley deploy`.
+
+## [2026-11-24] done | Brief 27: Hollow walks by the ground covered
+
+The gait phase now advances by the interpolated ground each agent covers (`STRIDE_TILES` 15.4, capped at 4 Hz),
+and a paused walker holds mid-stride. The stride was re-measured with jumps excluded: mean 1.234 tiles a tick,
+no jumps in the data, so 15.4 stays. Captures at 1x, 8x and paused are in
+[verify/2026-11-24-hollow-gait](verify/2026-11-24-hollow-gait/README.md). Render only. Outcome in
+[the brief](briefs/done/27-hollow-walks-by-the-ground-covered.md). Ready for deploy: `node cli.ts hollow deploy`.

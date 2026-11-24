@@ -170,7 +170,7 @@ machinery that procedurally generated, deterministic sims don't need.
 | [24](../briefs/done/24-hollow-builds-its-static-draws-once.md) | Hollow builds territory and ground draws per snapshot, and its frame allocates less. Done 2026-11-23: 451 K to 269 K bytes a frame (-40%) | Render only: the bench counters are unchanged within noise |
 | [25](../briefs/done/25-farm-finds-tile-features-by-cell.md) | Farm keeps a tile-feature index rebuilt only when features change, and the ECS pins its query order. Done 2026-11-23: the grid stamp fell from 0.023 to 0.001 ms a tick, Pip's system from 0.044 to 0.021 ms | Multi-seed `EXPORT=json` diff, byte-identical |
 | [26](../briefs/done/26-the-state-machine-keeps-its-entry-tick.md) | One engine helper, `enterState`, keeps `enteredTick` true on every state change, and `FsmState` is readonly. Done 2026-11-23: all 15 writes go through it | Multi-seed diff for Farm and Hollow, byte-identical |
-| [27](../briefs/todo/27-hollow-walks-by-the-ground-covered.md) | Hollow's gait advances with the distance walked, capped, and holds when the agent stops | Render only, the sim is not touched |
+| [27](../briefs/done/27-hollow-walks-by-the-ground-covered.md) | Hollow's gait advances with the distance walked, capped, and holds when the agent stops. Done 2026-11-24: 4 Hz cap, stride 15.4 tiles, paused frames identical | Render only, the sim is not touched |
 
 ## Not verified
 

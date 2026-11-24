@@ -80,3 +80,19 @@ Settled with the owner on 2026-11-23:
 
 - **The cap at 8×: 4 Hz.** Legs stay readable; a walker slides slightly once the cap is hit.
 - **A paused walker holds mid-stride**, as games do when paused (the controller's call, not asked).
+
+## Outcome (2026-11-24)
+
+`agent-anim.ts` keeps a per-agent gait phase (`AgentGaitTracker`) that advances by the interpolated ground an
+agent covers, `distance / STRIDE_TILES` cycles, capped at 4 cycles a second (`MAX_GAIT_HZ`). A paused or blocked
+walker covers nothing and holds mid-stride; each agent starts from a `hashAgentId` offset so a crowd is out of
+step. `walkBob`, `gaitPoseFor` and `poseForAgent` take the phase, and the agent loop in `app.ts` feeds it.
+
+- **Stride re-measured** (the first figure was a mean): seeds 1 to 3, 1500 ticks, 31,246 moving agent-ticks, jump
+  filter at 3 tiles, no jump found. Mean 1.234 tiles a tick (the earlier 1.23 holds); the median is 1.414, but only
+  because a step is 1 or sqrt 2 (58 percent diagonal), so it is not a ground rate. `STRIDE_TILES` stays 15.4:
+  24.7 tiles/s at 1x over 1.6 Hz. Numbers in the scratch `measure.md`; the script is not kept in the repo.
+- **Captures:** [verify/2026-11-24-hollow-gait](../../verify/2026-11-24-hollow-gait/README.md). Paused frames are
+  byte-identical; 1x and 8x frames differ.
+- The sim is not touched, so the baseline cannot move. Lint, format, conventions, the `@hollow/client` tests (354)
+  and `npm run check` all exit 0.
