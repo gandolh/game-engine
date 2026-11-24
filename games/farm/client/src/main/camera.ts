@@ -187,6 +187,11 @@ export function setupCameraListeners(canvas: HTMLCanvasElement, camera: Camera2D
       y: camStartY - (e.clientY - dragStartY) * scaleY,
     };
     applyFocusAndPan(camera);
+    // Re-anchor the drag on the clamped offset so dragging past the edge leaves no dead zone on the way back.
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
+    camStartX = panOffset.x;
+    camStartY = panOffset.y;
   });
 
   window.addEventListener("mouseup", () => {
