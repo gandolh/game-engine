@@ -4456,3 +4456,11 @@ Filed from the estate's infra review. Brief 30: the sim image's `deps` stage ins
 closure (about 457 MB less build cache per cold build on the box), both bases are pinned to
 `node:24.22.1-alpine`, and the syntax line to an exact frontend version. The image that runs doesn't change.
 Ships with `node cli.ts farm-valley server`.
+
+## [2026-11-24] brief | 30 The sim image's build stage installs only the server
+
+Built. `deps` runs `npm ci -w @farm/server --include-workspace-root` (720 → 265 MB of `node_modules`; the
+`deps` stage image 1.41 GB → 836 MB), both stages are on `node:24.22.1-alpine`, and the syntax line pins
+`docker/dockerfile:1.20.0`, the first stable frontend with `COPY --parents` (1.19.0 rejects it). The final
+image is 173 MB (171 before), stays up and takes a WebSocket. Ready for deploy: `node cli.ts farm-valley server`.
+See [briefs/done/30-the-sim-images-build-stage-installs-only-the-server.md](briefs/done/30-the-sim-images-build-stage-installs-only-the-server.md).

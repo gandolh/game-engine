@@ -80,3 +80,27 @@ the controller.
 ## Owner decisions
 
 - None.
+
+## Outcome
+
+Built 2026-11-24 by the controller (0758542c). Ready for deploy: `node cli.ts farm-valley server`.
+
+- **Step 1**, in a `git archive` export: the full `npm ci` leaves 720 MB of `node_modules`; `npm ci -w
+  @farm/server --include-workspace-root` leaves 265 MB (455 MB less), and `npm run build -w @farm/server` bundles
+  (`dist/index.mjs`, 606 kB). No other workspace was needed.
+- **Step 2**: `docker/dockerfile:1.20.0` is the first stable frontend with `COPY --parents`. Checked by building a
+  three-line test Dockerfile with `COPY --parents */*/package.json ./`: on `1.19.0` it fails with "dockerfile parse
+  error on line 4: unknown flag: --parents"; on `1.20.0` and on `1` it copies both files. The BuildKit Dockerfile
+  reference lists `--parents` in the stable syntax with 1.20 as its minimum. The syntax line now pins `1.20.0`,
+  with a comment.
+- **Step 3**: the scoped `deps` install with a comment saying why; both `FROM` lines are `node:24.22.1-alpine`.
+  `wiki/status.md`'s Node line names the pinned base.
+- **Step 4**, both built on the laptop the same hour: the `deps` stage image 1.41 GB before, 836 MB after; the
+  final image 171 MB before, 173 MB after. In `docker history` the base layers differ by about 10 kB to 1 MB (the
+  pinned Node patch), and the `engine/wasm-modules/dist` COPY is 4.41 kB before and 36 kB after: the "before"
+  image was built from `git archive HEAD` and the "after" from the working tree, which also holds the gitignored
+  `.wat` files beside the tracked `.wasm`. Not from this change.
+- **Step 5**: the new image stays up, logs "Farm Valley sim server listening on ws://localhost:8787", and a
+  WebSocket handshake to it opens; Node is v24.22.1. Test images and the container were removed.
+- `npm run check` exits 0 (turbo replayed every task from its cache: no code input changed);
+  `bash corpus/lint.sh` passes.

@@ -81,7 +81,7 @@ edit the matching line below.
   warnings, nearly all `!`, and the number only goes down. See [decisions.md](decisions.md) → The house
   style, formatted and checked.
 - **Node `>=24`** is pinned in the root `package.json` `engines` field. It matches
-  `infrastructure/Dockerfile`'s `node:24-alpine` — the one pin backed by a real deploy constraint —
+  `infrastructure/Dockerfile`'s `node:24.22.1-alpine` (exact since brief 30) — the one pin backed by a real deploy constraint —
   and clears both vite's and vitest's own `engines` ranges. (README's old "Node 20+" was the drift.)
 - **`npm run pack-smoke`** proves the publish contract, not just that `npm pack` exits 0: it packs
   `@engine/core` + `@engine/ui` + `@engine/wasm-modules`, installs the tarballs into
