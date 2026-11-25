@@ -1,4 +1,4 @@
-# house-style 1.3.0 (vendored)
+# house-style 1.4.0 (vendored)
 
 This directory is a copy of house-style, the shared ESLint, Prettier, TypeScript,
 knip and dependency-cruiser configs of the house repos. It is generated: do not
@@ -6,9 +6,9 @@ edit these files. To upgrade, run `npm run house-style:sync -- <tag>`, then foll
 the upgrade notes. `npm run house-style:sync -- --check` says whether the copy
 still matches its commit.
 
-- **Version:** 1.3.0
+- **Version:** 1.4.0
 - **Source:** the `my-personal-skills` repository, folder `house-style/`
-- **Commit:** `24f5df36d02c7ef58f5789fa4f84fef6d65becb9`
+- **Commit:** `dfaddc4848c374deed3f87b364f28b2339d13e47`
 - **Upgrade notes:** `house-style/CHANGELOG.md` in the same repository (copied here as `CHANGELOG.md`)
 
 | File | What it is |
@@ -18,6 +18,7 @@ still matches its commit.
 | `LICENSE` | MIT |
 | `bin/check-base-ui.mjs` | The Base UI and Tailwind checker, run by `check:conventions` |
 | `bin/check-structure.mjs` | The code-structure checker, run by `check:conventions` |
+| `bin/check.mjs` | The one-pass gate runner: each repo's `check` script calls it (`node vendor/house-style/bin/check.mjs <steps>`) |
 | `bin/conventions.mjs` | What the two checkers share: reading `conventions.json`, walking the roots, the report |
 | `bin/sync.mjs` | This sync (`npm run house-style:sync`) |
 | `conventions.schema.json` | The JSON Schema of `conventions.json`, for editors |

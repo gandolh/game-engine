@@ -76,7 +76,11 @@ npm run mathquest      # MateQuest client (vite :5176) — sim runs in an in-bro
 npm run portal         # the games portal (vite :5177); `npm run serve-all -w @game-engine/portal` serves it with the four built games from one origin
 npm run build          # production build of the Farm client
 npm run typecheck      # tsc --noEmit across all workspaces — run before committing
-npm run check          # typecheck, lint, format:check, check:conventions, test — run before every hand-back
+npm run check          # typecheck, lint, format:check, check:conventions, test — run before every hand-back. It keeps going after a
+                        # failing step and prints one line per step, then the end of each failure. The whole output stays in
+                        # node_modules/.cache/check/last.log, so read that log rather than running the gate again. While you
+                        # work, `npm run check:fast` and any test file you touched are enough; run the full gate once, after
+                        # your last change.
 npm run check:fast     # typecheck, then ESLint on the files changed against HEAD (what the Stop hook runs)
 npm run lint           # eslint . --max-warnings <ceiling>; the ceiling only goes down
 npm run format         # Prettier at 120 columns over the code files (format:check just checks)
