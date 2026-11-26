@@ -1,6 +1,6 @@
 ---
 summary: Live list of what is genuinely unresolved, plus settled premises that must not be re-litigated. Resolved items are deleted, not archived.
-updated: 2026-11-20
+updated: 2026-11-26
 ---
 
 # Open Questions & Gaps
@@ -9,7 +9,12 @@ Live list of what's **genuinely unresolved**. Shipped/resolved items are deleted
 
 ## Open
 
-_Nothing open._ The sprite-gen question of 2026-11-20 became brief 13, a blind trial
+- **Do Farm's walk cycle and action swing move into the atlas manifest?** (2026-11-26) Their frame names are built
+  from a farmer's base and facing at run time, which a declaration naming whole frames can't hold. Default: they stay
+  in code. [Brief 32](../briefs/done/32-farms-other-clips-declared-with-the-recipes.md) → Owner decisions has the two
+  ways to move them.
+
+The sprite-gen question of 2026-11-20 became brief 13, a blind trial
 ([frame-budget.md](frame-budget.md)). Both questions of 2026-10-28 were answered the same day: npm 11.19.1 is canonical
 (`packageManager` bumped), and the two Hollow sim tests get no time budgets; computation-heavy
 tests are simply not run on agent brief runs (see [log.md](../log.md)).

@@ -1,7 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { loopClip, sampleCycle, cycleIndex } from "./cycle";
-import { FOAM_CLIP, FORGE_FIRE_CLIP, WEATHER_BEACON_CLIP } from "./clips";
-import { FORGE_FIRE_FRAMES, resolveFrameAndBob, walkStepsBetween } from "./frames";
+import {
+  BIRD_FLAP_CLIP,
+  CAMPFIRE_CLIP,
+  FOAM_CLIP,
+  FORGE_FIRE_CLIP,
+  FORGE_SMOKE_CLIP,
+  WATERFALL_FALL_CLIP,
+  WEATHER_BEACON_CLIP,
+} from "./clips";
+import { resolveFrameAndBob, walkStepsBetween } from "./frames";
+import { FISHING_SPOT_ANIMATION } from "@farm/atlas-recipes/animations";
+import { clipFromDeclaration } from "@engine/core";
 import type { SnapshotSprite } from "../snapshot";
 
 const FRAMES = ["a", "b", "c"] as const;
@@ -177,13 +187,77 @@ describe("walkStepsBetween", () => {
   });
 });
 
-describe("forge fire clip from its declaration", () => {
-  it("samples the same frame as the old loopClip every 10 ms over two loops", () => {
-    const old = loopClip("forge-fire", FORGE_FIRE_FRAMES, 420);
-    expect(FORGE_FIRE_CLIP.totalDurationMs).toBe(old.totalDurationMs);
-    for (let t = 0; t <= 840; t += 10) {
-      expect(FORGE_FIRE_CLIP.sampleAt(t).frameName).toBe(old.sampleAt(t).frameName);
-      expect(sampleCycle(FORGE_FIRE_CLIP, t)).toBe(sampleCycle(old, t));
+/** Each clip as `loopClip` built it before the declarations (corpus brief 32): the frames, the period of a whole loop. */
+const OLD_CLIPS = [
+  {
+    name: "foam",
+    clip: FOAM_CLIP,
+    frames: ["tile/foam-a", "tile/foam-b", "tile/foam-c"],
+    periodMs: 1800,
+    phases: [0],
+  },
+  {
+    name: "forge-fire",
+    clip: FORGE_FIRE_CLIP,
+    frames: ["structure/forge-fire-a", "structure/forge-fire-b", "structure/forge-fire-c"],
+    periodMs: 420,
+    phases: [0],
+  },
+  {
+    name: "forge-smoke",
+    clip: FORGE_SMOKE_CLIP,
+    frames: ["structure/forge-smoke-a", "structure/forge-smoke-b", "structure/forge-smoke-c"],
+    periodMs: 700,
+    phases: [0],
+  },
+  {
+    name: "waterfall-fall",
+    clip: WATERFALL_FALL_CLIP,
+    frames: ["tile/waterfall-fall-a", "tile/waterfall-fall-b", "tile/waterfall-fall-c"],
+    periodMs: 540,
+    phases: [0, 1, 2],
+  },
+  {
+    name: "campfire",
+    clip: CAMPFIRE_CLIP,
+    frames: ["structure/campfire-a", "structure/campfire-b", "structure/campfire-c"],
+    periodMs: 390,
+    phases: [0],
+  },
+  {
+    name: "weather-beacon",
+    clip: WEATHER_BEACON_CLIP,
+    frames: ["structure/weather-beacon-a", "structure/weather-beacon-b"],
+    periodMs: 1000,
+    phases: [0],
+  },
+  {
+    name: "fishing-spot",
+    clip: clipFromDeclaration(FISHING_SPOT_ANIMATION),
+    frames: ["structure/fishing-spot", "structure/fishing-spot-b", "structure/fishing-spot-c"],
+    periodMs: 1200,
+    phases: [0, 1, 2],
+  },
+  {
+    name: "bird-flap",
+    clip: BIRD_FLAP_CLIP,
+    frames: ["decoration/bird-a", "decoration/bird-b"],
+    periodMs: 400,
+    phases: [0],
+  },
+] as const;
+
+describe("clips built from their declarations", () => {
+  it.each(OLD_CLIPS)("$name samples the same frame as the old loopClip every 10 ms over two loops", (c) => {
+    const old = loopClip(c.name, c.frames, c.periodMs);
+    expect(c.clip.name).toBe(c.name);
+    expect(c.clip.totalDurationMs).toBe(old.totalDurationMs);
+    for (let t = 0; t <= 2 * c.periodMs; t += 10) {
+      expect(c.clip.sampleAt(t).frameName).toBe(old.sampleAt(t).frameName);
+      for (const phase of c.phases) {
+        expect(sampleCycle(c.clip, t, phase)).toBe(sampleCycle(old, t, phase));
+        expect(cycleIndex(c.clip, t, phase)).toBe(cycleIndex(old, t, phase));
+      }
     }
   });
 });

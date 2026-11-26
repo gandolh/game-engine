@@ -40,14 +40,12 @@ import { effectiveDpr } from "@engine/core/render";
 import type { WorkerOutbound } from "../worker/sim-worker";
 import { HOLLOW_PAL } from "../render/hollow-palette";
 import { GRID_SIZE } from "@hollow/sim-core/world";
+import type { HollowSnapshot } from "@hollow/sim-core/sim-bootstrap";
 import { SnapshotBuffer } from "./interp";
 import { groundHeightAt } from "./terrain";
-import { buildGroundMesh, buildTerritoryTileMesh } from "./world-meshes";
-import { householdLayout, householdMemberCounts, homeMeshFor, MAX_HOME_FOOTPRINT } from "./household-layout";
+import { householdLayout, householdMemberCounts, MAX_HOME_FOOTPRINT } from "./household-layout";
 import { HomeRegistry, HOME_MARGIN } from "./home-placement";
 import { baseNodeMeshFor, fullnessScale, resourceNodeFullness } from "./node-mesh";
-import { buildHearthMesh } from "./hearth-mesh";
-import { buildGraveyardMesh } from "./graveyard-mesh";
 import { buildCorpseMesh, corpseTint } from "./corpse-mesh";
 import { sicklyTint } from "./disease-tint";
 import { dayNightFromPhase, simDayPhaseWash } from "./day-night";
@@ -69,7 +67,7 @@ import { AgentFacingTracker, AgentGaitTracker, poseForAgent, walkBob, agentModel
 import { selectedTint } from "./selection";
 import { separatedAgentPositions } from "./agent-collision";
 import { cachedInstanceAABB } from "./agent-bounds";
-import { TerritoryInstanceCache, packGroundInstance } from "./static-draws";
+import { StaticMeshes } from "./static-draws";
 
 export interface HollowAppOptions {
   /** Must match the seed the worker was `init`ed with (only used here to
@@ -298,39 +296,25 @@ export function startHollowApp(canvas: HTMLCanvasElement, worker: Worker, opts: 
     const combinedMaterialIndexOf = materialIndexMap(combinedMaterialKeys);
     renderer.setMaterials([...buildWorldMaterialList(), ...buildAgentMaterialList()]);
 
-    // --- static meshes, uploaded ONCE (see materials.ts's header for why
-    // the territory tint and resource nodes are instanced/scaled via the
-    // model matrix rather than re-uploaded per tick) ---------------------
-    const groundMesh = renderer.uploadMesh(buildGroundMesh(GRID_SIZE), combinedMaterialIndexOf);
-    const territoryTileMesh = renderer.uploadMesh(buildTerritoryTileMesh(), combinedMaterialIndexOf);
+    // --- the static geometry (corpus brief 31): the ground, hearth and
+    // graveyard merged into one mesh, the territory tiles and homes into a
+    // second, each rebuilt only when what it shows changes; a rebuild uploads
+    // the new mesh and releases the old one (static-draws.ts). ------------
+    const staticMeshes = new StaticMeshes<MeshHandle>(
+      (mesh) => renderer.uploadMesh(mesh, combinedMaterialIndexOf),
+      (handle) => renderer.releaseMesh(handle),
+      profiler,
+    );
+    // --- meshes drawn as instances, uploaded ONCE (see node-mesh.ts's
+    // header for why resource nodes are scaled via the model matrix rather
+    // than re-uploaded per tick) ------------------------------------------
     const foodNodeMesh = renderer.uploadMesh(baseNodeMeshFor("food"), combinedMaterialIndexOf);
     const materialNodeMesh = renderer.uploadMesh(baseNodeMeshFor("material"), combinedMaterialIndexOf);
-    // The hearth (chunk hollow-14d) — one static mesh, one instance, placed
-    // at `latest.hearth` each frame (guarded: optional on the snapshot, see
-    // hearth-mesh.ts's header).
-    const hearthMesh = renderer.uploadMesh(buildHearthMesh(), combinedMaterialIndexOf);
-    // The graveyard (chunk hollow-15) — same "one static mesh, one instance"
-    // idiom as the hearth above, placed at `latest.graveyard` each frame
-    // (also optional on the snapshot — see graveyard-mesh.ts's header).
-    const graveyardMesh = renderer.uploadMesh(buildGraveyardMesh(), combinedMaterialIndexOf);
     // Corpses (chunk hollow-15) — ONE static mesh, one instance PER live
     // `HollowCorpseSnapshot`, tinted per-instance by `corpseTint` (rotting or
     // not) — same "one mesh, many tinted instances" idiom the resource nodes
-    // and territory tiles above already use (see corpse-mesh.ts's header).
+    // above already use (see corpse-mesh.ts's header).
     const corpseMesh = renderer.uploadMesh(buildCorpseMesh(), combinedMaterialIndexOf);
-
-    // Home meshes are grown lazily as new household member-counts are seen
-    // (a small, bounded set — see household-layout.ts's `growthFactorFor`
-    // clamp) and cached forever, never re-uploaded.
-    const homeMeshByMemberCount = new Map<number, MeshHandle>();
-    function homeMeshHandleFor(memberCount: number): MeshHandle {
-      let handle = homeMeshByMemberCount.get(memberCount);
-      if (!handle) {
-        handle = renderer.uploadMesh(homeMeshFor(memberCount), combinedMaterialIndexOf);
-        homeMeshByMemberCount.set(memberCount, handle);
-      }
-      return handle;
-    }
 
     // A home's ground position is FROZEN on first sighting of its household.
     // `householdLayout` re-derives an anchor from the community territory
@@ -444,10 +428,8 @@ export function startHollowApp(canvas: HTMLCanvasElement, worker: Worker, opts: 
     resize();
 
     // --- render loop --------------------------------------------------------
-    // Static draws (corpus brief 24): the ground never changes, the territory only when a snapshot's does.
-    const groundDraw: DrawCall3d = { mesh: groundMesh, instances: packGroundInstance(), instanceCount: 1 };
-    const territoryCache = new TerritoryInstanceCache();
-    let territoryDraw: DrawCall3d | null = null;
+    // The snapshot the static meshes were last updated for: the same snapshot on the next frame skips the update.
+    let staticSnapshot: HollowSnapshot | null = null;
     function frame(nowMs: number): void {
       if (disposed) return;
       frameProfile.beginFrame();
@@ -458,51 +440,25 @@ export function startHollowApp(canvas: HTMLCanvasElement, worker: Worker, opts: 
       if (latest) {
         const draws: DrawCall3d[] = [];
 
-        // Ground (single instance — the heightfield mesh itself IS the terrain). Packed once, above.
-        draws.push(groundDraw);
-
-        // Soft per-community territory tint — one tile-mesh instance per
-        // {gx, gy} in every community's territory, tinted toward that
-        // community's color role (materials.ts). Built when the territory
-        // changes (static-draws.ts), not every frame.
-        const territory = territoryCache.get(latest);
-        if (territory) {
-          if (territoryDraw?.instances !== territory.instances) {
-            territoryDraw = { mesh: territoryTileMesh, instances: territory.instances, instanceCount: territory.count };
-          }
-          draws.push(territoryDraw);
+        // The static geometry (corpus brief 31), two draws: the ground with
+        // the hearth (chunk hollow-14d) and the graveyard (chunk hollow-15),
+        // then the soft per-community territory tiles (materials.ts) with the
+        // households — clustered by community, sized by member count (see
+        // household-layout.ts). Updated when a new snapshot arrives; each mesh
+        // is rebuilt only if what it shows changed (static-draws.ts).
+        if (latest !== staticSnapshot) {
+          staticSnapshot = latest;
+          // Reconciles freeze/place/release against THIS snapshot's live ids —
+          // see `homeRegistry`'s construction above for why.
+          const homePositions = homeRegistry.positionsFor(householdLayout(latest));
+          staticMeshes.update(latest, homePositions, householdMemberCounts(latest));
         }
-
-        // The hearth (chunk hollow-14d) — the town's one authored central
-        // feature everyone converges on at dusk (day/night wash below is now
-        // synced to the SAME sim day-phase clock, so this glows right as it
-        // gets dark). Optional on the snapshot (older/hand-built fixtures) —
-        // skip cleanly if absent.
-        if (latest.hearth) {
-          const { gx, gy } = latest.hearth;
-          const z = groundHeightAt(gx, gy);
-          const model = translation([gx + 0.5, gy + 0.5, z]);
-          draws.push({
-            mesh: hearthMesh,
-            instances: packInstances([{ model, tint: WHITE_TINT }]),
-            instanceCount: 1,
-          });
-        }
-
-        // The graveyard (chunk hollow-15) — the town's one authored burial
-        // ground, the anchor a grave-digger carries bodies to. Optional on
-        // the snapshot (older/hand-built fixtures) — skip cleanly if absent,
-        // same convention as the hearth above.
-        if (latest.graveyard) {
-          const { gx, gy } = latest.graveyard;
-          const z = groundHeightAt(gx, gy);
-          const model = translation([gx + 0.5, gy + 0.5, z]);
-          draws.push({
-            mesh: graveyardMesh,
-            instances: packInstances([{ model, tint: WHITE_TINT }]),
-            instanceCount: 1,
-          });
-        }
+        const fixedDraw = staticMeshes.fixedDraw;
+        if (fixedDraw) draws.push(fixedDraw);
+        const changingDraw = staticMeshes.changingDraw;
+        if (changingDraw) draws.push(changingDraw);
+        // The draws pushed for the static geometry: ground, territory, hearth, graveyard and homes.
+        profiler.add("draw.static", draws.length);
 
         // Corpses (chunk hollow-15) — every currently-live body (a carried
         // corpse's `gx`/`gy` already track its carrier's tile — see
@@ -519,28 +475,6 @@ export function startHollowApp(canvas: HTMLCanvasElement, worker: Worker, opts: 
             instances: packInstances(corpseInstances),
             instanceCount: corpseInstances.length,
           });
-        }
-
-        // Households — clustered by community, sized by member count (see
-        // household-layout.ts). Grouped by mesh handle so each distinct
-        // house size gets exactly one instanced draw call.
-        const memberCounts = householdMemberCounts(latest);
-        const layout = householdLayout(latest);
-        // Reconciles freeze/place/release against THIS frame's live ids —
-        // see `homeRegistry`'s construction above for why.
-        const homePositions = homeRegistry.positionsFor(layout);
-        const byHomeMesh = new Map<MeshHandle, Instance[]>();
-        for (const [householdId, pos] of homePositions) {
-          const count = memberCounts.get(householdId) ?? 1;
-          const handle = homeMeshHandleFor(count);
-          const z = groundHeightAt(Math.round(pos.x), Math.round(pos.y));
-          const inst: Instance = { model: translation([pos.x, pos.y, z]), tint: WHITE_TINT };
-          const list = byHomeMesh.get(handle);
-          if (list) list.push(inst);
-          else byHomeMesh.set(handle, [inst]);
-        }
-        for (const [handle, list] of byHomeMesh) {
-          draws.push({ mesh: handle, instances: packInstances(list), instanceCount: list.length });
         }
 
         // Resource nodes — distinct base mesh per kind, scaled per-instance

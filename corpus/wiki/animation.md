@@ -1,6 +1,6 @@
 ---
 summary: How farmers, Pip, NPCs and scenery animate — the scattered ad-hoc state, the deleted brief-04 Animator ghost, and the render-side animation-engine direction.
-updated: 2026-08-18
+updated: 2026-11-26
 ---
 
 # Animation
@@ -88,5 +88,5 @@ Sources — architecture: [Unity Animator](https://docs.unity3d.com/6000.3/Docum
 
 ## Declared animations (2026-11-23, brief 22)
 
-`clipFromDeclaration(decl)` in `@engine/core/animation` builds an `AnimationClip` from an `AnimationDeclaration` (frames, one duration or one per frame, loop or once). The same declaration is written into the atlas manifest by the cook ([atlas-cook.md](atlas-cook.md)). Only Farm's `FORGE_FIRE_CLIP` is built this way; the other eight `loopClip` clips follow in a later brief. Note the unit: `loopClip` takes the period of the whole loop, a declaration takes a duration per frame (forge fire: 420 ms for three frames is 140 ms a frame).
+`clipFromDeclaration(decl)` in `@engine/core/animation` builds an `AnimationClip` from an `AnimationDeclaration` (frames, one duration or one per frame, loop or once). The same declaration is written into the atlas manifest by the cook ([atlas-cook.md](atlas-cook.md)). Farm builds eight clips this way (brief 32, 2026-11-26): the forge fire and smoke, the foam, the waterfall fall, the campfire, the weather beacon, the fishing spot and the bird flap, all declared in `@farm/atlas-recipes/animations`. The smoke wisps and birds in `ambient.ts` sample `FORGE_SMOKE_CLIP` and `BIRD_FLAP_CLIP` with `sampleCycle`. The farmer walk (`WALK_CLIP`, with its `step` events) and the action swing build their frame names from a farmer's base, facing and pose at run time, so they stay in code: a declaration names whole frames (the owner question is on [open-questions.md](open-questions.md)). Note the unit: `loopClip` takes the period of the whole loop, a declaration takes a duration per frame (forge fire: 420 ms for three frames is 140 ms a frame; forge smoke: 700 ms is `700 / 3` a frame, three of which sum to exactly 700).
 

@@ -114,9 +114,9 @@ const SHADER_SOURCE: ShaderSource = {
 };
 
 /** An opaque GPU handle for one uploaded mesh (returned by
- *  `SceneRenderer3D.uploadMesh`). Treat as opaque — the only public field is
- *  `indexCount` (useful for debugging/HUD text); the VAO/vertex/index buffers
- *  backing it are only ever touched by `SceneRenderer3D` itself. */
+ *  `SceneRenderer3D.uploadMesh`). Treat as opaque — the only public fields are
+ *  `indexCount` (useful for debugging/HUD text) and `released`; the VAO/vertex/index buffers
+ *  backing it are only ever touched by `SceneRenderer3D` itself, which frees them in `releaseMesh`. */
 export class MeshHandle {
   readonly indexCount: number;
   /** @internal */
@@ -127,6 +127,7 @@ export class MeshHandle {
   readonly indexBuffer: WebGLBuffer;
   /** @internal The mesh's bounding sphere in its own space, computed once at upload (frustum culling). */
   readonly bounds: BoundingSphere;
+  private releasedFlag = false;
 
   constructor(
     vao: WebGLVertexArrayObject,
@@ -140,6 +141,16 @@ export class MeshHandle {
     this.vertexBuffer = vertexBuffer;
     this.indexBuffer = indexBuffer;
     this.indexCount = indexCount;
+  }
+
+  /** Whether `SceneRenderer3D.releaseMesh` has freed this handle. A released handle cannot be drawn. */
+  get released(): boolean {
+    return this.releasedFlag;
+  }
+
+  /** @internal Called once, by `SceneRenderer3D.releaseMesh`. */
+  markReleased(): void {
+    this.releasedFlag = true;
   }
 }
 
@@ -308,6 +319,25 @@ export class SceneRenderer3D {
   }
 
   /**
+   * Free what `uploadMesh` created for `handle` (its VAO, vertex and index buffers) and the instance buffer
+   * `render` keeps for it, and mark it released (corpus brief 31). Drawing a released handle throws.
+   * Releasing one twice does nothing. With the device lost, the GL objects went with the context, so this
+   * only forgets the handle. To replace a mesh, upload the new one first, then release the old.
+   */
+  releaseMesh(handle: MeshHandle): void {
+    if (handle.released) return;
+    handle.markReleased();
+    const instance = this.instanceBuffers.get(handle);
+    this.instanceBuffers.delete(handle);
+    if (this.device3d.lost) return;
+    const gl = this.gl;
+    gl.deleteVertexArray(handle.vao);
+    gl.deleteBuffer(handle.vertexBuffer);
+    gl.deleteBuffer(handle.indexBuffer);
+    if (instance !== undefined) gl.deleteBuffer(instance.buffer);
+  }
+
+  /**
    * Update the GL viewport to match the current canvas size. Call whenever
    * the canvas resizes. Unlike the WebGPU sibling, no depth-texture
    * recreation is needed here: WebGL2's default framebuffer's depth buffer
@@ -350,6 +380,7 @@ export class SceneRenderer3D {
     let drawCalls = 0;
     let instances = 0;
     for (const draw of frame.draws) {
+      if (draw.mesh.released) throw new Error("render3d: SceneRenderer3D.render was given a released mesh");
       if (draw.instanceCount === 0) continue;
       const needed = draw.instanceCount * FLOATS_PER_INSTANCE;
       if (this.cullScratch.length < needed) this.cullScratch = new Float32Array(needed);
@@ -406,6 +437,8 @@ export class SceneRenderer3D {
     const neededBytes = Math.max(capacityFloats * 4, FLOATS_PER_INSTANCE * 4);
     let entry = this.instanceBuffers.get(mesh);
     if (!entry || entry.capacityBytes < neededBytes) {
+      // The smaller buffer it replaces is deleted, not left to the garbage collector.
+      if (entry) gl.deleteBuffer(entry.buffer);
       entry = { buffer: createArrayBuffer(gl, neededBytes, gl.DYNAMIC_DRAW), capacityBytes: neededBytes };
       this.instanceBuffers.set(mesh, entry);
     }

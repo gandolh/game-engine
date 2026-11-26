@@ -1,6 +1,6 @@
 # Task 20: fewer allocations per frame in Farm and MateQuest
 
-**Origin:** the [allocation-free frames todo](../../todos/2026-11-20-allocation-free-frames.md), promoted by
+**Origin:** the [allocation-free frames todo](../../todos/closed/2026-11-20-allocation-free-frames.md), promoted by
 the owner on 2026-11-23 with the rest of the measure-first todos: build light optimizations that are not too
 heavy, complex or wide ([decisions.md](../../wiki/decisions.md) → Frame budget). The plan is
 [frame-budget.md](../../wiki/frame-budget.md).

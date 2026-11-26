@@ -1,6 +1,6 @@
 # Task 16: the light overlay drawn on the GPU
 
-**Origin:** the [light overlay todo](../../todos/2026-11-21-light-overlay-full-canvas-upload.md), promoted
+**Origin:** the [light overlay todo](../../todos/closed/2026-11-21-light-overlay-full-canvas-upload.md), promoted
 by the owner on 2026-11-23 with the rest of the measure-first todos: build light optimizations that are not
 too heavy, complex or wide ([decisions.md](../../wiki/decisions.md) → Frame budget). The plan is
 [frame-budget.md](../../wiki/frame-budget.md).

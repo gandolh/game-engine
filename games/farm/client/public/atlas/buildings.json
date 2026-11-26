@@ -531,6 +531,45 @@
       ],
       "frameDurationMs": 140,
       "mode": "loop"
+    },
+    {
+      "name": "forge-smoke",
+      "frames": [
+        "structure/forge-smoke-a",
+        "structure/forge-smoke-b",
+        "structure/forge-smoke-c"
+      ],
+      "frameDurationMs": 233.33333333333334,
+      "mode": "loop"
+    },
+    {
+      "name": "campfire",
+      "frames": [
+        "structure/campfire-a",
+        "structure/campfire-b",
+        "structure/campfire-c"
+      ],
+      "frameDurationMs": 130,
+      "mode": "loop"
+    },
+    {
+      "name": "weather-beacon",
+      "frames": [
+        "structure/weather-beacon-a",
+        "structure/weather-beacon-b"
+      ],
+      "frameDurationMs": 500,
+      "mode": "loop"
+    },
+    {
+      "name": "fishing-spot",
+      "frames": [
+        "structure/fishing-spot",
+        "structure/fishing-spot-b",
+        "structure/fishing-spot-c"
+      ],
+      "frameDurationMs": 400,
+      "mode": "loop"
     }
   ],
   "inputsHash": "ce1d29933d3c33e31a86fd83119bfd85a7384f11426c194e5aa09e74a843ace5"

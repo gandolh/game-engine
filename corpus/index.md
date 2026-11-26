@@ -33,7 +33,7 @@ which is how a "WebGPU-only render path" line outlived the page that already sai
 - [wiki/status.md](wiki/status.md) — The current-state snapshot: where each game stands, current sim/determinism behaviour, which gates run, architecture milestones, and open gaps. **Brief-by-brief history is not here** — it is in [log.md](log.md) and the `todos/` · `briefs/` directories.
 - [wiki/open-questions.md](wiki/open-questions.md) — Live list of what is genuinely unresolved, plus settled premises that must not be re-litigated. Resolved items are deleted, not archived.
 - [wiki/performance.md](wiki/performance.md) — Ranked optimization backlog for the engine, filtered against what the code actually does — tiers 0–3, what is already done, and what is explicitly not worth doing at Farm Valley's scale.
-- [wiki/frame-budget.md](wiki/frame-budget.md) — The 60 fps rule (the bar, the reference devices, the metric), the counter budgets per bench scene, the 2026-11-20 asset pick and the three decisions it reverts, the brief order 05-23, and the former measure-first todos, all promoted to briefs on 2026-11-23, with the laptop's reading against each trigger.
+- [wiki/frame-budget.md](wiki/frame-budget.md) — The 60 fps rule (the bar, the reference devices, the metric), the counter budgets per bench scene, the 2026-11-20 asset pick and the three decisions it reverts, the brief order 05-32, and the former measure-first todos, all promoted to briefs on 2026-11-23 (their last two steps on 2026-11-26), with the laptop's reading against each trigger.
 - [wiki/real-gpu-readings.md](wiki/real-gpu-readings.md) — The bench scenes read on real GPUs (brief 07): the laptop's AMD iGPU on 2026-11-23, each game's verdict against the 60 fps bar, where Farm's frame goes, Hollow framed against direct, the heap, main-thread time outside the frame, an emulated-phone pass, and the phone estimate that replaces a phone reading.
 - [wiki/performance-measurements.md](wiki/performance-measurements.md) — The profiling record: how every game measures itself since 2026-11-21 (`?profile`, the `game-engine-profile/1` export, what means something on SwiftShader), plus the measured baselines every optimization claim is scored against.
 - [wiki/bench-scenes.md](wiki/bench-scenes.md) — The fixed `?bench` scene in each game (brief 06): what each does, running one by hand, framed in the portal or headless with `npm run bench`, what to compare on SwiftShader, and two runs that agree.
@@ -78,7 +78,12 @@ which is how a "WebGPU-only render path" line outlived the page that already sai
 
 ## Build programs
 
-**Open in the queue** (list [briefs/todo/](briefs/todo/) for the current set): none. Done 2026-11-07: brief 01,
+**Open in the queue** (list [briefs/todo/](briefs/todo/) for the current set), as of 2026-11-26:
+[13](briefs/todo/13-the-sprite-gen-pixel-draw-trial.md), the sprite-gen blind trial, waiting on the owner;
+and [14](briefs/todo/14-mathquest-combat-sprites-as-pixel-art.md), MateQuest's combat sprites, after 13.
+Briefs 15-32 are done, the last two on 2026-11-26: [31](briefs/done/31-hollow-merges-its-static-geometry.md)
+(Hollow merges its static geometry) and [32](briefs/done/32-farms-other-clips-declared-with-the-recipes.md) (Farm's
+other clips declared with the recipes); the 60 fps program is on [frame-budget.md](wiki/frame-budget.md). Done 2026-11-07: brief 01,
 [the README's Farm and Citadel images retaken](briefs/done/01-retake-readme-images-after-the-flip-fix.md)
 after the upside-down static-layer fix. Done 2026-11-04: brief 02,
 [the Farm Valley server runs built JavaScript](briefs/done/02-the-farm-server-runs-built-javascript.md)
@@ -161,7 +166,8 @@ there were two archives — `briefs/` (the original scheme, numbered `NN-slug.md
 `117-collapsible-hud-panels.md` and `2026-09-18-audit-52-….md` now sit side by side, which is the
 convention: *names are stable for the life of the file.*
 
-- **Ready or in progress** → [todos/](todos/). **Everything finished** → [todos/closed/](todos/closed/).
+- **Ready or in progress** → [briefs/todo/](briefs/todo/) since 2026-11-03 (captured ideas in [todos/](todos/)).
+  **Everything finished** → [briefs/done/](briefs/done/), and before 2026-11-03 [todos/closed/](todos/closed/).
 - **A spec's state is the directory it is in**, not its `status:` line — that is frozen at authoring
   time and routinely still reads `todo`.
 - **Supersession is a note in the file**, not a directory. The old scheme had a `superseded/`

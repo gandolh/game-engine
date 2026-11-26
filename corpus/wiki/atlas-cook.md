@@ -1,6 +1,6 @@
 ---
 summary: The atlas cook as of 2026-11-21: one cook for every game's recipes through a per-game AtlasConfig (how to add a game, the palette check), and one runtime page per game (the packing rule, the page-aware loader, texture grouping, and the measured 49 → 1 draw groups).
-updated: 2026-11-21
+updated: 2026-11-26
 ---
 
 # The atlas cook
@@ -57,5 +57,5 @@ renders byte for byte the same, and `npm run preview` writes the same PNG.
 
 ## Declared animations (brief 22)
 
-A recipe set may declare `animations` in its config: a name, frame names in order, `frameDurationMs` (one number or one per frame) and `mode` (`loop` or `once`). The type is `AnimationDeclaration` in `@engine/core/animation`; a recipe package writes plain data of the same shape and imports nothing. The cook (`checkAnimations`, `tools/atlas-builder/src/config.ts`) refuses a duplicate name, an empty list, a bad duration and a frame the set lacks, and refuses frames on more than one sheet because the animation goes into the manifest of its sheet, beside `frames`. A sheet with no animations gets no `animations` field at all, so its manifest is unchanged. The animations are not in the sheet's input hash, so the cook compares the manifest's `animations` with the declared ones and writes the sheet again when they differ (the PNG is deterministic, so its bytes stay). Farm declares one so far: `forge-fire`, in `games/farm/atlas-recipes/src/animations.ts`, in `buildings.json`.
+A recipe set may declare `animations` in its config: a name, frame names in order, `frameDurationMs` (one number or one per frame) and `mode` (`loop` or `once`). The type is `AnimationDeclaration` in `@engine/core/animation`; a recipe package writes plain data of the same shape and imports nothing. The cook (`checkAnimations`, `tools/atlas-builder/src/config.ts`) refuses a duplicate name, an empty list, a bad duration and a frame the set lacks, and refuses frames on more than one sheet because the animation goes into the manifest of its sheet, beside `frames`. A sheet with no animations gets no `animations` field at all, so its manifest is unchanged. The animations are not in the sheet's input hash, so the cook compares the manifest's `animations` with the declared ones and writes the sheet again when they differ (the PNG is deterministic, so its bytes stay). Farm declares eight in `games/farm/atlas-recipes/src/animations.ts` (brief 32): `foam` and `waterfall-fall` in `terrain.json`; `forge-fire`, `forge-smoke`, `campfire`, `weather-beacon` and `fishing-spot` in `buildings.json`; `bird-flap` in `props.json`.
 

@@ -18,6 +18,10 @@ interface Calls {
   drawElementsInstanced: Array<{ mode: number; count: number; type: number; instanceCount: number }>;
   useProgram: unknown[];
   clear: unknown[];
+  createdBuffers: unknown[];
+  deletedBuffers: unknown[];
+  createdVaos: unknown[];
+  deletedVaos: unknown[];
 }
 
 function makeFakeGl(): { gl: WebGL2RenderingContext; calls: Calls } {
@@ -30,9 +34,14 @@ function makeFakeGl(): { gl: WebGL2RenderingContext; calls: Calls } {
     drawElementsInstanced: [],
     useProgram: [],
     clear: [],
+    createdBuffers: [],
+    deletedBuffers: [],
+    createdVaos: [],
+    deletedVaos: [],
   };
 
   let nextBufferId = 0;
+  let nextVaoId = 0;
 
   const gl = {
     // constants — opaque tokens, only compared against this same fake's own values.
@@ -78,12 +87,22 @@ function makeFakeGl(): { gl: WebGL2RenderingContext; calls: Calls } {
       calls.bindBufferBase.push({ target, index, buffer });
     }),
 
-    createBuffer: vi.fn(() => ({ __kind: "buffer", id: nextBufferId++ })),
+    createBuffer: vi.fn(() => {
+      const buffer = { __kind: "buffer", id: nextBufferId++ };
+      calls.createdBuffers.push(buffer);
+      return buffer;
+    }),
+    deleteBuffer: vi.fn((buffer: unknown) => calls.deletedBuffers.push(buffer)),
     bindBuffer: vi.fn(),
     bufferData: vi.fn(),
     bufferSubData: vi.fn(),
 
-    createVertexArray: vi.fn(() => ({ __kind: "vao" })),
+    createVertexArray: vi.fn(() => {
+      const vao = { __kind: "vao", id: nextVaoId++ };
+      calls.createdVaos.push(vao);
+      return vao;
+    }),
+    deleteVertexArray: vi.fn((vao: unknown) => calls.deletedVaos.push(vao)),
     bindVertexArray: vi.fn(),
     enableVertexAttribArray: vi.fn(),
     vertexAttribPointer: vi.fn(),
@@ -244,6 +263,87 @@ describe("SceneRenderer3D#render", () => {
     const renderer = new SceneRenderer3D(makeDevice3d(gl));
     const mesh = renderer.uploadMesh(TRI_MESH, materialIndexOf);
     expect(mesh.indexCount).toBe(3);
+  });
+});
+
+describe("SceneRenderer3D#releaseMesh", () => {
+  const ONE = packInstances([{ model: identity(), tint: [1, 1, 1, 1] }]);
+
+  function readyRenderer(lost = false): { renderer: SceneRenderer3D; calls: Calls; device: GlDevice3d } {
+    const { gl, calls } = makeFakeGl();
+    const device = makeDevice3d(gl, 65536, lost);
+    const renderer = new SceneRenderer3D(device);
+    renderer.setMaterials([{ color: [1, 1, 1] }]);
+    return { renderer, calls, device };
+  }
+
+  it("deletes every GL object it created over ten upload, draw and release rounds", () => {
+    const { renderer, calls } = readyRenderer();
+    // The frame and materials uniform buffers live as long as the renderer.
+    const before = calls.createdBuffers.length;
+    for (let i = 0; i < 10; i++) {
+      const mesh = renderer.uploadMesh(TRI_MESH, materialIndexOf);
+      renderer.render({ ...FRAME, draws: [{ mesh, instances: ONE, instanceCount: 1 }] });
+      renderer.releaseMesh(mesh);
+    }
+    const created = calls.createdBuffers.slice(before);
+    // A vertex, an index and an instance buffer per round.
+    expect(created).toHaveLength(30);
+    expect(new Set(calls.deletedBuffers)).toEqual(new Set(created));
+    expect(calls.deletedBuffers).toHaveLength(30);
+    expect(calls.createdVaos).toHaveLength(10);
+    expect(new Set(calls.deletedVaos)).toEqual(new Set(calls.createdVaos));
+  });
+
+  it("drops the mesh's instance buffer", () => {
+    const { renderer, calls } = readyRenderer();
+    const mesh = renderer.uploadMesh(TRI_MESH, materialIndexOf);
+    renderer.render({ ...FRAME, draws: [{ mesh, instances: ONE, instanceCount: 1 }] });
+    const instanceBuffer = calls.createdBuffers.at(-1);
+    renderer.releaseMesh(mesh);
+    expect(calls.deletedBuffers).toContain(instanceBuffer);
+    expect(calls.deletedBuffers).toEqual([mesh.vertexBuffer, mesh.indexBuffer, instanceBuffer]);
+  });
+
+  it("throws when a released handle is drawn, even with no instances", () => {
+    const { renderer } = readyRenderer();
+    const mesh = renderer.uploadMesh(TRI_MESH, materialIndexOf);
+    renderer.releaseMesh(mesh);
+    expect(mesh.released).toBe(true);
+    expect(() => renderer.render({ ...FRAME, draws: [{ mesh, instances: ONE, instanceCount: 1 }] })).toThrow(
+      /released/,
+    );
+    expect(() =>
+      renderer.render({ ...FRAME, draws: [{ mesh, instances: new Float32Array(0), instanceCount: 0 }] }),
+    ).toThrow(/released/);
+  });
+
+  it("does nothing the second time a handle is released", () => {
+    const { renderer, calls } = readyRenderer();
+    const mesh = renderer.uploadMesh(TRI_MESH, materialIndexOf);
+    renderer.releaseMesh(mesh);
+    renderer.releaseMesh(mesh);
+    expect(calls.deletedBuffers).toHaveLength(2);
+    expect(calls.deletedVaos).toHaveLength(1);
+  });
+
+  it("only forgets the handle when the device is lost", () => {
+    const { renderer, calls } = readyRenderer(true);
+    const mesh = renderer.uploadMesh(TRI_MESH, materialIndexOf);
+    renderer.releaseMesh(mesh);
+    expect(mesh.released).toBe(true);
+    expect(calls.deletedBuffers).toHaveLength(0);
+    expect(calls.deletedVaos).toHaveLength(0);
+  });
+
+  it("deletes a mesh's smaller instance buffer when a larger draw replaces it", () => {
+    const { renderer, calls } = readyRenderer();
+    const mesh = renderer.uploadMesh(TRI_MESH, materialIndexOf);
+    renderer.render({ ...FRAME, draws: [{ mesh, instances: ONE, instanceCount: 1 }] });
+    const small = calls.createdBuffers.at(-1);
+    const three = packInstances([0, 1, 2].map(() => ({ model: identity(), tint: [1, 1, 1, 1] as const })));
+    renderer.render({ ...FRAME, draws: [{ mesh, instances: three, instanceCount: 3 }] });
+    expect(calls.deletedBuffers).toEqual([small]);
   });
 });
 
