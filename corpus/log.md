@@ -4340,7 +4340,7 @@ owner step.
 [verify/2026-11-23-light-overlay/](verify/2026-11-23-light-overlay/). Farm's night light pools are instanced
 quads with a shader falloff; `OverlayFn` became `LightOverlay`. Headless texture bytes a frame at 1280x800:
 4,096,000 to 0. Updated [frame-budget.md](wiki/frame-budget.md), [real-gpu-readings.md](wiki/real-gpu-readings.md)
-and the [todo](todos/2026-11-21-light-overlay-full-canvas-upload.md)'s status line.
+and the [todo](todos/closed/2026-11-21-light-overlay-full-canvas-upload.md)'s status line.
 
 ## [2026-11-23] done | Brief 17: the ghost check on a grid
 
@@ -4348,15 +4348,15 @@ and the [todo](todos/2026-11-21-light-overlay-full-canvas-upload.md)'s status li
 in the cells its rectangle touches when the plain scan would take 20,000 tests or more (else it scans, as before) (`GhostGrid`, `engine/core/src/render/webgl2/ghost-grid.ts`) instead of every
 later sprite; the answers equal the old scan's on random scenes. Worst case (300 occluders, 4,000 sprites) 100.9 ms
 to 2.4 ms. Farm's ghost pass: old scan 0.003 ms, grid only 0.78 ms, hybrid 0.007 ms. `lastDrawStats.ghostMs` and Farm's `render.ghost` time the ghost pass. Updated
-[frame-budget.md](wiki/frame-budget.md) and the [todo](todos/2026-11-20-ghost-pass-scan.md)'s status line.
+[frame-budget.md](wiki/frame-budget.md) and the [todo](todos/closed/2026-11-20-ghost-pass-scan.md)'s status line.
 
 ## [2026-11-23] done | Brief 20: fewer allocations per frame
 
-[Brief](briefs/done/20-fewer-allocations-per-frame.md). Farm 2.75 to 1.54 MB a frame (heap drops 15 to 8): static and pooled bridge sprites, a text layout cache, pooled UI quads, no tuples in the pack loops. MateQuest's map screen uses one keyline painter and cached sorted props (about -80% per map frame). Counters unchanged. Farm's JSON decode left as the wire format. Profiler and numbers in `verify/2026-11-23-allocations/`. Updated [frame-budget.md](wiki/frame-budget.md), [real-gpu-readings.md](wiki/real-gpu-readings.md) and the [todo](todos/2026-11-20-allocation-free-frames.md).
+[Brief](briefs/done/20-fewer-allocations-per-frame.md). Farm 2.75 to 1.54 MB a frame (heap drops 15 to 8): static and pooled bridge sprites, a text layout cache, pooled UI quads, no tuples in the pack loops. MateQuest's map screen uses one keyline painter and cached sorted props (about -80% per map frame). Counters unchanged. Farm's JSON decode left as the wire format. Profiler and numbers in `verify/2026-11-23-allocations/`. Updated [frame-budget.md](wiki/frame-budget.md), [real-gpu-readings.md](wiki/real-gpu-readings.md) and the [todo](todos/closed/2026-11-20-allocation-free-frames.md).
 
 ## [2026-11-23] done | Brief 18: worker snapshots timed, and transferred in one game
 
-[Brief](briefs/done/18-worker-snapshots-timed-and-transferred.md). `snapshot.post`, `snapshot.read` and `snapshot.apply` are in the frame profile of Citadel, Hollow and MateQuest. Hollow costs most (read mean 0.30 ms, p95 0.6; Citadel 0.09 and 0.2), so its agent positions were moved into a transferred `Float32Array` (`ee7c3502`). `snapshot.read` did not fall, because the cost is the per-agent objects, not the numbers, so the closeout dropped the conversion and only the timers ship. Sims untouched, `sim:citadel` and `sim:hollow` unchanged. Updated [frame-budget.md](wiki/frame-budget.md), [real-gpu-readings.md](wiki/real-gpu-readings.md) and the [todo](todos/2026-11-20-worker-snapshot-transfer.md).
+[Brief](briefs/done/18-worker-snapshots-timed-and-transferred.md). `snapshot.post`, `snapshot.read` and `snapshot.apply` are in the frame profile of Citadel, Hollow and MateQuest. Hollow costs most (read mean 0.30 ms, p95 0.6; Citadel 0.09 and 0.2), so its agent positions were moved into a transferred `Float32Array` (`ee7c3502`). `snapshot.read` did not fall, because the cost is the per-agent objects, not the numbers, so the closeout dropped the conversion and only the timers ship. Sims untouched, `sim:citadel` and `sim:hollow` unchanged. Updated [frame-budget.md](wiki/frame-budget.md), [real-gpu-readings.md](wiki/real-gpu-readings.md) and the [todo](todos/closed/2026-11-20-worker-snapshot-transfer.md).
 
 ## [2026-11-23] research | The Super Mario 64 decompilation: briefs 24-27
 
@@ -4464,3 +4464,24 @@ Built. `deps` runs `npm ci -w @farm/server --include-workspace-root` (720 → 26
 `docker/dockerfile:1.20.0`, the first stable frontend with `COPY --parents` (1.19.0 rejects it). The final
 image is 173 MB (171 before), stays up and takes a WebSocket. Ready for deploy: `node cli.ts farm-valley server`.
 See [briefs/done/30-the-sim-images-build-stage-installs-only-the-server.md](briefs/done/30-the-sim-images-build-stage-installs-only-the-server.md).
+
+## [2026-11-26] promote | The measure-first todos closed; briefs 31 and 32 for what was left
+
+The owner asked to promote game-engine's backlog and work on it. Seven of the nine todos in `todos/` had their briefs
+built and moved to [todos/closed/](todos/closed/): allocation-free frames (20), the ghost pass scan (17), the recipe
+and PNG round trip (23), the sprite sort (15), the static layer as tile chunks (21), the light overlay upload (16)
+and the worker snapshot transfer (18). Two carry a top note. The snapshot todo closed without its typed-array
+snapshot: brief 18 measured the copy at about 0.3 ms against the 2 ms trigger, and only moving the per-agent records
+would pay, which is not light. The tile-chunk todo closed on its spike; adoption waits on the owner's laptop reading.
+Links into the moved files (done briefs, this log, two wiki pages) were re-pointed.
+
+The two with a step left became briefs, To Do under the owner's rule of 2026-11-23:
+[31](briefs/todo/31-hollow-merges-its-static-geometry.md), Hollow merges its static geometry (Opus: the first
+`releaseMesh` in `SceneRenderer3D`, territory colours as eight materials, two merged meshes, a stop rule), and
+[32](briefs/todo/32-farms-other-clips-declared-with-the-recipes.md), Farm's other clips declared with the recipes
+(Sonnet). Brief 22 counted nine clips; the code has eight `loopClip` calls, so seven remained, not eight. Brief 32
+moves the six that name whole frames and two hand-rolled cycles in `ambient.ts`; the walk and the action swing stay
+in code by default, an owner question on [open-questions.md](wiki/open-questions.md). Both todos stay in `todos/`
+with a status line naming their brief, as the promoted todos of 2026-11-23 did, and each brief's closeout moves its
+todo to `todos/closed/`. brief-board wasn't available in this session, so the board doesn't show briefs 31 and 32
+until the next `brief-board sync`.

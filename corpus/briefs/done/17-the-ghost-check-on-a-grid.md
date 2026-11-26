@@ -1,6 +1,6 @@
 # Task 17: the ghost check on a grid
 
-**Origin:** the [ghost pass todo](../../todos/2026-11-20-ghost-pass-scan.md), promoted by the owner on
+**Origin:** the [ghost pass todo](../../todos/closed/2026-11-20-ghost-pass-scan.md), promoted by the owner on
 2026-11-23 with the rest of the measure-first todos: build light optimizations that are not too heavy,
 complex or wide ([decisions.md](../../wiki/decisions.md) → Frame budget). The plan is
 [frame-budget.md](../../wiki/frame-budget.md).

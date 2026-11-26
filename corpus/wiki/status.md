@@ -1,6 +1,6 @@
 ---
 summary: The current-state snapshot — where each game stands, current sim/determinism behaviour, which gates run, architecture milestones, and open gaps. Brief-by-brief history lives in log.md and the todos/briefs directories, not here.
-updated: 2026-11-23
+updated: 2026-11-26
 ---
 
 # Project Status
@@ -144,8 +144,7 @@ See [open-questions.md](open-questions.md) for the live list.
 frozen at authoring time, so it lies; a hand-maintained index here would be a third copy to keep in
 step, and it was not kept in step.
 
-- **Ready or in progress** — [todos/](../todos/). **Finished** — [todos/closed/](../todos/closed/).
-- **Older briefs** — also [todos/closed/](../todos/closed/). The separate `briefs/` archive was folded in on 2026-09-19; numbered names (`117-…`) sit beside dated ones.
+- **Ready or in progress** — [briefs/todo/](../briefs/todo/) since 2026-11-03; captured ideas in [todos/](../todos/). **Finished** — [briefs/done/](../briefs/done/), and every spec from before 2026-11-03 in [todos/closed/](../todos/closed/), where numbered names (`117-…`) sit beside dated ones.
 - **Why a thing was done that way** — [log.md](../log.md), newest first.
 - **What must not be relitigated** — [decisions.md](decisions.md) and
   [citadel-decisions.md](citadel-decisions.md).
@@ -153,6 +152,11 @@ step, and it was not kept in step.
 ## Recent changes
 
 Newest first, one line each. Detail is in the [log.md](../log.md) entry for the same date.
+
+- **2026-11-26**: seven of the nine measure-first todos closed, their briefs built (15–18, 20, 21, 23). The two
+  with a step left became briefs: [31](../briefs/todo/31-hollow-merges-its-static-geometry.md), Hollow's static
+  geometry merged, and [32](../briefs/todo/32-farms-other-clips-declared-with-the-recipes.md), Farm's other clips
+  declared with the recipes. The queue is 13, 14, 31 and 32.
 
 - **2026-11-23**: the laptop half of brief 07's real-GPU reading ([real-gpu-readings.md](real-gpu-readings.md)).
   Citadel, Hollow and MateQuest meet the 60 fps bar; Farm meets it at its edge and is CPU-bound. The sprite sort

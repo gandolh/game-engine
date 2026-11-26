@@ -139,7 +139,7 @@ game, taken a few seconds into play at 1280×800. Counters only, per frame (mean
 Two numbers stand out. Farm re-uploads a full-canvas texture every frame: the light overlay paints on a
 CPU 2D canvas and `OverlayLightPass` uploads it whole (4 MB at 1280×800, about 8 MB at 1080p with DPR
 capped at 2). That is a measure-first todo,
-[light overlay as a full-canvas upload](../todos/2026-11-21-light-overlay-full-canvas-upload.md). And
+[light overlay as a full-canvas upload](../todos/closed/2026-11-21-light-overlay-full-canvas-upload.md). And
 MateQuest's map screen flushes about 19,000 UI quads a frame from its shape-drawn scenery, which brief 12
 leaves as it is (it moves only the combat creatures onto an atlas).
 

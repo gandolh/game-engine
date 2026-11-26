@@ -1,17 +1,21 @@
 # Static layer as tile chunks
 
-status: promoted to brief 21 on 2026-11-23 ([21](../briefs/done/21-a-tile-chunk-ground-spike-in-farm.md)), by the owner's call to
+> **Closed 2026-11-26: the spike this todo asked for is built (brief 21).** Adopting tile chunks for Farm waits on
+> the owner's laptop reading named in brief 21's outcome (`?bench&profile` against `?bench&profile&tilechunks`); if
+> it agrees, adoption is a new brief. Citadel is out, as the spike found.
+
+status: closed 2026-11-26. Promoted to brief 21 on 2026-11-23 ([21](../../briefs/done/21-a-tile-chunk-ground-spike-in-farm.md)), by the owner's call to
 build light optimizations without waiting for a trigger. Its trigger was to promote it when brief 07 or a later bench reading shows the static layer's GPU time or
 memory breaking the bar on a reference device, the Android phone most likely. The spike was done on 2026-11-24:
 it recommends adopting tile chunks for Farm if a real-GPU reading agrees, and not for Citadel.
 created: 2026-11-20
-context: the 60 fps plan, [frame-budget.md](../wiki/frame-budget.md).
+context: the 60 fps plan, [frame-budget.md](../../wiki/frame-budget.md).
 
 ## The cost today
 
 Each game bakes the ground once on the CPU into one big image and uploads it as a texture. Farm's
 is 3840×3840, 56.3 MB. Citadel's 192×192 map is 6144×3072, 72 MB, drawn as 2048 px patches since
-2026-11-03 ([asset-pipeline.md](../wiki/asset-pipeline.md), "Patches as built"). Megabytes are not
+2026-11-03 ([asset-pipeline.md](../../wiki/asset-pipeline.md), "Patches as built"). Megabytes are not
 milliseconds, and the patches already keep every texture under the device limit. On a phone,
 though, memory bandwidth and the browser's GPU memory budget are tight.
 

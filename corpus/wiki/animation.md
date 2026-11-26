@@ -1,6 +1,6 @@
 ---
 summary: How farmers, Pip, NPCs and scenery animate — the scattered ad-hoc state, the deleted brief-04 Animator ghost, and the render-side animation-engine direction.
-updated: 2026-08-18
+updated: 2026-11-26
 ---
 
 # Animation
@@ -88,5 +88,5 @@ Sources — architecture: [Unity Animator](https://docs.unity3d.com/6000.3/Docum
 
 ## Declared animations (2026-11-23, brief 22)
 
-`clipFromDeclaration(decl)` in `@engine/core/animation` builds an `AnimationClip` from an `AnimationDeclaration` (frames, one duration or one per frame, loop or once). The same declaration is written into the atlas manifest by the cook ([atlas-cook.md](atlas-cook.md)). Only Farm's `FORGE_FIRE_CLIP` is built this way; the other eight `loopClip` clips follow in a later brief. Note the unit: `loopClip` takes the period of the whole loop, a declaration takes a duration per frame (forge fire: 420 ms for three frames is 140 ms a frame).
+`clipFromDeclaration(decl)` in `@engine/core/animation` builds an `AnimationClip` from an `AnimationDeclaration` (frames, one duration or one per frame, loop or once). The same declaration is written into the atlas manifest by the cook ([atlas-cook.md](atlas-cook.md)). Only Farm's `FORGE_FIRE_CLIP` is built this way. Seven `loopClip` clips remain (brief 22 counted one too many): [brief 32](../briefs/todo/32-farms-other-clips-declared-with-the-recipes.md) moves the six that name whole frames, plus the smoke wisps and the bird flap hand-rolled in `ambient.ts`; the farmer walk and the action swing build their frame names from a base and a facing at run time, so they stay in code unless the owner asks otherwise. Note the unit: `loopClip` takes the period of the whole loop, a declaration takes a duration per frame (forge fire: 420 ms for three frames is 140 ms a frame).
 

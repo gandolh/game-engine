@@ -1,6 +1,6 @@
 # Task 18: worker snapshots timed, and transferred in one game
 
-**Origin:** the [worker snapshot todo](../../todos/2026-11-20-worker-snapshot-transfer.md), promoted by the
+**Origin:** the [worker snapshot todo](../../todos/closed/2026-11-20-worker-snapshot-transfer.md), promoted by the
 owner on 2026-11-23 with the rest of the measure-first todos: build light optimizations that are not too
 heavy, complex or wide ([decisions.md](../../wiki/decisions.md) → Frame budget). The plan is
 [frame-budget.md](../../wiki/frame-budget.md).

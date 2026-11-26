@@ -1,6 +1,6 @@
 # Task 15: the sprite sort under 1 ms
 
-**Origin:** the [sprite sort todo](../../todos/2026-11-20-sprite-sort-only-on-change.md), promoted by
+**Origin:** the [sprite sort todo](../../todos/closed/2026-11-20-sprite-sort-only-on-change.md), promoted by
 [brief 07](../done/07-the-real-gpu-baseline.md)'s laptop reading on 2026-11-23. The plan is
 [frame-budget.md](../../wiki/frame-budget.md).
 

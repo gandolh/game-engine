@@ -1,6 +1,6 @@
 # Animation tags in the manifest
 
-status: built as brief 22 on 2026-11-23 (forge fire moved; the other eight clips remain). Promoted ([22](../briefs/done/22-animations-declared-with-the-recipes.md)), by the owner's call to
+status: built as brief 22 on 2026-11-23 ([22](../briefs/done/22-animations-declared-with-the-recipes.md)), with the forge fire moved; the rest (seven `loopClip` clips, not eight, and two cycles in `ambient.ts`) promoted on 2026-11-26 to brief 32 ([32](../briefs/todo/32-farms-other-clips-declared-with-the-recipes.md)), whose closeout moves this todo to `todos/closed/`. Promoted by the owner's call to
 build light optimizations without waiting for a trigger. Its trigger was to promote it with the first animated MateQuest sprite, or the next new Farm animation.
 created: 2026-11-20
 context: the 60 fps plan, [frame-budget.md](../wiki/frame-budget.md).
