@@ -57,6 +57,7 @@ const DESCRIPTIONS = {
   "tsconfig.base.json": "The compiler flags every package's tsconfig extends",
   "knip.json": "The knip preset: unused files and dependencies are errors, unused exports warnings",
   ".dependency-cruiser.cjs": "The dependency-cruiser preset: cycles, unresolvable imports, feature boundaries",
+  "bin/check.mjs": "The one-pass gate runner: each repo's `check` script calls it (`node vendor/house-style/bin/check.mjs <steps>`)",
   "bin/sync.mjs": "This sync (`npm run house-style:sync`)",
   "bin/check-base-ui.mjs": "The Base UI and Tailwind checker, run by `check:conventions`",
   "bin/check-structure.mjs": "The code-structure checker, run by `check:conventions`",

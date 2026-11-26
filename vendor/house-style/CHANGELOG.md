@@ -4,6 +4,39 @@ house-style's versions, newest first. Each section is the upgrade note for a
 repo moving to that version: what changed, and what to fix before syncing it.
 Tags are `house-style-v<version>`.
 
+## 1.4.0 (2026-11-25)
+
+Ships the one-pass gate runner and the two cache flags that 24 repos already run from their own copies, so the next
+sync or adoption doesn't undo them. No pin, rule, `houseStyle()` default or `tsconfig.base.json` flag changed, so a
+sync adds no findings and `sync --check` has no base-flag change to miss.
+
+- **`bin/check.mjs`, the gate runner** (new). It runs the npm scripts it is given one after another, keeps going after
+  a failure, prints a line per step with its time, then the last 40 lines of each failure, and keeps the whole output
+  in `node_modules/.cache/check/last.log`, one block per step. Exit 0 when every step passed, 1 when one failed, 2
+  for an unknown or missing step name. Each step runs in its own process group, so a timeout or Ctrl-C stops the
+  whole step. Steps joined by `+` run side by side and the groups one after another (`typecheck+lint test`); a repo
+  that never writes `+` gets what the old per-repo copies did. It is imbatranimOS's variant, the superset of the
+  other 23 copies.
+- **Prettier's cache, in its own folder.** `format:check` is
+  `prettier --check . --cache --cache-location node_modules/.cache/prettier-check/.prettier-cache`. Prettier's
+  default cache dies on every save, because the formatter hook runs Prettier without `--cache`, which deletes it.
+- **dependency-cruiser's cache.** `depcruise <roots> --cache node_modules/.cache/dependency-cruiser` in
+  `check:conventions`. It invalidates when the files, arguments or filters change.
+- **The docs** (the skill's scripts table, `references/adoption.md` §3 and §7, this folder's README) now give
+  `check`, `format:check` and `check:conventions` as the repos run them, not as an `&&` chain and a bare
+  `prettier --check .`.
+
+To move a repo from 1.3.0:
+
+1. `npm run house-style:sync -- house-style-v1.4.0` (from the app's folder in a multi-project repo).
+2. Point `check` at the vendored runner with the repo's own step list, for example
+   `node vendor/house-style/bin/check.mjs typecheck lint format:check check:conventions test`.
+3. Delete the repo's own `scripts/check.mjs` (`tools/check.mjs` in imbatranim-apps).
+4. Add the two cache flags where they are missing, keeping the repo's own globs and roots: `--cache --cache-location
+   node_modules/.cache/prettier-check/.prettier-cache` on `prettier --check`, and
+   `--cache node_modules/.cache/dependency-cruiser` on `depcruise`.
+5. `npm run check`, and read `node_modules/.cache/check/last.log` if it fails.
+
 ## 1.3.0 (2026-11-13)
 
 The owner's `domain/` root (2026-11-13) and the findings of the server and UI
@@ -64,11 +97,12 @@ below names.
   `cache.get(key, fallback)`. A quoted string that isn't a path, and a class or
   token (NestJS's `app.get(ConfigService<Env, true>)`), are no route. The
   message names the expression: `GET routes.x.path declares no schema: …`.
-  **May fire:** wzd_auth's `api/src/oidc/interaction.ts:115, 182 and 197`,
-  three GET routes on `` `${INTERACTION_INTERNAL_PREFIX}/…` `` with no schema;
-  they hand the uid to `uidParams.safeParse` on purpose, so wzd_auth adds an
-  exception per route with the message's start as `match`, or declares
-  `params`. imbatranim-apps' WebSocket route was already excepted.
+  **May fire:** wzd_auth's `api/src/oidc/interaction.ts`, four GET routes on
+  `` `${INTERACTION_INTERNAL_PREFIX}/…` `` with no schema (`/:uid`,
+  `/:uid/continue`, `/:uid/client` and `/:uid/abort`; this note first said
+  three, and wzd_auth's sync on 2026-11-19 found the fourth); they hand the uid
+  to `uidParams.safeParse` on purpose, so wzd_auth adds an exception per route
+  with the message's start as `match`, or declares `params`. imbatranim-apps' WebSocket route was already excepted.
 - **`check-structure` rule 6, a helper given validated input** (atrium 04,
   wzd_auth 06). A `parse…` or `validate…` helper of the route's own given a
   property of the input (`parseRange(request.headers.range, size)`) is no
@@ -117,7 +151,7 @@ To move a repo from 1.2.0:
    multi-project repo), and commit the copy with steps 2 and 3, so no commit is
    red.
 2. `npm run check:conventions`, then answer each new finding the list above
-   names for the repo: wzd_auth's three interaction routes, imbatranim-apps'
+   names for the repo: wzd_auth's four interaction routes, imbatranim-apps'
    three `app.ts` imports.
 3. Delete what the list says the repo can: wzd_auth's own
    `app-through-feature-index`, atrium's `parseRange(` exception, an exception
