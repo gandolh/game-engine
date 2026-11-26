@@ -155,8 +155,8 @@ Newest first, one line each. Detail is in the [log.md](../log.md) entry for the 
 
 - **2026-11-26**: seven of the nine measure-first todos closed, their briefs built (15–18, 20, 21, 23). The two
   with a step left became briefs: [31](../briefs/todo/31-hollow-merges-its-static-geometry.md), Hollow's static
-  geometry merged, and [32](../briefs/todo/32-farms-other-clips-declared-with-the-recipes.md), Farm's other clips
-  declared with the recipes. The queue is 13, 14, 31 and 32.
+  geometry merged, and [32](../briefs/done/32-farms-other-clips-declared-with-the-recipes.md), Farm's other clips
+  declared with the recipes (built the same day). The queue is 13, 14 and 31.
 
 - **2026-11-23**: the laptop half of brief 07's real-GPU reading ([real-gpu-readings.md](real-gpu-readings.md)).
   Citadel, Hollow and MateQuest meet the 60 fps bar; Farm meets it at its edge and is CPU-bound. The sprite sort

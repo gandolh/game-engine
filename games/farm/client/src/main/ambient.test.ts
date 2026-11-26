@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { AmbientLayer } from "./ambient";
 import type { ViewRect } from "./ambient";
 import type { Sprite } from "@engine/core/render";
+import { BIRD_FLAP_CLIP, FORGE_SMOKE_CLIP, sampleCycle } from "@farm/sim-core/render-systems";
 
 function makeSprite(frame: string, x = 0, y = 0, width = 16, height = 16): Sprite {
   return { x, y, width, height, frame, atlasId: "test", rotation: 0, layer: 0, alpha: 1 };
@@ -246,5 +247,18 @@ describe("AmbientLayer anchor extraction", () => {
       }
     }
     expect(greenLeafSeen).toBe(true);
+  });
+});
+
+describe("smoke and bird frames through their clips", () => {
+  it("match the old floor-and-modulo arithmetic from 0 to two periods", () => {
+    const smoke = ["structure/forge-smoke-a", "structure/forge-smoke-b", "structure/forge-smoke-c"];
+    const bird = ["decoration/bird-a", "decoration/bird-b"];
+    for (let elapsed = 0; elapsed <= 1400; elapsed++) {
+      expect(sampleCycle(FORGE_SMOKE_CLIP, elapsed)).toBe(smoke[Math.floor(elapsed / (700 / 3)) % 3]);
+    }
+    for (let elapsed = 0; elapsed <= 800; elapsed++) {
+      expect(sampleCycle(BIRD_FLAP_CLIP, elapsed)).toBe(bird[Math.floor(elapsed / (400 / 2)) % 2]);
+    }
   });
 });

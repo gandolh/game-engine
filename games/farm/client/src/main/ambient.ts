@@ -1,7 +1,7 @@
 import { createRng } from "@engine/core/runtime";
 import type { Rng } from "@engine/core/runtime";
 import type { Sprite } from "@engine/core/render";
-import { FORGE_SMOKE_FRAMES } from "@farm/sim-core/render-systems";
+import { BIRD_FLAP_CLIP, FORGE_SMOKE_CLIP, sampleCycle } from "@farm/sim-core/render-systems";
 import type { Season } from "@farm/sim-core/protocols/weather";
 
 const CONSTANTS = {
@@ -20,8 +20,6 @@ const CONSTANTS = {
 
   BIRD_SPEED_MIN: 30,
   BIRD_SPEED_MAX: 60,
-
-  BIRD_FLAP_PERIOD_MS: 400,
 
   BIRD_ARC_AMP: 4,
 
@@ -61,12 +59,9 @@ const CONSTANTS = {
 
   SMOKE_ALPHA_MAX: 0.45,
 
-  SMOKE_FRAME_PERIOD_MS: 700,
-
   SPRITE_PX: 16,
 } as const;
 
-const BIRD_FRAMES = ["decoration/bird-a", "decoration/bird-b"] as const;
 const LEAF_FRAME_GREEN = "decoration/leaf-a";
 const LEAF_FRAME_AUTUMN = "decoration/leaf-autumn";
 
@@ -364,8 +359,7 @@ export class AmbientLayer {
       if (!bird.active) continue;
       if (birdSpriteIdx >= this.birdSprites.length) break;
       const elapsed = nowMs - bird.spawnMs;
-      const flapStep = Math.floor(elapsed / (CONSTANTS.BIRD_FLAP_PERIOD_MS / 2)) % 2;
-      const frame = BIRD_FRAMES[flapStep]!;
+      const frame = sampleCycle(BIRD_FLAP_CLIP, elapsed);
       const sprite = this.birdSprites[birdSpriteIdx++]!;
       sprite.x = bird.x;
       sprite.y = bird.y;
@@ -406,10 +400,7 @@ export class AmbientLayer {
       if (smokeSpriteIdx >= this.smokeSprites.length) break;
       const t = wisp.life / CONSTANTS.SMOKE_LIFE_S;
       const alpha = CONSTANTS.SMOKE_ALPHA_MAX * (1 - t);
-      const frameIdx =
-        Math.floor((nowMs - wisp.spawnMs) / (CONSTANTS.SMOKE_FRAME_PERIOD_MS / FORGE_SMOKE_FRAMES.length)) %
-        FORGE_SMOKE_FRAMES.length;
-      const frame = FORGE_SMOKE_FRAMES[frameIdx]!;
+      const frame = sampleCycle(FORGE_SMOKE_CLIP, nowMs - wisp.spawnMs);
       const sprite = this.smokeSprites[smokeSpriteIdx++]!;
       sprite.x = wisp.x;
       sprite.y = wisp.y;

@@ -1,6 +1,6 @@
 # Task 32: Farm's other clips declared with the recipes
 
-**Origin:** the rest of the [animation tags todo](../../todos/2026-11-20-animation-tags-in-the-manifest.md), promoted
+**Origin:** the rest of the [animation tags todo](../../todos/closed/2026-11-20-animation-tags-in-the-manifest.md), promoted
 on 2026-11-26 under the owner's rule of 2026-11-23: build light optimizations without waiting for a trigger, so long
 as each is not too heavy, complex or wide ([decisions.md](../../wiki/decisions.md) → Frame budget).
 [Brief 22](../done/22-animations-declared-with-the-recipes.md) built the declaration, the cook's check and
@@ -129,3 +129,30 @@ Open, with the default this brief builds:
   action poses, generated in `animations.ts` from a list of bases that would duplicate `templates.ts`'s; or a
   template form of `AnimationDeclaration` (frames as suffixes on a base) that the cook expands. Either is a new
   brief. **Default: both stay in code**, and the todo closes with a note saying why.
+
+## Outcome
+
+Done 2026-11-26. brief-board was not available in this session, so the board was not updated.
+
+- **Declared.** `foam`, `forge-smoke`, `waterfall-fall`, `campfire`, `weather-beacon`, `fishing-spot` and `bird-flap`
+  are in `FARM_ANIMATIONS` beside `forge-fire`. `forge-smoke` is written `700 / 3` with a comment. `clips.ts` and
+  `frames.ts` build every clip with `clipFromDeclaration`; `clips.ts` gains `BIRD_FLAP_CLIP`.
+- **Hand-rolled cycles.** The smoke wisps sample `FORGE_SMOKE_CLIP` and the birds `BIRD_FLAP_CLIP` through
+  `sampleCycle`. `SMOKE_FRAME_PERIOD_MS`, `BIRD_FLAP_PERIOD_MS` and `BIRD_FRAMES` are gone.
+- **Frame lists.** `FOAM_FRAMES`, `FISHING_SPOT_FRAMES`, `FORGE_FIRE_FRAMES`, `FORGE_SMOKE_FRAMES`,
+  `WATERFALL_FALL_FRAMES`, `CAMPFIRE_FRAMES` and `WEATHER_BEACON_FRAMES` were read only by the clips and the old
+  tests, so they are deleted; the tests hold the old frames as literals. `WATERFALL_FRAMES` is not a clip's and stays.
+- **Open question, default taken.** The walk cycle and the action swing stay in code, as the brief proposed. They
+  build frame names from a farmer's base, facing and pose at run time, and a declaration names whole frames; moving
+  them is a new brief if the owner wants it. The todo closes with that note.
+- **Tests.** One table-driven test in `clips.test.ts` compares each of the eight clips with its old `loopClip` every
+  10 ms over two loops, at the phases the code passes (waterfall and fishing spot 0 to 2), with equal
+  `totalDurationMs`. A test in `ambient.test.ts` checks the smoke and bird frames against the old arithmetic from 0
+  to two periods. The walk and `walkStepsBetween` tests pass untouched.
+- **Checked.** Every cooked PNG has the same sha256 as before (9 files). `terrain.json`, `buildings.json` and
+  `props.json` changed only by the `animations` field. `MAX_DAYS=3 TICKS_PER_DAY=20 npm run sim` prints the same
+  output. `npm run atlas` also rewrote MateQuest's `combat.json` and `index.json` hashes with identical PNGs, as in
+  brief 22; those two are left out of the commit.
+- **Not done.** The Farm bench was not run: `npm run bench` needs `agent-browser` on the PATH and it is not in this
+  container. The bench counters (draw groups, texture bytes, UI quads) are untouched by the change, which only picks
+  the same frame names a different way; the owner can run `npm run bench -- <folder> farm` to confirm.

@@ -4478,10 +4478,23 @@ Links into the moved files (done briefs, this log, two wiki pages) were re-point
 The two with a step left became briefs, To Do under the owner's rule of 2026-11-23:
 [31](briefs/todo/31-hollow-merges-its-static-geometry.md), Hollow merges its static geometry (Opus: the first
 `releaseMesh` in `SceneRenderer3D`, territory colours as eight materials, two merged meshes, a stop rule), and
-[32](briefs/todo/32-farms-other-clips-declared-with-the-recipes.md), Farm's other clips declared with the recipes
+[32](briefs/done/32-farms-other-clips-declared-with-the-recipes.md), Farm's other clips declared with the recipes
 (Sonnet). Brief 22 counted nine clips; the code has eight `loopClip` calls, so seven remained, not eight. Brief 32
 moves the six that name whole frames and two hand-rolled cycles in `ambient.ts`; the walk and the action swing stay
 in code by default, an owner question on [open-questions.md](wiki/open-questions.md). Both todos stay in `todos/`
 with a status line naming their brief, as the promoted todos of 2026-11-23 did, and each brief's closeout moves its
 todo to `todos/closed/`. brief-board wasn't available in this session, so the board doesn't show briefs 31 and 32
 until the next `brief-board sync`.
+
+## [2026-11-26] done | Brief 32: Farm's other clips declared with the recipes
+
+Six whole-frame clips (`foam`, `forge-smoke`, `waterfall-fall`, `campfire`, `weather-beacon`, `fishing-spot`) and the
+bird flap are declared in `@farm/atlas-recipes/animations` beside the forge fire and built with
+`clipFromDeclaration`; the smoke wisps and birds in `ambient.ts` sample the clips instead of their own arithmetic.
+The seven `*_FRAMES` lists nothing read any more are deleted. The walk cycle and the action swing stay in code (the
+brief's default: their frame names are built from a farmer's base, facing and pose at run time). Every cooked PNG has
+the same sha256, `terrain.json`, `buildings.json` and `props.json` gain only `animations`, and the headless sim
+output is identical; a table test pins each clip against its old `loopClip` every 10 ms over two loops. The Farm
+bench was not run (`agent-browser` is not in this container). The animation tags todo moved to `todos/closed/`.
+[Brief](briefs/done/32-farms-other-clips-declared-with-the-recipes.md), [animation.md](wiki/animation.md). brief-board
+was not updated because brief-board was not available in this session.

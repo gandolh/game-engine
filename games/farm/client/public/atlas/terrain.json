@@ -299,5 +299,27 @@
       "h": 16
     }
   },
+  "animations": [
+    {
+      "name": "foam",
+      "frames": [
+        "tile/foam-a",
+        "tile/foam-b",
+        "tile/foam-c"
+      ],
+      "frameDurationMs": 600,
+      "mode": "loop"
+    },
+    {
+      "name": "waterfall-fall",
+      "frames": [
+        "tile/waterfall-fall-a",
+        "tile/waterfall-fall-b",
+        "tile/waterfall-fall-c"
+      ],
+      "frameDurationMs": 180,
+      "mode": "loop"
+    }
+  ],
   "inputsHash": "d4308c9b4f40df423e6bd630c89fdd1fe60840904b0363d1adeea36e88df5d40"
 }

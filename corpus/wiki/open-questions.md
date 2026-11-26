@@ -11,7 +11,7 @@ Live list of what's **genuinely unresolved**. Shipped/resolved items are deleted
 
 - **Do Farm's walk cycle and action swing move into the atlas manifest?** (2026-11-26) Their frame names are built
   from a farmer's base and facing at run time, which a declaration naming whole frames can't hold. Default: they stay
-  in code. [Brief 32](../briefs/todo/32-farms-other-clips-declared-with-the-recipes.md) → Owner decisions has the two
+  in code. [Brief 32](../briefs/done/32-farms-other-clips-declared-with-the-recipes.md) → Owner decisions has the two
   ways to move them.
 
 The sprite-gen question of 2026-11-20 became brief 13, a blind trial

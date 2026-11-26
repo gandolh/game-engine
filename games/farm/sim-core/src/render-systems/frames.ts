@@ -1,18 +1,11 @@
 import type { GameEntity } from "../components";
 import type { Season } from "../protocols/weather";
-import { easeOutQuad } from "@engine/core";
+import { clipFromDeclaration, easeOutQuad } from "@engine/core";
+import { FISHING_SPOT_ANIMATION } from "@farm/atlas-recipes/animations";
 import { loopClip, sampleCycle } from "./cycle";
 import { TILE } from "@engine/core/render";
 
-export const FOAM_FRAMES = ["tile/foam-a", "tile/foam-b", "tile/foam-c"] as const;
-
-export const FISHING_SPOT_FRAMES = [
-  "structure/fishing-spot",
-  "structure/fishing-spot-b",
-  "structure/fishing-spot-c",
-] as const;
-
-const FISHING_SPOT_CLIP = loopClip("fishing-spot", FISHING_SPOT_FRAMES, 1200);
+const FISHING_SPOT_CLIP = clipFromDeclaration(FISHING_SPOT_ANIMATION);
 
 const ACTION_SWING_HALF_MS = 220;
 
@@ -22,36 +15,14 @@ const IDLE_BOB_MS = 1700;
 const IDLE_BOB_AMP = 1.3;
 const IDLE_BOB_RISE = 0.35;
 
-export const FORGE_FIRE_FRAMES = [
-  "structure/forge-fire-a",
-  "structure/forge-fire-b",
-  "structure/forge-fire-c",
-] as const;
-
 export const FORGE_OVEN_TILE = { x: 97, y: 79 } as const;
-
-export const FORGE_SMOKE_FRAMES = [
-  "structure/forge-smoke-a",
-  "structure/forge-smoke-b",
-  "structure/forge-smoke-c",
-] as const;
 
 export const FORGE_CHIMNEY_PX = {
   x: 99 * TILE + 11,
   y: 78 * TILE + TILE - 48 + 2,
 } as const;
 
-export const WATERFALL_FALL_FRAMES = [
-  "tile/waterfall-fall-a",
-  "tile/waterfall-fall-b",
-  "tile/waterfall-fall-c",
-] as const;
-
 export const WATERFALL_FRAMES = ["structure/waterfall-a", "structure/waterfall-b", "structure/waterfall-c"] as const;
-
-export const CAMPFIRE_FRAMES = ["structure/campfire-a", "structure/campfire-b", "structure/campfire-c"] as const;
-
-export const WEATHER_BEACON_FRAMES = ["structure/weather-beacon-a", "structure/weather-beacon-b"] as const;
 
 export const WEATHER_BEACON_PX = {
   x: 114 * TILE + TILE / 2,
