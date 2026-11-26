@@ -38,14 +38,14 @@ describe("buildGroundMesh", () => {
 
 describe("buildTerritoryTileMesh", () => {
   it("is a unit 1x1 quad at the local origin", () => {
-    const mesh = buildTerritoryTileMesh();
+    const mesh = buildTerritoryTileMesh("territory.blue");
     const b = boundsOf(mesh);
     expect(b.min).toEqual([0, 0, 0]);
     expect(b.max).toEqual([1, 1, 0]);
   });
 
   it("uses the given material key", () => {
-    const mesh = buildTerritoryTileMesh("territoryTile");
-    expect(mesh.tris.every((t) => t.material === "territoryTile")).toBe(true);
+    const mesh = buildTerritoryTileMesh("territory.gold");
+    expect(mesh.tris.every((t) => t.material === "territory.gold")).toBe(true);
   });
 });

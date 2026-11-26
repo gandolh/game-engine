@@ -4371,7 +4371,7 @@ briefed (camera world-edge clamp, explicit spawn ids and an id lookup) are on th
 
 ## [2026-11-23] done | Brief 19: Hollow culls what the camera cannot see
 
-[Brief](briefs/done/19-hollow-culls-what-the-camera-cannot-see.md). `SceneRenderer3D.render` extracts six frustum planes per frame and uploads and draws only the instances whose transformed bounding sphere (one per mesh, computed at `uploadMesh`; radius times the instance's largest axis scale) is inside or crossing them. Bench `drawInstances` mean 98.46 to 95.63, GL calls 35.40 to 35.57: the default camera frames almost the whole town. Screenshots in `verify/2026-11-23-hollow-culling/`. Updated [frame-budget.md](wiki/frame-budget.md) and the [todo](todos/2026-11-20-hollow-3d-culling.md).
+[Brief](briefs/done/19-hollow-culls-what-the-camera-cannot-see.md). `SceneRenderer3D.render` extracts six frustum planes per frame and uploads and draws only the instances whose transformed bounding sphere (one per mesh, computed at `uploadMesh`; radius times the instance's largest axis scale) is inside or crossing them. Bench `drawInstances` mean 98.46 to 95.63, GL calls 35.40 to 35.57: the default camera frames almost the whole town. Screenshots in `verify/2026-11-23-hollow-culling/`. Updated [frame-budget.md](wiki/frame-budget.md) and the [todo](todos/closed/2026-11-20-hollow-3d-culling.md).
 
 ## [2026-11-23] done | Brief 22: animations declared with the recipes
 
@@ -4476,7 +4476,7 @@ would pay, which is not light. The tile-chunk todo closed on its spike; adoption
 Links into the moved files (done briefs, this log, two wiki pages) were re-pointed.
 
 The two with a step left became briefs, To Do under the owner's rule of 2026-11-23:
-[31](briefs/todo/31-hollow-merges-its-static-geometry.md), Hollow merges its static geometry (Opus: the first
+[31](briefs/done/31-hollow-merges-its-static-geometry.md), Hollow merges its static geometry (Opus: the first
 `releaseMesh` in `SceneRenderer3D`, territory colours as eight materials, two merged meshes, a stop rule), and
 [32](briefs/done/32-farms-other-clips-declared-with-the-recipes.md), Farm's other clips declared with the recipes
 (Sonnet). Brief 22 counted nine clips; the code has eight `loopClip` calls, so seven remained, not eight. Brief 32
@@ -4498,3 +4498,19 @@ output is identical; a table test pins each clip against its old `loopClip` ever
 bench was not run (`agent-browser` is not in this container). The animation tags todo moved to `todos/closed/`.
 [Brief](briefs/done/32-farms-other-clips-declared-with-the-recipes.md), [animation.md](wiki/animation.md). brief-board
 was not updated because brief-board was not available in this session.
+
+## [2026-11-26] done | Brief 31: Hollow merges its static geometry
+
+Hollow's ground, hearth and graveyard are one merged mesh, built from the first snapshot; its territory tiles and
+homes are a second, rebuilt when the territory or the homes change (`StaticMeshes` in `static-draws.ts`). A rebuild
+uploads the new mesh and frees the old one with `SceneRenderer3D.releaseMesh`, the renderer's first free; drawing a
+released handle throws. The territory colour moved from an instance tint into eight `territory.<role>` materials.
+`draw.static` read 5 before (not under the stop rule's 5), 2 after. Bench GL calls 35.70 and 35.87 to 32.82 and
+32.79 (p95 41 to 38), `drawInstances` 96 to 63: the mean fell 2.98, and a per-kind count shows the static draws fell
+by exactly 3 a frame while the agents' draws moved by 0.1 between runs. Rebuilds cost 0.003 ms a frame. At a fixed
+tick the territory tiles render pixel for pixel the same; 5 house-edge pixels moved. The culling todo moved to
+[todos/closed/](todos/closed/2026-11-20-hollow-3d-culling.md). The Farm bench that brief 32 could not run ran in this
+session, at `ec8f341` and `6096ffc`: draw groups, texture bytes and UI quads did not move.
+[Brief](briefs/done/31-hollow-merges-its-static-geometry.md), [evidence](verify/2026-11-26-hollow-static-merge/README.md),
+[frame-budget.md](wiki/frame-budget.md). brief-board was not updated because brief-board was not available in this
+session.

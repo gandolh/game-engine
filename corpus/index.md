@@ -80,10 +80,10 @@ which is how a "WebGPU-only render path" line outlived the page that already sai
 
 **Open in the queue** (list [briefs/todo/](briefs/todo/) for the current set), as of 2026-11-26:
 [13](briefs/todo/13-the-sprite-gen-pixel-draw-trial.md), the sprite-gen blind trial, waiting on the owner;
-[14](briefs/todo/14-mathquest-combat-sprites-as-pixel-art.md), MateQuest's combat sprites, after 13;
-and [31](briefs/todo/31-hollow-merges-its-static-geometry.md), Hollow merges its static geometry.
-Briefs 15-30 and [32](briefs/done/32-farms-other-clips-declared-with-the-recipes.md) (Farm's other clips declared
-with the recipes, done 2026-11-26) are done; the 60 fps program is on [frame-budget.md](wiki/frame-budget.md). Done 2026-11-07: brief 01,
+and [14](briefs/todo/14-mathquest-combat-sprites-as-pixel-art.md), MateQuest's combat sprites, after 13.
+Briefs 15-32 are done, the last two on 2026-11-26: [31](briefs/done/31-hollow-merges-its-static-geometry.md)
+(Hollow merges its static geometry) and [32](briefs/done/32-farms-other-clips-declared-with-the-recipes.md) (Farm's
+other clips declared with the recipes); the 60 fps program is on [frame-budget.md](wiki/frame-budget.md). Done 2026-11-07: brief 01,
 [the README's Farm and Citadel images retaken](briefs/done/01-retake-readme-images-after-the-flip-fix.md)
 after the upside-down static-layer fix. Done 2026-11-04: brief 02,
 [the Farm Valley server runs built JavaScript](briefs/done/02-the-farm-server-runs-built-javascript.md)

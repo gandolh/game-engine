@@ -17,23 +17,22 @@
  * pair. Do NOT reuse `worldMaterialIndexOf` for a key it doesn't know about
  * (it throws by design — see `materialIndexMap`'s doc).
  *
- * Community territory tint strategy: rather than pre-baking one material per
- * community-color slot, there is a SINGLE neutral-white `"territoryTile"`
- * material; the actual per-community color is applied as a per-INSTANCE
- * tint multiplier (`packInstance`'s `tint` argument — see `renderer3d.ts`),
- * the same mechanism the render3d-demo uses for its picked-instance
- * highlight. This means every community's territory reuses the SAME
- * uploaded tile mesh + material (one `uploadMesh` call, ever), so a
- * community's territory changing shape (COMMUNITY system's periodic
- * split/merge/grow pass) only repacks the INSTANCE buffer next frame — it
- * never re-uploads GPU mesh geometry (which `SceneRenderer3D` has no
- * "free"/replace API for; re-uploading per territory-change would leak
- * buffers over a long play session).
+ * Community territory colours (corpus brief 31): one material per community
+ * colour slot, `TERRITORY_MATERIAL_KEYS`, appended after the other world keys.
+ * Each one's colour is the soft blend of grass toward that slot's
+ * `COMMUNITY_COLOR_ROLES` role (`territoryTintColor`). Until brief 31 the
+ * colour was a per-instance tint over one neutral white tile material; the
+ * territory tiles are now merged into one mesh drawn as a single white
+ * instance (`static-draws.ts`), so the colour has to come from the material.
+ * The fragment shader multiplies the lit material colour by the tint, so a
+ * white material under a coloured tint and a coloured material under a white
+ * tint give the same pixels. A territory change rebuilds that merged mesh and
+ * frees the old one with `SceneRenderer3D.releaseMesh`.
  */
 import { rgbOf } from "@engine/core/render";
 import { materialIndexMap, type Material, type Vec3 } from "@engine/core/render3d";
 import { HOLLOW_PAL } from "../render/hollow-palette";
-import { communityColorRole } from "./community-color";
+import { COMMUNITY_COLOR_ROLES, communityColorRole } from "./community-color";
 
 /** Convert a HOLLOW_PAL hex role value to the 0..1 float RGB the engine's
  *  generic `Material.color` expects. Exported for `app.ts`'s own
@@ -54,9 +53,9 @@ const GRASS_RGB = toFloatRgb(HOLLOW_PAL.green);
 const TERRITORY_TINT_MIX = 0.4;
 
 /** Ground/building/prop material keys used by this brief's world geometry
- *  (ground, houses, windows, resource nodes, the territory-tint tile).
- *  Agent-only keys (skin/hair) are chunk hollow-09b's addition — see this
- *  module's header seam note.
+ *  (ground, houses, windows, resource nodes). The territory keys follow them
+ *  in {@link WORLD_MATERIAL_KEYS}. Agent-only keys (skin/hair) are chunk
+ *  hollow-09b's addition — see this module's header seam note.
  *
  *  `"hearthFire"` (chunk hollow-14d) is the hearth's glowing flame material —
  *  EMISSIVE, same mechanism as `"window"` — see `hearth-mesh.ts`'s header;
@@ -67,7 +66,7 @@ const TERRITORY_TINT_MIX = 0.4;
  *  new non-emissive keys — see `graveyard-mesh.ts`/`corpse-mesh.ts`'s
  *  headers. The graveyard's perimeter fence reuses the existing `"woodDark"`
  *  key rather than adding a third. */
-export const WORLD_MATERIAL_KEYS = [
+const BASE_WORLD_MATERIAL_KEYS = [
   "grass",
   "wood",
   "woodDark",
@@ -76,15 +75,20 @@ export const WORLD_MATERIAL_KEYS = [
   "cropLeaf",
   "cropFruit",
   "rock",
-  "territoryTile",
   "hearthFire",
   "headstone",
   "corpseShroud",
 ] as const;
 
-export type WorldMaterialKey = (typeof WORLD_MATERIAL_KEYS)[number];
+type BaseWorldMaterialKey = (typeof BASE_WORLD_MATERIAL_KEYS)[number];
 
-const WORLD_MATERIALS: Readonly<Record<WorldMaterialKey, Material>> = {
+/** One territory material per community colour slot, in `COMMUNITY_COLOR_ROLES` order (corpus brief 31). */
+export const TERRITORY_MATERIAL_KEYS: readonly string[] = COMMUNITY_COLOR_ROLES.map((role) => `territory.${role}`);
+
+/** Every world material key, in upload order: the base keys, then the territory keys. */
+export const WORLD_MATERIAL_KEYS: readonly string[] = [...BASE_WORLD_MATERIAL_KEYS, ...TERRITORY_MATERIAL_KEYS];
+
+const WORLD_MATERIALS: Readonly<Record<BaseWorldMaterialKey, Material>> = {
   grass: { color: GRASS_RGB },
   wood: { color: toFloatRgb(HOLLOW_PAL.wood) },
   woodDark: { color: toFloatRgb(HOLLOW_PAL.woodDark) },
@@ -93,8 +97,6 @@ const WORLD_MATERIALS: Readonly<Record<WorldMaterialKey, Material>> = {
   cropLeaf: { color: toFloatRgb(HOLLOW_PAL.greenMid) },
   cropFruit: { color: toFloatRgb(HOLLOW_PAL.salmon) },
   rock: { color: toFloatRgb(HOLLOW_PAL.slate) },
-  // Neutral white — recolored per-instance by `territoryTintColor` below.
-  territoryTile: { color: [1, 1, 1] },
   // The hearth's flame cluster (hearth-mesh.ts) — warm + emissive so it
   // glows on its own, distinct from `window`'s gold glow (a communal fire
   // reads differently from a lit window).
@@ -106,15 +108,21 @@ const WORLD_MATERIALS: Readonly<Record<WorldMaterialKey, Material>> = {
   // A corpse's shroud (corpse-mesh.ts) — a pale cloth role. Reads as a
   // normal shrouded body under the default `WHITE_TINT`; a rotting corpse
   // recolors this SAME material per-instance via `corpseTint`/`disease-tint.
-  // ts`'s `sicklyTint`, same "neutral material + per-instance tint" idiom
-  // `"territoryTile"` above already establishes.
+  // ts`'s `sicklyTint`, a "neutral material + per-instance tint" idiom.
   corpseShroud: { color: toFloatRgb(HOLLOW_PAL.cream) },
 };
 
 /** The `Material[]` to pass to `SceneRenderer3D.setMaterials`, in the SAME
- *  order as `WORLD_MATERIAL_KEYS`. */
+ *  order as `WORLD_MATERIAL_KEYS`: the base materials, then one territory
+ *  material per colour slot, coloured as {@link territoryTintColor} colours
+ *  that slot. */
 export function buildWorldMaterialList(): Material[] {
-  return WORLD_MATERIAL_KEYS.map((k) => WORLD_MATERIALS[k]);
+  const base = BASE_WORLD_MATERIAL_KEYS.map((k) => WORLD_MATERIALS[k]);
+  const territory = COMMUNITY_COLOR_ROLES.map((_, slot): Material => {
+    const [r, g, b] = territoryTintColor(slot);
+    return { color: [r, g, b] };
+  });
+  return [...base, ...territory];
 }
 
 /** `(materialKey) => index` resolver for `uploadMesh`, built from
@@ -126,12 +134,17 @@ export const worldMaterialIndexOf: (key: string) => number = materialIndexMap(WO
  *  should render its material's own color unmodified (houses, nodes). */
 export const WHITE_TINT: readonly [number, number, number, number] = [1, 1, 1, 1];
 
-/** The per-instance tint color for a community's territory-tile instances —
- *  a soft blend of grass toward that community's `communityColorRole`.
- *  Since the `"territoryTile"` material itself is neutral white, this tint
- *  IS the tile's final color (see this module's header). */
+/** A community's territory colour — a soft blend of grass toward that
+ *  community's `communityColorRole` — as opaque rgba. The territory materials
+ *  take their rgb from it (see this module's header). */
 export function territoryTintColor(communityId: number): readonly [number, number, number, number] {
   const role = communityColorRole(communityId);
   const [r, g, b] = mix(GRASS_RGB, toFloatRgb(HOLLOW_PAL[role]), TERRITORY_TINT_MIX);
   return [r, g, b, 1];
+}
+
+/** The material key a community's territory tiles are built with: its colour slot's entry in
+ *  {@link TERRITORY_MATERIAL_KEYS}. */
+export function territoryMaterialKey(communityId: number): string {
+  return `territory.${communityColorRole(communityId)}`;
 }

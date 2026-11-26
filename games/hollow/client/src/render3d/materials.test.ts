@@ -1,11 +1,14 @@
 import { describe, it, expect } from "vitest";
 import {
   WORLD_MATERIAL_KEYS,
+  TERRITORY_MATERIAL_KEYS,
   buildWorldMaterialList,
   worldMaterialIndexOf,
+  territoryMaterialKey,
   territoryTintColor,
   WHITE_TINT,
 } from "./materials";
+import { COMMUNITY_COLOR_ROLES } from "./community-color";
 
 describe("world material table", () => {
   it("has no duplicate keys", () => {
@@ -62,5 +65,22 @@ describe("territoryTintColor", () => {
   it("gives distinct communities visibly distinct tints, within one color-role cycle", () => {
     const colors = new Set([0, 1, 2, 3].map((id) => territoryTintColor(id).join(",")));
     expect(colors.size).toBe(4);
+  });
+});
+
+describe("territory materials", () => {
+  it("are one per community colour slot, after the other world keys", () => {
+    expect(TERRITORY_MATERIAL_KEYS).toHaveLength(COMMUNITY_COLOR_ROLES.length);
+    expect(WORLD_MATERIAL_KEYS.slice(-TERRITORY_MATERIAL_KEYS.length)).toEqual(TERRITORY_MATERIAL_KEYS);
+  });
+
+  it("give community ids 0 to 16 the rgb of territoryTintColor", () => {
+    const materials = buildWorldMaterialList();
+    for (let id = 0; id <= 16; id++) {
+      const material = materials[worldMaterialIndexOf(territoryMaterialKey(id))];
+      const [r, g, b] = territoryTintColor(id);
+      expect(material?.color).toEqual([r, g, b]);
+      expect(material?.emissive).toBeFalsy();
+    }
   });
 });

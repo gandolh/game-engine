@@ -56,7 +56,7 @@ light overlay uploaded 4.10 MB a frame there and 7.26 MB at 1920×945 until brie
 |---|---:|---:|---:|---|
 | Farm | 1 | 2,200 | 4.9 | 1 group, 1,819 quads, 4.10 MB (0 MB since brief 16; the ceiling keeps its slack) |
 | Citadel | 1 | 910 | 0 | 1 group, 760 quads, 0 MB |
-| Hollow | n/a (3D) | n/a | 0 | 0 MB; its 35.6 GL draw calls get a ceiling of 43 instead |
+| Hollow | n/a (3D) | n/a | 0 | 0 MB; its 35.6 GL draw calls get a ceiling of 43 instead (32.8 since brief 31) |
 | MateQuest | 0 | 5,900 (soft) | 0 | 0 groups, 4,890 quads, 0 MB |
 
 MateQuest's UI quad ceiling is soft. Its scene moves to the next screen every 30 display ticks, and the
@@ -127,7 +127,7 @@ sitting comes right after 06.
 | [22](../briefs/done/22-animations-declared-with-the-recipes.md) | Animations declared with the recipes and cooked into the manifest; one Farm clip moved | none |
 | [23](../briefs/done/23-recipes-to-png-and-back.md) | Recipe export to an indexed PNG and import back, for pixel editors | none |
 | [24](../briefs/done/24-hollow-builds-its-static-draws-once.md) | Hollow builds its territory and ground instances once per territory change, and its frame allocates less. Done 2026-11-23: bytes a frame 451 K to 269 K (-40%), the top site being `instanceAABB` walking each agent mesh every frame; bench counters unchanged within noise | none |
-| [31](../briefs/todo/31-hollow-merges-its-static-geometry.md) | Hollow's ground, hearth and graveyard merged into one mesh, its territory tiles and homes into a second rebuilt on change, and a `releaseMesh` in `SceneRenderer3D`; step 2 of the culling todo. Expected: about 5-8 of 35.7 GL calls a frame saved, GPU time unchanged | none |
+| [31](../briefs/done/31-hollow-merges-its-static-geometry.md) | Hollow's ground, hearth and graveyard merged into one mesh, its territory tiles and homes into a second rebuilt on change, and a `releaseMesh` in `SceneRenderer3D`; step 2 of the culling todo. Done 2026-11-26: static draws 5 to 2 a frame, bench GL calls 35.8 to 32.8 (the agents move the total about 0.1 between runs), `drawInstances` 96 to 63, rebuilds 0.003 ms a frame; the views match | none |
 | [32](../briefs/done/32-farms-other-clips-declared-with-the-recipes.md) | Farm's other six whole-frame clips and its two hand-rolled cycles (smoke wisps, bird flap) declared with the recipes. Done 2026-11-26: every cooked PNG and the headless sim output identical, a table test pins all eight clips against their old `loopClip`; the walk and the action swing stay in code | none |
 
 ## The measure-first todos (all promoted 2026-11-23)
@@ -136,8 +136,8 @@ Each todo named the number that would promote it to a brief, and brief 07 checke
 real-GPU readings: the laptop's of 2026-11-23 is the third column
 ([real-gpu-readings.md](real-gpu-readings.md)); the phone is not measured. Only the sprite sort fired. On
 2026-11-23 the owner promoted the other eight anyway, as light optimizations
-([decisions.md](decisions.md) → Frame budget). The last column names each brief. Seven are closed; the two with a step
-left (Hollow's merge and Farm's other clips) became briefs 31 and 32 on 2026-11-26 and close with them.
+([decisions.md](decisions.md) → Frame budget). The last column names each brief. All nine are closed: the two with a step
+left (Hollow's merge and Farm's other clips) became briefs 31 and 32 on 2026-11-26 and closed with them.
 
 | Todo | Promote when | Laptop, 2026-11-23 | Brief |
 |---|---|---|---|
@@ -145,7 +145,7 @@ left (Hollow's merge and Farm's other clips) became briefs 31 and 32 on 2026-11-
 | [Sprite sort only on change](../todos/closed/2026-11-20-sprite-sort-only-on-change.md) | The per-frame sort takes more than 1 ms at p95 in a bench scene | **Fired: [brief 15](../briefs/done/15-the-sprite-sort-under-1-ms.md).** `compareSprite` alone 1.07 ms a frame on average in Farm (CPU profile) | [15](../briefs/done/15-the-sprite-sort-under-1-ms.md) |
 | [Ghost pass scan](../todos/closed/2026-11-20-ghost-pass-scan.md) | The occluder ghost check takes more than 1 ms at p95 | Not fired. `_ghostCovered` about 0 ms in Farm's profile; Citadel's whole `render.endFrame` is 0.6–0.8 ms at p95. Built anyway on the owner's call: **[brief 17](../briefs/done/17-the-ghost-check-on-a-grid.md)**, the grid | [17](../briefs/done/17-the-ghost-check-on-a-grid.md) |
 | [Worker snapshot transfer](../todos/closed/2026-11-20-worker-snapshot-transfer.md) | Receiving and applying a snapshot takes more than 2 ms at p95 on the main thread | Not fired on what a CPU profile can see. Receiving and storing a snapshot costs about 0 ms in all three worker games (Citadel 0.005 ms a frame); Hollow's message handler costs 0.60 ms a frame on average, nearly all of it the chronicle's DOM append. The structured-clone copy runs in native code the profile can't separate (at most 0.7–1.0 ms a frame of unattributed native time). Brief 18 added the sub-timers on 2026-11-23: the copy costs Hollow about 0.3 ms to post and 0.3 ms to read at 20 Hz, Citadel 0.1 and 0.1, MateQuest about 0.1 (a handful of snapshots). Under the 2 ms trigger, so the trigger still has not fired | [18](../briefs/done/18-worker-snapshots-timed-and-transferred.md) |
-| [Hollow 3D culling](../todos/2026-11-20-hollow-3d-culling.md) | Hollow breaks the bar on the iGPU, or runs slower framed in the portal than direct | Not fired. p95 8.5 ms, GPU 2.6–2.8 ms, framed and direct the same. Brief 19 built the frustum-culling step anyway (3% fewer instances at the bench camera); merging static geometry is brief 31 | [19](../briefs/done/19-hollow-culls-what-the-camera-cannot-see.md), [31](../briefs/todo/31-hollow-merges-its-static-geometry.md) |
+| [Hollow 3D culling](../todos/closed/2026-11-20-hollow-3d-culling.md) | Hollow breaks the bar on the iGPU, or runs slower framed in the portal than direct | Not fired. p95 8.5 ms, GPU 2.6–2.8 ms, framed and direct the same. Built anyway: brief 19's frustum culling (3% fewer instances at the bench camera) and brief 31's merge of the static geometry (3 GL calls a frame fewer) | [19](../briefs/done/19-hollow-culls-what-the-camera-cannot-see.md), [31](../briefs/done/31-hollow-merges-its-static-geometry.md) |
 | [Allocation-free frames](../todos/closed/2026-11-20-allocation-free-frames.md) | Long frames line up with garbage-collection drops in the heap reading | Not fired. At most 2 frames a run over 33.3 ms in any game; collection costs Farm 0.10 ms a frame. Phone not measured. Built anyway on the owner's call: **[brief 20](../briefs/done/20-fewer-allocations-per-frame.md)**. Farm 2.75 to 1.54 MB a frame, heap drops 15 to 8; MateQuest's map screen -80% per map frame | [20](../briefs/done/20-fewer-allocations-per-frame.md) |
 | [Animation tags in the manifest](../todos/closed/2026-11-20-animation-tags-in-the-manifest.md) | The first animated MateQuest sprite, or the next new Farm animation | Not a measurement | [22](../briefs/done/22-animations-declared-with-the-recipes.md), [32](../briefs/done/32-farms-other-clips-declared-with-the-recipes.md) |
 | [Recipe and PNG round trip](../todos/closed/2026-11-20-recipe-and-png-round-trip.md) | Someone wants to edit art in a pixel editor such as Aseprite | Not a measurement | [23](../briefs/done/23-recipes-to-png-and-back.md) |

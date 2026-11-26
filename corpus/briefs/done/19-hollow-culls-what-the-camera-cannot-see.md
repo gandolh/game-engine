@@ -1,6 +1,6 @@
 # Task 19: Hollow culls what the camera cannot see
 
-**Origin:** the [Hollow 3D culling todo](../../todos/2026-11-20-hollow-3d-culling.md), promoted by the owner
+**Origin:** the [Hollow 3D culling todo](../../todos/closed/2026-11-20-hollow-3d-culling.md), promoted by the owner
 on 2026-11-23 with the rest of the measure-first todos: build light optimizations that are not too heavy,
 complex or wide ([decisions.md](../../wiki/decisions.md) → Frame budget). The plan is
 [frame-budget.md](../../wiki/frame-budget.md).

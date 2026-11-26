@@ -1,6 +1,6 @@
 # Task 31: Hollow merges its static geometry
 
-**Origin:** step 2 of the [Hollow 3D culling todo](../../todos/2026-11-20-hollow-3d-culling.md), promoted on
+**Origin:** step 2 of the [Hollow 3D culling todo](../../todos/closed/2026-11-20-hollow-3d-culling.md), promoted on
 2026-11-26 under the owner's rule of 2026-11-23: build light optimizations without waiting for a trigger, so long as
 each is not too heavy, complex or wide ([decisions.md](../../wiki/decisions.md) → Frame budget). Step 1 was
 [brief 19](../done/19-hollow-culls-what-the-camera-cannot-see.md) (frustum culling); step 3 was answered (framed in
@@ -161,3 +161,43 @@ than switching to another.
 ## Owner decisions
 
 - None open. This is a render-only optimization, and it ships if the counters hold and the views match.
+
+## Outcome (2026-11-26)
+
+Built as specified, homes included. Evidence: [2026-11-26-hollow-static-merge](../../verify/2026-11-26-hollow-static-merge/README.md).
+brief-board was not available in this session, so the board was not updated.
+
+- **Stop rule.** `draw.static` read 5.00 in every frame of both before runs (ground, territory, hearth, graveyard
+  and one home draw: every household had the same member count), not under 5, so the brief went ahead.
+- **`releaseMesh`** in `renderer3d.ts` deletes the VAO, the vertex and index buffers and the instance buffer, and
+  marks the handle released; `render` throws on a released handle, a second release does nothing, and with the
+  device lost it only forgets the handle. While there, `_instanceBufferFor` now deletes the smaller instance buffer
+  it replaces when a draw outgrows it (it was dropped without a delete). Tests on the fake GL: ten upload, draw and
+  release rounds delete every buffer and VAO they created, the instance buffer goes with the mesh, a released
+  handle throws, a double release deletes nothing more, a lost device deletes nothing, a grown buffer is deleted.
+- **Eight territory materials**, `territory.<role>` in `COMMUNITY_COLOR_ROLES` order, appended to
+  `WORLD_MATERIAL_KEYS`; each colour is `territoryTintColor` for its slot. `territoryTile` (the white material) is
+  gone and `buildTerritoryTileMesh` takes its material key. A test checks community ids 0 to 16.
+- **Two merged meshes** in `static-draws.ts` (`StaticMeshes`, which takes the upload and release functions):
+  fixed (ground, hearth, graveyard) and changing (territory tiles, homes), keyed as the brief says, with no
+  allocation to compare. `app.ts` updates them only when a new snapshot arrives, so `householdLayout` and
+  `HomeRegistry` now run per snapshot, not per frame; `TerritoryInstanceCache`, `packGroundInstance` and the
+  separate hearth, graveyard and home draws are gone.
+- **Bench** (two runs each, load 0.05 to 1.6): `glDrawCalls` mean 35.70 and 35.87 before, 32.82 and 32.79 after
+  (p95 41 to 38, under the 43 ceiling); `drawInstances` 96.3 and 96.1 to 63.2 and 63.2 (p95 107 to 66);
+  `draw.static` 5 to 2; `frame` 0.59 and 0.57 ms to 0.58 and 0.58 ms. **The mean of the GL means fell by 2.98, not
+  the 3.00 the acceptance asks for.** A per-kind count (one temporary run each) shows why: the static draws went
+  from 5.00 to 2.00 GL calls in every frame (none was culled before), and the agents' draws, which this brief does
+  not touch, read 28.77 in the before run and 28.88 in the after run. The saving is exactly 3 a frame; the agents
+  move the total by about 0.1 from run to run.
+- **`static.merge`**: 14 builds a run after the warm-up (the old territory cache built 11 times; household changes
+  add the rest), mean 0.29 to 0.32 ms, p95 0.6 to 0.7 ms, so 0.0024 to 0.0027 ms per frame drawn, well under
+  0.05 ms. The homes stay in the changing mesh.
+- **Views.** The four poses match before and after. At a fixed tick (300, paused and stepped), 15 pixels of the 3D
+  view differ by more than one level outside the agents' run-to-run noise: 10 HUD digits and 5 single pixels on
+  house edges (the vertices are now translated on the CPU in double precision). A territory-edge crop differs in 1
+  of 1,440 pixels, on an agent's outline at its corner; the tiles themselves do not differ.
+- Nothing under `games/hollow/sim-core` or the worker changed, and no shader changed. `palette.test.ts` passes.
+
+Owner steps: deploy with `node cli.ts hollow deploy`, and take the `?bench&profile` laptop reading before and after
+it. The GPU time should not move (same triangles).
